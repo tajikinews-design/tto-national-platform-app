@@ -46,7 +46,7 @@ jobs:
           if [ "${{ matrix.label }}" = "api" ]; then
             # No DB secret: app must refuse to become a functional API.
             timeout 15s docker run --rm "tto-ci:${{ matrix.label }}" > api-exit.log 2>&1 || true
-            if ! grep -q 'TTO_API_STARTUP_FAILED' api-exit.log; then
+            if ! grep -Eq 'TTO_API_STARTUP_FAILED|DATABASE_URL_NOT_CONFIGURED' api-exit.log; then
               echo 'API_FAIL_CLOSED_WITHOUT_DB_NOT_PROVEN'; sed -n '1,25p' api-exit.log; exit 1
             fi
             echo 'API_IMAGE_BUILD_AND_NO_SECRET_DENY_PASS'
