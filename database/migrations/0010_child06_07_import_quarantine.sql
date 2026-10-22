@@ -77,8 +77,10 @@ BEGIN
  THEN RETURN 'SOURCE_CONTRACT_NOT_APPROVED'; END IF;
  IF b.attested_by IS NULL THEN RETURN 'QUARANTINED_NO_INDEPENDENT_ATTESTATION'; END IF;
  IF b.attested_by=b.submitted_by THEN RETURN 'QUARANTINED_SOD_VIOLATION'; END IF;
- IF b.attested_at>b.received_at+interval '5 minutes'
-   OR b.attested_at<b.received_at-interval '24 hours' THEN
+ -- Independent review may legitimately occur days after intake.
+ -- Deny only impossible early/future attestations (bounded clock skew).
+ IF b.attested_at<b.received_at-interval '5 minutes'
+   OR b.attested_at>now()+interval '5 minutes' THEN
   RETURN 'QUARANTINED_ATTESTATION_CLOCK_MISMATCH'; END IF;
  IF NOT tto.valid_identity_evidence(b.tenant_id,b.attestation_evidence_id)
  THEN RETURN 'QUARANTINED_ATTESTATION_EVIDENCE_INVALID'; END IF;

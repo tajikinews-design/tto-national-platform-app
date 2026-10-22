@@ -245,6 +245,10 @@ async function main(){
  assert.equal(await assess(await claimInsert(unattestedBatch,"CHILD07_HOLDINGS")),"QUARANTINED_NO_INDEPENDENT_ATTESTATION");checks++;
  const selfAttested=await batchInsert("CHILD07_HOLDINGS",holdingRef,A,REVIEWER,DEC,REVIEWER);
  assert.equal(await assess(await claimInsert(selfAttested,"CHILD07_HOLDINGS")),"QUARANTINED_SOD_VIOLATION");checks++;
+ const delayedBatch=randomUUID();
+ await db.query("INSERT INTO tto.source_import_batches(batch_id,tenant_id,domain,source_ref,external_batch_ref,submitted_by,artifact_sha256,received_at,attested_by,attested_at,attestation_evidence_id) VALUES($1,$2,'CHILD07_HOLDINGS',$3,$4,$5,$6,now()-interval '2 days',$7,now(),$8)",
+ [delayedBatch,A,holdingRef,"CI-delayed-"+randomUUID(),REVIEWER,sha(),APPROVER,DEC]);
+ assert.equal(await assess(await claimInsert(delayedBatch,"CHILD07_HOLDINGS")),"READY_FOR_INDEPENDENT_REVIEW");checks++;
  const invalidEvidence=await batchInsert("CHILD07_HOLDINGS",holdingRef,A,APPROVER,REQ);
  // Both REQ/DEC are published same-tenant evidence in synthetic test, so this is a valid independent record.
  assert.equal(await assess(await claimInsert(invalidEvidence,"CHILD07_HOLDINGS")),"READY_FOR_INDEPENDENT_REVIEW");checks++;
