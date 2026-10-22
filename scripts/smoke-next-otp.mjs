@@ -46,7 +46,7 @@ for(let idx=0;idx<slugs.length;idx++){
      const r=await fetch("http://127.0.0.1:"+port+"/");
      if(r.ok){
        const html=await r.text();
-       if(!html.includes('id="tto-mobile"'))throw Error(slug+" runtime-enabled OTP form missing");
+       if(!html.includes("در حال بررسی نشست ورود"))throw Error(slug+" runtime-enabled session restoration shell missing");
        checks++;ready=true;break;
      }
    }catch {}
