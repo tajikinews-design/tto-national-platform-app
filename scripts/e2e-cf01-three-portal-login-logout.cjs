@@ -104,8 +104,9 @@ async function checkPortal(slug,index) {
  assert.ok(token);checks++;
  const browserSession=await fetch(url+"/api/auth/session",{headers:{Cookie:"tto_session="+token},cache:"no-store"});
  assertStatus(browserSession,200,slug+" post-verify session restore");
- assert.deepEqual(await browserSession.json(),{authenticated:true});checks++;
- assert.ok(!(JSON.stringify(await browserSession.clone().json())).includes(token),slug+" must not leak bearer");checks++;
+ const sessionPayload=await browserSession.json();
+ assert.deepEqual(sessionPayload,{authenticated:true});checks++;
+ assert.ok(!(JSON.stringify(sessionPayload)).includes(token),slug+" must not leak bearer");checks++;
  assert.match(browserSession.headers.get("cache-control")??"",/no-store/);checks++;
 
  const backendSession=await fetch(API+"/v1/auth/session",{headers:{Authorization:"Bearer "+token}});
