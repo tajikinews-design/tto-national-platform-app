@@ -43,6 +43,18 @@ class FoundationTests(unittest.TestCase):
     self.assertNotEqual(d["phases"]["PHASE-10"]["status"],"GREEN")
     self.assertNotEqual(d["phases"]["PHASE-11"]["status"],"GREEN")
 
+  def test_acceptance_identifiers_are_index_only(self):
+    ids=json.loads((ROOT/"docs/analysis/ACCEPTANCE_IDS.json").read_text())
+    self.assertEqual(len(ids),155)
+    self.assertEqual(len({x["id"] for x in ids}),155)
+    self.assertTrue(all(x["status"]=="NOT_RUN" for x in ids))
+
+  def test_phase00_evidence_is_recorded(self):
+    d=json.loads((ROOT/"status/PHASE_GATES.json").read_text())
+    self.assertEqual(d["phases"]["PHASE-00"]["status"],"GREEN")
+    self.assertGreaterEqual(len(d["phases"]["PHASE-00"]["evidence"]),3)
+    self.assertEqual(d["phases"]["PHASE-01"]["status"],"IN_PROGRESS")
+
   def test_preview_build(self):
     r=subprocess.run([sys.executable,str(ROOT/"scripts/build_preview.py")],capture_output=True,text=True)
     self.assertEqual(r.returncode,0,r.stdout+r.stderr)
