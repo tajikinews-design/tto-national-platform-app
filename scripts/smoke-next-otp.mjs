@@ -48,6 +48,10 @@ for (let idx=0;idx<slugs.length;idx++){
   const localCookie=await fetch(contextUrl,{headers:{Cookie:"tto_session="+"b".repeat(48)}});
   if(localCookie.status!==503)throw Error(slug+" tenant gate did not fail closed on missing backend");
   checks++;
+  const unauth=await fetch("http://127.0.0.1:"+port+"/api/me/tenant-options");
+  if(unauth.status!==401||(await unauth.json()).items.length!==0)
+    throw Error(slug+" exposed tenant options to anonymous user");
+  checks++;
   const invalid=await fetch("http://127.0.0.1:"+port+"/modules/nav-12");
   if(invalid.status!==404)throw Error(slug+" invalid NAV route did not reject");
   checks++;

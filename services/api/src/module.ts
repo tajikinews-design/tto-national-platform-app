@@ -236,6 +236,18 @@ export class FoundationCommandsController {
     if(!approved)throw new ForbiddenException("Hold release denied");
     return {released:true};
   }
+  @Get("me/tenant-options")
+  async listActorTenantOptions(@Headers("authorization") auth?:string){
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const result=await client.query<{
+        tenantId:string;displayName:string;memberRole:boolean;managerRole:boolean;
+        verifiedPartyLink:boolean;activeMembershipProjection:boolean;
+        roleManagementAuthority:boolean;approvedDocumentJit:boolean;platformOperator:boolean
+      }>("SELECT * FROM tto.list_actor_tenant_options()");
+      return {items:result.rows};
+    });
+  }
   @Post("auth/challenges/request")
   @HttpCode(202)
   async requestSmsLogin(@Body() payload:Record<string,unknown>,@Req() req:{ip?:string}){

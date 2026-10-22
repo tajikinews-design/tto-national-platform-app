@@ -55,6 +55,12 @@ async function setup(){
   [ALLOWED_TENANT,"ci-allowed","CI Allowed",OTHER_TENANT,"ci-other","CI Other"]);
  await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'MEMBER')",
   [randomUUID(),userId,ALLOWED_TENANT]);
+ const party=randomUUID(),unrelated=randomUUID();
+ await db.query("INSERT INTO tto.parties(party_id,party_kind,display_label) VALUES($1,'PERSON','Synthetic Person'),($2,'ORGANIZATION','Unlinked Person')",[party,unrelated]);
+ await db.query("INSERT INTO tto.user_party_links(user_id,party_id,verified_at) VALUES($1,$2,now())",[userId,party]);
+ await db.query("INSERT INTO tto.relationship_projections(tenant_id,party_id,membership_status,source_event_id) VALUES($1,$2,'ACTIVE',$3)",[ALLOWED_TENANT,party,randomUUID()]);
+ await db.query("INSERT INTO tto.relationship_projections(tenant_id,party_id,membership_status,source_event_id) VALUES($1,$2,'ACTIVE',$3)",[OTHER_TENANT,unrelated,randomUUID()]);
+
  const nest=startNode(["dist/main.js"],resolve(ROOT,"services/api"),{
   DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto", PORT:String(BACKEND_PORT),
   NODE_ENV:"test", TTO_MOCK_SMSOTP_PROVIDER:"true", APIIR_TOKEN:"",
@@ -118,6 +124,20 @@ async function checkPortal(slug,index) {
 
 
  // Browser Authorization and forged role headers cannot substitute the HttpOnly session.
+ const discovery=url+"/api/me/tenant-options";
+ const anonymousScope=await fetch(discovery,{headers:{Authorization:"Bearer "+token,"X-Role":"COOPERATIVE_MANAGER"}});
+ assertStatus(anonymousScope,401,slug+" cookie required for scope discovery");
+ const scopeResponse=await fetch(discovery,{headers:{Cookie:"tto_session="+token},cache:"no-store"});
+ assertStatus(scopeResponse,200,slug+" verified scopes");
+ assert.match(scopeResponse.headers.get("cache-control")??"",/no-store/);checks++;
+ const scopes=await scopeResponse.json();
+ if(slug==="shareholder"){
+  assert.deepEqual(scopes.items,[{tenantId:ALLOWED_TENANT,displayName:"CI Allowed",evidenceStatus:"MEMBERSHIP_EVIDENCE"}]);checks++;
+ }else{
+  assert.deepEqual(scopes,{items:[]},"MEMBER is not a manager nor national operator");checks++;
+ }
+ assert.ok(!JSON.stringify(scopes).includes(token),"session token must not leak");checks++;
+ assert.ok(!JSON.stringify(scopes).includes(OTHER_TENANT),"unlinked tenant must not leak");checks++;
  const allowedUrl=url+"/api/tenants/"+ALLOWED_TENANT+"/context";
  const anonymousContext=await fetch(allowedUrl,{headers:{Authorization:"Bearer "+token,"X-Role":"COOPERATIVE_MANAGER"}});
  assertStatus(anonymousContext,401,slug+" tenant gate forged bearer blocked");
@@ -156,6 +176,8 @@ async function checkPortal(slug,index) {
  assert.deepEqual(await stale.json(),{authenticated:false});checks++;
  assert.match(stale.headers.get("set-cookie")??"",/max-age=0/i);checks++;
 
+ const expiredScope=await fetch(discovery,{headers:{Cookie:"tto_session="+token}});
+ assertStatus(expiredScope,401,slug+" revoked discovery denied");
  const revokedContext=await fetch(allowedUrl,{headers:{Cookie:"tto_session="+token}});
  assertStatus(revokedContext,401,slug+" revoked session denied for tenant context");
  const revoked=await post(API+"/v1/auth/logout",null,{headers:{Authorization:"Bearer "+token}});
