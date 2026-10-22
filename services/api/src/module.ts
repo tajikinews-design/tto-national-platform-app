@@ -248,6 +248,40 @@ export class FoundationCommandsController {
       return {items:result.rows};
     });
   }
+  // CF02 staged legal-identity case: no document bytes or Party data returned.
+  // Request always applies to the verified session actor, never a target user from JSON.
+  @Post("tenants/:tenantId/identity-links")
+  async requestIdentityLink(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    const party=requireId(input?.partyId),evidence=requireId(input?.evidenceId);
+    const result=await this.run<string|null>(tenant,auth,
+      "SELECT tto.request_identity_link($1,$2,$3) AS out",[tenant,party,evidence]);
+    if(!result)throw new ForbiddenException("Identity link request denied");
+    return {caseId:result,status:"PENDING"};
+  }
+  @Get("tenants/:tenantId/identity-links/:caseId")
+  async ownIdentityLinkCase(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Param("caseId",new ParseUUIDPipe()) caseId:string,
+    @Headers("authorization") auth?:string){
+    const status=await this.run<string|null>(tenant,auth,
+      "SELECT tto.my_identity_link_case_status($1,$2) AS out",[tenant,caseId]);
+    if(!status)throw new ForbiddenException("Identity case access denied");
+    return {status};
+  }
+  @Post("tenants/:tenantId/identity-links/:caseId/decision")
+  async decideIdentityLink(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Param("caseId",new ParseUUIDPipe()) caseId:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    if(typeof input?.approve!=="boolean")throw new BadRequestException("Decision required");
+    const evidence=requireId(input?.decisionEvidenceId);
+    const version=input?.expectedVersion;
+    if(!Number.isSafeInteger(version)||Number(version)<1)throw new BadRequestException("Invalid expected version");
+    const accepted=await this.run<boolean>(tenant,auth,
+      "SELECT tto.decide_identity_link($1,$2,$3,$4,$5) AS out",
+      [tenant,caseId,evidence,input.approve,version]);
+    if(!accepted)throw new ForbiddenException("Identity decision denied");
+    return {recorded:true};
+  }
   @Post("auth/challenges/request")
   @HttpCode(202)
   async requestSmsLogin(@Body() payload:Record<string,unknown>,@Req() req:{ip?:string}){
