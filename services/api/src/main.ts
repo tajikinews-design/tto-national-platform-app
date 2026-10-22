@@ -16,3 +16,5 @@ main().catch((error: unknown) => {
   console.error("TTO_API_STARTUP_FAILED_CODE_" + safeCode);
   process.exitCode = 1;
 });
+
+// TTO_GIT_PREVIEW_AUTODEPLOY_SMOKE_20261022: harmless TS comment to verify Git-linked Preview deployment.

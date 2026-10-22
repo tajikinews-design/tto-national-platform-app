@@ -9,3 +9,5 @@ button,input,textarea,select{font-family:var(--tto-font),Vazirmatn,Tahoma,Arial,
 .otp-forms button{background:#1869bd;color:#fff;border:0;border-radius:8px;padding:10px;cursor:pointer}
 .otp-forms button:disabled{opacity:.5;cursor:not-allowed}
 .otp-unavailable{padding:12px;border-radius:9px;background:#fff4da;color:#684b11}
+
+/* TTO_GIT_PREVIEW_AUTODEPLOY_SMOKE_20261022: harmless CSS comment to verify Git-linked Preview deployment. */
