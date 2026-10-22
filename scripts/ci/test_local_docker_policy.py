@@ -8,6 +8,8 @@ class TestLocalDockerRunnerPolicy(unittest.TestCase):
         data=RUNNER.read_text(encoding="utf-8")
         self.assertIn("git -C $Repository archive",data)
         self.assertIn("ExpectedCommit",data)
+        self.assertIn("POTENTIAL_TRACKED_SECRET_FILES_REFUSE_LOCAL_CI_ARCHIVE",data)
+        self.assertIn("TTO_LOCAL_SOURCE_ARCHIVE_SHA256",data)
         self.assertIn("scripts/e2e-cf02-identity-authority.cjs",data)
         self.assertIn("pnpm --frozen-lockfile",data.replace("pnpm install --frozen-lockfile","pnpm --frozen-lockfile"))
     def test_no_host_port_no_global_docker_cleanup(self):
