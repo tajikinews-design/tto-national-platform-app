@@ -66,8 +66,18 @@ async function checkPortal(slug,index) {
  await untilReady(url+"/",next,"Next "+slug);
  const homepage=await fetch(url+"/");
  const html=await homepage.text();
- assert.ok(html.includes('id="tto-mobile"'),slug+" form should be enabled at runtime");checks++;
+ assert.ok(html.includes('در حال بررسی نشست ورود'),slug+" session restoration SSR shell must be visible");checks++;
  assert.ok(!html.includes("در این نسخه پیش‌نمایش، پایگاه داده"),slug+" still claims backend unavailable");checks++;
+
+ const initial=await fetch(url+"/api/auth/session",{cache:"no-store"});
+ assertStatus(initial,200,slug+" anonymous session status");
+ assert.deepEqual(await initial.json(),{authenticated:false});checks++;
+ assert.match(initial.headers.get("cache-control")??"",/no-store/);checks++;
+
+ const malformed=await fetch(url+"/api/auth/session",{headers:{Cookie:"tto_session=invalid"},cache:"no-store"});
+ assertStatus(malformed,200,slug+" malformed-cookie session denial");
+ assert.deepEqual(await malformed.json(),{authenticated:false});checks++;
+ assert.match(malformed.headers.get("set-cookie")??"",/max-age=0/i);checks++;
 
  const noSession=await post(url+"/api/auth/logout");
  assertStatus(noSession,204,slug+" anonymous logout");
@@ -92,6 +102,16 @@ async function checkPortal(slug,index) {
  assert.match(cookie,/samesite=lax/i);checks++;
  const token=/^tto_session=([A-Za-z0-9_-]+)/.exec(cookie)?.[1];
  assert.ok(token);checks++;
+ const browserSession=await fetch(url+"/api/auth/session",{headers:{Cookie:"tto_session="+token},cache:"no-store"});
+ assertStatus(browserSession,200,slug+" post-verify session restore");
+ assert.deepEqual(await browserSession.json(),{authenticated:true});checks++;
+ assert.ok(!(JSON.stringify(await browserSession.clone().json())).includes(token),slug+" must not leak bearer");checks++;
+ assert.match(browserSession.headers.get("cache-control")??"",/no-store/);checks++;
+
+ const backendSession=await fetch(API+"/v1/auth/session",{headers:{Authorization:"Bearer "+token}});
+ assertStatus(backendSession,200,slug+" direct Nest PG17 validation");
+ assert.deepEqual(await backendSession.json(),{authenticated:true});checks++;
+
  const replay=await post(url+"/api/auth/otp/verify",{challengeId:requestId,otp:OTP});
  assertStatus(replay,401,slug+" replay rejection");
 
@@ -105,6 +125,11 @@ async function checkPortal(slug,index) {
  assert.match(expiry,/max-age=0/i);checks++;
  assert.match(expiry,/httponly/i);checks++;
  assert.match(expiry,/secure/i);checks++;
+
+ const stale=await fetch(url+"/api/auth/session",{headers:{Cookie:"tto_session="+token},cache:"no-store"});
+ assertStatus(stale,200,slug+" revoked-cookie session denial");
+ assert.deepEqual(await stale.json(),{authenticated:false});checks++;
+ assert.match(stale.headers.get("set-cookie")??"",/max-age=0/i);checks++;
 
  const revoked=await post(API+"/v1/auth/logout",null,{headers:{Authorization:"Bearer "+token}});
  assertStatus(revoked,401,slug+" revoked bearer replay rejected by Nest/PG17");
