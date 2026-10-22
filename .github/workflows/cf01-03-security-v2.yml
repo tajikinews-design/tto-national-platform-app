@@ -1,0 +1,33 @@
+name: TTO CF01-03 security and lifecycle v2 (NO DEPLOY)
+on:
+  push:
+    branches: [feat/cf01-03-security-lifecycle-v2]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  pg17-security:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: tto
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tto"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Migration 0001 CF01-03
+        run: docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0001_cf01_cf03_foundation.sql
+      - name: Initial Tenant RLS tests
+        run: docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/tenant-isolation.sql
+      - name: Migration 0002 auth, JIT, audit and hold
+        run: docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0002_cf01_03_secure_flows.sql
+      - name: Real security and lifecycle test
+        run: docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/cf01-cf03-v2.sql
