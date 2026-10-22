@@ -38,7 +38,10 @@ jobs:
             docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$s"
           done
       - name: Generate ephemeral CI-only challenge HMAC secret (never committed/logged)
-        run: echo "AUTH_CHALLENGE_HMAC_SECRET=$(openssl rand -hex 48)" >> "$GITHUB_ENV"
+        run: |
+          secret="$(openssl rand -hex 48)"
+          echo "::add-mask::$secret"
+          echo "AUTH_CHALLENGE_HMAC_SECRET=$secret" >> "$GITHUB_ENV"
       - name: Call actual Nest controllers and assert authorization outcomes
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
