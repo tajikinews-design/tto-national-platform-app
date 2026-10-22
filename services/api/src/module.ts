@@ -31,6 +31,8 @@ export class Database {
       connectionString,
       ...(tls ? {ssl:tls} : {}),
       max: process.env.VERCEL ? 1 : 8,
+      connectionTimeoutMillis: process.env.VERCEL ? 3800 : 10000,
+      idleTimeoutMillis: 10000,
       application_name: "tto_api"
     });
   }
