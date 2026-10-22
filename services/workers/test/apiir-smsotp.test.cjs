@@ -18,7 +18,7 @@ test("mock provider contract and secret confined to authorization header",async(
  const result=await sendSmsOtp({code:"123456",mobile:"09123456789"},{token:"test-token-not-real",fetchImpl:async (url,options)=>{
   calls++;assert.equal(url,ENDPOINT);assert.equal(options.headers.Authorization,"Bearer test-token-not-real");
   assert.deepEqual(JSON.parse(options.body),{code:"123456",mobile:"09123456789",template:1});
-  return {ok:true,json:async()=>({success:true,code:200,message:"accepted",data:null})};
+  return {ok:true,json:async()=>({success:true,code:200,message:"accepted",data:true})};
  }});
  assert.equal(calls,1);assert.equal(result.status,"PROVIDER_ACCEPTED");assert.equal(result.delivered,false);
 });
