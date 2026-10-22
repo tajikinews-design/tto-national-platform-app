@@ -1,0 +1,87 @@
+{
+  "project": "TTO",
+  "source_repo": "tajikinews-design/tto-national-platform",
+  "app_repo": "tajikinews-design/tto-national-platform-app",
+  "source_pin": "5eb6be8edfbb61f2eca740a42c30f572b493f023",
+  "production_host": "ArvanCloud",
+  "production_authorized": false,
+  "preview_host": "Vercel (protected only)",
+  "updated_at": "2026-10-22",
+  "all_children_implemented": false,
+  "phases": {
+    "PHASE-00": {
+      "status": "IN_PROGRESS",
+      "evidence": [],
+      "blockers": []
+    },
+    "PHASE-01": {
+      "status": "IN_PROGRESS",
+      "evidence": [],
+      "blockers": []
+    },
+    "PHASE-02": {
+      "status": "AWAITING_APPROVAL",
+      "evidence": [],
+      "blockers": [
+        "Technology and tenancy ADR must be reviewed"
+      ]
+    },
+    "PHASE-03": {
+      "status": "IN_PROGRESS",
+      "evidence": [],
+      "blockers": []
+    },
+    "PHASE-04": {
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "blockers": []
+    },
+    "PHASE-05": {
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "blockers": []
+    },
+    "PHASE-06": {
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "blockers": []
+    },
+    "PHASE-07": {
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "blockers": []
+    },
+    "PHASE-08": {
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "blockers": []
+    },
+    "PHASE-09": {
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "blockers": []
+    },
+    "PHASE-10": {
+      "status": "BLOCKED",
+      "evidence": [],
+      "blockers": [
+        "Vercel connected Hobby account, 0 projects/linked Git; commercial preview and access gate not ready"
+      ]
+    },
+    "PHASE-11": {
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "blockers": []
+    },
+    "PHASE-12": {
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "blockers": []
+    },
+    "PHASE-13": {
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "blockers": []
+    }
+  }
+}

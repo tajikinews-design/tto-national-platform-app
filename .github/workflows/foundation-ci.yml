@@ -1,0 +1,24 @@
+name: TTO foundation verification (NO DEPLOY)
+on:
+  push:
+    branches: ["feat/bootstrap-three-portals"]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout reviewed code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Python runtime
+        run: python3 --version
+      - name: Confirm source manifest schema only (no cross-repo token needed)
+        run: python3 scripts/check_source_baseline.py
+      - name: Run unit and structure tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Build offline three-surface static review bundle
+        run: python3 scripts/build_preview.py
