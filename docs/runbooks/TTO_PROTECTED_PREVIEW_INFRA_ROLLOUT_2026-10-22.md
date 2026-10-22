@@ -1,6 +1,6 @@
 # TTO isolated Preview rollout — controlled handoff
 
-**Status (2026-10-22): ISOLATED DATABASE DISCOVERED / FRONTEND OIDC IMPLEMENTED / NOT DEPLOYED.** This is a pre-production runbook, not proof of a connected database or live backend.
+**Status (2026-10-22): ISOLATED PG17 + PROTECTED PREVIEW RUNTIME GREEN / FULL PRODUCT GATES STILL OPEN.** This is a pre-production runbook, not proof of a connected database or live backend.
 
 ## Immutable boundaries
 
@@ -112,3 +112,36 @@ A read-only SQL check confirms `tto_app`: `rolcanlogin=false, rolsuper=false, ro
 - Provider documentation says an omitted deployment `target` means Preview, but Vercel staff publicly acknowledged first deployments can be Production (https://community.vercel.com/t/vercel-cli-ignores-target-preview-and-creates-production-deployment/46384/7). GitHub issue https://github.com/vercel/vercel/issues/17069 documents reproducibility with explicit Preview target even with REST API. Hence do not treat a nominal target argument as sufficient protection.
 - NEXT GATE: explicit authorized exception for a temporary protected initial production bootstrap, or a Vercel-supported first-preview-only path. Neither has been authorized. The standing **No Production** rule remains binding. Never add actual shareholder data or Production DB credentials.
 - The BourseAI projects, TTO application `main`, reference repository, existing 3 Preview URLs, and ArvanCloud production were never changed.
+
+## Completed Vercel protected four-project Preview deployment — 2026-10-22 (supersedes earlier pending checkpoints)
+
+**This section supersedes earlier "not deployed" or first-deploy-blocker notes. All real application deployments are Preview, and no app code is deployed to Production.**
+
+### Root-cause and security resolution
+- Vercel's first deployment of backend was classified Production despite preview intent, so an approved **neutral HTML-only, no DB, no API, no user data** bootstrap was created as `dpl_Bt8qGgvfyNMCB3HqTSW8Qt3M1bb9`, `READY`, while the project stayed protected with Vercel Authentication for **all** deployments. This technical Production bootstrap is **not** a business/backend deployment.
+- Full backend Preview `/ready` initially failed because PostgreSQL Supavisor transaction pooler presented a certificate chain with `SELF_SIGNED_CERT_IN_CHAIN` when the Node PG driver used strict TLS without the Supabase root CA. **Do not disable TLS verification.**
+- Retrieved verified public `prod-ca-2021.crt` / Supabase Root 2021 CA (HTTP 200) from Supabase's public certificate distribution URL `https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt`. Set `TTO_DB_CA_PEM` in backend **Preview-only**, used `ssl: { ca: rootCA, rejectUnauthorized:true }` with the exact Supabase transaction pooler endpoint.
+- A temporary independent **read-only DB connection probe**, protected by the same project access controls, returned **HTTP 200** with `{"ready":true,"restrictedRole":true,"noTenantRecords":true}` (without exposing tokens/passwords/person records). This establishes credential equality, verified TLS handshake, `current_user=tto_app`, and no authorized tenant visibility on the fresh DB. Separate probe deployment: `dpl_526UNfVNXK2nnYTS2R23VxoGHHhf`, not the application Backend.
+- Backend actual NestJS Preview `dpl_7ubTFVhygepQo2ZxEjvhwHRn4vbX` **READY**, `https://tto-api-preview-6ok591xqv-tajikinews-6739.vercel.app`. `GET /health` returns HTTP 200; `GET /ready` returns HTTP 200 `{"status":"ready","database":"reachable"}`. Runtime uses strict CA validation, `tto_app` least-privileged credentials, Preview-only env vars. Backend source commit `dba0d2deab3138dc2a7995263304126ad8d8fc4d`, packaged from reviewed Draft PR #13.
+- Real Backend deployment `target=null` means Preview (the deployment API's explicit `target:"preview"` is INVALID; omit the target). No app deployment has Production target.
+
+### Protected three-portal Next 16 rollouts
+
+Each portal: NextJS Node 22; Vercel Authentication on all deployment URLs; OIDC federation enabled; `TTO_API_BASE_URL` references the exact protected Backend Preview URL in `Preview` env only. Backend Trusted Sources limits accepted workload OIDC to exactly three source Vercel projects in Preview→Preview. Built from Draft PR #13 `df8255e2670702518a0b2b40d2926cfb350828aa` source snapshot, via API inline files because Vercel Git integration currently cannot resolve the private repository; these are **manual, immutable** Preview deployments (not auto synced on Git pushes).
+
+| Role | Vercel deployment | Verified protected Preview URL | Runtime checks |
+| --- | --- | --- | --- |
+| Shareholder | `dpl_7w7ja977V17UdqoRzBB2Q6Z19XyD` | `https://tto-shareholder-preview-4chlyjht7-tajikinews-6739.vercel.app` | page=200, anon session=200 unauthenticated, `/api/internal/backend-ready`=200 `{"ready":true,"oidcTrusted":true,"restrictedDatabase":true}` |
+| Cooperative | `dpl_BYEYhz34Pv6sX3FHVnF4CZEZB44W` | `https://tto-cooperative-preview-jj5sxvkwo-tajikinews-6739.vercel.app` | same 3 checks passed |
+| National admin | `dpl_7BKnd8rUP7xjfx7LWehocoMu2RAr` | `https://tto-national-preview-9gyj9q9qx-tajikinews-6739.vercel.app` | same 3 checks passed |
+
+All 4 provider projects' last deployments were checked `READY`, `ssoProtection.enabled=true, deploymentType=all`; each new deployment had Preview target (`null` from API) and NO production alias. Earlier 3 preview URLs remain independently available. The new `/api/internal/backend-ready` endpoints refuse to operate outside `VERCEL_ENV=preview`, return only Boolean readiness/OIDC trust/DB reachable and no tokens or personally identifying records. This endpoint is internal-diagnostic and should be removed/disabled before real-user launch.
+
+### Remaining gates, not part of this phase's success
+- Real SMS OTP is **NOT** live: `APIIR_TOKEN` deliberately absent, mock provider disabled, no actual SMS recipient. Do not report completed CF01 user login until explicit approved test recipient and provider/delivery validation.
+- Empty test database; no authentic shareholder/coop/operator records; authorization and tenancy must undergo separate live negative tests using anonymous/synthetic actors before real use.
+- `tto` schema RLS default deny, migration 0001..0006, 25 tables/17 FORCE RLS. Security/performance advisors informational findings require issue-by-issue review; don't silence no-policy warnings by adding broad access.
+- Tokyo (`ap-northeast-1`) data residency decision pending before real personal data.
+- GitHub→Vercel private repo integration currently absent; current Preview builds were passed as inline snapshots from the Draft PR. Do not claim automatic deployment on PR updates.
+- No changes to TTO canonical reference repository, app `main`, BourseAI databases, public/Production Backend code, or ArvanCloud.
+- Phase CF01/03 overall still **IN_PROGRESS**.
