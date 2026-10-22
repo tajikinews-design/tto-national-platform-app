@@ -1,3 +1,9 @@
-# Placeholder boundary, not a implemented service
+# CF-01 to CF-03 PostgreSQL 17 foundation slice
 
-This directory documents the intended architectural boundary. No runtime, API endpoints, persistence model, deployment or authorization is implemented yet. Build it only after ADR and relevant Child Specification traceability. Do not mark any domain GREEN because this README exists.
+**Migration:** `0001_cf01_cf03_foundation.sql`. Run as a privileged migration owner in an **isolated** database, once; do NOT run on Production. The migration creates the test-only NOLOGIN `tto_app` role; an actual non-superuser runtime credential must be provisioned separately by a security-approved operator. No password is stored in GitHub.
+
+**Proof:** `tests/sql/tenant-isolation.sql` runs against a real PostgreSQL 17 service through GitHub Actions, switching to the unprivileged `tto_app` role (not a mock). It verifies no-context deny, own-tenant read, cross-tenant read deny, restricted document denial, cross-tenant insert denial with `WITH CHECK`, approved same-tenant insert, transaction-local rollback isolation, tenant-selector escalation denial, revoked-role immediate denial, missing/invalid session denial, non-bypass role and FORCE RLS on all 7 tenant-owned tables, plus blocked direct reads of sessions/roles/file storage/audit.
+
+**Scope limitation:** initial schemas represent only a safe subset of the 148 approved logical entity contracts, not complete CF-01..03. UI login issuance, challenge consumption, JIT authority, legal-hold, file upload/scan, evidence versioning and audit ingestion remain NOT IMPLEMENTED. No self-service registration or real user data.
+
+**Threat model:** transaction-scoped custom GUC actor/tenant context is *not* an independent cryptographic authentication guarantee. Only the Nest server may assign it after verifying a DB-backed opaque session; direct application DB access, SQL injection and elevated DB roles would violate that assumption. An API + DB integration test and explicit SQL-injection negative tests must be added before security gate GREEN. High-restriction data is denied by RLS even to ordinary managers.
