@@ -29,10 +29,22 @@ export function OtpLogin({enabled}:{enabled:boolean}){
   }catch{setMessage("کد معتبر نیست یا مهلت آن پایان یافته است.");}
   finally{setBusy(false);}
  }
+ async function logout(){
+  if(busy)return;
+  setBusy(true);setMessage("");
+  try{
+   const res=await fetch("/api/auth/logout",{method:"POST",cache:"no-store"});
+   if(res.status!==204)throw Error("LOGOUT_NOT_CONFIRMED");
+   setVerified(false);setRequestId("");setMobile("");setCode("");
+   setMessage("خروج از حساب تأیید شد.");
+  }catch{
+   setMessage("لغو نشست در سرور تأیید نشد. لطفاً مجدداً برای خروج تلاش کنید.");
+  }finally{setBusy(false);}
+ }
  return <section className="otp-panel" aria-label="ورود با پیامک">
   <h2>ورود با رمز یک‌بارمصرف</h2>
   <p>ارسال و تأیید کد از مسیر امن سمت سرور انجام می‌شود.</p>
-  {!enabled?<p className="otp-unavailable">در این نسخه پیش‌نمایش، پایگاه داده و سرویس ورود متصل نیست. ارسال پیامک واقعی غیرفعال است.</p>:verified?<p role="status">{message}</p>:
+  {!enabled?<p className="otp-unavailable">در این نسخه پیش‌نمایش، پایگاه داده و سرویس ورود متصل نیست. ارسال پیامک واقعی غیرفعال است.</p>:verified?<div><p role="status">{message}</p><button type="button" disabled={busy} onClick={logout}>خروج از حساب</button></div>:
    <div className="otp-forms">
     <form onSubmit={issue}>
      <label htmlFor="tto-mobile">شماره موبایل ثبت‌شده</label>
