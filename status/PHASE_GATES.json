@@ -36,11 +36,11 @@
       "evidence": [
         "Delegated owner authorization for Framework/Database choice 2026-10-22",
         "ADR-001 approved engineering selection: Next.js 16, NestJS 11/Fastify, PostgreSQL 17 SQL/RLS, portable OCI images",
-        "Three Next.js 16 apps, NestJS 11 API compile and typecheck passed GitHub Action 39762676001; actual PG17 RLS and Nest HTTP integration 39762676049 passed."
+        "Three Next.js 16 apps, NestJS 11 API compile and typecheck passed GitHub Action 39762676001; actual PG17 RLS and Nest HTTP integration 39762676049 passed.",
+        "Next.js 16 + NestJS 11 CI builds and PostgreSQL 17 passed; portable four OCI builds previously passed, latest source HEAD CI run 39779478202 and OCI run 39779478089 green"
       ],
       "blockers": [
-        "OCI Docker build/ArvanCloud runtime not yet proven",
-        "Pinned pnpm lockfile and deployment security controls remain to be finalized"
+        "ArvanCloud account-specific compatibility/Production deferred by owner until all 23 children and 3 systems are accepted; not a current development blocker"
       ]
     },
     "PHASE-03": {
@@ -48,10 +48,12 @@
       "evidence": [
         "Three real independently buildable Next.js 16 RTL apps in apps/shareholder, apps/cooperative-management, apps/national-admin with shared @tto/ui package",
         "NestJS 11/Fastify API build successful; GitHub Actions #39762676001",
-        "GitHub feature branch feat/cf01-03-next-nest-postgres-foundation, draft PR #3. main untouched"
+        "GitHub feature branch feat/cf01-03-next-nest-postgres-foundation, draft PR #3. main untouched",
+        "Three real Next.js 16 programs with shared Vazirmatn font and Next app runtime authenticated-page SSO preview built READY in Vercel (3 deployment IDs in docs/deployment/VERCEL_NEXT_VAZIRMATN_OTP_2026-10-22.md).",
+        "CI three Next runtimes started and fail-closed OTP routes verified 9/9 (run 39779478142)."
       ],
       "blockers": [
-        "Docker OCI builds not yet run; app login workflow and final UI acceptance pending; lockfile must be generated and reviewed"
+        "Live backend/API and preview relational datastore not provisioned; business domain pages beyond dashboard shells incomplete"
       ]
     },
     "PHASE-04": {
@@ -59,13 +61,15 @@
       "evidence": [
         "PostgreSQL 17 SQL-first migration 0001 creates CF01 user/session/challenge/roles, CF02 tenant/party/projection, CF03 file/doc/version/evidence/audit schema subset",
         "Forced RLS, tenant/role/classification policies, transaction-local session context, revoked-role deny validated on real PostgreSQL 17 Actions #39762676049",
-        "10 real Nest HTTP authenticated/negative cases PASS on ephemeral PG17; synthetically seeded session, cross-tenant denial and security-epoch invalidation; Actions #39762676049"
+        "10 real Nest HTTP authenticated/negative cases PASS on ephemeral PG17; synthetically seeded session, cross-tenant denial and security-epoch invalidation; Actions #39762676049",
+        "CF01 migration 0005 verified-mobile SMSOTP challenge issuance, delivery gating and per-mobile limit + Nest request/verify HTTP against ephemeral PostgreSQL17: PASS, GitHub Actions 39779478115.",
+        "API.ir real transport adapter and server endpoint wired; tests use explicit test-only fake provider and no real SMS; sensitive APIIR_TOKEN only in Vercel Preview project environment, never in GitHub."
       ],
       "blockers": [
-        "CF01 OTP/session issuance, authority references/JIT, SoD, role management and complete acceptance tests not implemented",
-        "CF02 lifecycle/party merge/projection event consumer incomplete",
-        "CF03 scan/upload/version publication/seal/legal hold/audit durable ingestion not implemented",
-        "No production or real-data readiness claim; API non-public in current draft"
+        "Live SMS delivery to consented test number and provider receipts NOT TESTED",
+        "Preview has no connected Next server API destination or persistent synthetic PostgreSQL; login remains fail-closed/disabled",
+        "Independent mobile enrollment, IP/device throttling, reliable outbox and complete 155 source acceptance scenarios not complete",
+        "Full CF02/03 domain coverage still incomplete"
       ]
     },
     "PHASE-05": {
@@ -84,9 +88,14 @@
       "blockers": []
     },
     "PHASE-08": {
-      "status": "NOT_STARTED",
-      "evidence": [],
-      "blockers": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "Vazirmatn chosen owner-mandated standard and applied globally to all 3 Next layouts plus shared form/button styles; Next/font automatically self-hosts at build time",
+        "All 3 Next protected UI preview deployments READY and font renders from build assets; manual visual approval pending"
+      ],
+      "blockers": [
+        "User needs to visually approve Next previews, UI is still dashboard review shell not 23-child completed screens"
+      ]
     },
     "PHASE-09": {
       "status": "NOT_STARTED",
@@ -94,18 +103,26 @@
       "blockers": []
     },
     "PHASE-10": {
-      "status": "BLOCKED",
+      "status": "IN_PROGRESS",
       "evidence": [
-        "Owner designated Hobby solely for internal synthetic noncommercial evaluation, no payments/real user data"
+        "Three Vercel Hobby projects protected with ssoProtection enabled and deploymentType=all; latest three PREVIEW target-null deployments READY",
+        "Internal synthetic/noncommercial-only Vercel use owner-authorized; no Arvan production"
       ],
       "blockers": [
-        "Vercel preview project/protection and terms-fit not yet verified; no preview deployed, Hobby plan itself is not automatic block"
+        "Anonymous browser denial / authorized reviewer login smoke not independently verified; Vercel build log endpoint returned connector 403",
+        "No Vercel linked GitHub namespace; manually packaged from reviewed private GitHub branch; true Git-connected automated release not yet configured"
       ]
     },
     "PHASE-11": {
-      "status": "NOT_STARTED",
-      "evidence": [],
-      "blockers": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "3 real Next.js 16 builds deployed, target Preview/null and state READY with Vercel SSO All Deployments protection; dashboard and OTP disabled status are displayed",
+        "Real protected Vercel review deployment URLs recorded separately; no live backend connected"
+      ],
+      "blockers": [
+        "No live CF01 OTP backend in Vercel, no synthetic persistent preview PostgreSQL",
+        "Authenticated/anonymous browser end-to-end access tests and full 23-domain interactions not yet tested"
+      ]
     },
     "PHASE-12": {
       "status": "NOT_STARTED",
