@@ -58,7 +58,7 @@ async function setup(){
 async function checkPortal(slug,index) {
  const cwd=resolve(ROOT,"apps",slug),port=32300+index,url="http://127.0.0.1:"+port;
  const next=startNode([resolve(cwd,"node_modules/next/dist/bin/next"),"start","-p",String(port)],cwd,{
-  NODE_ENV:"test", TTO_API_BASE_URL:API, NEXT_TELEMETRY_DISABLED:"1",PORT:String(port),
+  NODE_ENV:"test", TTO_API_BASE_URL:API, TTO_LOOPBACK_E2E:"1", CI:"true", NEXT_TELEMETRY_DISABLED:"1",PORT:String(port),
   APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:""
  });
  await untilReady(url+"/",next,"Next "+slug);
@@ -71,6 +71,7 @@ async function checkPortal(slug,index) {
  assertStatus(noSession,204,slug+" anonymous logout");
 
  const issued=await post(url+"/api/auth/otp/request",{mobile:MOBILE});
+ if(issued.status!==200){const safeCode=(await issued.clone().json().catch(()=>({}))).error;console.error("CF01_E2E_OTP_REQUEST_FAIL_CODE="+(typeof safeCode==="string"?safeCode:"UNCLASSIFIED"));}
  assertStatus(issued,200,slug+" OTP request");
  const {requestId,status}=await issued.json();
  assert.match(requestId,/^[a-f0-9-]{36}$/i);checks++;
