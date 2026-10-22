@@ -16,7 +16,7 @@ let proc,count=0;
 const key=(token)=>token?{authorization:"Bearer "+token}:{};
 const root="http://127.0.0.1:31665";
 async function call(method,p,token,body,status){
- const res=await fetch(root+p,{method,headers:{"content-type":"application/json",...key(token)},body:body?JSON.stringify(body):undefined});
+ const res=await fetch(root+p,{method,headers:{...(body?{"content-type":"application/json"}:{}),...key(token)},body:body?JSON.stringify(body):undefined});
  assert.equal(res.status,status,method+" "+p+" expected "+status+" actual "+res.status);
  count++;
  return status===204?null:res.json();
