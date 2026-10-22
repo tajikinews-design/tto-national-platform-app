@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
+import {TenantScopePicker} from "./tenant-scope-picker";
 /** OTP UI never holds API.ir credentials; form is unavailable until a protected backend is configured. */
-export function OtpLogin({enabled}:{enabled:boolean}){
+export function OtpLogin({enabled,surface}:{enabled:boolean;surface:"shareholder"|"cooperative"|"national"}){
  const [mobile,setMobile]=useState("");
  const [code,setCode]=useState("");
  const [requestId,setRequestId]=useState("");
@@ -71,7 +72,7 @@ export function OtpLogin({enabled}:{enabled:boolean}){
   {!enabled?<p className="otp-unavailable">در این نسخه پیش‌نمایش، پایگاه داده و سرویس ورود متصل نیست. ارسال پیامک واقعی غیرفعال است.</p>:
   checking?<p role="status">در حال بررسی نشست ورود...</p>:
   checkFailed?<div><p role="alert">بررسی نشست ممکن نیست. برای حفظ امنیت، ورود جدید تا ارتباط با سرور غیرفعال است.</p><button type="button" onClick={()=>setCheckAttempt(n=>n+1)}>تلاش مجدد</button></div>:
-  verified?<div><p role="status">{message}</p><button type="button" disabled={busy} onClick={logout}>خروج از حساب</button></div>:
+  verified?<div><p role="status">{message}</p><TenantScopePicker surface={surface}/><button type="button" disabled={busy} onClick={logout}>خروج از حساب</button></div>:
    <div className="otp-forms">
     <form onSubmit={issue}>
      <label htmlFor="tto-mobile">شماره موبایل ثبت‌شده</label>

@@ -36,7 +36,7 @@ jobs:
           pnpm check
       - name: Create disposable PostgreSQL17 schema, no external DB
         run: |
-          for migration in database/migrations/000{1,2,3,4,5,6}_*.sql; do
+          for migration in database/migrations/000{1,2,3,4,5,6,7}_*.sql; do
             docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$migration"
           done
       - name: Real three-portal BFF to Nest HTTP to PostgreSQL E2E (synthetic no SMS)
