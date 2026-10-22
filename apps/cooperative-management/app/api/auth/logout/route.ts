@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
   }
 
   const base = process.env.TTO_API_BASE_URL;
-  const localTest = process.env.NODE_ENV === "test" && /^http:\/\/127\.0\.0\.1:[0-9]{4,5}$/.test(base ?? "");
+  const loopbackE2E = process.env.TTO_LOOPBACK_E2E === "1" && process.env.CI === "true" && !process.env.VERCEL && /^http:\/\/127\.0\.0\.1:[0-9]{4,5}$/.test(base ?? "");
+  const localTest = loopbackE2E || (process.env.NODE_ENV === "test" && /^http:\/\/127\.0\.0\.1:[0-9]{4,5}$/.test(base ?? ""));
   let upstreamUrl: URL;
   try {
     if (!base || (!base.startsWith("https://") && !localTest)) throw Error("Unsafe backend address");
