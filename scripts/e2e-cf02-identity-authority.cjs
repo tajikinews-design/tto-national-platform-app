@@ -260,7 +260,8 @@ async function main(){
  const existingLedger=(await db.query("SELECT ledger_entry_ref FROM tto.shareholding_source_snapshots WHERE tenant_id=$1 AND shareholder_account_id=$2 AND ledger_version=2",[A,account])).rows[0].ledger_entry_ref;
  assert.equal(await assess(await claimInsert(holdBatch,"CHILD07_HOLDINGS",{version:2,entry:existingLedger,qty:0})),"REPLAY_IDENTICAL_REFERENCE");checks++;
  assert.equal(await assess(await claimInsert(holdBatch,"CHILD07_HOLDINGS",{version:2,qty:99})),"CONFLICT_SAME_VERSION");checks++;
- assert.equal(await assess(await claimInsert(holdBatch,"CHILD07_HOLDINGS",{version:3,entry:existingLedger})),"REUSED_LEDGER_ENTRY_REF");checks++;
+ const reusedRefBatch=await batchInsert("CHILD07_HOLDINGS",holdingRef);
+ assert.equal(await assess(await claimInsert(reusedRefBatch,"CHILD07_HOLDINGS",{version:3,entry:existingLedger})),"REUSED_LEDGER_ENTRY_REF");checks++;
  assert.equal(await assess(await claimInsert(holdBatch,"CHILD07_HOLDINGS",{version:3,asOf:new Date("2020-01-01T00:00:00Z")})),"EFFECTIVE_TIME_REGRESSION");checks++;
  assert.equal(await assess(await claimInsert(holdBatch,"CHILD07_HOLDINGS",{version:3,asOf:new Date("2099-01-01T00:00:00Z")})),"FUTURE_EFFECTIVE_DATE");checks++;
  const wrongDomain=await claimInsert(holdBatch,"CHILD06_MEMBERSHIP");
