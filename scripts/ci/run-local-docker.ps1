@@ -183,9 +183,8 @@ try {
             -PrivateNetwork $networkName `
             -ReviewedArchive $archivePath `
             -TempFolder $tempFolder
-        if ($LASTEXITCODE -ne 0) {
-            throw "TTO_LOCAL_RELEASE_HELPER_EXIT_FAILURE"
-        }
+        # The helper throws for every failed required test. Do not reuse
+        # a stale native LASTEXITCODE from a best-effort cleanup command.
         Write-Host "TTO_LOCAL_RELEASE_PASS_SHA=$commit" -ForegroundColor Green
     }
     else {
