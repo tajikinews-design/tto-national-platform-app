@@ -1,0 +1,45 @@
+name: TTO CF01-03 actual Nest HTTP workflows PG17 (NO DEPLOY)
+on:
+  push:
+    branches: [feat/cf01-03-security-lifecycle-v2]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  protected-api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: tto
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tto"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - run: npm install -g pnpm@10.18.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @tto/api build
+      - name: Apply full disposable PG17 migrations and domain negative tests
+        run: |
+          set -euo pipefail
+          for s in database/migrations/0001_cf01_cf03_foundation.sql tests/sql/tenant-isolation.sql database/migrations/0002_cf01_03_secure_flows.sql tests/sql/cf01-cf03-v2.sql database/migrations/0003_cf01_03_role_jit_party_document.sql tests/sql/cf01-cf03-v3.sql; do
+            docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$s"
+          done
+      - name: Generate ephemeral CI-only challenge HMAC secret (never committed/logged)
+        run: echo "AUTH_CHALLENGE_HMAC_SECRET=$(openssl rand -hex 48)" >> "$GITHUB_ENV"
+      - name: Call actual Nest controllers and assert authorization outcomes
+        env:
+          TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+        run: node services/api/test/identity-workflows.integration.cjs
