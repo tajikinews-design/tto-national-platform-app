@@ -11,3 +11,23 @@ button,input,textarea,select{font-family:var(--tto-font),Vazirmatn,Tahoma,Arial,
 .otp-unavailable{padding:12px;border-radius:9px;background:#fff4da;color:#684b11}
 
 /* TTO_GIT_PREVIEW_AUTODEPLOY_SMOKE_20261022: harmless CSS comment to verify Git-linked Preview deployment. */
+
+
+/* Three portal NAV-01..NAV-11 real, keyboard accessible navigation. */
+.logo{display:block;text-decoration:none}.nav-link{color:#173066;text-decoration:none;transition:background-color .15s ease}
+.nav-link:hover,.nav-link:focus-visible{background:#edf4fe;color:#06499a}
+.nav-link.current{pointer-events:none}.nav-link:focus-visible,.module-card:focus-visible,.return-link:focus-visible,.breadcrumb a:focus-visible{outline:3px solid #087dda;outline-offset:3px}
+.breadcrumb{display:flex;align-items:center;gap:10px;color:#5b6a86;margin:0 2px 13px;font-size:12px}
+.breadcrumb a{color:#1366ac}.module-heading{margin-top:30px}
+.module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:15px}
+.module-card{display:flex;flex-direction:column;gap:9px;text-decoration:none;color:#173066;border:1px solid #dce7f6;background:#fafdff;border-radius:12px;padding:18px;min-height:151px;line-height:1.8}
+.module-card:hover{border-color:#7ab3ec;background:#f1f8ff}
+.module-card-code{font-size:10px;color:#73809b;direction:ltr;align-self:flex-start}
+.module-card>strong{font-size:14px}.module-card>span:not(.module-card-code){font-size:11px;color:#5f6e88}
+.module-card>small{font-size:11px;color:#0864bf;margin-top:auto}
+.module-status{display:flex;flex-wrap:wrap;gap:8px 15px;justify-content:space-between;align-items:center;border:1px solid #dfebfb;background:#f2f8ff;padding:15px;border-radius:10px;margin-bottom:18px}
+.module-status span{font-size:11px;color:#456082}
+.module-empty{display:flex;align-items:center;gap:16px;background:#f7f9fd;border:1px dashed #b9c9df;border-radius:10px;padding:22px;margin:16px 0 20px}
+.module-empty strong{font-size:28px;color:#6789b6}.module-empty span{color:#596f91;font-size:12px}
+.return-link{display:inline-flex;align-items:center;padding:10px 17px;border:1px solid #cbdcf1;border-radius:9px;color:#095d9f;text-decoration:none;font-weight:600}
+@media(max-width:780px){.module-grid{grid-template-columns:1fr}.module-card{min-height:125px}.module-status{display:grid}}
