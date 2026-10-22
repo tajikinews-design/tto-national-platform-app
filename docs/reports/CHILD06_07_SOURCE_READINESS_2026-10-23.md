@@ -20,3 +20,6 @@ All queries use verified revocable HttpOnly session -> Nest -> PG transaction-lo
 
 ## Before real data can be connected
 Legal approval and independent adjudication for CF02/CF04 identity case, Child06 authoritative relationship and shareholder-account source mapping, Child07 ledger reconciliation and source-version monotonicity, provenance/evidence and retention/privacy review, separate hosted migration and regulated source adapter security acceptance. CI fixture source data is **synthetic only**. All Child06/07 full acceptance remains NOT COMPLETE.
+
+### Extended immutable ledger evidence
+Imported Child07 read snapshots are append-only at the DB trigger level (even a mistaken migration-owner UPDATE/DELETE raises); the canonical Child07 share ledger remains unimplemented. Restricted app runtime cannot directly SELECT private source tables. Revoked sessions deny read on both Nest and BFF. These controls are added to the synthetic CI E2E.

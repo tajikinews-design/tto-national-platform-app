@@ -223,7 +223,16 @@ async function main(){
  try{
   await assert.rejects(()=>app.query("SELECT * FROM tto.identity_link_cases"),e=>e.code==="42501");checks++;
   await assert.rejects(()=>app.query("SELECT * FROM tto.identity_review_authorizations"),e=>e.code==="42501");checks++;
+  for(const tbl of ["source_contract_approvals","member_source_snapshots","shareholder_source_accounts","shareholding_source_snapshots"]){
+   await assert.rejects(()=>app.query("SELECT * FROM tto."+tbl),e=>e.code==="42501");checks++;
+  }
  }finally{await app.end();}
+ // Session revocation must invalidate both Nest and shareholder BFF owner reads instantly.
+ await db.query("UPDATE tto.user_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL",[USER]);
+ await status(await get(memberPath,myToken),401,"revoked member session blocked");
+ await status(await get(sharePath,myToken),401,"revoked holdings session blocked");
+ await status(await fetch(memberBff,{headers:cookie}),401,"revoked BFF member session blocked");
+ await status(await fetch(shareBff,{headers:cookie}),401,"revoked BFF holdings session blocked");
  const audit=await db.query("SELECT count(*)::integer AS n FROM tto.audit_events WHERE event_name LIKE 'IDENTITY_LINK_%'");
  ok(audit.rows[0].n===4,"identity case audit events recorded transactionally");
  console.log("TTO_CF02_IDENTITY_MANAGER_NATIONAL_E2E_PASS_CHECKS="+checks);

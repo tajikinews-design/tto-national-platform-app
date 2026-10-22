@@ -129,6 +129,10 @@ CREATE FUNCTION tto.my_shareholding_from_source(p_tenant uuid) RETURNS jsonb
   jsonb_agg(jsonb_build_object('shareQuantity',share_quantity::text,
   'ledgerVersion',ledger_version,'ledgerAsOf',ledger_as_of))->0
  ELSE NULL END FROM allowed $f$;
+-- ShareOwnershipLedger remains separately canonical; its imported read snapshots cannot be silently overwritten.
+CREATE TRIGGER share_source_snapshots_immutable
+ BEFORE UPDATE OR DELETE ON tto.shareholding_source_snapshots
+ FOR EACH ROW EXECUTE FUNCTION tto.deny_evidence_mutation();
 REVOKE ALL ON FUNCTION tto.valid_read_source(uuid,text,text),
  tto.my_member_profile_from_source(uuid),tto.my_shareholding_from_source(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION tto.my_member_profile_from_source(uuid),
