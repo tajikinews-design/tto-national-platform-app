@@ -11,3 +11,8 @@ Current `apps/*` HTML is **reused historical static UI review prototype, not app
 Use isolated branches + PR, commit, CI artifacts and acceptance evidence. No merge to main without review. No GitHub Pages, no public deployment. Vercel Hobby is selected only for internal noncommercial synthetic Preview when actual terms fit; effective protection is required before sharing links. Hobby alone is not a software-development blocker. Production hosting exclusively ArvanCloud after explicit owner approval. No production database or tokens, real shareholder PII, credentials, .env, signing keys, traces or secrets in repo/CI logs. Do not configure production or auto-deployment. Keep environment targets separate.
 
 Report every phase with status `NOT_STARTED / IN_PROGRESS / GREEN / FAILED / BLOCKED / AWAITING_APPROVAL`; never mark GREEN without verified checks, runtime evidence and any mandatory approval. Long-running work needs durable checkpoint in `status/PHASE_GATES.json` and exact handoff on interruption.
+
+
+## Current implementation checkpoint (2026-10-22)
+
+ADR-001 is selected; three Next.js 16 apps and NestJS 11 API are now present, plus PostgreSQL 17 CF01-03 initial schema/RLS. GitHub CI (PR #3) passes real Next/Nest builds and tenant isolation including 10 real HTTP/DB cases. These are a **partial secure foundation**, not full CF-01/02/03 implementation. Session issuance, JIT/legal authority, file upload/evidence/audit durability are NOT implemented. Continue work only on feature branches; no production changes, no real user data, no public preview. Refer to docs/reports/CF01_03_FOUNDATION.md.

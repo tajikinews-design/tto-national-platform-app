@@ -35,22 +35,38 @@
       "status": "IN_PROGRESS",
       "evidence": [
         "Delegated owner authorization for Framework/Database choice 2026-10-22",
-        "ADR-001 approved engineering selection: Next.js 16, NestJS 11/Fastify, PostgreSQL 17 SQL/RLS, portable OCI images"
+        "ADR-001 approved engineering selection: Next.js 16, NestJS 11/Fastify, PostgreSQL 17 SQL/RLS, portable OCI images",
+        "Three Next.js 16 apps, NestJS 11 API compile and typecheck passed GitHub Action 39762676001; actual PG17 RLS and Nest HTTP integration 39762676049 passed."
       ],
       "blockers": [
-        "Next/Nest dependency installation and reproducible build not yet executed",
-        "PostgreSQL migrations, RLS isolation, Arvan portability deployment spike NOT TESTED"
+        "OCI Docker build/ArvanCloud runtime not yet proven",
+        "Pinned pnpm lockfile and deployment security controls remain to be finalized"
       ]
     },
     "PHASE-03": {
       "status": "IN_PROGRESS",
-      "evidence": [],
-      "blockers": []
+      "evidence": [
+        "Three real independently buildable Next.js 16 RTL apps in apps/shareholder, apps/cooperative-management, apps/national-admin with shared @tto/ui package",
+        "NestJS 11/Fastify API build successful; GitHub Actions #39762676001",
+        "GitHub feature branch feat/cf01-03-next-nest-postgres-foundation, draft PR #3. main untouched"
+      ],
+      "blockers": [
+        "Docker OCI builds not yet run; app login workflow and final UI acceptance pending; lockfile must be generated and reviewed"
+      ]
     },
     "PHASE-04": {
-      "status": "NOT_STARTED",
-      "evidence": [],
-      "blockers": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "PostgreSQL 17 SQL-first migration 0001 creates CF01 user/session/challenge/roles, CF02 tenant/party/projection, CF03 file/doc/version/evidence/audit schema subset",
+        "Forced RLS, tenant/role/classification policies, transaction-local session context, revoked-role deny validated on real PostgreSQL 17 Actions #39762676049",
+        "10 real Nest HTTP authenticated/negative cases PASS on ephemeral PG17; synthetically seeded session, cross-tenant denial and security-epoch invalidation; Actions #39762676049"
+      ],
+      "blockers": [
+        "CF01 OTP/session issuance, authority references/JIT, SoD, role management and complete acceptance tests not implemented",
+        "CF02 lifecycle/party merge/projection event consumer incomplete",
+        "CF03 scan/upload/version publication/seal/legal hold/audit durable ingestion not implemented",
+        "No production or real-data readiness claim; API non-public in current draft"
+      ]
     },
     "PHASE-05": {
       "status": "NOT_STARTED",
@@ -83,7 +99,7 @@
         "Owner designated Hobby solely for internal synthetic noncommercial evaluation, no payments/real user data"
       ],
       "blockers": [
-        "Vercel project and authenticated preview protection have not yet been configured and verified; Hobby plan is NOT itself a block; actual commercial-purpose compliance must be checked before release"
+        "Vercel preview project/protection and terms-fit not yet verified; no preview deployed, Hobby plan itself is not automatic block"
       ]
     },
     "PHASE-11": {
