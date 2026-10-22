@@ -14,7 +14,8 @@ param(
     [Parameter(Mandatory=$true)][string]$SourceVolume,
     [Parameter(Mandatory=$true)][string]$PrivateNetwork,
     [Parameter(Mandatory=$true)][string]$ReviewedArchive,
-    [Parameter(Mandatory=$true)][string]$TempFolder
+    [Parameter(Mandatory=$true)][string]$TempFolder,
+    [switch]$AttestationOnly
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -90,6 +91,10 @@ if ((Has-PublishedHostPorts $pgInfo) -or (Has-PublishedHostPorts $nodeInfo)) {
 }
 Write-Host "TTO_RELEASE_DISPOSABLE_RESOURCE_ATTESTATION_PASS"
 Write-Host "TTO_RELEASE_NO_HOST_PORTS_VERIFIED"
+if ($AttestationOnly) {
+    Write-Host "TTO_LOCAL_RELEASE_EARLY_ATTESTATION_PASS"
+    return
+}
 $runtimeNames = New-Object 'System.Collections.Generic.List[string]'
 $imageTags = New-Object 'System.Collections.Generic.List[string]'
 

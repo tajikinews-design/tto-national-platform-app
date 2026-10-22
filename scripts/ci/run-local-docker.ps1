@@ -142,6 +142,20 @@ try {
         "-C", "/workspace"
     )
 
+    if ($Suite -eq "Release") {
+        # Run the Docker security attestation BEFORE costly Core build/tests.
+        $releaseParameters = @{
+            RunId = $runId
+            PostgresContainer = $pgContainer
+            NodeContainer = $nodeContainer
+            SourceVolume = $sourceVolume
+            PrivateNetwork = $networkName
+            ReviewedArchive = $archivePath
+            TempFolder = $tempFolder
+        }
+        & (Join-Path $PSScriptRoot "local-release-helper.ps1") @releaseParameters -AttestationOnly
+    }
+
     Docker-Checked "Offline Python baseline and CI policy checks" @(
         "run", "--rm", "--network", "none",
         "-v", ($sourceVolume + ":/workspace"), "-w", "/workspace",
@@ -175,14 +189,7 @@ try {
     if ($Suite -eq "Release") {
         Write-Host "TTO_LOCAL_CORE_PHASE_PASS_SHA=$commit" -ForegroundColor Green
         # Same reviewed archive, same disposable Node+PG17 containers; no new host DB.
-        & (Join-Path $PSScriptRoot "local-release-helper.ps1") `
-            -RunId $runId `
-            -PostgresContainer $pgContainer `
-            -NodeContainer $nodeContainer `
-            -SourceVolume $sourceVolume `
-            -PrivateNetwork $networkName `
-            -ReviewedArchive $archivePath `
-            -TempFolder $tempFolder
+        & (Join-Path $PSScriptRoot "local-release-helper.ps1") @releaseParameters
         # The helper throws for every failed required test. Do not reuse
         # a stale native LASTEXITCODE from a best-effort cleanup command.
         Write-Host "TTO_LOCAL_RELEASE_PASS_SHA=$commit" -ForegroundColor Green
