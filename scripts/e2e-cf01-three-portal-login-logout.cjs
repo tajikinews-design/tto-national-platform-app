@@ -51,7 +51,9 @@ async function setup(){
  const nest=startNode(["dist/main.js"],resolve(ROOT,"services/api"),{
   DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto", PORT:String(BACKEND_PORT),
   NODE_ENV:"test", TTO_MOCK_SMSOTP_PROVIDER:"true", APIIR_TOKEN:"",
-  AUTH_CHALLENGE_HMAC_SECRET:"ci-fake-pepper-32chars-aaaaaaaaaaaaaaaaaa"
+  AUTH_CHALLENGE_HMAC_SECRET:"ci-fake-pepper-32chars-aaaaaaaaaaaaaaaaaa",
+  AUTH_ABUSE_HMAC_SECRET:"ci-dedicated-abuse-pepper-32-characters-abcdef",
+  TTO_ENFORCE_ABUSE_GUARD:"true"
  });
  await untilReady(API+"/ready",nest,"Nest");
 }
@@ -113,6 +115,39 @@ async function checkPortal(slug,index) {
 async function main() {
  await setup();
  for(let i=0;i<NEXT.length;i++)await checkPortal(NEXT[i],i);
+ // Unknown/enrolled mobiles return indistinguishable status; XFF cannot bypass request.ip.
+ const unknown="09110000000";
+ for(let n=0;n<4;n++){
+  const response=await post(API+"/v1/auth/challenges/request",{mobile:unknown},{
+   headers:{"X-Forwarded-For":"198.51.100."+String(n+20)}
+  });
+  assertStatus(response,202,"unknown mobile capacity/response");
+  const body=await response.json();
+  assert.equal(body.status,"ACCEPTED");checks++;
+ }
+ let events=await db.query("SELECT count(*)::integer AS n FROM tto.otp_request_throttle_events");
+ assert.equal(events.rows[0].n,6,"only 3 known plus 3 unknown requests reserved");checks++;
+ // Concurrency cannot bypass 30 source-IP/15m even with forged forwarded addresses.
+ const concurrent=await Promise.all(Array.from({length:40},(_,n)=>
+   post(API+"/v1/auth/challenges/request",{mobile:"0911"+String(n+1).padStart(7,"0")},{
+      headers:{"X-Forwarded-For":"203.0.113."+String(n+1)}
+   })
+ ));
+ for(const response of concurrent){
+  assertStatus(response,202,"parallel synthetic attempt generic response");
+  const body=await response.json();
+  assert.equal(body.status,"ACCEPTED");checks++;
+ }
+ events=await db.query("SELECT count(*)::integer AS n, count(*) FILTER (WHERE octet_length(ip_digest)=32 AND octet_length(mobile_digest)=32)::integer AS hashed FROM tto.otp_request_throttle_events");
+ assert.equal(events.rows[0].n,30,"cross-mobile source-IP concurrency cap");checks++;
+ assert.equal(events.rows[0].hashed,30,"only HMAC digests persisted");checks++;
+ const restricted=new Client({connectionString:"postgresql://tto_app@127.0.0.1:5432/tto"});
+ await restricted.connect();
+ try{
+  await assert.rejects(()=>restricted.query("SELECT * FROM tto.otp_request_throttle_events"),error=>error.code==="42501");
+  checks++;
+ }finally{await restricted.end();}
+
  const count=await db.query("SELECT count(*)::integer AS n FROM tto.auth_challenges WHERE purpose='SMSOTP_LOGIN'");
  assert.equal(count.rows[0].n,3);checks++;
  console.log("CF01_THREE_PORTAL_NEXT_NEST_PG17_LOGIN_LOGOUT_E2E_PASS_CHECKS="+checks);
