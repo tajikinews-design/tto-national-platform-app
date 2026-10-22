@@ -30,4 +30,29 @@ for (let idx=0;idx<slugs.length;idx++){
   }
  }finally{server.kill("SIGTERM");}
 }
-console.log("TTO_NEXT_VAZIRMATN_OTP_FAIL_CLOSED_SMOKE_PASS="+checks);
+// API activation is read at server runtime rather than baked into static HTML.
+// The deliberately invalid HTTPS hostname is NEVER called: this probes SSR form availability only.
+for(let idx=0;idx<slugs.length;idx++){
+ const slug=slugs[idx],port=32200+idx,cwd=resolve(root,"apps",slug);
+ const next=resolve(cwd,"node_modules/next/dist/bin/next");
+ const server=spawn(process.execPath,[next,"start","-p",String(port)],{
+  cwd,env:{...process.env,TTO_API_BASE_URL:"https://invalid.example",PORT:String(port),NEXT_TELEMETRY_DISABLED:"1"},stdio:"ignore"
+ });
+ try{
+  let ready=false;
+  for(let n=0;n<80;n++){
+   if(server.exitCode!==null)throw Error(slug+" dynamic SSR exited");
+   try {
+     const r=await fetch("http://127.0.0.1:"+port+"/");
+     if(r.ok){
+       const html=await r.text();
+       if(!html.includes('id="tto-mobile"'))throw Error(slug+" runtime-enabled OTP form missing");
+       checks++;ready=true;break;
+     }
+   }catch {}
+   await new Promise(r=>setTimeout(r,200));
+  }
+  if(!ready)throw Error(slug+" runtime-enabled form did not appear");
+ }finally{server.kill("SIGTERM");}
+}
+console.log("TTO_NEXT_VAZIRMATN_OTP_RUNTIME_ENV_SMOKE_PASS="+checks);
