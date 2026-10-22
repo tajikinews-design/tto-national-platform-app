@@ -1,0 +1,39 @@
+name: TTO generate reviewed pnpm lockfile (single branch, NO DEPLOY)
+on:
+  push:
+    branches: [feat/cf01-03-security-lifecycle-v2]
+    paths:
+      - ".github/workflows/lockfile-once.yml"
+permissions:
+  contents: write
+jobs:
+  lock:
+    if: github.repository == 'tajikinews-design/tto-national-platform-app' && github.ref == 'refs/heads/feat/cf01-03-security-lifecycle-v2'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out only approved feature branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: true
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - run: npm install -g pnpm@10.18.0
+      - name: Resolve and write exact lockfile
+        run: pnpm install --lockfile-only --no-frozen-lockfile
+      - name: Confirm clean reproducible resolution
+        run: pnpm install --frozen-lockfile
+      - name: Commit only lockfile to the same draft feature branch
+        run: |
+          set -euo pipefail
+          test -f pnpm-lock.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo "LOCKFILE_ALREADY_EXISTS"
+          else
+            git commit -m "build: freeze pnpm 10 resolved dependencies for Next Nest workspace"
+            git push origin HEAD:refs/heads/feat/cf01-03-security-lifecycle-v2
+          fi
