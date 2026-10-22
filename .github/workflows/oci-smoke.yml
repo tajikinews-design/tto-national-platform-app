@@ -1,0 +1,63 @@
+name: TTO four OCI Docker images / Arvan portability checks (NO DEPLOY)
+on:
+  push:
+    branches: [feat/cf01-03-security-lifecycle-v2]
+    paths:
+      - "apps/**"
+      - "services/api/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - ".dockerignore"
+      - ".github/workflows/oci-smoke.yml"
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build-oci:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: shareholder
+            dockerfile: apps/shareholder/Dockerfile
+            port: 3000
+          - label: cooperative-management
+            dockerfile: apps/cooperative-management/Dockerfile
+            port: 3000
+          - label: national-admin
+            dockerfile: apps/national-admin/Dockerfile
+            port: 3000
+          - label: api
+            dockerfile: services/api/Dockerfile
+            port: 3001
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout without credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Build portable OCI image — never push registry
+        run: docker build --file "${{ matrix.dockerfile }}" --tag "tto-ci:${{ matrix.label }}" .
+      - name: Verify image exists
+        run: docker image inspect "tto-ci:${{ matrix.label }}" --format '{{.Id}}'
+      - name: Next server runtime smoke OR fail-closed API startup
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.label }}" = "api" ]; then
+            # No DB secret: app must refuse to become a functional API.
+            timeout 15s docker run --rm "tto-ci:${{ matrix.label }}" > api-exit.log 2>&1 || true
+            if ! grep -Eq 'TTO_API_STARTUP_FAILED|DATABASE_URL_NOT_CONFIGURED' api-exit.log; then
+              echo 'API_FAIL_CLOSED_WITHOUT_DB_NOT_PROVEN'; sed -n '1,25p' api-exit.log; exit 1
+            fi
+            echo 'API_IMAGE_BUILD_AND_NO_SECRET_DENY_PASS'
+          else
+            id=$(docker run -d --rm -p 127.0.0.1:30177:3000 "tto-ci:${{ matrix.label }}")
+            trap 'docker rm -f "$id" >/dev/null 2>&1 || true' EXIT
+            for n in $(seq 1 40); do
+              if curl --fail --silent --show-error --max-time 2 http://127.0.0.1:30177/ > /tmp/preview.html; then break; fi
+              sleep 1
+            done
+            grep -q 'dir="rtl"' /tmp/preview.html
+            grep -q 'داده' /tmp/preview.html
+            echo 'NEXT_OCI_STATIC_RUNTIME_SMOKE_PASS'
+          fi

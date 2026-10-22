@@ -1,0 +1,31 @@
+name: TTO CF01-03 v3 JIT, Party, documents, lifecycle (NO DEPLOY)
+on:
+  push:
+    branches: [feat/cf01-03-security-lifecycle-v2]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  real-pg17-domains:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: tto
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tto"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: CF01-CF03 migrations and previous security regression
+        run: |
+          set -euo pipefail
+          for s in database/migrations/0001_cf01_cf03_foundation.sql tests/sql/tenant-isolation.sql database/migrations/0002_cf01_03_secure_flows.sql tests/sql/cf01-cf03-v2.sql database/migrations/0003_cf01_03_role_jit_party_document.sql tests/sql/cf01-cf03-v3.sql; do
+            docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$s"
+          done
