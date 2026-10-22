@@ -38,12 +38,13 @@ $id=[guid]::NewGuid().ToString("N").Substring(0,12)
 $pg="tto-local-ci-pg-$id"
 $runner="tto-local-ci-node-$id"
 $sourceVolume="tto-local-ci-src-$id"
+$network="tto-local-ci-net-$id"
 $work=Join-Path $env:TEMP "tto-local-ci-$id"
 $reports=Join-Path $env:USERPROFILE "Downloads\TTO-Local-CI-Reports"
 New-Item -ItemType Directory -Force -Path $work,$reports | Out-Null
 $archive=Join-Path $work "reviewed-source.tar"
 $log=Join-Path $reports ("TTO-Core-"+(Get-Date -Format "yyyyMMdd-HHmmss")+"-$id.log")
-$volumeMade=$false; $pgMade=$false; $runnerMade=$false
+$volumeMade=$false; $networkMade=$false; $pgMade=$false; $runnerMade=$false
 Start-Transcript -Path $log -Force | Out-Null
 try {
   Write-Host "TTO_LOCAL_SOURCE_SHA=$sha"
@@ -62,8 +63,10 @@ try {
 
   DockerChecked "Create isolated source volume" @("volume","create",$sourceVolume)
   $volumeMade=$true
+  DockerChecked "Create dedicated bridge network for only this test" @("network","create","--driver","bridge",$network)
+  $networkMade=$true
   DockerChecked "Start isolated PostgreSQL17 (no host port)" @(
-    "run","-d","--rm","--name",$pg,
+    "run","-d","--rm","--name",$pg,"--network",$network,
     "-e","POSTGRES_HOST_AUTH_METHOD=trust","-e","POSTGRES_DB=tto",
     "-v","$($sourceVolume):/workspace","postgres:17")
   $pgMade=$true
@@ -113,6 +116,7 @@ try {
   $ErrorActionPreference="Continue"
   if($runnerMade) { & docker rm -f $runner *> $null }
   if($pgMade) { & docker rm -f $pg *> $null }
+  if($networkMade) { & docker network rm $network *> $null }
   if($volumeMade) { & docker volume rm -f $sourceVolume *> $null }
   Remove-Item -LiteralPath $work -Force -Recurse -ErrorAction SilentlyContinue
   Write-Host "TTO_LOCAL_TEMP_CONTAINERS_AND_VOLUME_REMOVED=true"

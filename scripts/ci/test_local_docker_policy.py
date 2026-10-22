@@ -15,6 +15,8 @@ class TestLocalDockerRunnerPolicy(unittest.TestCase):
     def test_no_host_port_no_global_docker_cleanup(self):
         data=RUNNER.read_text(encoding="utf-8")
         self.assertIn('"--network","container:$pg"',data)
+        self.assertIn('"--network",$network',data)
+        self.assertIn("docker network rm $network",data)
         self.assertIn('"--network","none"',data)
         for forbidden in ("docker system prune","docker compose down","docker volume prune","--privileged","-p 5432:5432","--publish","-p 0.0.0.0","GITHUB_TOKEN","SUPABASE_SERVICE_ROLE_KEY"):
             self.assertNotIn(forbidden,data)
