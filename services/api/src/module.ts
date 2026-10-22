@@ -1,6 +1,6 @@
-import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException } from "@nestjs/common";
+import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, HttpCode } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
-import { createHash } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 
 @Injectable()
 export class Database {
@@ -19,6 +19,22 @@ export class Database {
     }
   }
   async onModuleDestroy(): Promise<void> { await this.pool.end(); }
+  async consumeChallenge(challengeId:string, verifier:Buffer, sessionHash:Buffer): Promise<boolean> {
+    const result=await this.pool.query<{user_id:string|null}>(
+      "SELECT tto.consume_challenge($1,$2,$3) AS user_id",[challengeId,verifier,sessionHash]);
+    return !!result.rows[0]?.user_id;
+  }
+  async withActor<T>(actor:string,task:(client:PoolClient)=>Promise<T>):Promise<T> {
+    const client=await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT set_config('tto.actor_id',$1,true)",[actor]);
+      const result=await task(client);
+      await client.query("COMMIT");
+      return result;
+    } catch(e) {try {await client.query("ROLLBACK")}catch{};throw e}
+    finally {client.release()}
+  }
   async sessionActor(authorization?: string): Promise<string> {
     const match = /^Bearer ([A-Za-z0-9_-]{32,256})$/.exec(authorization ?? "");
     if (!match) throw new UnauthorizedException("Authentication required");
@@ -109,5 +125,119 @@ export class DocumentsAuditModule {}
 export class HealthController {
   @Get("health") status() { return {status:"ok",stage:"CF01-03_FOUNDATION",note:"Not proof of database/tenant health"}; }
 }
-@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController]})
+
+/** Tenant commands are routed only through verified session -> transaction-local identity context. */
+const uuidPattern=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+function requireId(value:unknown):string {
+  if(typeof value!=="string" || !uuidPattern.test(value))throw new BadRequestException("Invalid identifier");
+  return value;
+}
+function requireText(value:unknown, minimum:number, maximum:number):string {
+  if(typeof value!=="string" || value.trim().length<minimum || value.length>maximum)
+    throw new BadRequestException("Invalid field");
+  return value.trim();
+}
+@Controller("v1")
+export class FoundationCommandsController {
+  constructor(private readonly db:Database){}
+  private async run<T>(tenant:string,auth:string|undefined,sql:string,values:unknown[]):Promise<T>{
+    const actor=await this.db.sessionActor(auth);
+    return this.db.inTenant(actor,tenant,async c=>{
+      const data=await c.query<{out:T}>(sql,values);
+      return data.rows[0].out;
+    });
+  }
+  @Post("auth/challenges/verify")
+  @HttpCode(200)
+  async verify(@Body() payload:Record<string,unknown>){
+    // The challenge is delivered only by a separately approved provider.
+    // No issuance/delivery API is exposed until secure identifiers & delivery are complete.
+    const id=requireId(payload?.challengeId);
+    if(typeof payload?.otp!=="string"||!/^[0-9]{6,10}$/.test(payload.otp))
+      throw new BadRequestException("Invalid verification code");
+    const pepper=process.env.AUTH_CHALLENGE_HMAC_SECRET;
+    if(!pepper || Buffer.byteLength(pepper)<32)
+      throw new ServiceUnavailableException("Authentication delivery not configured");
+    const hashedCandidate=createHmac("sha256",pepper).update(id+":"+payload.otp).digest();
+    const token=randomBytes(48).toString("base64url");
+    const digest=createHash("sha256").update(token).digest();
+    const accepted=await this.db.consumeChallenge(id,hashedCandidate,digest);
+    if(!accepted)throw new UnauthorizedException("Challenge invalid or expired");
+    return {accessToken:token,tokenType:"Bearer"};
+  }
+  @Post("auth/logout")
+  @HttpCode(204)
+  async logout(@Headers("authorization") auth?:string){
+    const actor=await this.db.sessionActor(auth);
+    await this.db.withActor(actor,async client=>client.query("SELECT tto.revoke_own_sessions()"));
+  }
+  @Post("tenants/:tenantId/roles/assign")
+  async assign(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>) {
+    const target=requireId(input?.targetId),legal=requireId(input?.legalAuthorityId);
+    const role=requireText(input?.roleCode,2,40);
+    if(!["MEMBER","COOPERATIVE_MANAGER","DOCUMENT_REVIEWER"].includes(role))
+      throw new BadRequestException("Unsupported role");
+    const ok=await this.run<boolean>(tenant,auth,"SELECT tto.assign_tenant_role($1,$2,$3,$4) AS out",
+      [target,tenant,role,legal]);
+    if(!ok)throw new ForbiddenException("Role assignment denied");
+    return {assigned:true};
+  }
+  @Post("tenants/:tenantId/roles/:assignmentId/revoke")
+  async revoke(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Param("assignmentId",new ParseUUIDPipe()) assignment:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    const version=input?.expectedVersion;
+    if(!Number.isSafeInteger(version)||Number(version)<1)
+      throw new BadRequestException("Invalid expected version");
+    const ok=await this.run<boolean>(tenant,auth,"SELECT tto.revoke_role_assignment($1,$2) AS out",
+      [assignment,version]);
+    if(!ok)throw new ForbiddenException("Role revocation denied");
+    return {revoked:true};
+  }
+  @Post("tenants/:tenantId/jit/requests")
+  async requestJit(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    const purpose=requireText(input?.purpose,12,500),minutes=input?.minutes;
+    if(!Number.isSafeInteger(minutes)||Number(minutes)<1||Number(minutes)>60)
+      throw new BadRequestException("Invalid JIT expiry");
+    const expiry=new Date(Date.now()+Number(minutes)*60000);
+    const grant=await this.run<string>(tenant,auth,"SELECT tto.request_jit($1,$2,$3) AS out",
+      [tenant,purpose,expiry]);
+    return {requestId:grant,status:"PENDING"};
+  }
+  @Post("tenants/:tenantId/jit/requests/:grantId/decision")
+  async decideJit(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Param("grantId",new ParseUUIDPipe()) grant:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    if(typeof input?.approve!=="boolean")throw new BadRequestException("Decision required");
+    const ok=await this.run<boolean>(tenant,auth,"SELECT tto.decide_jit($1,$2) AS out",[grant,input.approve]);
+    if(!ok)throw new ForbiddenException("JIT approval denied");
+    return {recorded:true};
+  }
+  @Post("tenants/:tenantId/documents/:documentId/versions")
+  async publishDocument(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Param("documentId",new ParseUUIDPipe()) doc:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    const file=requireId(input?.cleanFileId),version=input?.version;
+    if(!Number.isSafeInteger(version)||Number(version)<1)
+      throw new BadRequestException("Invalid version");
+    const ok=await this.run<boolean>(tenant,auth,"SELECT tto.publish_document($1,$2,$3) AS out",
+      [doc,file,version]);
+    if(!ok)throw new ForbiddenException("Publication denied");
+    return {published:true,version};
+  }
+  @Post("tenants/:tenantId/documents/:documentId/legal-holds")
+  async placeHold(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Param("documentId",new ParseUUIDPipe()) doc:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    const rule=requireText(input?.ruleReference,8,128),reason=requireText(input?.reason,12,1024);
+    const hold=await this.run<string|null>(tenant,auth,"SELECT tto.place_legal_hold($1,$2,$3) AS out",
+      [doc,rule,reason]);
+    if(!hold)throw new ForbiddenException("Legal hold denied");
+    return {holdId:hold};
+  }
+}
+
+@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController]})
 export class AppModule {}
