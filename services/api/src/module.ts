@@ -248,7 +248,8 @@ export class FoundationCommandsController {
     // Do not make public issuance available without an actual configured SMS provider
     // or explicit test-only delivery mode. No SMS credentials in browser code.
     const fake=process.env.NODE_ENV==="test" && process.env.TTO_MOCK_SMSOTP_PROVIDER==="true";
-    if(!fake && (!process.env.APIIR_TOKEN || process.env.APIIR_TOKEN.length<12))
+    if(!fake && (process.env.TTO_ENABLE_REAL_SMSOTP_DELIVERY!=="true" ||
+        !process.env.APIIR_TOKEN || process.env.APIIR_TOKEN.length<12))
       throw new ServiceUnavailableException("SMS provider unavailable");
     const requestId=randomUUID();
     // In regular runtime, missing abuse guard configuration or SQL function must fail CLOSED.
