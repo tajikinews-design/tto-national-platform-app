@@ -36,11 +36,11 @@
       "evidence": [
         "Delegated owner authorization for Framework/Database choice 2026-10-22",
         "ADR-001 approved engineering selection: Next.js 16, NestJS 11/Fastify, PostgreSQL 17 SQL/RLS, portable OCI images",
-        "Three Next.js 16 apps, NestJS 11 API compile and typecheck passed GitHub Action 39762676001; actual PG17 RLS and Nest HTTP integration 39762676049 passed."
+        "Three Next.js 16 apps, NestJS 11 API compile and typecheck passed GitHub Action 39762676001; actual PG17 RLS and Nest HTTP integration 39762676049 passed.",
+        "Frozen pnpm-lock.yaml exists and frozen-install CI passes; 4 OCI images were built and 3 Next runtime smoke tests and fail-closed API startup checks passed (GitHub Actions 39767709076)."
       ],
       "blockers": [
-        "OCI Docker build/ArvanCloud runtime not yet proven",
-        "Pinned pnpm lockfile and deployment security controls remain to be finalized"
+        "ArvanCloud account-specific CaaS/PaaS deployment, secrets, persistent PostgreSQL/object storage and regional compatibility NOT tested; no production access authorized."
       ]
     },
     "PHASE-03": {
@@ -48,10 +48,12 @@
       "evidence": [
         "Three real independently buildable Next.js 16 RTL apps in apps/shareholder, apps/cooperative-management, apps/national-admin with shared @tto/ui package",
         "NestJS 11/Fastify API build successful; GitHub Actions #39762676001",
-        "GitHub feature branch feat/cf01-03-next-nest-postgres-foundation, draft PR #3. main untouched"
+        "GitHub feature branch feat/cf01-03-next-nest-postgres-foundation, draft PR #3. main untouched",
+        "Next/Nest/PostgreSQL frozen builds passed in GitHub Actions 39767709136; OCI Docker matrix with three Next runtime and API fail-closed startup checks PASS 39767709076."
       ],
       "blockers": [
-        "Docker OCI builds not yet run; app login workflow and final UI acceptance pending; lockfile must be generated and reviewed"
+        "Functional login UI/production frontend flows, E2E browsers, authenticated Vercel preview not deployed",
+        "ArvanCloud-specific runtime/provisioning remains unaudited (no credentials/authorization)."
       ]
     },
     "PHASE-04": {
@@ -59,13 +61,15 @@
       "evidence": [
         "PostgreSQL 17 SQL-first migration 0001 creates CF01 user/session/challenge/roles, CF02 tenant/party/projection, CF03 file/doc/version/evidence/audit schema subset",
         "Forced RLS, tenant/role/classification policies, transaction-local session context, revoked-role deny validated on real PostgreSQL 17 Actions #39762676049",
-        "10 real Nest HTTP authenticated/negative cases PASS on ephemeral PG17; synthetically seeded session, cross-tenant denial and security-epoch invalidation; Actions #39762676049"
+        "10 real Nest HTTP authenticated/negative cases PASS on ephemeral PG17; synthetically seeded session, cross-tenant denial and security-epoch invalidation; Actions #39762676049",
+        "Real PostgreSQL 17 migrations 0001-0003, v2/v3 SQL authorization lifecycle/Party/doc safeguards PASS GitHub 39767709208, API real HTTP workflows PASS=19 in 39767709294, and earlier 10-case tenant API integration PASS."
       ],
       "blockers": [
-        "CF01 OTP/session issuance, authority references/JIT, SoD, role management and complete acceptance tests not implemented",
-        "CF02 lifecycle/party merge/projection event consumer incomplete",
-        "CF03 scan/upload/version publication/seal/legal hold/audit durable ingestion not implemented",
-        "No production or real-data readiness claim; API non-public in current draft"
+        "Real SMS/email OTP transport and delivery retry/rate limiting provider integration not connected",
+        "Actual upload binary transport and antivirus engine not integrated; scanner verdict attestation only",
+        "Full long-lived append-only audit external immutability, evidence sealing and Child22 retention/compliance approval unproven",
+        "CF01/02/03 exhaustive 155 source acceptance tests not completed; no real users",
+        "Physical service API and negative security audit (SQL injection/pooling/concurrency) requires independent review."
       ]
     },
     "PHASE-05": {
