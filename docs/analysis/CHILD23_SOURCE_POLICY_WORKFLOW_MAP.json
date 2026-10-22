@@ -66,7 +66,28 @@
       "dependencies": "CF-02 interfaces, CF-03 audit",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateUserAccount",
+        "VerifyAuthChallenge",
+        "CreateSession",
+        "AssignRole",
+        "RevokeRoleAssignment",
+        "BindAuthorityReference",
+        "GrantJitAccess"
+      ],
+      "canonical_queries": [
+        "GetCurrentIdentity",
+        "EvaluatePermission",
+        "ListUserTenantContexts",
+        "ListActiveRoleAssignments"
+      ],
+      "canonical_events": [
+        "USER_ACTIVATED",
+        "ROLE_ASSIGNMENT_ACTIVATED",
+        "ROLE_ASSIGNMENT_REVOKED",
+        "JIT_ACCESS_GRANTED"
+      ]
     },
     {
       "id": "CHILD-02",
@@ -122,7 +143,30 @@
       "dependencies": "CF-01 identity, CF-03 evidence",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateTenant",
+        "ActivateTenant",
+        "ChangeTenantSlug",
+        "CreateParty",
+        "LinkUserToParty",
+        "CreatePartyMergeCase",
+        "ExecutePartyMerge"
+      ],
+      "canonical_queries": [
+        "ResolveTenantBySlug",
+        "GetTenantStatus",
+        "GetPartyReferenceForUser",
+        "GetActiveTenantRelationshipProjection",
+        "ResolveMergedPartyAlias"
+      ],
+      "canonical_events": [
+        "TENANT_ACTIVATED",
+        "TENANT_SLUG_CHANGED",
+        "PARTY_CREATED",
+        "PARTY_MERGED",
+        "COOPERATIVE_RELATIONSHIP_PROJECTED"
+      ]
     },
     {
       "id": "CHILD-03",
@@ -179,7 +223,31 @@
       "dependencies": "CF-01, CF-02 and Child-22 retention",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateFileUpload",
+        "CompleteFileUpload",
+        "CreateDocument",
+        "AddDocumentVersion",
+        "PublishDocumentVersion",
+        "CreateEvidenceReference",
+        "SealEvidenceBundle",
+        "AppendAuditEvent",
+        "PlaceLegalHold"
+      ],
+      "canonical_queries": [
+        "GetDocument",
+        "GetDocumentVersion",
+        "GetEvidenceBundle",
+        "SearchAudit",
+        "CreateDownloadGrant"
+      ],
+      "canonical_events": [
+        "DOCUMENT_VERSION_CREATED",
+        "DOCUMENT_PUBLISHED",
+        "EVIDENCE_BUNDLE_SEALED",
+        "LEGAL_HOLD_PLACED"
+      ]
     },
     {
       "id": "CHILD-04",
@@ -234,7 +302,28 @@
       "dependencies": "CF-03 audit/evidence",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateRuleVersion",
+        "ApproveRuleVersion",
+        "ActivateRuleVersion",
+        "SetPolicyValue",
+        "OpenLegalGate",
+        "ResolveLegalGate",
+        "CreateRuleSnapshot"
+      ],
+      "canonical_queries": [
+        "EvaluateRules",
+        "GetActiveRuleVersion",
+        "GetGateStatus",
+        "ListPolicyValues"
+      ],
+      "canonical_events": [
+        "RULE_VERSION_ACTIVATED",
+        "POLICY_VALUE_ACTIVATED",
+        "LEGAL_GATE_OPENED",
+        "LEGAL_GATE_RESOLVED"
+      ]
     },
     {
       "id": "CHILD-05",
@@ -290,7 +379,30 @@
       "dependencies": "CF-01..04",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "QueueNotification",
+        "ProcessDelivery",
+        "RecordDeliveryCallback",
+        "CreatePaymentIntent",
+        "ReportPaymentEvidence",
+        "VerifyPayment",
+        "RecordWebhook",
+        "DisableIntegration"
+      ],
+      "canonical_queries": [
+        "GetNotificationStatus",
+        "GetPaymentVerification",
+        "GetIntegrationHealth",
+        "GetWebhookReceipt"
+      ],
+      "canonical_events": [
+        "NOTIFICATION_SENT",
+        "PAYMENT_REPORTED",
+        "PAYMENT_VERIFIED",
+        "PAYMENT_FAILED",
+        "INTEGRATION_DEGRADED"
+      ]
     },
     {
       "id": "CHILD-06",
@@ -344,7 +456,27 @@
       "dependencies": "CF-01..04 and CF-03",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "SubmitMembershipApplication",
+        "RecordMembershipDecision",
+        "ActivateRelationship",
+        "EndRelationship",
+        "CreateShareholderAccount",
+        "UpdateSelfServiceProfile"
+      ],
+      "canonical_queries": [
+        "GetMyMemberProfile",
+        "GetRelationship",
+        "ListMembers",
+        "GetShareholderAccount"
+      ],
+      "canonical_events": [
+        "MEMBERSHIP_APPLICATION_SUBMITTED",
+        "MEMBERSHIP_APPROVED",
+        "MEMBERSHIP_ENDED",
+        "SHAREHOLDER_ACCOUNT_ACTIVATED"
+      ]
     },
     {
       "id": "CHILD-07",
@@ -398,7 +530,31 @@
       "dependencies": "CF-01..06",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateSellOrder",
+        "LockShares",
+        "SubmitBuyRequest",
+        "SelectBuyer",
+        "RecordApproval",
+        "AttachPaymentEvidence",
+        "MarkPaymentVerified",
+        "FinalizeTransfer",
+        "CancelTransfer"
+      ],
+      "canonical_queries": [
+        "GetMyHoldings",
+        "ListMarketOffers",
+        "GetTransferCase",
+        "GetValuationStatus"
+      ],
+      "canonical_events": [
+        "SHARE_SELL_REQUESTED",
+        "SHARES_LOCKED",
+        "PAYMENT_REPORTED",
+        "TRANSFER_READY",
+        "TRANSFER_COMPLETED"
+      ]
     },
     {
       "id": "CHILD-08",
@@ -453,7 +609,32 @@
       "dependencies": "CF-01..05 and Child-06",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateAssembly",
+        "PublishAssemblyNotice",
+        "RegisterCandidate",
+        "RecordChamberLetter",
+        "RegisterProxy",
+        "RecordAttendance",
+        "RecordVoteResult",
+        "FinalizeMinutes",
+        "RecordBoardResolution"
+      ],
+      "canonical_queries": [
+        "GetAssembly",
+        "ListEligibleVoters",
+        "ListCandidates",
+        "GetProxyCount",
+        "GetMinutes"
+      ],
+      "canonical_events": [
+        "ASSEMBLY_PUBLISHED",
+        "CANDIDACY_OPENED",
+        "CANDIDATE_APPROVED",
+        "ASSEMBLY_COMPLETED",
+        "BOARD_RESOLUTION_RECORDED"
+      ]
     },
     {
       "id": "CHILD-09",
@@ -506,7 +687,26 @@
       "dependencies": "CF-03 and CF-05",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateCommunication",
+        "ApproveCommunication",
+        "PublishCommunication",
+        "StartAssuranceCampaign",
+        "RecordRead",
+        "RecordAcknowledgement"
+      ],
+      "canonical_queries": [
+        "GetCommunicationFeed",
+        "GetAssuranceStatus",
+        "GetEvidencePackage"
+      ],
+      "canonical_events": [
+        "COMMUNICATION_PUBLISHED",
+        "NOTICE_ASSURANCE_STARTED",
+        "NOTICE_ACKNOWLEDGED",
+        "NOTICE_EVIDENCE_COMPLETE"
+      ]
     },
     {
       "id": "CHILD-10",
@@ -554,7 +754,28 @@
       "dependencies": "CF-01..05",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateTicket",
+        "AssignTicket",
+        "AddTicketMessage",
+        "SetWaitingState",
+        "ResolveTicket",
+        "CloseTicket",
+        "EscalateTicket"
+      ],
+      "canonical_queries": [
+        "GetMyTickets",
+        "GetQueue",
+        "GetTicketTimeline",
+        "GetSLAStatus"
+      ],
+      "canonical_events": [
+        "TICKET_CREATED",
+        "TICKET_ESCALATED",
+        "TICKET_RESOLVED",
+        "TICKET_REOPENED"
+      ]
     },
     {
       "id": "CHILD-11",
@@ -602,7 +823,23 @@
       "dependencies": "CF-03/04 and Child-06",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateDisclosure",
+        "ApproveDisclosure",
+        "PublishDisclosure",
+        "SupersedeDisclosure",
+        "CreateReportPackage"
+      ],
+      "canonical_queries": [
+        "ListPublishedDisclosures",
+        "GetDisclosureHistory",
+        "ExportDisclosurePackage"
+      ],
+      "canonical_events": [
+        "DISCLOSURE_PUBLISHED",
+        "DISCLOSURE_SUPERSEDED"
+      ]
     },
     {
       "id": "CHILD-12",
@@ -651,7 +888,28 @@
       "dependencies": "CF-01..04",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateProject",
+        "ApproveProject",
+        "ActivateProject",
+        "RecordProjectUpdate",
+        "CompleteMilestone",
+        "LinkAsset",
+        "RequestProcurementHandoff"
+      ],
+      "canonical_queries": [
+        "GetProjectPortfolio",
+        "GetProjectTimeline",
+        "GetAssetRegister",
+        "GetPermitStatus"
+      ],
+      "canonical_events": [
+        "PROJECT_CREATED",
+        "PROJECT_STATUS_CHANGED",
+        "MILESTONE_COMPLETED",
+        "PROCUREMENT_NEEDED"
+      ]
     },
     {
       "id": "CHILD-13",
@@ -697,7 +955,26 @@
       "dependencies": "CF-01..05",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateEngagement",
+        "OpenEngagement",
+        "SubmitResponse",
+        "CloseEngagement",
+        "PublishManagementResponse",
+        "SubmitProposal"
+      ],
+      "canonical_queries": [
+        "GetOpenEngagements",
+        "GetMyResponses",
+        "GetAggregateResults",
+        "ListProposals"
+      ],
+      "canonical_events": [
+        "ENGAGEMENT_OPENED",
+        "ENGAGEMENT_CLOSED",
+        "MANAGEMENT_RESPONSE_PUBLISHED"
+      ]
     },
     {
       "id": "CHILD-14",
@@ -748,7 +1025,30 @@
       "dependencies": "CF-01..05",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "PublishCourse",
+        "EnrollLearner",
+        "RecordAssessment",
+        "CompleteCourse",
+        "IssueCertificate",
+        "CreateEventFromCourse",
+        "RegisterEvent",
+        "RecordAttendance"
+      ],
+      "canonical_queries": [
+        "GetCourseCatalog",
+        "GetMyLearning",
+        "GetEventAvailability",
+        "GetAttendance"
+      ],
+      "canonical_events": [
+        "COURSE_ENROLLED",
+        "COURSE_COMPLETED",
+        "CERTIFICATE_ISSUED",
+        "EVENT_PUBLISHED",
+        "ATTENDANCE_RECORDED"
+      ]
     },
     {
       "id": "CHILD-15",
@@ -796,7 +1096,26 @@
       "dependencies": "CF-01..05 and Child-06",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateBenefit",
+        "ActivateBenefit",
+        "IssueEntitlement",
+        "ReserveEntitlement",
+        "RedeemBenefit",
+        "CancelEntitlement"
+      ],
+      "canonical_queries": [
+        "ListMyBenefits",
+        "GetBenefitTerms",
+        "GetRewardHistory",
+        "GetBenefitUtilization"
+      ],
+      "canonical_events": [
+        "BENEFIT_ACTIVATED",
+        "ENTITLEMENT_ISSUED",
+        "BENEFIT_REDEEMED"
+      ]
     },
     {
       "id": "CHILD-16",
@@ -848,7 +1167,29 @@
       "dependencies": "CF-01..05",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "PublishOffer",
+        "CreateOrder",
+        "ConfirmPayment",
+        "RecordFulfillment",
+        "RequestRefund",
+        "SubmitSupplierProposal",
+        "ApproveCampaign",
+        "ServeAd"
+      ],
+      "canonical_queries": [
+        "BrowseCatalog",
+        "GetMyOrders",
+        "GetSellerOrders",
+        "GetCampaignStats"
+      ],
+      "canonical_events": [
+        "ORDER_CREATED",
+        "ORDER_FULFILLED",
+        "SUPPLIER_PROPOSAL_ACCEPTED",
+        "CAMPAIGN_STARTED"
+      ]
     },
     {
       "id": "CHILD-17",
@@ -900,7 +1241,30 @@
       "dependencies": "CF-01..05, Child-12/20 handoffs",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "PublishNeed",
+        "SubmitEOI",
+        "CreateJointInitiative",
+        "CreatePurchaseRequest",
+        "PublishSourcingEvent",
+        "SubmitBid",
+        "CloseBidding",
+        "RecordEvaluation",
+        "ApproveAward"
+      ],
+      "canonical_queries": [
+        "BrowseCollaborationNeeds",
+        "GetSourcingEvent",
+        "GetMyBid",
+        "GetAward"
+      ],
+      "canonical_events": [
+        "JOINT_INITIATIVE_CREATED",
+        "SOURCING_EVENT_PUBLISHED",
+        "BID_CLOSED",
+        "AWARD_APPROVED"
+      ]
     },
     {
       "id": "CHILD-18",
@@ -947,7 +1311,25 @@
       "dependencies": "CF-01..05",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "PublishOpportunity",
+        "SubmitApplication",
+        "ScreenApplication",
+        "ShortlistApplication",
+        "ScheduleInterview",
+        "CloseOpportunity"
+      ],
+      "canonical_queries": [
+        "ListOpportunities",
+        "GetMyApplications",
+        "ListApplications"
+      ],
+      "canonical_events": [
+        "OPPORTUNITY_PUBLISHED",
+        "APPLICATION_SUBMITTED",
+        "APPLICATION_STATUS_CHANGED"
+      ]
     },
     {
       "id": "CHILD-19",
@@ -996,7 +1378,25 @@
       "dependencies": "CF-01..04 and Child-12",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateImpactProgram",
+        "DefineIndicator",
+        "RecordMeasurement",
+        "CreateImpactClaim",
+        "ApproveImpactClaim",
+        "CreateGrantCase"
+      ],
+      "canonical_queries": [
+        "GetImpactDashboard",
+        "GetMeasurementHistory",
+        "GetGrantStatus"
+      ],
+      "canonical_events": [
+        "IMPACT_MEASUREMENT_RECORDED",
+        "IMPACT_CLAIM_PUBLISHED",
+        "GRANT_APPROVED"
+      ]
     },
     {
       "id": "CHILD-20",
@@ -1046,7 +1446,30 @@
       "dependencies": "CF-01..04",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateRisk",
+        "AssessRisk",
+        "DefineControl",
+        "RecordControlTest",
+        "DeclareConflict",
+        "ReviewRelatedPartyTransaction",
+        "BlockProhibitedDirectorLoan",
+        "OpenFinding",
+        "CreateRemediationAction"
+      ],
+      "canonical_queries": [
+        "GetRiskRegister",
+        "GetControlStatus",
+        "GetConflictCase",
+        "GetFinding"
+      ],
+      "canonical_events": [
+        "RISK_ESCALATED",
+        "FINDING_OPENED",
+        "ACTION_CLOSED",
+        "CONFLICT_REVIEWED"
+      ]
     },
     {
       "id": "CHILD-21",
@@ -1095,7 +1518,26 @@
       "dependencies": "All domain analytics and CF-03/04",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "DefineMetric",
+        "ApproveMetric",
+        "RunQualityCheck",
+        "BuildBenchmarkSnapshot",
+        "PublishInsight",
+        "SuppressBenchmark"
+      ],
+      "canonical_queries": [
+        "GetMyMetrics",
+        "GetBenchmark",
+        "GetMetricDefinition",
+        "GetQualityStatus"
+      ],
+      "canonical_events": [
+        "METRIC_APPROVED",
+        "BENCHMARK_SNAPSHOT_CREATED",
+        "INSIGHT_PUBLISHED"
+      ]
     },
     {
       "id": "CHILD-22",
@@ -1143,7 +1585,25 @@
       "dependencies": "CF-03 and CF-04",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "AssignRetentionPolicy",
+        "PlaceLegalHold",
+        "ReleaseLegalHold",
+        "CreateDispositionCase",
+        "ApproveDisposition",
+        "ExecuteDisposition"
+      ],
+      "canonical_queries": [
+        "GetRetentionStatus",
+        "ListLegalHolds",
+        "GetLineage"
+      ],
+      "canonical_events": [
+        "LEGAL_HOLD_PLACED",
+        "RETENTION_DUE",
+        "DISPOSITION_EXECUTED"
+      ]
     },
     {
       "id": "CHILD-23",
@@ -1198,11 +1658,33 @@
       "dependencies": "Child-01..22",
       "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
       "acceptance_run_status": "NOT_RUN",
-      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateTestPlan",
+        "ExecuteTestRun",
+        "CreateMigrationPlan",
+        "RunMigrationDryRun",
+        "ExecuteMigration",
+        "CreateReleaseCandidate",
+        "RecordBackup",
+        "RunRestoreTest"
+      ],
+      "canonical_queries": [
+        "GetTraceabilityStatus",
+        "GetMigrationStatus",
+        "GetReleaseGateStatus",
+        "GetBackupHealth"
+      ],
+      "canonical_events": [
+        "TEST_RUN_COMPLETED",
+        "MIGRATION_COMPLETED",
+        "RELEASE_CANDIDATE_READY",
+        "RESTORE_TEST_PASSED"
+      ]
     }
   ],
   "limitations": [
-    "Only first entity field cell repeated in compact machine index; source DOCX contains every entity/field/command/state/query/event/test table in full.",
+    "This compact source index includes one exact representative field contract for each Child; the approved original contains all 148 complete entity field contract cells. The full complete field matrix was separately exported for review, and the original DOCX remains the immutable source of truth.",
     "All observed auth and dependency rules are source text, not implemented policy.",
     "No acceptance test executed."
   ]
