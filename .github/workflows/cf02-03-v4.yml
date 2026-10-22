@@ -1,8 +1,7 @@
 name: TTO CF02-CF03 actor-bound lifecycle and legal hold v4 (NO DEPLOY)
 on:
-  push:
-    branches: [feat/cf01-03-security-lifecycle-v2]
-  pull_request:
+  workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

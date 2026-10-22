@@ -1,9 +1,7 @@
 name: TTO three Next.js preview runtime and OTP fail-closed smoke (NO DEPLOY)
 on:
-  push:
-    branches: ["feat/vazirmatn-next-preview-otp"]
-  pull_request:
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

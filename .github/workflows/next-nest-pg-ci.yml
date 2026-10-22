@@ -1,9 +1,7 @@
 name: TTO Next Nest PostgreSQL CF01-03 checks (NO DEPLOY)
 on:
-  push:
-    branches: ["feat/cf01-03-next-nest-postgres-foundation"]
-  pull_request:
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

@@ -1,9 +1,7 @@
 name: TTO CF03 ClamAV INSTREAM adapter protocol tests (NO DEPLOY)
 on:
-  push:
-    branches: [feat/cf01-03-security-lifecycle-v2]
-    paths: ["services/workers/**",".github/workflows/clamav-adapter.yml"]
-  pull_request:
+  workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

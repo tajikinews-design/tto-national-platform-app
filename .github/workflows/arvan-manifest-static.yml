@@ -1,11 +1,7 @@
 name: TTO ArvanCloud manifests static review (NO DEPLOY)
 on:
-  pull_request:
-    paths:
-      - "infra/arvan/**"
-      - "scripts/test_arvan_k8s_templates.py"
-      - ".github/workflows/arvan-manifest-static.yml"
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

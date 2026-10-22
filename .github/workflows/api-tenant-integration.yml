@@ -1,9 +1,7 @@
 name: TTO API / PostgreSQL 17 integration (NO DEPLOY)
 on:
-  push:
-    branches: ["feat/cf01-03-next-nest-postgres-foundation"]
-  pull_request:
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

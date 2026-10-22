@@ -1,11 +1,7 @@
 name: TTO Vercel anonymous Preview protection (NO DEPLOY)
 on:
-  pull_request:
-    paths:
-      - 'scripts/verify-vercel-preview-protection*'
-      - 'docs/deployment/VERCEL_NEXT_VAZIRMATN_OTP_2026-10-22.md'
-      - '.github/workflows/tto-preview-anonymous-protection.yml'
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

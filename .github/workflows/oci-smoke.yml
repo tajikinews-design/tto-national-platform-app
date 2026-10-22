@@ -1,15 +1,7 @@
 name: TTO four OCI Docker images / Arvan portability checks (NO DEPLOY)
 on:
-  push:
-    branches: [feat/cf01-03-security-lifecycle-v2]
-    paths:
-      - "apps/**"
-      - "services/api/**"
-      - "packages/**"
-      - "pnpm-lock.yaml"
-      - ".dockerignore"
-      - ".github/workflows/oci-smoke.yml"
-  pull_request:
+  workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

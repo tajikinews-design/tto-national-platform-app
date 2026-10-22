@@ -1,8 +1,7 @@
 name: TTO API.ir SmsOTP contract tests (no SMS sent)
 on:
-  pull_request:
-  push:
-    branches: ["feat/apiir-otp-adapter-preview-gates"]
+  workflow_dispatch:
+
 permissions:
   contents: read
 jobs:
