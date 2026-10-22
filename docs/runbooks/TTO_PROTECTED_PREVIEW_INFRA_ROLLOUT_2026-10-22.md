@@ -145,3 +145,38 @@ All 4 provider projects' last deployments were checked `READY`, `ssoProtection.e
 - GitHub→Vercel private repo integration currently absent; current Preview builds were passed as inline snapshots from the Draft PR. Do not claim automatic deployment on PR updates.
 - No changes to TTO canonical reference repository, app `main`, BourseAI databases, public/Production Backend code, or ArvanCloud.
 - Phase CF01/03 overall still **IN_PROGRESS**.
+
+
+## 2026-10-22 three requested follow-up workstreams
+
+### A. GitHub private repo ↔ Vercel automatic Preview linking — BLOCKED ON EXTERNAL GITHUB APP APPROVAL
+
+- Checked Vercel's Git integration directly. `git_namespaces({provider:"github"})` returns `[]`. `search_repo({provider:"github", query:"tto-national-platform-app", teamId:"team_n6CStwBbEYPsdb886A3Xm2Vp"})` returns `repos:[]` and `namespaceId:null`. Thus native Vercel Git authentication for the private source is not installed/authorized on this scope. **ChatGPT→GitHub and ChatGPT→Vercel connectors do NOT by themselves authorize GitHub→Vercel integration.**
+- Vercel documentation: https://vercel.com/kb/guide/unable-to-find-github-repository and https://vercel.com/docs/git/vercel-for-github. An authorized repository owner must use GitHub Settings → Applications → Installed GitHub Apps → Vercel → Configure and grant *only* `tajikinews-design/tto-national-platform-app`; then connect the repository to each existing Vercel Project under Settings → Git. The available Vercel MCP tools cannot install the GitHub App or attach an existing unlinked project (`create_git_project` explicitly does not reconnect existing unlinked projects). **Do not create duplicate projects.**
+- **Critical noncommercial Preview safeguard:** Git-native deployments from `main` normally target Production. Three Vercel projects (`tto-api-preview`, `tto-shareholder-preview`, `tto-cooperative-preview`) accepted `commandForIgnoringBuildStep = if [ "$VERCEL_ENV" = "preview" ]; then exit 1; else exit 0; fi` via their project API to skip non-Preview builds. Vercel's API projection does not echo that setting for an independent read verification. The identical change on `tto-national-preview` was BLOCKED by connector safety controls, so **do not link/enable auto-deploy on any project until all four controls are verified in Vercel Dashboard**. The existing private protected Preview deployments remain healthy and may be manually redeployed from pinned SHA.
+- No git connection or automatic workflow is claimed. No Production code release/merge permitted.
+
+### B. Reciprocal synthetic tenant security — PASS in disposable PostgreSQL17 CI
+
+- Strengthened `tests/sql/tenant-isolation.sql` to add separate identity **B** and cooperative **B**, assert B sees only its own `MEMBER` document, B cannot read cooperative A, B's MEMBER role cannot insert its own managed documents, and B cannot escalate by selecting A's tenant scope. Previous tests also cover A→B denial, A's classified RESTRICTED/HIGHLY_RESTRICTED records, role revocation, transaction rollback, empty unscoped access, and unauthorized writes.
+- Test was executed in GitHub Actions `TTO CF01-03 security and lifecycle v2 (NO DEPLOY)` `Initial Tenant RLS tests` step: **success**; disposable PostgreSQL17 CI only, **no** synthetic tenant/user/phone/document records written to the hosted Supabase TTO project.
+
+### C. OTP end-to-end without enabling real SMS — PASS in disposable CI and protected Preview
+
+- Added `TTO_ENABLE_REAL_SMSOTP_DELIVERY` as an independent explicit permission gate at both POST challenge issuance and the server-only `ApiIrSmsOtpProvider.send`. It must equal exact string `"true"`; absent/false fails closed even if a provider token were accidentally present. The synthetic mock still works ONLY when `NODE_ENV=test` AND `TTO_MOCK_SMSOTP_PROVIDER=true`. No real SMS to be sent until an approved test plan/recipient and protected provider secret are set.
+- Added `services/api/test/sms-delivery-opt-in.test.cjs`, which installs an in-process fetch spy, tries multiple disabled flag values *with a fake provider token*, asserts HTTP-level ServiceUnavailableException 503 and **zero outbound fetch calls**, then tests permitted isolated CI fake code with zero network. Its dedicated CI workflow step `No real SMS without independent authorization (no network)`: **success**.
+- GitHub Actions real (ephemeral) Next→Nest→PG17 test still covers OTP request, incorrect code, correct synthetic code, HttpOnly/Secure/SameSite cookie, session restoration, replay denial, CSRF origin denial, logout/revocation, public throttle and IP spoofing. **No real SMS**.
+- Latest executable CI SHA `81f784bfde319cdb95396745c987de45b3f1ddcc` returned **13/13 completed success**.
+
+### Newly deployed, protected Preview (updated SMS guard, strict TLS)
+
+| Component | Vercel immutable deployment | Verified URL |
+| --- | --- | --- |
+| NestJS Backend (updated SMS guard, strict TLS, PG17) | `dpl_876rkvZrD6g62kWo2PZFNSh68q1h` | https://tto-api-preview-6l9c3huqs-tajikinews-6739.vercel.app |
+| Shareholder Next16 | `dpl_9RW9rQryMDN6Esf6Zct3UeroHtFk` | https://tto-shareholder-preview-o3c7n37jy-tajikinews-6739.vercel.app |
+| Cooperative Next16 | `dpl_7R3GW3Z1qjaddcb7bYAmciqWutGo` | https://tto-cooperative-preview-mrk344tn1-tajikinews-6739.vercel.app |
+| National admin Next16 | `dpl_FubKx89uXj4HX7kCwCi7uUAkciGx` | https://tto-national-preview-3i8h7vz82-tajikinews-6739.vercel.app |
+
+- Backend `GET /health` and `GET /ready` returned HTTP 200 with PostgreSQL `reachable`.
+- Three new panels `GET /api/internal/backend-ready` returned HTTP 200 with `{ready:true,oidcTrusted:true,restrictedDatabase:true}` after re-pointing their Preview-only `TTO_API_BASE_URL` to updated protected Backend. All four project SSO protections remain enabled; no Production application deployed.
+- These are **manual immutable Preview releases**, not automatic Git deployments. Do not mistake protected private diagnostic URLs for publicly accessible endpoints, and do not claim end-user SMS delivery/role authorization is complete.
