@@ -45,7 +45,7 @@ CREATE FUNCTION tto.request_identity_link(p_tenant uuid,p_party uuid,p_evidence 
  OR EXISTS(SELECT 1 FROM tto.user_party_links WHERE user_id=actor AND party_id=p_party AND verified_at IS NOT NULL)
  THEN RETURN NULL; END IF;
  INSERT INTO tto.identity_link_cases(case_id,tenant_id,user_id,party_id,request_evidence_id,requested_by)
- VALUES(rid,p_tenant,actor,p_party,p_evidence) ON CONFLICT DO NOTHING;
+ VALUES(rid,p_tenant,actor,p_party,p_evidence,actor) ON CONFLICT DO NOTHING;
  IF NOT FOUND THEN RETURN NULL; END IF;
  PERFORM tto.append_actor_audit(p_tenant,'IDENTITY_LINK_REQUESTED',rid);
  RETURN rid;
