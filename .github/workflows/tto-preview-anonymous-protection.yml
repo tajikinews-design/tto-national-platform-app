@@ -1,0 +1,24 @@
+name: TTO Vercel anonymous Preview protection (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'scripts/verify-vercel-preview-protection*'
+      - 'docs/deployment/VERCEL_NEXT_VAZIRMATN_OTP_2026-10-22.md'
+      - '.github/workflows/tto-preview-anonymous-protection.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  anonymous-preview-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Verify Node.js runtime supports built-in fetch
+        run: node -e 'if (Number(process.versions.node.split(".")[0]) < 20) process.exit(1)'
+      - name: Test denial/redirect classifier and fail-closed cases
+        run: node --test scripts/verify-vercel-preview-protection.test.mjs
+      - name: Probe all three previews from anonymous GitHub runner (no secrets or cookies)
+        run: node scripts/verify-vercel-preview-protection.mjs

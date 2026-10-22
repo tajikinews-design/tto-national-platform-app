@@ -108,10 +108,11 @@
       "evidence": [
         "Three Vercel Hobby projects protected with ssoProtection enabled and deploymentType=all; latest three PREVIEW target-null deployments READY",
         "Internal synthetic/noncommercial-only Vercel use owner-authorized; no Arvan production",
-        "Refreshed REAL Next.js 16 + Vazirmatn + OTP-disabled preview deployments READY (dpl_smfdz9Kvoye9zWeRkoZFM45RQTXN, dpl_5Zrgm5PrmwHbkJ7FtXDQ5zep3Ywc, dpl_HmRLAiJdYTR6FkCPDcQhjNiK2pNX), Vercel All Deployment auth enabled. Exact preview links in docs/deployment/VERCEL_NEXT_VAZIRMATN_OTP_2026-10-22.md."
+        "Refreshed REAL Next.js 16 + Vazirmatn + OTP-disabled preview deployments READY (dpl_smfdz9Kvoye9zWeRkoZFM45RQTXN, dpl_5Zrgm5PrmwHbkJ7FtXDQ5zep3Ywc, dpl_HmRLAiJdYTR6FkCPDcQhjNiK2pNX), Vercel All Deployment auth enabled. Exact preview links in docs/deployment/VERCEL_NEXT_VAZIRMATN_OTP_2026-10-22.md.",
+        "Independent no-credential GitHub Actions anonymous GET check 39786443223: 3/3 protected Next preview hosts responded HTTP 302 to Vercel SSO; 7/7 fail-closed verifier unit tests passed. This proves anonymous redirection only, not authorized reviewer login."
       ],
       "blockers": [
-        "Anonymous browser denial / authorized reviewer login smoke not independently verified; Vercel build log endpoint returned connector 403",
+        "Authorized reviewer sign-in / post-auth browser smoke remains NOT_TESTED. Deployment protection currently verified for unauthenticated redirect only. Vercel build log endpoint previously returned connector 403.",
         "No Vercel linked GitHub namespace; manually packaged from reviewed private GitHub branch; true Git-connected automated release not yet configured"
       ]
     },
@@ -119,11 +120,12 @@
       "status": "IN_PROGRESS",
       "evidence": [
         "3 real Next.js 16 builds deployed, target Preview/null and state READY with Vercel SSO All Deployments protection; dashboard and OTP disabled status are displayed",
-        "Real protected Vercel review deployment URLs recorded separately; no live backend connected"
+        "Real protected Vercel review deployment URLs recorded separately; no live backend connected",
+        "GitHub Actions anonymous smoke 39786443223: 3/3 Vercel previews issued recognized HTTPS SSO redirect without cookies or bypass (7/7 verifier tests PASS)."
       ],
       "blockers": [
         "No live CF01 OTP backend in Vercel, no synthetic persistent preview PostgreSQL",
-        "Authenticated/anonymous browser end-to-end access tests and full 23-domain interactions not yet tested"
+        "Authorized reviewer browser login and full 23-domain interactions NOT_TESTED. Anonymous Vercel SSO redirection is verified separately by GitHub Actions 39786443223."
       ]
     },
     "PHASE-12": {
