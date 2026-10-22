@@ -31,18 +31,65 @@ if ($RunId -notmatch "^[a-f0-9]{12}$" -or
 if (-not (Test-Path -LiteralPath $ReviewedArchive -PathType Leaf)) {
     throw "TTO_RELEASE_SOURCE_ARCHIVE_MISSING"
 }
-$pgImage = (& docker inspect --format "{{.Config.Image}}" $PostgresContainer).Trim()
-$nodeImage = (& docker inspect --format "{{.Config.Image}}" $NodeContainer).Trim()
-$pgNetwork = (& docker inspect --format "{{.HostConfig.NetworkMode}}" $PostgresContainer).Trim()
-$nodeNetwork = (& docker inspect --format "{{.HostConfig.NetworkMode}}" $NodeContainer).Trim()
-$pgPorts = (& docker inspect --format "{{json .HostConfig.PortBindings}}" $PostgresContainer).Trim()
-if ($LASTEXITCODE -ne 0 -or $pgImage -ne "postgres:17" -or
-    $nodeImage -ne "node:22-bookworm" -or
-    $pgNetwork -ne $PrivateNetwork -or
-    $nodeNetwork -ne ("container:" + $PostgresContainer) -or
-    $pgPorts -notin @("null","{}")) {
-    throw "TTO_RELEASE_DISPOSABLE_RESOURCE_ATTESTATION_FAILED"
+# Compare canonical container IDs as well as names. Docker Engine can normalize
+# "--network container:<name>" to "container:<64-byte-container-ID>" on inspect.
+# Parse inspect JSON rather than rejecting harmless EXPOSE entries like
+# "5432/tcp": null (declared but NOT published).
+function Inspect-DisposableContainer([string]$Name) {
+    $raw = @(& docker inspect --type container --format '{{json .}}' $Name)
+    if ($LASTEXITCODE -ne 0 -or $raw.Count -ne 1) {
+        throw "TTO_RELEASE_DOCKER_INSPECT_FAILED"
+    }
+    return ($raw[0] | ConvertFrom-Json)
 }
+function Has-PublishedHostPorts([object]$Info) {
+    if ($Info.HostConfig.PublishAllPorts) { return $true }
+    foreach ($view in @($Info.HostConfig.PortBindings, $Info.NetworkSettings.Ports)) {
+        if ($null -eq $view) { continue }
+        foreach ($entry in $view.PSObject.Properties) {
+            # A nil/empty binding indicates an EXPOSE instruction, not host access.
+            if ($null -ne $entry.Value -and @($entry.Value).Count -gt 0) {
+                return $true
+            }
+        }
+    }
+    return $false
+}
+$pgInfo = Inspect-DisposableContainer $PostgresContainer
+$nodeInfo = Inspect-DisposableContainer $NodeContainer
+if ($pgInfo.Name -cne ("/" + $PostgresContainer) -or
+    $nodeInfo.Name -cne ("/" + $NodeContainer) -or
+    $pgInfo.Config.Image -ne "postgres:17" -or
+    $nodeInfo.Config.Image -ne "node:22-bookworm") {
+    throw "TTO_RELEASE_DISPOSABLE_CONTAINER_IDENTITY_MISMATCH"
+}
+$pgId = [string]$pgInfo.Id
+$pgMode = [string]$pgInfo.HostConfig.NetworkMode
+$pgNetworks = @($pgInfo.NetworkSettings.Networks.PSObject.Properties.Name)
+$privateNetworkId = (& docker network inspect --format '{{.Id}}' $PrivateNetwork).Trim()
+if ($LASTEXITCODE -ne 0 -or
+    $pgId -notmatch "^[a-f0-9]{64}$" -or
+    $pgMode -notin @($PrivateNetwork,$privateNetworkId) -or
+    $pgNetworks.Count -ne 1 -or
+    $pgNetworks[0] -cne $PrivateNetwork) {
+    throw "TTO_RELEASE_DISPOSABLE_POSTGRES_NETWORK_MISMATCH"
+}
+$nodeMode = [string]$nodeInfo.HostConfig.NetworkMode
+$nodeSharesPg = $false
+if ($nodeMode.StartsWith("container:")) {
+    $target = $nodeMode.Substring("container:".Length)
+    $nodeSharesPg = ($target -ceq $PostgresContainer) -or
+        ($target -match "^[a-f0-9]{12,64}$" -and
+         $pgId.StartsWith($target, [StringComparison]::OrdinalIgnoreCase))
+}
+if (-not $nodeSharesPg) {
+    throw "TTO_RELEASE_DISPOSABLE_NODE_NAMESPACE_MISMATCH"
+}
+if ((Has-PublishedHostPorts $pgInfo) -or (Has-PublishedHostPorts $nodeInfo)) {
+    throw "TTO_RELEASE_HOST_PORT_PUBLICATION_FORBIDDEN"
+}
+Write-Host "TTO_RELEASE_DISPOSABLE_RESOURCE_ATTESTATION_PASS"
+Write-Host "TTO_RELEASE_NO_HOST_PORTS_VERIFIED"
 $runtimeNames = New-Object 'System.Collections.Generic.List[string]'
 $imageTags = New-Object 'System.Collections.Generic.List[string]'
 
