@@ -1,0 +1,1691 @@
+{
+  "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+  "source_repository": "tajikinews-design/tto-national-platform",
+  "source_sha": "5eb6be8edfbb61f2eca740a42c30f572b493f023",
+  "source_docx": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+  "table_counts": {
+    "entities": 148,
+    "states": 71,
+    "commands": 165,
+    "queries": 90,
+    "events": 89,
+    "acceptance": 155
+  },
+  "children": [
+    {
+      "id": "CHILD-01",
+      "source_contract": "TTO-CORE-IDENTITY-AUTH-IMPLEMENTATION",
+      "representative_entity": "USER_ACCOUNT",
+      "representative_exact_field_contract": "user_account_id, party_ref?, status, authorization_epoch, security_epoch, version",
+      "counts": {
+        "entities": 7,
+        "states": 5,
+        "commands": 7,
+        "queries": 4,
+        "events": 4,
+        "acceptance": 8
+      },
+      "scope": [
+        "مالک USER_ACCOUNT، identifiers، authentication factors/challenges/sessions، role definitions/assignments، authority references و JIT access.",
+        "ارائه tenant-aware authorization decision contract به تمام Domainها."
+      ],
+      "non_goals": [
+        "Party/Membership/Shareholding را مالک نیست.",
+        "Role permission به‌تنهایی legal authority ایجاد نمی‌کند.",
+        "Platform Admin به‌صورت پیش‌فرض Tenant superuser نیست."
+      ],
+      "invariants": [
+        "PARTY ≠ USER_ACCOUNT.",
+        "ROLE ≠ LEGAL_AUTHORITY.",
+        "LOGIN ≠ MEMBERSHIP.",
+        "Revoked role/authority must not remain usable بسبب stale token/cache.",
+        "Deny by default."
+      ],
+      "authorization": [
+        "tenant_id از payload عمومی trusted نیست.",
+        "Cross-tenant resource mismatch = reject + audit.",
+        "Secrets HIGHLY_RESTRICTED؛ audit بدون OTP/token/session secret.",
+        "SoD: creator ≠ final approver در flowهای حساس."
+      ],
+      "concurrency": [
+        "Challenge consumption atomic.",
+        "Role assignment overlap policy concurrency-safe.",
+        "Commands retryable use idempotency key.",
+        "expected_entity_version برای admin changes."
+      ],
+      "integrations": [
+        "CF-02 Tenant/Party context.",
+        "CF-03 Audit.",
+        "CF-04 Policy/SoD configuration."
+      ],
+      "migration": [
+        "Legacy AuthUser → USER_ACCOUNT.",
+        "TenantRoleAssignment → ROLE_ASSIGNMENT.",
+        "Legacy global admin never becomes unlimited tenant access."
+      ],
+      "dependencies": "CF-02 interfaces, CF-03 audit",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateUserAccount",
+        "VerifyAuthChallenge",
+        "CreateSession",
+        "AssignRole",
+        "RevokeRoleAssignment",
+        "BindAuthorityReference",
+        "GrantJitAccess"
+      ],
+      "canonical_queries": [
+        "GetCurrentIdentity",
+        "EvaluatePermission",
+        "ListUserTenantContexts",
+        "ListActiveRoleAssignments"
+      ],
+      "canonical_events": [
+        "USER_ACTIVATED",
+        "ROLE_ASSIGNMENT_ACTIVATED",
+        "ROLE_ASSIGNMENT_REVOKED",
+        "JIT_ACCESS_GRANTED"
+      ]
+    },
+    {
+      "id": "CHILD-02",
+      "source_contract": "TTO-CORE-TENANT-PARTY-IMPLEMENTATION",
+      "representative_entity": "TENANT",
+      "representative_exact_field_contract": "tenant_id immutable, type, legal/display name, geography_ref, status, current_slug_ref, legal_profile_ref, version",
+      "counts": {
+        "entities": 8,
+        "states": 5,
+        "commands": 7,
+        "queries": 5,
+        "events": 5,
+        "acceptance": 8
+      },
+      "scope": [
+        "مالک TENANT/COOPERATIVE canonical identity/lifecycle/routing و global PARTY identity.",
+        "تعریف User↔Party link و Party merge coordination.",
+        "نگهداری CooperativeRelationship projection برای Core؛ business truth در Member/Shareholder Master."
+      ],
+      "non_goals": [
+        "CF-02 membership یا shareholding را approve نمی‌کند.",
+        "Party merge هرگز Share Transfer یا Membership Transfer نیست.",
+        "Tenant activation هیچ نقش/عضویت ضمنی ایجاد نمی‌کند."
+      ],
+      "invariants": [
+        "tenant_id immutable.",
+        "slug locator only, never authorization key.",
+        "Global Party ≠ public visibility.",
+        "COOPERATIVE_RELATIONSHIP truth belongs to Member Master.",
+        "Party merge preserves historical references."
+      ],
+      "authorization": [
+        "All tenant-owned data tenant-scoped.",
+        "Search/file/cache/job/event/export tenant-aware.",
+        "Sensitive identifiers restricted/highly restricted.",
+        "Suspended tenant default write deny."
+      ],
+      "concurrency": [
+        "Slug reserve/change atomic unique.",
+        "Projection idempotent by event id and monotonic source version.",
+        "Merge cannot execute twice concurrently."
+      ],
+      "integrations": [
+        "CF-01 identity/auth.",
+        "CF-03 documents/evidence.",
+        "Member Master publishes relationship truth events."
+      ],
+      "migration": [
+        "Legacy Tenant→TENANT; slug field→TENANT_SLUG history.",
+        "TenantPerson→PARTY + relationship projection.",
+        "No auto-merge on uncertain identity."
+      ],
+      "dependencies": "CF-01 identity, CF-03 evidence",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateTenant",
+        "ActivateTenant",
+        "ChangeTenantSlug",
+        "CreateParty",
+        "LinkUserToParty",
+        "CreatePartyMergeCase",
+        "ExecutePartyMerge"
+      ],
+      "canonical_queries": [
+        "ResolveTenantBySlug",
+        "GetTenantStatus",
+        "GetPartyReferenceForUser",
+        "GetActiveTenantRelationshipProjection",
+        "ResolveMergedPartyAlias"
+      ],
+      "canonical_events": [
+        "TENANT_ACTIVATED",
+        "TENANT_SLUG_CHANGED",
+        "PARTY_CREATED",
+        "PARTY_MERGED",
+        "COOPERATIVE_RELATIONSHIP_PROJECTED"
+      ]
+    },
+    {
+      "id": "CHILD-03",
+      "source_contract": "TTO-CORE-DOCUMENT-EVIDENCE-AUDIT-IMPLEMENTATION",
+      "representative_entity": "FILE_OBJECT",
+      "representative_exact_field_contract": "file_object_id, tenant_id?, storage_ref, mime_type, size_bytes, sha256, scan_status, classification, created_at",
+      "counts": {
+        "entities": 7,
+        "states": 4,
+        "commands": 9,
+        "queries": 5,
+        "events": 4,
+        "acceptance": 8
+      },
+      "scope": [
+        "تفکیک کامل FILE_OBJECT، DOCUMENT، DOCUMENT_VERSION، EVIDENCE_REFERENCE و AUDIT_EVENT.",
+        "ارائه قرارداد مشترک برای upload/scan/version/access/integrity/audit.",
+        "پشتیبانی Legal Hold و reference به Retention Policy بدون مالکیت policy."
+      ],
+      "non_goals": [
+        "معنای Business سند در Domain باقی می‌ماند.",
+        "CF-03 تصمیم حقوقی یا business approval نمی‌گیرد.",
+        "Audit جایگزین Evidence یا Business Event نیست."
+      ],
+      "invariants": [
+        "FILE ≠ DOCUMENT ≠ EVIDENCE ≠ AUDIT.",
+        "Published/legal version silent overwrite ندارد.",
+        "Material correction = new version + supersedes link.",
+        "Audit append-only؛ business record deletion audit event را حذف نمی‌کند.",
+        "Download authorization مستقل از storage path است."
+      ],
+      "authorization": [
+        "Document/File access tenant + classification + resource permission می‌خواهد.",
+        "HIGHLY_RESTRICTED evidence least-privilege + enhanced audit.",
+        "Global platform file فقط با owner_scope=PLATFORM."
+      ],
+      "concurrency": [
+        "Upload completion idempotent by upload_id/hash.",
+        "Version number unique per document.",
+        "Seal bundle once; reseal = new bundle/version.",
+        "Audit ingestion durable؛ missing audit برای material command failure condition."
+      ],
+      "integrations": [
+        "Storage provider adapter.",
+        "Malware scanning adapter.",
+        "Retention Core برای disposition/hold.",
+        "تمام Domainها via references نه DB query مستقیم."
+      ],
+      "migration": [
+        "Legacy SourceDocument/DocumentVersion به مدل جدید map شوند.",
+        "Existing approved documents hard-delete نشوند.",
+        "Legacy files بدون hash باید migration hash backfill شوند."
+      ],
+      "dependencies": "CF-01, CF-02 and Child-22 retention",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateFileUpload",
+        "CompleteFileUpload",
+        "CreateDocument",
+        "AddDocumentVersion",
+        "PublishDocumentVersion",
+        "CreateEvidenceReference",
+        "SealEvidenceBundle",
+        "AppendAuditEvent",
+        "PlaceLegalHold"
+      ],
+      "canonical_queries": [
+        "GetDocument",
+        "GetDocumentVersion",
+        "GetEvidenceBundle",
+        "SearchAudit",
+        "CreateDownloadGrant"
+      ],
+      "canonical_events": [
+        "DOCUMENT_VERSION_CREATED",
+        "DOCUMENT_PUBLISHED",
+        "EVIDENCE_BUNDLE_SEALED",
+        "LEGAL_HOLD_PLACED"
+      ]
+    },
+    {
+      "id": "CHILD-04",
+      "source_contract": "TTO-CORE-RULES-POLICY-GATES-IMPLEMENTATION",
+      "representative_entity": "LEGAL_SOURCE",
+      "representative_exact_field_contract": "source_id, source_type, citation, issued_at, authority, status",
+      "counts": {
+        "entities": 6,
+        "states": 3,
+        "commands": 7,
+        "queries": 4,
+        "events": 4,
+        "acceptance": 8
+      },
+      "scope": [
+        "ثبت LegalRuleVersion با source/version/effective dates/applicability.",
+        "Policy Registry برای platform و tenant configuration مجاز.",
+        "Legal Gate Registry برای BLOCKED/FAIL_CLOSED/CONFIGURABLE/DEFERRED.",
+        "ارائه Rule Evaluation contract به Domainها."
+      ],
+      "non_goals": [
+        "تفسیر حقوقی خودکار یا تولید قاعده بدون منبع.",
+        "اجازه override tenant بر قانون ملی خارج از محدوده مجاز.",
+        "بازنویسی تاریخچه تراکنش‌ها با rule جدید."
+      ],
+      "invariants": [
+        "UNKNOWN LEGAL RULE ≠ DEFAULT ALLOW.",
+        "Rule جدید گذشته را بازنویسی نمی‌کند مگر retroactivity رسمی.",
+        "Tenant policy فقط در allowed configuration boundary.",
+        "Transaction حساس باید rule/policy version snapshot/reference داشته باشد."
+      ],
+      "authorization": [
+        "Rule editing فقط Product/Legal governance roles.",
+        "Tenant manager فقط tenant-configurable policy fields.",
+        "Published rule immutable; correction via superseding version."
+      ],
+      "concurrency": [
+        "As-of evaluation deterministic.",
+        "Concurrent activation یک rule scope conflict ایجاد نکند.",
+        "Gate status changes idempotent and audited."
+      ],
+      "integrations": [
+        "CF-03 برای source/evidence.",
+        "تمام Domainها via EvaluateRules contract.",
+        "Action/Calendar می‌تواند deadlines از rule projection بگیرد."
+      ],
+      "migration": [
+        "Legacy rule registry versions map شوند.",
+        "Proxy/Two-stage/Candidate Qualification baseline جاری seed شود.",
+        "Wallet-related gates retired/out-of-scope علامت‌گذاری شوند."
+      ],
+      "dependencies": "CF-03 audit/evidence",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateRuleVersion",
+        "ApproveRuleVersion",
+        "ActivateRuleVersion",
+        "SetPolicyValue",
+        "OpenLegalGate",
+        "ResolveLegalGate",
+        "CreateRuleSnapshot"
+      ],
+      "canonical_queries": [
+        "EvaluateRules",
+        "GetActiveRuleVersion",
+        "GetGateStatus",
+        "ListPolicyValues"
+      ],
+      "canonical_events": [
+        "RULE_VERSION_ACTIVATED",
+        "POLICY_VALUE_ACTIVATED",
+        "LEGAL_GATE_OPENED",
+        "LEGAL_GATE_RESOLVED"
+      ]
+    },
+    {
+      "id": "CHILD-05",
+      "source_contract": "TTO-CORE-NOTIFICATION-PAYMENT-INTEGRATIONS-IMPLEMENTATION",
+      "representative_entity": "NOTIFICATION_JOB",
+      "representative_exact_field_contract": "job_id, tenant_id, source_ref, recipient_ref, channel, template_ref, status, priority",
+      "counts": {
+        "entities": 7,
+        "states": 3,
+        "commands": 8,
+        "queries": 4,
+        "events": 5,
+        "acceptance": 8
+      },
+      "scope": [
+        "Notification Orchestrator و channel adapters.",
+        "Payment intent/attempt/verification برای flowهای مجاز؛ بدون custody.",
+        "Integration adapter framework برای provider/official systems.",
+        "Webhook/callback normalization و idempotency."
+      ],
+      "non_goals": [
+        "مالکیت Communication content یا Notice Assurance.",
+        "Cash wallet، fund custody، escrow یا balance.",
+        "Business finalization خودکار بر اساس callback."
+      ],
+      "invariants": [
+        "DELIVERED ≠ READ ≠ ACKNOWLEDGED.",
+        "PAYMENT_REPORTED ≠ PAYMENT_VERIFIED ≠ BUSINESS_FINALIZED.",
+        "TTO هیچ موجودی نقدی نگهداری نمی‌کند.",
+        "Provider callback به‌تنهایی business state نهایی نمی‌کند."
+      ],
+      "authorization": [
+        "Provider secrets HIGHLY_RESTRICTED.",
+        "Payment evidence RESTRICTED.",
+        "Tenant-specific integration credentials tenant-bound."
+      ],
+      "concurrency": [
+        "Webhook external_event_id idempotent.",
+        "Out-of-order callbacks state regression ندهند.",
+        "Retry side effect non-critical after commit.",
+        "Amounts integer minor/base unit."
+      ],
+      "integrations": [
+        "SMS/Email/Push providers.",
+        "Payment gateway/bank verification.",
+        "Official cooperative system adapter.",
+        "Future e-sign adapter DEFERRED."
+      ],
+      "migration": [
+        "Legacy wallet tables migrate به payment record/evidence only where needed؛ balances/withdrawals retired.",
+        "Legacy delivery logs normalize شوند."
+      ],
+      "dependencies": "CF-01..04",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "QueueNotification",
+        "ProcessDelivery",
+        "RecordDeliveryCallback",
+        "CreatePaymentIntent",
+        "ReportPaymentEvidence",
+        "VerifyPayment",
+        "RecordWebhook",
+        "DisableIntegration"
+      ],
+      "canonical_queries": [
+        "GetNotificationStatus",
+        "GetPaymentVerification",
+        "GetIntegrationHealth",
+        "GetWebhookReceipt"
+      ],
+      "canonical_events": [
+        "NOTIFICATION_SENT",
+        "PAYMENT_REPORTED",
+        "PAYMENT_VERIFIED",
+        "PAYMENT_FAILED",
+        "INTEGRATION_DEGRADED"
+      ]
+    },
+    {
+      "id": "CHILD-06",
+      "source_contract": "TTO-MEMBER-SHAREHOLDER-IMPLEMENTATION",
+      "representative_entity": "MEMBERSHIP_APPLICATION",
+      "representative_exact_field_contract": "application_id, tenant_id, party_id, status, submitted_at, evidence_refs[], decision_ref?",
+      "counts": {
+        "entities": 5,
+        "states": 3,
+        "commands": 6,
+        "queries": 4,
+        "events": 4,
+        "acceptance": 7
+      },
+      "scope": [
+        "مالک CooperativeRelationship، Membership workflow، ShareholderAccount و self-service profile.",
+        "نگهداری member/non-member shareholder distinction.",
+        "انتشار relationship truth events برای CF-02 projection."
+      ],
+      "non_goals": [
+        "مالک Share Ownership Ledger نیست.",
+        "Role/Authority را خودش ایجاد نمی‌کند.",
+        "عضویت را از Party identity استنباط نمی‌کند."
+      ],
+      "invariants": [
+        "Party identity ≠ membership.",
+        "ShareholderAccount ≠ ShareOwnership.",
+        "Non-member shareholder rights از Rule Registry؛ ownership به‌تنهایی membership/vote نمی‌سازد.",
+        "Historical relationship hard-delete نمی‌شود."
+      ],
+      "authorization": [
+        "Self-service فقط own data.",
+        "Manager access tenant-bound.",
+        "Sensitive IDs از Party Core reference شوند نه duplicate raw store."
+      ],
+      "concurrency": [
+        "Duplicate active relationship policy-controlled.",
+        "Decision idempotent by application/version.",
+        "Relationship event source_version monotonic."
+      ],
+      "integrations": [
+        "CF-02 Party/Tenant.",
+        "CF-04 rules.",
+        "CF-03 documents/evidence.",
+        "Share Market consumes shareholder eligibility refs."
+      ],
+      "migration": [
+        "Legacy Membership/TenantPerson به Party refs + CooperativeRelationship map.",
+        "Legacy duplicate person data dedup candidate نه auto merge."
+      ],
+      "dependencies": "CF-01..04 and CF-03",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "SubmitMembershipApplication",
+        "RecordMembershipDecision",
+        "ActivateRelationship",
+        "EndRelationship",
+        "CreateShareholderAccount",
+        "UpdateSelfServiceProfile"
+      ],
+      "canonical_queries": [
+        "GetMyMemberProfile",
+        "GetRelationship",
+        "ListMembers",
+        "GetShareholderAccount"
+      ],
+      "canonical_events": [
+        "MEMBERSHIP_APPLICATION_SUBMITTED",
+        "MEMBERSHIP_APPROVED",
+        "MEMBERSHIP_ENDED",
+        "SHAREHOLDER_ACCOUNT_ACTIVATED"
+      ]
+    },
+    {
+      "id": "CHILD-07",
+      "source_contract": "TTO-SHARE-CAPITAL-MARKET-IMPLEMENTATION",
+      "representative_entity": "SHARE_OWNERSHIP_LEDGER_ENTRY",
+      "representative_exact_field_contract": "entry_id, tenant_id, shareholder_account_id, share_qty, direction, source_case_ref, effective_at, previous_owner_ref?",
+      "counts": {
+        "entities": 7,
+        "states": 3,
+        "commands": 9,
+        "queries": 4,
+        "events": 5,
+        "acceptance": 8
+      },
+      "scope": [
+        "مالک CapitalOffer، SellOrder، BuyRequest، ShareLock، TransferCase، OwnershipLedger و ValuationReport reference.",
+        "اجرای مستقیم‌پرداخت Buyer→Seller و fee→Cooperative با Payment Core verification."
+      ],
+      "non_goals": [
+        "Cash wallet/fund reservation ندارد.",
+        "TTO قیمت واقعی را محاسبه نمی‌کند.",
+        "Payment verification به‌تنهایی ownership را تغییر نمی‌دهد."
+      ],
+      "invariants": [
+        "No valid valuation → fail-closed for automatic finalization.",
+        "Ownership cap evaluated post-transfer.",
+        "Share lock protects shares; no internal cash reserve.",
+        "Ownership ledger append-only.",
+        "Payment reported/verified != transfer completed."
+      ],
+      "authorization": [
+        "Seller/buyer own case visibility.",
+        "Final transfer requires privileged role + authority + SoD.",
+        "Related-party case hands off to GRC."
+      ],
+      "concurrency": [
+        "Share lock atomic/concurrent.",
+        "FinalizeTransfer idempotent.",
+        "Ledger write + case completion transactionally reliable."
+      ],
+      "integrations": [
+        "CF-05 payment verification.",
+        "CF-04 legal rules.",
+        "GRC related-party.",
+        "Member Master eligibility."
+      ],
+      "migration": [
+        "Legacy Wallet/FundReservation removed.",
+        "Legacy ShareTrade map to TransferCase; old financial fields retained only as historical evidence."
+      ],
+      "dependencies": "CF-01..06",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateSellOrder",
+        "LockShares",
+        "SubmitBuyRequest",
+        "SelectBuyer",
+        "RecordApproval",
+        "AttachPaymentEvidence",
+        "MarkPaymentVerified",
+        "FinalizeTransfer",
+        "CancelTransfer"
+      ],
+      "canonical_queries": [
+        "GetMyHoldings",
+        "ListMarketOffers",
+        "GetTransferCase",
+        "GetValuationStatus"
+      ],
+      "canonical_events": [
+        "SHARE_SELL_REQUESTED",
+        "SHARES_LOCKED",
+        "PAYMENT_REPORTED",
+        "TRANSFER_READY",
+        "TRANSFER_COMPLETED"
+      ]
+    },
+    {
+      "id": "CHILD-08",
+      "source_contract": "TTO-GOVERNANCE-ASSEMBLIES-IMPLEMENTATION",
+      "representative_entity": "ASSEMBLY",
+      "representative_exact_field_contract": "assembly_id, type, tenant_id, mode, status, scheduled_at, rule_snapshot",
+      "counts": {
+        "entities": 9,
+        "states": 3,
+        "commands": 9,
+        "queries": 5,
+        "events": 5,
+        "acceptance": 8
+      },
+      "scope": [
+        "مدیریت مجامع حضوری، candidacy، proxy، attendance، ballots/results، minutes و board meetings.",
+        "قفل قواعد >500 two-stage، proxy max 3، provincial chamber letter."
+      ],
+      "non_goals": [
+        "TTO legal e-voting host نیست.",
+        "نرم‌افزار شرط تخصصی مدیر اختراع نمی‌کند.",
+        "SMS-only را legal notice کامل نمی‌داند."
+      ],
+      "invariants": [
+        "Members>500 → TWO_STAGE; <=500 → ONE_STAGE.",
+        "حداکثر 3 proxy votes تا baseline جدید.",
+        "Candidate approval فقط با official provincial chamber letter.",
+        "Electronic legal assembly فقط official system handoff.",
+        "Legal notice completion از required channels + evidence."
+      ],
+      "authorization": [
+        "Member visibility vs internal candidate docs differentiated.",
+        "Ballot confidentiality restricted.",
+        "Finalization authority-bound."
+      ],
+      "concurrency": [
+        "Proxy cap concurrency-safe.",
+        "Eligibility snapshot frozen at relevant stage.",
+        "Vote result/minutes versioned; no silent overwrite."
+      ],
+      "integrations": [
+        "Communications/Notice Assurance.",
+        "CF-04 rules.",
+        "Official cooperative system future adapter.",
+        "Document/Evidence Core."
+      ],
+      "migration": [
+        "Legacy one-proxy test replaced.",
+        "Legacy dispersion condition removed; >500 count only.",
+        "Candidate approval logic replaced with chamber letter baseline."
+      ],
+      "dependencies": "CF-01..05 and Child-06",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateAssembly",
+        "PublishAssemblyNotice",
+        "RegisterCandidate",
+        "RecordChamberLetter",
+        "RegisterProxy",
+        "RecordAttendance",
+        "RecordVoteResult",
+        "FinalizeMinutes",
+        "RecordBoardResolution"
+      ],
+      "canonical_queries": [
+        "GetAssembly",
+        "ListEligibleVoters",
+        "ListCandidates",
+        "GetProxyCount",
+        "GetMinutes"
+      ],
+      "canonical_events": [
+        "ASSEMBLY_PUBLISHED",
+        "CANDIDACY_OPENED",
+        "CANDIDATE_APPROVED",
+        "ASSEMBLY_COMPLETED",
+        "BOARD_RESOLUTION_RECORDED"
+      ]
+    },
+    {
+      "id": "CHILD-09",
+      "source_contract": "TTO-COMMUNICATIONS-NOTICE-IMPLEMENTATION",
+      "representative_entity": "COMMUNICATION_ITEM",
+      "representative_exact_field_contract": "item_id, source_domain/ref, type, title/body_ref, classification, status",
+      "counts": {
+        "entities": 6,
+        "states": 2,
+        "commands": 6,
+        "queries": 3,
+        "events": 4,
+        "acceptance": 6
+      },
+      "scope": [
+        "مالک communication content/audience/publication.",
+        "Notice Assurance برای assured delivery/ack/evidence package.",
+        "Notification Core فقط delivery channel."
+      ],
+      "non_goals": [
+        "Source business record را مالک نمی‌شود.",
+        "Delivery را Read/Acknowledgement فرض نمی‌کند."
+      ],
+      "invariants": [
+        "DELIVERED ≠ READ ≠ ACKNOWLEDGED.",
+        "Recipient snapshot برای evidence-sensitive notice frozen.",
+        "Source module remains business truth.",
+        "Failure notification non-critical rollback ندارد."
+      ],
+      "authorization": [
+        "Audience tenant-scoped.",
+        "Member-visible vs public/internal classification.",
+        "Acknowledgement evidence restricted."
+      ],
+      "concurrency": [
+        "Publish idempotent.",
+        "Recipient dedup.",
+        "Retry delivery safe.",
+        "Acknowledgement unique per recipient/campaign/version."
+      ],
+      "integrations": [
+        "CF-05 notification adapters.",
+        "CF-03 evidence.",
+        "Governance legal notices."
+      ],
+      "migration": [
+        "Legacy Notification/DeliveryAttempt map to normalized core.",
+        "Existing notices preserve delivery evidence."
+      ],
+      "dependencies": "CF-03 and CF-05",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateCommunication",
+        "ApproveCommunication",
+        "PublishCommunication",
+        "StartAssuranceCampaign",
+        "RecordRead",
+        "RecordAcknowledgement"
+      ],
+      "canonical_queries": [
+        "GetCommunicationFeed",
+        "GetAssuranceStatus",
+        "GetEvidencePackage"
+      ],
+      "canonical_events": [
+        "COMMUNICATION_PUBLISHED",
+        "NOTICE_ASSURANCE_STARTED",
+        "NOTICE_ACKNOWLEDGED",
+        "NOTICE_EVIDENCE_COMPLETE"
+      ]
+    },
+    {
+      "id": "CHILD-10",
+      "source_contract": "TTO-SUPPORT-IMPLEMENTATION",
+      "representative_entity": "TICKET",
+      "representative_exact_field_contract": "ticket_id, tenant_id, requester_ref, category, priority, status, assigned_queue, source_entity_ref?",
+      "counts": {
+        "entities": 5,
+        "states": 2,
+        "commands": 7,
+        "queries": 4,
+        "events": 4,
+        "acceptance": 6
+      },
+      "scope": [
+        "Ticketing، routing، SLA، child tasks، escalation و linkage به business entities."
+      ],
+      "non_goals": [
+        "Ticket مالک business entity linked نیست.",
+        "Support agent بدون JIT حق data access گسترده ندارد."
+      ],
+      "invariants": [
+        "Ticket never owns linked business record.",
+        "SLA pause/resume explicit.",
+        "Private/internal messages not exposed to requester."
+      ],
+      "authorization": [
+        "Requester sees own tickets.",
+        "Agent access queue/tenant scoped.",
+        "JIT required for sensitive tenant data beyond ticket evidence."
+      ],
+      "concurrency": [
+        "Message append-only/versioned correction.",
+        "SLA calculations deterministic.",
+        "Escalation idempotent per trigger/version."
+      ],
+      "integrations": [
+        "Source Module → Support handoff.",
+        "GRC handoff for material/repeated issue.",
+        "Notification Core for updates."
+      ],
+      "migration": [
+        "Legacy support records map preserving ticket refs/status timeline."
+      ],
+      "dependencies": "CF-01..05",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateTicket",
+        "AssignTicket",
+        "AddTicketMessage",
+        "SetWaitingState",
+        "ResolveTicket",
+        "CloseTicket",
+        "EscalateTicket"
+      ],
+      "canonical_queries": [
+        "GetMyTickets",
+        "GetQueue",
+        "GetTicketTimeline",
+        "GetSLAStatus"
+      ],
+      "canonical_events": [
+        "TICKET_CREATED",
+        "TICKET_ESCALATED",
+        "TICKET_RESOLVED",
+        "TICKET_REOPENED"
+      ]
+    },
+    {
+      "id": "CHILD-11",
+      "source_contract": "TTO-TRANSPARENCY-IMPLEMENTATION",
+      "representative_entity": "DISCLOSURE_ITEM",
+      "representative_exact_field_contract": "item_id, tenant_id, type, period, status, classification, source_refs[]",
+      "counts": {
+        "entities": 4,
+        "states": 1,
+        "commands": 5,
+        "queries": 3,
+        "events": 2,
+        "acceptance": 6
+      },
+      "scope": [
+        "انتشار گزارش‌های قانونی/مالی/شرکتی برای shareholder transparency.",
+        "Versioned disclosure packages و source references."
+      ],
+      "non_goals": [
+        "General accounting، journal posting، chart of accounts یا internal bookkeeping ندارد.",
+        "اعداد بدون source به‌عنوان official report منتشر نمی‌شوند."
+      ],
+      "invariants": [
+        "TTO not general accounting.",
+        "Published figure must carry source/period/status.",
+        "Proposed ≠ approved ≠ paid.",
+        "Correction via new version."
+      ],
+      "authorization": [
+        "Member/public/internal classification enforced.",
+        "Auditor read-only role."
+      ],
+      "concurrency": [
+        "Package generation idempotent by version.",
+        "Source missing blocks official publication where required."
+      ],
+      "integrations": [
+        "External accounting/reference export optional.",
+        "Document/Evidence Core.",
+        "Communications for publication notice."
+      ],
+      "migration": [
+        "Legacy financial report fields mapped to disclosure/reference; Wallet reports retired."
+      ],
+      "dependencies": "CF-03/04 and Child-06",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateDisclosure",
+        "ApproveDisclosure",
+        "PublishDisclosure",
+        "SupersedeDisclosure",
+        "CreateReportPackage"
+      ],
+      "canonical_queries": [
+        "ListPublishedDisclosures",
+        "GetDisclosureHistory",
+        "ExportDisclosurePackage"
+      ],
+      "canonical_events": [
+        "DISCLOSURE_PUBLISHED",
+        "DISCLOSURE_SUPERSEDED"
+      ]
+    },
+    {
+      "id": "CHILD-12",
+      "source_contract": "TTO-PROJECT-ASSET-IMPLEMENTATION",
+      "representative_entity": "PROJECT",
+      "representative_exact_field_contract": "project_id, tenant_id, name, type, status, location, owner_ref, resolution_refs[]",
+      "counts": {
+        "entities": 6,
+        "states": 2,
+        "commands": 7,
+        "queries": 4,
+        "events": 4,
+        "acceptance": 6
+      },
+      "scope": [
+        "پروژه، دارایی، مجوز، قرارداد، milestones و progress.",
+        "جداکردن activity/project progress از impact."
+      ],
+      "non_goals": [
+        "ثبت پروژه اثبات مالکیت/مجوز نیست.",
+        "Impact claim را مالک نمی‌شود."
+      ],
+      "invariants": [
+        "Branch ≠ independent activity.",
+        "Activity progress ≠ impact outcome.",
+        "No ownership/permit inference from record existence.",
+        "Financial figures reference source; no accounting engine."
+      ],
+      "authorization": [
+        "Tenant/internal restricted contracts.",
+        "Member disclosure only via Transparency-approved projection."
+      ],
+      "concurrency": [
+        "Milestone completion idempotent.",
+        "Concurrent updates versioned.",
+        "Permit expiry can block transition by rule."
+      ],
+      "integrations": [
+        "Projects→Procurement.",
+        "Projects→Community Impact.",
+        "GRC for risk/escalation."
+      ],
+      "migration": [
+        "Legacy Project/Asset/Permit map preserving source documents."
+      ],
+      "dependencies": "CF-01..04",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateProject",
+        "ApproveProject",
+        "ActivateProject",
+        "RecordProjectUpdate",
+        "CompleteMilestone",
+        "LinkAsset",
+        "RequestProcurementHandoff"
+      ],
+      "canonical_queries": [
+        "GetProjectPortfolio",
+        "GetProjectTimeline",
+        "GetAssetRegister",
+        "GetPermitStatus"
+      ],
+      "canonical_events": [
+        "PROJECT_CREATED",
+        "PROJECT_STATUS_CHANGED",
+        "MILESTONE_COMPLETED",
+        "PROCUREMENT_NEEDED"
+      ]
+    },
+    {
+      "id": "CHILD-13",
+      "source_contract": "TTO-MEMBER-VOICE-IMPLEMENTATION",
+      "representative_entity": "ENGAGEMENT_PROCESS",
+      "representative_exact_field_contract": "process_id, tenant_id, type, audience_ref, status, opens_at, closes_at",
+      "counts": {
+        "entities": 5,
+        "states": 2,
+        "commands": 6,
+        "queries": 4,
+        "events": 3,
+        "acceptance": 6
+      },
+      "scope": [
+        "نظرسنجی، poll، consultation، proposal و prioritization غیرحقوقی."
+      ],
+      "non_goals": [
+        "Legal vote/election/quorum نیست.",
+        "نتیجه survey مصوبه مجمع محسوب نمی‌شود."
+      ],
+      "invariants": [
+        "Not legal vote.",
+        "Anonymous aggregate rules privacy-aware.",
+        "Response editing after submit only if policy/version permits."
+      ],
+      "authorization": [
+        "Audience tenant-bound.",
+        "Sensitive free text restricted.",
+        "Aggregate output suppress small cohorts if needed."
+      ],
+      "concurrency": [
+        "One-response constraints concurrency-safe.",
+        "Close vs late submit deadline atomic."
+      ],
+      "integrations": [
+        "Communications for invitation/result.",
+        "GRC/Projects/Action handoff when accepted proposal becomes work."
+      ],
+      "migration": [
+        "Any legacy polls labelled explicitly non-legal."
+      ],
+      "dependencies": "CF-01..05",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateEngagement",
+        "OpenEngagement",
+        "SubmitResponse",
+        "CloseEngagement",
+        "PublishManagementResponse",
+        "SubmitProposal"
+      ],
+      "canonical_queries": [
+        "GetOpenEngagements",
+        "GetMyResponses",
+        "GetAggregateResults",
+        "ListProposals"
+      ],
+      "canonical_events": [
+        "ENGAGEMENT_OPENED",
+        "ENGAGEMENT_CLOSED",
+        "MANAGEMENT_RESPONSE_PUBLISHED"
+      ]
+    },
+    {
+      "id": "CHILD-14",
+      "source_contract": "TTO-ACADEMY-EVENTS-IMPLEMENTATION",
+      "representative_entity": "COURSE",
+      "representative_exact_field_contract": "course_id, owner_scope, title, status, learning_outcomes",
+      "counts": {
+        "entities": 9,
+        "states": 4,
+        "commands": 8,
+        "queries": 4,
+        "events": 5,
+        "acceptance": 6
+      },
+      "scope": [
+        "Academy owns learning content/path/competency/assessment/certificate.",
+        "Events owns session logistics/capacity/registration/waitlist/attendance.",
+        "Explicit handoff Academy→Events for live course delivery."
+      ],
+      "non_goals": [
+        "Attendance ≠ learning completion.",
+        "Certificate ≠ professional/legal qualification unless external authority explicitly says so."
+      ],
+      "invariants": [
+        "Attendance != course completion.",
+        "Capacity/waitlist atomic.",
+        "Certificate does not imply statutory qualification.",
+        "Course retired remains in historical records."
+      ],
+      "authorization": [
+        "Learner self records private/member-visible.",
+        "Instructor/manager scoped access.",
+        "Assessment data restricted."
+      ],
+      "concurrency": [
+        "Registration concurrency-safe.",
+        "Duplicate attendance idempotent.",
+        "Course completion deterministic from rules snapshot."
+      ],
+      "integrations": [
+        "Academy→Events handoff.",
+        "Notification reminders.",
+        "Payment Core for paid events if enabled."
+      ],
+      "migration": [
+        "Legacy learning/event records map preserving completion vs attendance distinction."
+      ],
+      "dependencies": "CF-01..05",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "PublishCourse",
+        "EnrollLearner",
+        "RecordAssessment",
+        "CompleteCourse",
+        "IssueCertificate",
+        "CreateEventFromCourse",
+        "RegisterEvent",
+        "RecordAttendance"
+      ],
+      "canonical_queries": [
+        "GetCourseCatalog",
+        "GetMyLearning",
+        "GetEventAvailability",
+        "GetAttendance"
+      ],
+      "canonical_events": [
+        "COURSE_ENROLLED",
+        "COURSE_COMPLETED",
+        "CERTIFICATE_ISSUED",
+        "EVENT_PUBLISHED",
+        "ATTENDANCE_RECORDED"
+      ]
+    },
+    {
+      "id": "CHILD-15",
+      "source_contract": "TTO-BENEFITS-IMPLEMENTATION",
+      "representative_entity": "BENEFIT",
+      "representative_exact_field_contract": "benefit_id, tenant_id, type, terms, allocation_policy_ref, status",
+      "counts": {
+        "entities": 4,
+        "states": 3,
+        "commands": 6,
+        "queries": 4,
+        "events": 3,
+        "acceptance": 6
+      },
+      "scope": [
+        "تعریف benefit، eligibility، entitlement، voucher و reward ledger غیرنقدی."
+      ],
+      "non_goals": [
+        "Cash wallet نیست.",
+        "Reward ≠ dividend/profit distribution.",
+        "Withdrawable balance ایجاد نمی‌کند."
+      ],
+      "invariants": [
+        "Benefit wallet non-cash/non-withdrawable.",
+        "Limited capacity requires approved allocation rule.",
+        "Rewards are not dividends."
+      ],
+      "authorization": [
+        "Self benefits only.",
+        "Allocation decisions auditable.",
+        "Partner redemption secrets restricted."
+      ],
+      "concurrency": [
+        "Redeem atomic/idempotent.",
+        "Voucher code single-use.",
+        "Limited capacity concurrency safe."
+      ],
+      "integrations": [
+        "Marketplace/Events optional redemption.",
+        "Notification reminders."
+      ],
+      "migration": [
+        "Legacy wallet-like labels must be renamed if non-cash; no cash balance migration."
+      ],
+      "dependencies": "CF-01..05 and Child-06",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateBenefit",
+        "ActivateBenefit",
+        "IssueEntitlement",
+        "ReserveEntitlement",
+        "RedeemBenefit",
+        "CancelEntitlement"
+      ],
+      "canonical_queries": [
+        "ListMyBenefits",
+        "GetBenefitTerms",
+        "GetRewardHistory",
+        "GetBenefitUtilization"
+      ],
+      "canonical_events": [
+        "BENEFIT_ACTIVATED",
+        "ENTITLEMENT_ISSUED",
+        "BENEFIT_REDEEMED"
+      ]
+    },
+    {
+      "id": "CHILD-16",
+      "source_contract": "TTO-MARKETPLACE-ADVERTISING-IMPLEMENTATION",
+      "representative_entity": "PRODUCT",
+      "representative_exact_field_contract": "product_id, tenant_id, title, status, supplier_source_ref?",
+      "counts": {
+        "entities": 8,
+        "states": 4,
+        "commands": 8,
+        "queries": 4,
+        "events": 4,
+        "acceptance": 6
+      },
+      "scope": [
+        "Marketplace catalog/offer/order/fulfillment؛ buyer-facing seller در MVP تعاونی.",
+        "Member supplier proposal workflow جدا از offer.",
+        "Advertising inventory/campaign/creative/targeting/aggregate analytics."
+      ],
+      "non_goals": [
+        "Member supplier proposal ≠ seller offer.",
+        "Ad content ≠ official notice.",
+        "Sensitive targeting ممنوع."
+      ],
+      "invariants": [
+        "MVP buyer-facing seller = cooperative.",
+        "Customer payment to cooperative; supplier settlement separate.",
+        "Sponsored content clearly distinguished from official notices/editorial.",
+        "No political ads by platform policy baseline."
+      ],
+      "authorization": [
+        "Orders self/seller tenant scoped.",
+        "Sensitive profile traits not used for ad targeting.",
+        "Supplier proposal restricted."
+      ],
+      "concurrency": [
+        "Order snapshot immutable for price/terms.",
+        "Inventory/quantity if used concurrency-safe.",
+        "Payment callback idempotent."
+      ],
+      "integrations": [
+        "CF-05 payment.",
+        "Benefits optional.",
+        "Communications cannot be conflated with ads."
+      ],
+      "migration": [
+        "Legacy marketplace seller assumptions mapped to cooperative seller."
+      ],
+      "dependencies": "CF-01..05",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "PublishOffer",
+        "CreateOrder",
+        "ConfirmPayment",
+        "RecordFulfillment",
+        "RequestRefund",
+        "SubmitSupplierProposal",
+        "ApproveCampaign",
+        "ServeAd"
+      ],
+      "canonical_queries": [
+        "BrowseCatalog",
+        "GetMyOrders",
+        "GetSellerOrders",
+        "GetCampaignStats"
+      ],
+      "canonical_events": [
+        "ORDER_CREATED",
+        "ORDER_FULFILLED",
+        "SUPPLIER_PROPOSAL_ACCEPTED",
+        "CAMPAIGN_STARTED"
+      ]
+    },
+    {
+      "id": "CHILD-17",
+      "source_contract": "TTO-COLLABORATION-PROCUREMENT-IMPLEMENTATION",
+      "representative_entity": "COLLAB_NEED",
+      "representative_exact_field_contract": "need_id, tenant_id, scope, status",
+      "counts": {
+        "entities": 8,
+        "states": 4,
+        "commands": 9,
+        "queries": 4,
+        "events": 4,
+        "acceptance": 6
+      },
+      "scope": [
+        "Discovery of needs/opportunities, EOI, joint initiatives.",
+        "Formal sourcing PR/RFI/RFQ/RFP/tender, supplier qualification, bid, evaluation, award."
+      ],
+      "non_goals": [
+        "EOI ≠ agreement.",
+        "Group procurement ≠ pooled money or central legal buyer by default.",
+        "Thresholds not nationally hard-coded without source."
+      ],
+      "invariants": [
+        "Criteria frozen before bid opening.",
+        "Procurement thresholds configurable/source-backed.",
+        "No pooled funds.",
+        "Group sourcing may aggregate demand; orders remain tenant-specific unless explicit legal model."
+      ],
+      "authorization": [
+        "Sealed bids HIGHLY_RESTRICTED before opening.",
+        "Evaluator conflict/SoD enforced.",
+        "Cross-tenant access only approved network projection."
+      ],
+      "concurrency": [
+        "Deadline atomic.",
+        "Bid submission idempotent/versioned before close.",
+        "Award single active outcome per lot as policy."
+      ],
+      "integrations": [
+        "Projects→Procurement.",
+        "Collaboration→Procurement.",
+        "GRC conflict.",
+        "Payment not pooled."
+      ],
+      "migration": [
+        "Legacy procurement thresholds mapped to Policy Registry values, not code constants."
+      ],
+      "dependencies": "CF-01..05, Child-12/20 handoffs",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "PublishNeed",
+        "SubmitEOI",
+        "CreateJointInitiative",
+        "CreatePurchaseRequest",
+        "PublishSourcingEvent",
+        "SubmitBid",
+        "CloseBidding",
+        "RecordEvaluation",
+        "ApproveAward"
+      ],
+      "canonical_queries": [
+        "BrowseCollaborationNeeds",
+        "GetSourcingEvent",
+        "GetMyBid",
+        "GetAward"
+      ],
+      "canonical_events": [
+        "JOINT_INITIATIVE_CREATED",
+        "SOURCING_EVENT_PUBLISHED",
+        "BID_CLOSED",
+        "AWARD_APPROVED"
+      ]
+    },
+    {
+      "id": "CHILD-18",
+      "source_contract": "TTO-OPPORTUNITIES-IMPLEMENTATION",
+      "representative_entity": "OPPORTUNITY",
+      "representative_exact_field_contract": "opportunity_id, tenant_id, type, terms, status, opens/closes",
+      "counts": {
+        "entities": 4,
+        "states": 2,
+        "commands": 6,
+        "queries": 3,
+        "events": 3,
+        "acceptance": 6
+      },
+      "scope": [
+        "Publish opportunities, applications, screening workflow and handoff to interview/event/procurement as appropriate."
+      ],
+      "non_goals": [
+        "Label نمی‌تواند labor/procurement law را bypass کند.",
+        "AI auto-reject final authority نیست."
+      ],
+      "invariants": [
+        "Opportunity type routes to employment/procurement/business rules.",
+        "AI recommendation advisory only; no silent auto-reject.",
+        "Application evidence retained per policy."
+      ],
+      "authorization": [
+        "Applications RESTRICTED.",
+        "Reviewer least privilege.",
+        "Sensitive protected attributes not used unless lawful/explicit."
+      ],
+      "concurrency": [
+        "Submission deadline atomic.",
+        "Status change optimistic concurrency."
+      ],
+      "integrations": [
+        "Events for interview.",
+        "Procurement if vendor selection.",
+        "GRC for conflicts/background checks where enabled."
+      ],
+      "migration": [
+        "Legacy opportunity records classify by type; ambiguous cases review."
+      ],
+      "dependencies": "CF-01..05",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "PublishOpportunity",
+        "SubmitApplication",
+        "ScreenApplication",
+        "ShortlistApplication",
+        "ScheduleInterview",
+        "CloseOpportunity"
+      ],
+      "canonical_queries": [
+        "ListOpportunities",
+        "GetMyApplications",
+        "ListApplications"
+      ],
+      "canonical_events": [
+        "OPPORTUNITY_PUBLISHED",
+        "APPLICATION_SUBMITTED",
+        "APPLICATION_STATUS_CHANGED"
+      ]
+    },
+    {
+      "id": "CHILD-19",
+      "source_contract": "TTO-COMMUNITY-IMPACT-IMPLEMENTATION",
+      "representative_entity": "COMMUNITY_NEED",
+      "representative_exact_field_contract": "need_id, geography, source_refs, status",
+      "counts": {
+        "entities": 6,
+        "states": 3,
+        "commands": 6,
+        "queries": 3,
+        "events": 3,
+        "acceptance": 6
+      },
+      "scope": [
+        "Need/program/grant/indicator/measurement/claim.",
+        "Link project outputs to outcome/impact evidence."
+      ],
+      "non_goals": [
+        "Activity ≠ Output ≠ Outcome ≠ Impact.",
+        "Automatic SROI disabled/deferred.",
+        "No accounting engine."
+      ],
+      "invariants": [
+        "No automatic SROI.",
+        "Measurement quality explicit.",
+        "Project progress not automatically impact.",
+        "Grant finance records references only, not accounting."
+      ],
+      "authorization": [
+        "Beneficiary sensitive data purpose-limited.",
+        "Public claims only approved aggregate/evidence."
+      ],
+      "concurrency": [
+        "Measurement versioned.",
+        "Duplicate period/source prevented per indicator policy."
+      ],
+      "integrations": [
+        "Projects→Impact handoff.",
+        "Transparency publication.",
+        "GRC for claim/control risk."
+      ],
+      "migration": [
+        "Legacy CSR records map with methodology/quality backfill where possible."
+      ],
+      "dependencies": "CF-01..04 and Child-12",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateImpactProgram",
+        "DefineIndicator",
+        "RecordMeasurement",
+        "CreateImpactClaim",
+        "ApproveImpactClaim",
+        "CreateGrantCase"
+      ],
+      "canonical_queries": [
+        "GetImpactDashboard",
+        "GetMeasurementHistory",
+        "GetGrantStatus"
+      ],
+      "canonical_events": [
+        "IMPACT_MEASUREMENT_RECORDED",
+        "IMPACT_CLAIM_PUBLISHED",
+        "GRANT_APPROVED"
+      ]
+    },
+    {
+      "id": "CHILD-20",
+      "source_contract": "TTO-GRC-IMPLEMENTATION",
+      "representative_entity": "OBLIGATION",
+      "representative_exact_field_contract": "obligation_id, rule_ref, tenant_id, owner, due_pattern, status",
+      "counts": {
+        "entities": 8,
+        "states": 4,
+        "commands": 9,
+        "queries": 4,
+        "events": 4,
+        "acceptance": 6
+      },
+      "scope": [
+        "Obligation، risk، control، policy linkage، related party، conflict، finding، action و whistleblowing restricted intake."
+      ],
+      "non_goals": [
+        "Self-certification of legal compliance نیست.",
+        "Related party ≠ automatic prohibition.",
+        "Anonymous whistleblowing deferred unless policy enabled later."
+      ],
+      "invariants": [
+        "Article129 ≠ absolute void; workflow/recusal/reporting.",
+        "Article132 prohibited categories hard block when applicable.",
+        "No self-certification of compliance.",
+        "Whistleblower identity need-to-know."
+      ],
+      "authorization": [
+        "GRC records RESTRICTED/HIGHLY_RESTRICTED.",
+        "Conflict reviewers SoD.",
+        "Platform support no default access."
+      ],
+      "concurrency": [
+        "Control tests immutable evidence.",
+        "Repeated issue can aggregate but source refs preserved.",
+        "Action close requires verification if policy."
+      ],
+      "integrations": [
+        "Operational modules → GRC handoff.",
+        "CF-04 legal rules.",
+        "Support escalation."
+      ],
+      "migration": [
+        "Legacy conflict logic that auto-invalidated all director transactions must be replaced."
+      ],
+      "dependencies": "CF-01..04",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateRisk",
+        "AssessRisk",
+        "DefineControl",
+        "RecordControlTest",
+        "DeclareConflict",
+        "ReviewRelatedPartyTransaction",
+        "BlockProhibitedDirectorLoan",
+        "OpenFinding",
+        "CreateRemediationAction"
+      ],
+      "canonical_queries": [
+        "GetRiskRegister",
+        "GetControlStatus",
+        "GetConflictCase",
+        "GetFinding"
+      ],
+      "canonical_events": [
+        "RISK_ESCALATED",
+        "FINDING_OPENED",
+        "ACTION_CLOSED",
+        "CONFLICT_REVIEWED"
+      ]
+    },
+    {
+      "id": "CHILD-21",
+      "source_contract": "TTO-NETWORK-INTELLIGENCE-IMPLEMENTATION",
+      "representative_entity": "METRIC_DEFINITION",
+      "representative_exact_field_contract": "metric_code, definition, grain, numerator/denominator, unit, window, source_contract, version",
+      "counts": {
+        "entities": 6,
+        "states": 3,
+        "commands": 6,
+        "queries": 4,
+        "events": 3,
+        "acceptance": 6
+      },
+      "scope": [
+        "Metric registry، data quality، cohort definition، benchmark snapshots، insights و improvement actions."
+      ],
+      "non_goals": [
+        "Raw transactional source مالک نیست.",
+        "Named peer exact-value leaderboard ندارد.",
+        "No public overall score/ranking by default."
+      ],
+      "invariants": [
+        "ZERO ≠ NO_DATA.",
+        "ESTIMATED ≠ ACTUAL.",
+        "Benchmark only compatible definitions/versions.",
+        "Small cohort/re-identification risk suppressed.",
+        "Named peer exact values prohibited."
+      ],
+      "authorization": [
+        "Analytics access classification-aware.",
+        "Tenant sees own exact values + anonymous peer stats."
+      ],
+      "concurrency": [
+        "Snapshot immutable/versioned.",
+        "Rebuild creates new snapshot.",
+        "Double counting controlled in network aggregation."
+      ],
+      "integrations": [
+        "All Domains via analytics contract/event/projection.",
+        "Data Governance/Retention."
+      ],
+      "migration": [
+        "Legacy reports mapped only if metric definition reproducible; otherwise NO_DATA/legacy label."
+      ],
+      "dependencies": "All domain analytics and CF-03/04",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "DefineMetric",
+        "ApproveMetric",
+        "RunQualityCheck",
+        "BuildBenchmarkSnapshot",
+        "PublishInsight",
+        "SuppressBenchmark"
+      ],
+      "canonical_queries": [
+        "GetMyMetrics",
+        "GetBenchmark",
+        "GetMetricDefinition",
+        "GetQualityStatus"
+      ],
+      "canonical_events": [
+        "METRIC_APPROVED",
+        "BENCHMARK_SNAPSHOT_CREATED",
+        "INSIGHT_PUBLISHED"
+      ]
+    },
+    {
+      "id": "CHILD-22",
+      "source_contract": "TTO-DATA-GOVERNANCE-RETENTION-IMPLEMENTATION",
+      "representative_entity": "DATA_CLASSIFICATION_POLICY",
+      "representative_exact_field_contract": "classification code, handling rules, export/search/ai constraints",
+      "counts": {
+        "entities": 6,
+        "states": 3,
+        "commands": 6,
+        "queries": 3,
+        "events": 3,
+        "acceptance": 6
+      },
+      "scope": [
+        "Data classification registry، purpose limitation، retention policies، disposition workflow، legal hold و data lineage metadata."
+      ],
+      "non_goals": [
+        "حذف خودکار material legal/financial/governance data بدون policy.",
+        "Classification به‌تنهایی authorization نیست."
+      ],
+      "invariants": [
+        "ARCHIVED ≠ DELETED.",
+        "Legal Hold overrides disposition.",
+        "Material records no hard delete unless explicit lawful policy.",
+        "Classification != authorization."
+      ],
+      "authorization": [
+        "Privacy/retention admins restricted.",
+        "Highly restricted deletion/export enhanced audit."
+      ],
+      "concurrency": [
+        "Disposition idempotent.",
+        "Hold race must win over delete.",
+        "Policy snapshot retained at disposition."
+      ],
+      "integrations": [
+        "CF-03 document/evidence/audit.",
+        "All Domains assign categories."
+      ],
+      "migration": [
+        "Legacy records classified before automated disposition enabled.",
+        "Assembly proxy/ballot/counting records minimum retention baseline handled through policy seed."
+      ],
+      "dependencies": "CF-03 and CF-04",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "AssignRetentionPolicy",
+        "PlaceLegalHold",
+        "ReleaseLegalHold",
+        "CreateDispositionCase",
+        "ApproveDisposition",
+        "ExecuteDisposition"
+      ],
+      "canonical_queries": [
+        "GetRetentionStatus",
+        "ListLegalHolds",
+        "GetLineage"
+      ],
+      "canonical_events": [
+        "LEGAL_HOLD_PLACED",
+        "RETENTION_DUE",
+        "DISPOSITION_EXECUTED"
+      ]
+    },
+    {
+      "id": "CHILD-23",
+      "source_contract": "TTO-TEST-MIGRATION-OPERATIONS-IMPLEMENTATION",
+      "representative_entity": "TEST_CASE",
+      "representative_exact_field_contract": "test_id, source_requirement, layer, priority, owner, status",
+      "counts": {
+        "entities": 7,
+        "states": 3,
+        "commands": 8,
+        "queries": 4,
+        "events": 4,
+        "acceptance": 8
+      },
+      "scope": [
+        "تبدیل Acceptance Contracts به test suites.",
+        "Migration legacy→new baseline با rollback/checkpoint.",
+        "Backup/restore, release gates, observability, SLO placeholders و pilot readiness."
+      ],
+      "non_goals": [
+        "هیچ FAIL به PASS گزارش نمی‌شود.",
+        "هیچ production deploy بدون دستور/approval.",
+        "Performance target اختراع نمی‌شود؛ تا SLO decision gate ثبت می‌ماند."
+      ],
+      "invariants": [
+        "No test deletion to manufacture green.",
+        "Every P0/mandatory test linked to source requirement.",
+        "Migration additive/reversible where feasible.",
+        "Tenant isolation and no-wallet regression mandatory.",
+        "Backup without restore test not considered verified."
+      ],
+      "authorization": [
+        "Test data synthetic.",
+        "Production secrets/data not copied into reports.",
+        "Security results restricted appropriately."
+      ],
+      "concurrency": [
+        "Test runs immutable evidence.",
+        "Migration batches idempotent/restartable.",
+        "Release candidate pins spec/rule versions."
+      ],
+      "integrations": [
+        "All Child specs.",
+        "CI/CD/tooling chosen after repo inspection.",
+        "Observability provider technology-specific later."
+      ],
+      "migration": [
+        "Legacy 47 tests statuses preserved: retain/update/replace/retire.",
+        "Wallet tests replaced by direct-payment tests.",
+        "Migration mapping tables preserve legacy IDs."
+      ],
+      "dependencies": "Child-01..22",
+      "status": "SOURCE_EXTRACTED_NOT_IMPLEMENTED",
+      "acceptance_run_status": "NOT_RUN",
+      "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "canonical_commands": [
+        "CreateTestPlan",
+        "ExecuteTestRun",
+        "CreateMigrationPlan",
+        "RunMigrationDryRun",
+        "ExecuteMigration",
+        "CreateReleaseCandidate",
+        "RecordBackup",
+        "RunRestoreTest"
+      ],
+      "canonical_queries": [
+        "GetTraceabilityStatus",
+        "GetMigrationStatus",
+        "GetReleaseGateStatus",
+        "GetBackupHealth"
+      ],
+      "canonical_events": [
+        "TEST_RUN_COMPLETED",
+        "MIGRATION_COMPLETED",
+        "RELEASE_CANDIDATE_READY",
+        "RESTORE_TEST_PASSED"
+      ]
+    }
+  ],
+  "limitations": [
+    "This compact source index includes one exact representative field contract for each Child; the approved original contains all 148 complete entity field contract cells. The full complete field matrix was separately exported for review, and the original DOCX remains the immutable source of truth.",
+    "All observed auth and dependency rules are source text, not implemented policy.",
+    "No acceptance test executed."
+  ]
+}
