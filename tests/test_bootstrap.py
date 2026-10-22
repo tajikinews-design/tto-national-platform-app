@@ -31,7 +31,7 @@ class FoundationTests(unittest.TestCase):
   def test_canonical_navigation_and_no_fake_metrics(self):
     s=(ROOT/"packages/ui/assets/app.js").read_text()
     for i in range(1,12):self.assertIn(f"NAV-{i:02d}",s)
-    self.assertIn("no_data",s)
+    self.assertIn("داده‌ای برای نمایش موجود نیست",s)\n    self.assertIn("—",s)
     self.assertNotIn("fetch(",s)
     self.assertNotIn("XMLHttpRequest",s)
 
