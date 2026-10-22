@@ -50,7 +50,8 @@
         "NestJS 11/Fastify API build successful; GitHub Actions #39762676001",
         "GitHub feature branch feat/cf01-03-next-nest-postgres-foundation, draft PR #3. main untouched",
         "Three real Next.js 16 programs with shared Vazirmatn font and Next app runtime authenticated-page SSO preview built READY in Vercel (3 deployment IDs in docs/deployment/VERCEL_NEXT_VAZIRMATN_OTP_2026-10-22.md).",
-        "CI three Next runtimes started and fail-closed OTP routes verified 9/9 (run 39779478142)."
+        "CI three Next runtimes started and fail-closed OTP routes verified 9/9 (run 39779478142).",
+        "Run 39781753954: 12/12 Next runtime OTP fail-closed and dynamic backend flag checks passed across all three portals."
       ],
       "blockers": [
         "Live backend/API and preview relational datastore not provisioned; business domain pages beyond dashboard shells incomplete"
@@ -106,7 +107,8 @@
       "status": "IN_PROGRESS",
       "evidence": [
         "Three Vercel Hobby projects protected with ssoProtection enabled and deploymentType=all; latest three PREVIEW target-null deployments READY",
-        "Internal synthetic/noncommercial-only Vercel use owner-authorized; no Arvan production"
+        "Internal synthetic/noncommercial-only Vercel use owner-authorized; no Arvan production",
+        "Refreshed REAL Next.js 16 + Vazirmatn + OTP-disabled preview deployments READY (dpl_smfdz9Kvoye9zWeRkoZFM45RQTXN, dpl_5Zrgm5PrmwHbkJ7FtXDQ5zep3Ywc, dpl_HmRLAiJdYTR6FkCPDcQhjNiK2pNX), Vercel All Deployment auth enabled. Exact preview links in docs/deployment/VERCEL_NEXT_VAZIRMATN_OTP_2026-10-22.md."
       ],
       "blockers": [
         "Anonymous browser denial / authorized reviewer login smoke not independently verified; Vercel build log endpoint returned connector 403",
