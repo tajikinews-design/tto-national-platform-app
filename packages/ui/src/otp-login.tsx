@@ -1,8 +1,7 @@
 "use client";
 import { useState, type FormEvent } from "react";
 /** OTP UI never holds API.ir credentials; form is unavailable until a protected backend is configured. */
-export function OtpLogin(){
- const enabled=process.env.NEXT_PUBLIC_TTO_AUTH_ENABLED==="true";
+export function OtpLogin({enabled}:{enabled:boolean}){
  const [mobile,setMobile]=useState("");
  const [code,setCode]=useState("");
  const [requestId,setRequestId]=useState("");
