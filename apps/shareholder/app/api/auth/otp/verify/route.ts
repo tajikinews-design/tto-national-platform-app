@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trustedBackendHeaders } from "../../../../../lib/trusted-backend";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 export async function POST(request:NextRequest){
@@ -13,7 +14,7 @@ export async function POST(request:NextRequest){
  if(body.length>512)return NextResponse.json({error:"BAD_REQUEST"},{status:400});
  try{
   const upstream=await fetch(new URL("/v1/auth/challenges/verify",api),{
-    method:"POST",headers:{"Content-Type":"application/json"},body,cache:"no-store",redirect:"error",
+    method:"POST",headers:{"Content-Type":"application/json",...trustedBackendHeaders(request)},body,cache:"no-store",redirect:"error",
     signal:AbortSignal.timeout(9500)
   });
   if(!upstream.ok)return NextResponse.json({error:"INVALID_OR_EXPIRED_CODE"},{status:401});
