@@ -61,6 +61,18 @@ jobs:
             throw "TTO_WINDOWS_LOCAL_CI_POWERSHELL_PARSE_FAILED"
           }
           Write-Host "TTO_WINDOWS_LOCAL_CI_POWERSHELL_SYNTAX_PASS"
+          # Both reviewed scripts must parse cleanly before building applications.
+          $additionalTokens = $null
+          $additionalErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Join-Path $PWD "scripts/ci/local-release-helper.ps1"),
+            [ref]$additionalTokens, [ref]$additionalErrors
+          ) | Out-Null
+          if ($additionalErrors.Count -gt 0) {
+            $additionalErrors | ForEach-Object { Write-Error $_.ToString() }
+            throw "TTO_WINDOWS_LOCAL_RELEASE_POWERSHELL_PARSE_FAILED"
+          }
+          Write-Host "TTO_WINDOWS_LOCAL_RELEASE_POWERSHELL_SYNTAX_PASS"
       - name: Source baseline and offline structural tests
         run: |
           set -euo pipefail
