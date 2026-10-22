@@ -147,6 +147,40 @@ export class FoundationCommandsController {
       return data.rows[0].out;
     });
   }
+
+  @Post("tenants/:tenantId/lifecycle/transition")
+  async transitionTenant(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    const oldState=requireText(input?.fromStatus,3,40);
+    const nextState=requireText(input?.toStatus,3,40);
+    const version=input?.expectedVersion;
+    if(!Number.isSafeInteger(version)||Number(version)<1)throw new BadRequestException("Invalid entity version");
+    const approved=await this.run<boolean>(tenant,auth,
+      "SELECT tto.transition_tenant($1,$2,$3,$4,tto.context_actor_id()) AS out",
+      [tenant,oldState,nextState,version]);
+    if(!approved)throw new ForbiddenException("Tenant transition denied");
+    return {transitioned:true};
+  }
+  @Post("tenants/:tenantId/parties/aliases/merge")
+  async mergeParty(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    const oldParty=requireId(input?.oldPartyId),currentParty=requireId(input?.currentPartyId);
+    const approved=await this.run<boolean>(tenant,auth,
+      "SELECT tto.merge_party_alias($1,$2,$3,tto.context_actor_id()) AS out",
+      [oldParty,currentParty,tenant]);
+    if(!approved)throw new ForbiddenException("Party merge denied");
+    return {aliased:true};
+  }
+  @Post("tenants/:tenantId/legal-holds/:holdId/release")
+  async releaseHold(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Param("holdId",new ParseUUIDPipe()) hold:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    const evidence=requireId(input?.releaseEvidenceId);
+    const approved=await this.run<boolean>(tenant,auth,
+      "SELECT tto.release_legal_hold($1,$2) AS out",[hold,evidence]);
+    if(!approved)throw new ForbiddenException("Hold release denied");
+    return {released:true};
+  }
   @Post("auth/challenges/verify")
   @HttpCode(200)
   async verify(@Body() payload:Record<string,unknown>){
