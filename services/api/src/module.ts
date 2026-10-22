@@ -12,19 +12,22 @@ export class Database {
     // The Supabase pooler hostname MUST be copied from this project's Connect
     // dialog: region-based hostname guessing can target another pooler.
     let connectionString = process.env.DATABASE_URL;
-    let tls: { rejectUnauthorized: true } | undefined;
+    let tls: { rejectUnauthorized: true; ca: string } | undefined;
     if (!connectionString && process.env.VERCEL) {
       const host = process.env.TTO_DB_POOLER_HOST ?? "";
       const password = process.env.TTO_DB_APP_PASSWORD ?? "";
       const projectRef = process.env.TTO_DB_PROJECT_REF ?? "";
+      const rootCA = process.env.TTO_DB_CA_PEM ?? "";
       if (!/^[a-z0-9-]+\.pooler\.supabase\.com$/.test(host) ||
-          projectRef !== "zkfwsgrgslxxlusxrwce" || password.length < 60) {
+          projectRef !== "zkfwsgrgslxxlusxrwce" || password.length < 60 ||
+          !rootCA.startsWith("-----BEGIN CERTIFICATE-----") ||
+          !rootCA.trimEnd().endsWith("-----END CERTIFICATE-----")) {
         throw new Error("TTO_PREVIEW_DATABASE_CONFIGURATION_INCOMPLETE");
       }
       connectionString = "postgresql://" +
         encodeURIComponent("tto_app." + projectRef) + ":" +
         encodeURIComponent(password) + "@" + host + ":6543/postgres";
-      tls = { rejectUnauthorized: true };
+      tls = { rejectUnauthorized: true, ca: rootCA };
     }
     if (!connectionString) throw new Error("DATABASE_URL_NOT_CONFIGURED");
     this.pool = new Pool({
