@@ -145,7 +145,12 @@ async function main(){
  const natContext=await status(await get("/v1/tenants/"+A+"/context",tokenMap.get(NATIONAL)),200,"national approved JIT context");
  ok(natContext.tenant_id===A,"national context cannot cross tenant");
  await status(await get("/v1/tenants/"+B+"/context",tokenMap.get(NATIONAL)),403,"national cannot inspect unrelated tenant");
- await db.query("UPDATE tto.jit_access_grants SET expires_at=now()-interval '1 second' WHERE grant_id=$1",[grant]);
+ await db.query("UPDATE tto.jit_access_grants SET status='REVOKED' WHERE grant_id=$1",[grant]);
+ assert.deepEqual(await options(na,NATIONAL),[]);checks++;
+ await status(await get("/v1/tenants/"+A+"/context",tokenMap.get(NATIONAL)),403,"revoked national JIT fails closed");
+ const expiredGrant=randomUUID();
+ await db.query("INSERT INTO tto.jit_access_grants(grant_id,tenant_id,requester_id,approver_id,purpose,scope,status,requested_at,expires_at,decided_at) VALUES($1,$2,$3,$4,'CI expired independent review','DOCUMENT_REVIEW','APPROVED',now()-interval '2 hours',now()-interval '1 hour',now()-interval '90 minutes')",
+  [expiredGrant,A,NATIONAL,APPROVER]);
  assert.deepEqual(await options(na,NATIONAL),[]);checks++;
  await status(await get("/v1/tenants/"+A+"/context",tokenMap.get(NATIONAL)),403,"expired national JIT fails closed");
  const app=new Client({connectionString:"postgresql://tto_app@127.0.0.1:5432/tto"});await app.connect();
