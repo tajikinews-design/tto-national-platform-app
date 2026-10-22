@@ -7,6 +7,10 @@ export class ApiIrSmsOtpProvider {
       if(code!=="111222") throw new ServiceUnavailableException("Invalid synthetic OTP");
       return true;
     }
+    // Independent explicit safety switch: merely adding a provider token must
+    // never enable actual delivery in protected internal previews.
+    if(process.env.TTO_ENABLE_REAL_SMSOTP_DELIVERY!=="true")
+      throw new ServiceUnavailableException("SMS delivery is not approved");
     const token=process.env.APIIR_TOKEN;
     if(!token || token.length<12) throw new ServiceUnavailableException("SMS provider not configured");
     const controller=new AbortController();
