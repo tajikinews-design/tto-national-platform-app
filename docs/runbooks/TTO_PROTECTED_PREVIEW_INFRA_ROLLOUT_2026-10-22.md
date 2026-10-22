@@ -72,3 +72,11 @@ Current Supabase: organization **TTO National Platform** `yorsamvvdcteddkobgpp` 
 ## Safe rollback
 
 The current three protected Frontend Preview deployments remain unchanged until new deployment URLs independently pass all gates. If any new deployment fails, keep existing URLs in place; do not modify production aliases. Revoke only newly added Preview environment variables / Trusted Sources when authorized. Keep migration history and backup; never run destructive drop/reset on mixed or unknown projects.
+
+## Live database migration record — 2026-10-22
+
+On the user-created independent **TTO** Supabase project `zkfwsgrgslxxlusxrwce` (Tokyo, PostgreSQL17.11), applied all six checked-in SQL migrations in source order using the connected Supabase migration tool: `0001_cf01_cf03_foundation.sql`, `0002_cf01_03_secure_flows.sql`, `0003_cf01_03_role_jit_party_document.sql`, `0004_cf02_privileged_lifecycle_cf03_hold_release.sql`, `0005_cf01_smsotp_login.sql`, `0006_cf01_public_otp_abuse_guard.sql`. All six returned success and all six are recorded in Supabase migration history with matching order. This schema is for an isolated Preview, not approved production or real users.
+
+Post-install read-only SQL confirmed **25** tables under schema `tto`; **17** tables have FORCE RLS; role `tto_app` is `NOLOGIN NOSUPERUSER NOBYPASSRLS`. The runtime login role has **not been provisioned**, no `DATABASE_URL` or auth HMAC secrets were added to Vercel, and the Backend has **not been deployed**. This is not an end-to-end functional approval. After applying, Supabase advisers returned informational security findings (`rls_enabled_no_policy`, 14 entries consistent with default-deny or purpose-specific privileged operations; each must be reviewed) and performance findings (including 27 `unindexed_foreign_keys`); review before opening up to users. Do not blindly add permissive policies to silence lints. No BourseAI project touched.
+
+**Required next**: TTO-only nonowner `tto_app` login credential via secure secret manager and verified TLS pooler connection; migration checks with restricted credential; OIDC-gated Backend Preview deployment and three Next projects' integration; protect all URLs; confirm Tokyo data residency before any actual personal information.
