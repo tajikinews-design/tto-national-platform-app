@@ -80,7 +80,7 @@ class TestReleaseSuitePolicy(unittest.TestCase):
         r=self.release
         for required in (
             'TTO_RELEASE_RESOURCE_SCOPE_REJECTED',
-            'TTO_RELEASE_DISPOSABLE_RESOURCE_ATTESTATION_FAILED',
+            'TTO_RELEASE_DISPOSABLE_CONTAINER_IDENTITY_MISMATCH',
             'DROP DATABASE IF EXISTS tto WITH (FORCE)',
             'tests/sql/tenant-isolation.sql',
             'tests/sql/cf01-cf03-v2.sql',
