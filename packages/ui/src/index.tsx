@@ -48,3 +48,5 @@ export function PortalShell({ surface, children }: { surface: Surface; children?
     </main>
   </div>;
 }
+
+export { OtpLogin } from "./otp-login";
