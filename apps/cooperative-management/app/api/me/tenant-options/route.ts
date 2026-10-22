@@ -1,7 +1,8 @@
 import { NextRequest,NextResponse } from "next/server";
 import { trustedBackendHeaders } from "../../../../lib/trusted-backend";
 export const runtime="nodejs"; export const dynamic="force-dynamic";
-const SURFACE="cooperative";
+function getPortalSurface(): "shareholder" | "cooperative" | "national" { return "cooperative"; }
+const SURFACE = getPortalSurface();
 const HEADERS={"Cache-Control":"private, no-store","Vary":"Cookie"};
 const TOKEN=/^[A-Za-z0-9_-]{32,256}$/;
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
