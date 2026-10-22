@@ -1,6 +1,7 @@
 import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, HttpCode } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
-import { createHash, createHmac, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, randomInt } from "node:crypto";
+import { ApiIrSmsOtpProvider } from "./apiir-provider";
 
 @Injectable()
 export class Database {
@@ -20,6 +21,19 @@ export class Database {
   }
   async onModuleDestroy(): Promise<void> { await this.pool.end(); }
   async isReady(): Promise<void> { await this.pool.query("SELECT 1 FROM tto.tenants LIMIT 0"); }
+  async prepareSmsLogin(mobile:string, id:string, hash:Buffer):Promise<boolean>{
+    const r=await this.pool.query<{ok:boolean}>(
+      "SELECT tto.begin_smsotp_login($1,$2,$3,clock_timestamp()+interval '4 minutes') AS ok",
+      [mobile,id,hash]
+    );
+    return r.rows[0]?.ok===true;
+  }
+  async attestSmsDelivery(id:string, accepted:boolean):Promise<boolean>{
+    const r=await this.pool.query<{ok:boolean}>(
+      "SELECT tto.complete_smsotp_delivery($1,$2) AS ok",[id,accepted]
+    );
+    return r.rows[0]?.ok===true;
+  }
   async consumeChallenge(challengeId:string, verifier:Buffer, sessionHash:Buffer): Promise<boolean> {
     const result=await this.pool.query<{user_id:string|null}>(
       "SELECT tto.consume_challenge($1,$2,$3) AS user_id",[challengeId,verifier,sessionHash]);
@@ -145,7 +159,7 @@ function requireText(value:unknown, minimum:number, maximum:number):string {
 }
 @Controller("v1")
 export class FoundationCommandsController {
-  constructor(private readonly db:Database){}
+  constructor(private readonly db:Database, private readonly sms:ApiIrSmsOtpProvider){}
   private async run<T>(tenant:string,auth:string|undefined,sql:string,values:unknown[]):Promise<T>{
     const actor=await this.db.sessionActor(auth);
     return this.db.inTenant(actor,tenant,async c=>{
@@ -186,6 +200,33 @@ export class FoundationCommandsController {
       "SELECT tto.release_legal_hold($1,$2) AS out",[hold,evidence]);
     if(!approved)throw new ForbiddenException("Hold release denied");
     return {released:true};
+  }
+  @Post("auth/challenges/request")
+  @HttpCode(202)
+  async requestSmsLogin(@Body() payload:Record<string,unknown>){
+    const mobile=payload?.mobile;
+    if(typeof mobile!=="string" || !/^09[0-9]{9}$/.test(mobile))
+      throw new BadRequestException("Invalid mobile");
+    const pepper=process.env.AUTH_CHALLENGE_HMAC_SECRET;
+    if(!pepper || Buffer.byteLength(pepper)<32)
+      throw new ServiceUnavailableException("Authentication unavailable");
+    // Do not make public issuance available without an actual configured SMS provider
+    // or explicit test-only delivery mode. No SMS credentials in browser code.
+    const fake=process.env.NODE_ENV==="test" && process.env.TTO_MOCK_SMSOTP_PROVIDER==="true";
+    if(!fake && (!process.env.APIIR_TOKEN || process.env.APIIR_TOKEN.length<12))
+      throw new ServiceUnavailableException("SMS provider unavailable");
+    const requestId=randomUUID();
+    const code=fake ? "111222" : String(randomInt(100000,1000000));
+    const digest=createHmac("sha256",pepper).update(requestId+":"+code).digest();
+    const created=await this.db.prepareSmsLogin(mobile,requestId,digest);
+    if(created){
+      let accepted=false;
+      try { accepted=await this.sms.send(mobile,code); } catch { accepted=false; }
+      const updated=await this.db.attestSmsDelivery(requestId,accepted);
+      // Generic response, no account enumeration, no OTP or provider body leaks.
+      if(!updated) throw new ServiceUnavailableException("Authentication delivery failed");
+    }
+    return {requestId,status:"ACCEPTED"};
   }
   @Post("auth/challenges/verify")
   @HttpCode(200)
@@ -279,5 +320,5 @@ export class FoundationCommandsController {
   }
 }
 
-@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController]})
+@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController],providers:[ApiIrSmsOtpProvider]})
 export class AppModule {}
