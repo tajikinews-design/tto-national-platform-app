@@ -1,0 +1,85 @@
+{
+  "read_only": true,
+  "repository": "tajikinews-design/tto-national-platform",
+  "branch": "main",
+  "pinned_commit": "5eb6be8edfbb61f2eca740a42c30f572b493f023",
+  "verified_file_count": 15,
+  "files": [
+    {
+      "path": "TTO-CONSOLIDATED-LEGAL-GATE-REGISTER v1.0.docx",
+      "git_blob_sha": "935363fa1bfee570ddb5714b9e8e0c3b1e28c26b",
+      "bytes": 53313
+    },
+    {
+      "path": "TTO-CORE-IDENTITY-AUTH-IMPLEMENTATION-v1.0.docx",
+      "git_blob_sha": "3c9ab62fac4f063808b7abd07016c12d893dcc57",
+      "bytes": 45222
+    },
+    {
+      "path": "TTO-CORE-TENANT-PARTY-IMPLEMENTATION-v1.0.docx",
+      "git_blob_sha": "7ba0ec7853d4201839917716c10940b9fd1dbb33",
+      "bytes": 51635
+    },
+    {
+      "path": "TTO-DASHBOARD-UI-IMPLEMENTATION-HANDOFF-v1.0.docx",
+      "git_blob_sha": "948feb986d2ac530b23cb8bb324d26ea851dc7db",
+      "bytes": 3331416
+    },
+    {
+      "path": "TTO-IMPLEMENTATION-SPECIFICATION-MASTER-v1.0.docx",
+      "git_blob_sha": "c9b04b564f93e6a41f16a2d21927fb01dea98ce7",
+      "bytes": 55102
+    },
+    {
+      "path": "TTO-INTEGRATED-PRODUCT-FUNCTIONAL-REVIEW v0.9.docx",
+      "git_blob_sha": "819dda78f8ad8cebea579ebbeb070299320d82f9",
+      "bytes": 62435
+    },
+    {
+      "path": "TTO-MVP-BASELINE-RECONCILIATION-v1.0.docx",
+      "git_blob_sha": "3eda9ad517076806ac554223d73cf3e24788d7af",
+      "bytes": 41943
+    },
+    {
+      "path": "TTO-MVP-BASELINE-RECONCILIATION-v1.0.xlsx",
+      "git_blob_sha": "4358698f39cfb28fbe6f41b428c2f4be8edf949e",
+      "bytes": 118772
+    },
+    {
+      "path": "TTO-NAVIGATION-INFORMATION-ARCHITECTURE-v1.0.docx",
+      "git_blob_sha": "fef0ed79d512d8e19997932207dcdd2ecf8d11ad",
+      "bytes": 49772
+    },
+    {
+      "path": "TTO-PLATFORM-ARCHITECTURE-INTEGRATION-DECISION-REGISTER v1.0.docx",
+      "git_blob_sha": "333636eb54494bd1380a35dfd1ec62d92f06d885",
+      "bytes": 71491
+    },
+    {
+      "path": "TTO-Share-Market-Spec-v3.0.docx",
+      "git_blob_sha": "538fd6951e495e54a8c83ec5389170bc09274a93",
+      "bytes": 796894
+    },
+    {
+      "path": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "git_blob_sha": "120a36134e04293225f11440e8c41c16a0dc085f",
+      "bytes": 104274
+    },
+    {
+      "path": "persian_cooperative_analytics_dashboard.png",
+      "git_blob_sha": "a15469c2533752540b71c4a0006510c7bc6b054a",
+      "bytes": 1643402
+    },
+    {
+      "path": "persian_cooperative_management_dashboard.png",
+      "git_blob_sha": "a15469c2533752540b71c4a0006510c7bc6b054a",
+      "bytes": 1643402
+    },
+    {
+      "path": "persian_shareholders_dashboard_overview.png",
+      "git_blob_sha": "5a83759a1de620f702f628bc13f6d2f1274e1268",
+      "bytes": 1648938
+    }
+  ],
+  "note": "Git tree verified through authorized GitHub connector on 2026-10-22; never copy or mutate source originals into application repo"
+}

@@ -1,0 +1,127 @@
+{
+  "title": "Approved navigation / logical contract only - not implemented authorization",
+  "source": "TTO-NAVIGATION-INFORMATION-ARCHITECTURE-v1.0.docx",
+  "children_version": "v1.0",
+  "implementation_status": "NOT_IMPLEMENTED",
+  "canonical_root_count": 11,
+  "roots": [
+    {
+      "code": "NAV-01",
+      "management_and_national_label": "داشبورد",
+      "shareholder_label": "داشبورد",
+      "authoritative_routes": null,
+      "permission_policy": null,
+      "tenant_context_required": true,
+      "feature_gate_required": true,
+      "ui_implementation": "REVIEW_SHELL_ONLY"
+    },
+    {
+      "code": "NAV-02",
+      "management_and_national_label": "اعضا و سهام",
+      "shareholder_label": "سهام و عضویت من",
+      "authoritative_routes": null,
+      "permission_policy": null,
+      "tenant_context_required": true,
+      "feature_gate_required": true,
+      "ui_implementation": "REVIEW_SHELL_ONLY"
+    },
+    {
+      "code": "NAV-03",
+      "management_and_national_label": "بازار و سرمایه",
+      "shareholder_label": "خرید و فروش سهام",
+      "authoritative_routes": null,
+      "permission_policy": null,
+      "tenant_context_required": true,
+      "feature_gate_required": true,
+      "ui_implementation": "REVIEW_SHELL_ONLY"
+    },
+    {
+      "code": "NAV-04",
+      "management_and_national_label": "حاکمیت و مجامع",
+      "shareholder_label": "مجامع و انتخابات",
+      "authoritative_routes": null,
+      "permission_policy": null,
+      "tenant_context_required": true,
+      "feature_gate_required": true,
+      "ui_implementation": "REVIEW_SHELL_ONLY"
+    },
+    {
+      "code": "NAV-05",
+      "management_and_national_label": "ارتباط با سهامداران",
+      "shareholder_label": "اخبار و ارتباط با شرکت",
+      "authoritative_routes": null,
+      "permission_policy": null,
+      "tenant_context_required": true,
+      "feature_gate_required": true,
+      "ui_implementation": "REVIEW_SHELL_ONLY"
+    },
+    {
+      "code": "NAV-06",
+      "management_and_national_label": "عملیات و خدمات",
+      "shareholder_label": "خدمات من",
+      "authoritative_routes": null,
+      "permission_policy": null,
+      "tenant_context_required": true,
+      "feature_gate_required": true,
+      "ui_implementation": "REVIEW_SHELL_ONLY"
+    },
+    {
+      "code": "NAV-07",
+      "management_and_national_label": "کسب‌وکار و بازار",
+      "shareholder_label": "فروشگاه و فرصت‌ها",
+      "authoritative_routes": null,
+      "permission_policy": null,
+      "tenant_context_required": true,
+      "feature_gate_required": true,
+      "ui_implementation": "REVIEW_SHELL_ONLY"
+    },
+    {
+      "code": "NAV-08",
+      "management_and_national_label": "پروژه و توسعه",
+      "shareholder_label": "پروژه‌های شرکت",
+      "authoritative_routes": null,
+      "permission_policy": null,
+      "tenant_context_required": true,
+      "feature_gate_required": true,
+      "ui_implementation": "REVIEW_SHELL_ONLY"
+    },
+    {
+      "code": "NAV-09",
+      "management_and_national_label": "ریسک و شفافیت",
+      "shareholder_label": "شفافیت و اسناد شرکت",
+      "authoritative_routes": null,
+      "permission_policy": null,
+      "tenant_context_required": true,
+      "feature_gate_required": true,
+      "ui_implementation": "REVIEW_SHELL_ONLY"
+    },
+    {
+      "code": "NAV-10",
+      "management_and_national_label": "گزارش و هوشمندی",
+      "shareholder_label": "گزارش‌های من",
+      "authoritative_routes": null,
+      "permission_policy": null,
+      "tenant_context_required": true,
+      "feature_gate_required": true,
+      "ui_implementation": "REVIEW_SHELL_ONLY"
+    },
+    {
+      "code": "NAV-11",
+      "management_and_national_label": "تنظیمات",
+      "shareholder_label": "تنظیمات حساب",
+      "authoritative_routes": null,
+      "permission_policy": null,
+      "tenant_context_required": true,
+      "feature_gate_required": true,
+      "ui_implementation": "REVIEW_SHELL_ONLY"
+    }
+  ],
+  "invariants": [
+    "NAV-R03: submenus require Permission + Feature availability + Tenant scope",
+    "NAV-R04: national cross-tenant views aggregated and authorized only; tenant detail requires JIT",
+    "NAV-R06: dashboard is projection, not business source of truth",
+    "NAV-R08: marketplace products/services distinct from share market",
+    "NAV-R09: download authorization independent of discoverability",
+    "NAV-R10: menu route and permission registry versioned together"
+  ]
+}
