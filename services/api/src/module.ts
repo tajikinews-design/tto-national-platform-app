@@ -274,6 +274,12 @@ export class FoundationCommandsController {
     if(!accepted)throw new UnauthorizedException("Challenge invalid or expired");
     return {accessToken:token,tokenType:"Bearer"};
   }
+  // Authentication only: never infer any tenant role, legal authority or national-admin scope.
+  @Get("auth/session")
+  async session(@Headers("authorization") auth?:string){
+    await this.db.sessionActor(auth); // real PostgreSQL resolve_session validates expiry/revocation
+    return {authenticated:true};
+  }
   @Post("auth/logout")
   @HttpCode(204)
   async logout(@Headers("authorization") auth?:string){
