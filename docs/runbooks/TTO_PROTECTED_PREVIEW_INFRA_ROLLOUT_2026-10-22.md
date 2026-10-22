@@ -1,12 +1,12 @@
 # TTO isolated Preview rollout — controlled handoff
 
-**Status (2026-10-22): PREPARED / NOT DEPLOYED.** This is a pre-production runbook, not proof of a connected database or live backend.
+**Status (2026-10-22): ISOLATED DATABASE DISCOVERED / FRONTEND OIDC IMPLEMENTED / NOT DEPLOYED.** This is a pre-production runbook, not proof of a connected database or live backend.
 
 ## Immutable boundaries
 
 - Canonical reference: `tajikinews-design/tto-national-platform` main pinned `5eb6be8edfbb61f2eca740a42c30f572b493f023`: do not modify.
 - Application `tajikinews-design/tto-national-platform-app` main `9eb48b7f06c25e66021adbe0b4386133cdcb3039` stays unchanged; implementation staged on Draft PR #12 and this follow-up Draft PR.
-- No migration to or credential reuse from either Supabase BourseAI project (`xknsxkjkoznifegrxawg`, `zgdgjyhqlvitaqniwldl`). There is **no** currently connected TTO organization or project on Supabase.
+- No migration to or credential reuse from either Supabase BourseAI project (`xknsxkjkoznifegrxawg`, `zgdgjyhqlvitaqniwldl`). A TTO-dedicated Supabase organization and database have NOW been verified; BourseAI is still strictly off-limits.
 - No Production/ArvanCloud rollout. Hobby Vercel is Preview-only, internal and noncommercial. No actual recipients, shareholders, public OTP sending or API.ir test delivery.
 - Never echo or commit secrets, unprotected connection URLs, authentication cookies, bypass URLs or 2FA tokens.
 
@@ -23,16 +23,16 @@ Vercel team `team_n6CStwBbEYPsdb886A3Xm2Vp` (account `tajikinews-6739`):
 
 Backend Vercel settings created: NestJS, `services/api` monorepo root, external repo files included, Node 22, Vercel Authentication for all deployment URLs, OIDC workload identity enabled; Preview-only settings `TTO_MOCK_SMSOTP_PROVIDER=false` and `TTO_ENFORCE_ABUSE_GUARD=true`. NO API.ir, DB connection, or real auth pepper has been configured.
 
-Current Supabase visibility: only organization `ttixeequmvxsuizyxxce` named **BourseAI**, on Free plan; two prior BourseAI projects only. Tool contract requires user choice of organization and explicit approval of any positive project cost. Do not infer consent to use BourseAI organization or to purchase a paid tier.
+Current Supabase: organization **TTO National Platform** `yorsamvvdcteddkobgpp` (Free) and project **tto-national-preview-db** `zkfwsgrgslxxlusxrwce`, PostgreSQL **17.11**, region **ap-northeast-1 (Tokyo)**, `ACTIVE_HEALTHY`. Direct read-only check: database `postgres`, actor `postgres`, **no `tto` schema**, **no `tto_app` role**, **no migration records**. Both Supabase security and performance advisors returned 0 notices before schema. The prior BourseAI organization and two DBs are separate and untouched. Tokyo residency must be evaluated before any personal/shareholder data.
 
 
 **Completed on Vercel (2026-10-22):** The backend project `tto-api-preview` accepted an update to its Trusted Sources, expressly listing only the three TTO portal project IDs, with `from:preview` → `to:preview` and `enableVercelCiSameRepository:false`. That provider write succeeded. **A live OIDC round trip has not been verified** (pending Vercel deployment and `@vercel/oidc` caller implementation); do not claim working server-to-server access. The deployment protection remains enabled.
 
 ## Phase A — separate TTO PostgreSQL 17
 
-1. User creates or selects a distinct TTO organization in Supabase Dashboard (organization creation is not exposed by available connector actions). Recommended name `TTO National Platform` and plan Free if eligible. User explicitly selects the organization ID for the new DB project.
-2. Discover organization ID via `list_organizations` and obtain project quote via `get_cost({type:"project", organization_id})`. Present nonzero cost and obtain explicit agreement. Create `tto-national-preview-db` in the approved region (e.g. `eu-central-1`, only after confirming data residency requirements); do not choose another app's existing project.
-3. Get provisioning status `ACTIVE_HEALTHY`. Restrict Supabase Data API exposed schemas: `tto` remains private; never grant public/anon/authenticated roles access to internal business tables. Configure retention / backups per plan.
+1. **DONE:** Separate TTO organization `yorsamvvdcteddkobgpp` has been created and is reachable.
+2. **DONE, independently verified:** User created `tto-national-preview-db` (`zkfwsgrgslxxlusxrwce`), region **Tokyo**. This free project currently has no TTO schema or migration, and must not be used for real personal data before reviewing data residency. Do not recreate it or assume Frankfurt.
+3. **HEALTH CHECK DONE:** `ACTIVE_HEALTHY`. Migration governance still pending. Restrict Supabase Data API exposed schemas: `tto` remains private; never grant public/anon/authenticated roles access to internal business tables. Configure retention / backups per plan.
 4. Review SQL in `database/migrations/0001_...` through `0006_...` against actual fresh PostgreSQL 17. Apply **in increasing order** as authorized migration owner, with a migration history/rollback snapshot. This schema contains tightly scoped SECURITY DEFINER routines, so review ownership, `search_path`, `PUBLIC` revocations and EXECUTE grants before applying.
 5. Create a **new long random password** for the nonowner `tto_app` role. The first migration defines it `NOLOGIN`; provision LOGIN and secret through secure platform SQL and secret manager, not a GitHub file. Enforce `NOSUPERUSER NOBYPASSRLS`. Verify `SELECT current_user` is `tto_app` and test denied cross-tenant access, source RLS and revoked session. Use the Supabase **session pooler** if IPv4 is required with a persistent Nest service, as described at https://supabase.com/docs/guides/database/connecting-to-postgres. PostgreSQL TLS with CA verification should be configured before use.
 6. Do NOT attach BourseAI database URLs, users, or SMS credentials. Do not seed actual natural persons.
@@ -53,17 +53,17 @@ Current Supabase visibility: only organization `ttixeequmvxsuizyxxce` named **Bo
 
 **The current BFF endpoints do not forward a Vercel workload identity to the backend.** Simply adding `TTO_API_BASE_URL` to the three Next projects is insufficient: Vercel's protected cross-project requests fail without a trusted source.
 
-1. Implement and pin `@vercel/oidc` in the three Next packages (include revised `pnpm-lock.yaml`). Server-only Next BFFs must call `getVercelOidcToken()` and attach the short-lived token via `x-vercel-trusted-oidc-idp-token` on requests to the trusted exact backend Preview URL. Never expose it to browser code or logs. Strictly verify `https`, host/project allowlist, non-redirecting fetch and no dev fallback in Vercel.
+1. **CODE IMPLEMENTED ON THIS BRANCH (NOT LIVE):** All 12 auth BFF routes (4 per each of 3 Next portals) now forward the *Vercel-injected request header* `x-vercel-oidc-token` as `x-vercel-trusted-oidc-idp-token` to the protected backend. It only forwards a structurally valid short-lived JWT in Vercel Functions and fails closed when missing; no external npm dependency or lockfile change. This is the documented native Vercel Functions context mechanism (https://vercel.com/docs/oidc); do not use build-time `VERCEL_OIDC_TOKEN` as the runtime token. Verify that the gateway overwrites/injects the actual signed token and that cross-project trusted-source checks reject forged/untrusted callers in live negative tests.
 2. Already configured backend Trusted Sources through Vercel API; inspect them in **Settings → Deployment Protection → Trusted Sources → Vercel Projects** before deployment. The configured set contains ONLY `tto-shareholder-preview`, `tto-cooperative-preview`, and `tto-national-preview`, each with `from: preview -> to: preview`. Do not grant other environments, production, or future projects. Validate its exact membership and effective rules; this was explicitly part of the requested Preview-only three-panel connection. See https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/trusted-sources
 3. Negative tests: arbitrary unauthenticated Internet traffic cannot reach backend; a nontrusted Vercel project is denied; unrecognized OIDC tokens are denied; disabled/mock API.ir cannot send real messages. Positive tests: each Vercel Next BFF can call backend readiness and session endpoints from its own Preview context.
 4. Then set secret-independent `TTO_API_BASE_URL` with exact verified backend URL in **Preview** scope of three existing projects and redeploy the three approved branch SHA previews; no changes to production targets.
 
 ## Acceptance criteria (do not misreport)
 
-- Isolated dedicated PostgreSQL17 project created in selected TTO organization, no BourseAI linkage: **PENDING**.
+- Isolated dedicated PostgreSQL17 project created in selected TTO organization, no BourseAI linkage: **PASS (read-only provider verification)**.
 - All six migrations, tto_app isolation, SSL, expired/revoked sessions, grants and RLS security: **PENDING live check**.
 - Backend `/ready` with true database connection behind Vercel Authentication: **PENDING**.
-- Per-project scoped OIDC for three BFFs and backend Trusted Sources: **PENDING**.
+- Per-project scoped OIDC for three BFFs and backend Trusted Sources: **CODE + TRUSTED SOURCES CONFIGURED; live cross-project verification PENDING**.
 - Three protected Vercel previews of reviewed branch with real BFF→Nest→TTO PostgreSQL integration: **PENDING**.
 - Cross-tenant denial, unauthorized SSR, fake/real SMS guard, no PII/secret egress: **PENDING**.
 - PR #12 Github E2E against *ephemeral* PostgreSQL17: **207/207 PASS**, its CI **13/13** — verified, but is not live Preview acceptance.
