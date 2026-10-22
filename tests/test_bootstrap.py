@@ -55,6 +55,18 @@ class FoundationTests(unittest.TestCase):
     self.assertGreaterEqual(len(d["phases"]["PHASE-00"]["evidence"]),3)
     self.assertEqual(d["phases"]["PHASE-01"]["status"],"IN_PROGRESS")
 
+  def test_navigation_contract_is_complete_and_not_authorization(self):
+    nav=json.loads((ROOT/"docs/analysis/NAVIGATION_CONTRACT.json").read_text())
+    self.assertEqual(len(nav["roots"]),11)
+    self.assertEqual([r["code"] for r in nav["roots"]],[f"NAV-{i:02d}" for i in range(1,12)])
+    self.assertTrue(all(r["permission_policy"] is None for r in nav["roots"]))
+    self.assertEqual(nav["implementation_status"],"NOT_IMPLEMENTED")
+
+  def test_security_scenarios_unrun(self):
+    cases=json.loads((ROOT/"docs/analysis/SECURITY_NEGATIVE_SCENARIOS.json").read_text())
+    self.assertEqual(len(cases),10)
+    self.assertTrue(all(x["status"]=="NOT_RUN" for x in cases))
+
   def test_preview_build(self):
     r=subprocess.run([sys.executable,str(ROOT/"scripts/build_preview.py")],capture_output=True,text=True)
     self.assertEqual(r.returncode,0,r.stdout+r.stderr)

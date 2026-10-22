@@ -1,0 +1,82 @@
+[
+  {
+    "id": "SEC-001",
+    "scenario": "Shareholder user cannot view another shareholder holdings",
+    "source": "CF-01/06/07",
+    "status": "NOT_RUN",
+    "expected_result": "DENY_OR_FAIL_CLOSED",
+    "test_evidence": null
+  },
+  {
+    "id": "SEC-002",
+    "scenario": "Cooperative manager tenant A cannot query tenant B files, PII, shares or reports",
+    "source": "CF-01/02/03",
+    "status": "NOT_RUN",
+    "expected_result": "DENY_OR_FAIL_CLOSED",
+    "test_evidence": null
+  },
+  {
+    "id": "SEC-003",
+    "scenario": "Global national admin cannot access named tenant private detail without active scoped JIT",
+    "source": "CF-01/02",
+    "status": "NOT_RUN",
+    "expected_result": "DENY_OR_FAIL_CLOSED",
+    "test_evidence": null
+  },
+  {
+    "id": "SEC-004",
+    "scenario": "Revoked role and expired JIT access are rejected despite stale cached token",
+    "source": "CF-01",
+    "status": "NOT_RUN",
+    "expected_result": "DENY_OR_FAIL_CLOSED",
+    "test_evidence": null
+  },
+  {
+    "id": "SEC-005",
+    "scenario": "Consumed OTP challenge cannot be verified twice, even concurrently",
+    "source": "CF-01",
+    "status": "NOT_RUN",
+    "expected_result": "DENY_OR_FAIL_CLOSED",
+    "test_evidence": null
+  },
+  {
+    "id": "SEC-006",
+    "scenario": "Tenant slug rename does not change tenant ID or grant authorization",
+    "source": "CF-02",
+    "status": "NOT_RUN",
+    "expected_result": "DENY_OR_FAIL_CLOSED",
+    "test_evidence": null
+  },
+  {
+    "id": "SEC-007",
+    "scenario": "Tenant suspended/terminated data remains retained and non-deleted per policy",
+    "source": "CF-02/22",
+    "status": "NOT_RUN",
+    "expected_result": "DENY_OR_FAIL_CLOSED",
+    "test_evidence": null
+  },
+  {
+    "id": "SEC-008",
+    "scenario": "Hidden/visible menu entries do not permit unauthorized backend requests",
+    "source": "NAV-R03/CF-01",
+    "status": "NOT_RUN",
+    "expected_result": "DENY_OR_FAIL_CLOSED",
+    "test_evidence": null
+  },
+  {
+    "id": "SEC-009",
+    "scenario": "Download of discovered sensitive file requires separate authorization",
+    "source": "NAV-R09/CF-03",
+    "status": "NOT_RUN",
+    "expected_result": "DENY_OR_FAIL_CLOSED",
+    "test_evidence": null
+  },
+  {
+    "id": "SEC-010",
+    "scenario": "Reported payment cannot alone finalize ownership transfer",
+    "source": "Child-05/07",
+    "status": "NOT_RUN",
+    "expected_result": "DENY_OR_FAIL_CLOSED",
+    "test_evidence": null
+  }
+]
