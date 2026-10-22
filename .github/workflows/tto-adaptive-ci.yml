@@ -1,0 +1,116 @@
+name: TTO adaptive security CI (single runner; NO DEPLOY)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Core validation or complete pre-merge release regression"
+        type: choice
+        required: true
+        default: release
+        options: [core, release]
+permissions:
+  contents: read
+concurrency:
+  group: tto-adaptive-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  tto-verified-quality-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      APIIR_TOKEN: ""
+    steps:
+      - name: Checkout exact reviewed code without write credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Determine fail-closed suite from changed source paths
+        id: scope
+        shell: bash
+        env:
+          TTO_PR_BASE: ${{ github.event.pull_request.base.sha }}
+          TTO_PR_ACTION: ${{ github.event.action }}
+          TTO_PR_DRAFT: ${{ github.event.pull_request.draft }}
+          TTO_INPUT_SUITE: ${{ inputs.suite }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            git diff --name-only "$TTO_PR_BASE" HEAD > "$RUNNER_TEMP/tto-changed.txt"
+          else
+            : > "$RUNNER_TEMP/tto-changed.txt"
+          fi
+          mode="$(python3 scripts/ci/select_suite.py --event "$GITHUB_EVENT_NAME" --action "$TTO_PR_ACTION" --draft "$TTO_PR_DRAFT" --requested "$TTO_INPUT_SUITE" --changes-file "$RUNNER_TEMP/tto-changed.txt")"
+          echo "suite=$mode" >> "$GITHUB_OUTPUT"
+          echo "TTO_ADAPTIVE_SUITE=$mode"
+      - name: Source baseline and offline structural tests
+        run: |
+          set -euo pipefail
+          python3 scripts/check_source_baseline.py
+          python3 -m unittest discover -s tests -v
+          python3 -m unittest discover -s scripts/ci -p 'test_*.py' -v
+          python3 scripts/build_preview.py
+      - name: Node 22 for code and release checks
+        if: steps.scope.outputs.suite != 'lite'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Install once, build all applications once, check TypeScript once
+        if: steps.scope.outputs.suite != 'lite'
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.18.0
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm check
+      - name: Offline SMS safety, scanner protocol, Preview classifier and Next smoke
+        if: steps.scope.outputs.suite != 'lite'
+        run: |
+          set -euo pipefail
+          node --test services/workers/test/apiir-smsotp.test.cjs services/workers/test/clamav.test.cjs
+          node --test services/api/test/sms-delivery-opt-in.test.cjs
+          node --test scripts/verify-vercel-preview-protection.test.mjs
+          node scripts/smoke-next-otp.mjs
+      - name: Start a single disposable local PostgreSQL 17 container
+        if: steps.scope.outputs.suite != 'lite'
+        run: |
+          set -euo pipefail
+          docker run -d --name tto-adaptive-postgres --rm -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto -p 127.0.0.1:5432:5432 postgres:17
+          for i in $(seq 1 40); do
+            if docker exec tto-adaptive-postgres pg_isready -U postgres -d tto >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec tto-adaptive-postgres pg_isready -U postgres -d tto
+      - name: Apply migrations 0001-0010 to disposable PG17 only
+        if: steps.scope.outputs.suite != 'lite'
+        run: |
+          set -euo pipefail
+          for migration in database/migrations/00{01,02,03,04,05,06,07,08,09,10}_*.sql; do
+            test -f "$migration"
+            docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$migration"
+          done
+      - name: Real Next Nest PostgreSQL identity, tenant, source and share quarantine E2E
+        if: steps.scope.outputs.suite != 'lite'
+        env:
+          TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+        run: node scripts/e2e-cf02-identity-authority.cjs
+      - name: Complete historical SQL, OTP, login/logout and authority regression
+        if: steps.scope.outputs.suite == 'release'
+        env:
+          TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+        run: bash scripts/ci/release-regression.sh
+      - name: Validate Arvan manifests without deployment
+        if: steps.scope.outputs.suite == 'release'
+        run: |
+          python3 -m pip install 'PyYAML>=6,<7'
+          python3 scripts/test_arvan_k8s_templates.py
+      - name: Build and smoke all four OCI images without registry push
+        if: steps.scope.outputs.suite == 'release'
+        run: bash scripts/ci/release-oci-smoke.sh
+      - name: Stop isolated PostgreSQL even on failure
+        if: always()
+        run: docker stop tto-adaptive-postgres >/dev/null 2>&1 || true
