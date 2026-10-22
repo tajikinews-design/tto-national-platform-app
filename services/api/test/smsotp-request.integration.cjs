@@ -15,7 +15,9 @@ async function request(url,body,status){
 async function run(){
  await db.connect();
  await db.query("ALTER ROLE tto_app LOGIN");
- await db.query("INSERT INTO tto.auth_policy(policy_key,max_attempts,session_ttl_minutes) VALUES('SESSION_CHALLENGE',3,15)");
+ // The SQL gate intentionally seeded 3 previous challenges; isolate the HTTP scenario fixtures.
+ await db.query("TRUNCATE tto.smsotp_delivery_attempts,tto.auth_challenges,tto.verified_mobile_identifiers CASCADE");
+ await db.query("INSERT INTO tto.auth_policy(policy_key,max_attempts,session_ttl_minutes) VALUES('SESSION_CHALLENGE',3,15) ON CONFLICT (policy_key) DO NOTHING");
  const user=randomUUID();
  await db.query("INSERT INTO tto.user_accounts(user_id) VALUES($1)",[user]);
  await db.query("INSERT INTO tto.verified_mobile_identifiers(mobile,user_id,verified_at) VALUES('09123456789',$1,now())",[user]);
