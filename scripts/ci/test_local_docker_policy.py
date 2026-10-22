@@ -68,6 +68,7 @@ class TestReleaseSuitePolicy(unittest.TestCase):
         for required in (
             '[ValidateSet("Core","Release")][string]$Suite = "Core"',
             'if ($Suite -eq "Release")',
+            '@releaseParameters -AttestationOnly',
             'local-release-helper.ps1',
             'TTO_LOCAL_CORE_PHASE_PASS_SHA=',
             'TTO_LOCAL_RELEASE_PASS_SHA=',
@@ -105,6 +106,8 @@ class TestReleaseSuitePolicy(unittest.TestCase):
             'Has-PublishedHostPorts',
             'TTO_RELEASE_DISPOSABLE_RESOURCE_ATTESTATION_PASS',
             'TTO_RELEASE_NO_HOST_PORTS_VERIFIED',
+            'TTO_LOCAL_RELEASE_EARLY_ATTESTATION_PASS',
+            'if ($AttestationOnly)',
             'TTO_RELEASE_HOST_PORT_PUBLICATION_FORBIDDEN',
             'TTO_RELEASE_DISPOSABLE_NODE_NAMESPACE_MISMATCH',
             'TTO_RELEASE_DISPOSABLE_POSTGRES_NETWORK_MISMATCH',
