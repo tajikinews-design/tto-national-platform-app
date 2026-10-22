@@ -12,11 +12,16 @@ export function TenantScopePicker({surface}:{surface:Surface}){
  const [items,setItems]=useState<Candidate[]>([]);
  const [selected,setSelected]=useState("");
  const [busy,setBusy]=useState(false);
+ const [member,setMember]=useState<{membershipStatus:string;partyKind:string;sourceVersion:number;sourceAsOf:string}|null>(null);
+ const [holding,setHolding]=useState<{shareQuantity:string;ledgerVersion:number;ledgerAsOf:string}|null>(null);
+ const [scopeVerified,setScopeVerified]=useState(false);
+ const [memberUnavailable,setMemberUnavailable]=useState(false);
+ const [holdingUnavailable,setHoldingUnavailable]=useState(false);
  const [loading,setLoading]=useState(true);
  const [message,setMessage]=useState("");
  useEffect(()=>{
   const c=new AbortController();
-  setLoading(true);setMessage("");setSelected("");
+  setLoading(true);setMessage("");setSelected("");setMember(null);setHolding(null);setScopeVerified(false);setMemberUnavailable(false);setHoldingUnavailable(false);
   fetch("/api/me/tenant-options",{credentials:"same-origin",cache:"no-store",signal:c.signal})
    .then(async res=>{if(!res.ok)throw Error("DENY");return res.json() as Promise<{items:Candidate[]}>;})
    .then(data=>{if(!c.signal.aborted){setItems(data.items);setLoading(false);}})
@@ -26,14 +31,35 @@ export function TenantScopePicker({surface}:{surface:Surface}){
  const current=items.find(x=>x.tenantId===selected);
  async function verify(){
   if(!current||busy)return;
-  setBusy(true);setMessage("");
+  setBusy(true);setMessage("");setMember(null);setHolding(null);setScopeVerified(false);
+  setMemberUnavailable(false);setHoldingUnavailable(false);
   try{
    const res=await fetch("/api/tenants/"+current.tenantId+"/context",{credentials:"same-origin",cache:"no-store"});
    const data=await res.json() as {tenantContextVerified?:unknown;tenantId?:unknown};
-   setMessage(res.ok&&data.tenantContextVerified===true&&data.tenantId===current.tenantId?
-    "محدوده تعاونی تأیید شد. اطلاعات اختصاصی و عملیات تا تکمیل مجوز دامنه غیرفعال است.":
-    "مجوز دسترسی رد شد؛ هیچ داده اختصاصی نمایش داده نمی‌شود.");
-  }catch{setMessage("استعلام مجوز برقرار نیست؛ دسترسی مسدود است.");}
+   if(!res.ok||data.tenantContextVerified!==true||data.tenantId!==current.tenantId){
+    setMessage("مجوز دسترسی رد شد؛ هیچ داده اختصاصی نمایش داده نمی‌شود.");
+    return;
+   }
+   setScopeVerified(true);
+   setMessage("محدوده تعاونی تأیید شد. داده‌ها فقط پس از تأیید مستقل منبع عضویت و سهام نمایش داده می‌شوند.");
+   if(surface!=="shareholder")return;
+   const p="/api/tenants/"+current.tenantId+"/me/";
+   const [m,h]=await Promise.all([
+    fetch(p+"member-record",{credentials:"same-origin",cache:"no-store"}),
+    fetch(p+"shareholding",{credentials:"same-origin",cache:"no-store"})
+   ]);
+   if(m.ok){
+    const body=await m.json() as {available?:unknown;record?:typeof member};
+    if(body.available===true&&body.record)setMember(body.record);
+    else setMemberUnavailable(true);
+   }else setMemberUnavailable(true);
+   if(h.ok){
+    const body=await h.json() as {available?:unknown;record?:typeof holding};
+    if(body.available===true&&body.record)setHolding(body.record);
+    else setHoldingUnavailable(true);
+   }else setHoldingUnavailable(true);
+  }catch{setMember(null);setHolding(null);setScopeVerified(false);
+   setMessage("استعلام مجوز یا منبع معتبر برقرار نیست؛ دسترسی مسدود است.");}
   finally{setBusy(false);}
  }
  return <section className="tenant-picker" aria-label="انتخاب تعاونی مجاز">
@@ -44,7 +70,7 @@ export function TenantScopePicker({surface}:{surface:Surface}){
    <div>
     <label htmlFor={"tto-select-"+surface}>تعاونی</label>
     <select id={"tto-select-"+surface} value={selected}
-     onChange={e=>{setSelected(e.target.value);setMessage("");}}>
+     disabled={busy} onChange={e=>{setSelected(e.target.value);setMessage("");setMember(null);setHolding(null);setScopeVerified(false);setMemberUnavailable(false);setHoldingUnavailable(false);}}>
      <option value="">انتخاب تعاونی...</option>
      {items.map(x=><option key={x.tenantId} value={x.tenantId}>{x.displayName}</option>)}
     </select>
@@ -54,5 +80,14 @@ export function TenantScopePicker({surface}:{surface:Surface}){
     </button>
    </div>}
   {message?<p role="status" aria-live="polite">{message}</p>:null}
+  {surface==="shareholder"&&scopeVerified?<div aria-label="اطلاعات اختصاصی تأییدشده">
+   <h3>وضعیت عضویت</h3>
+   {member?<p role="status">عضویت: فعال | نوع شخص: {member.partyKind==="PERSON"?"حقیقی":"حقوقی"} | نسخه منبع: {member.sourceVersion}</p>:
+    memberUnavailable?<p role="status">اطلاعات عضویت هنوز از منبع مصوب و قابل‌استناد تأیید نشده است.</p>:null}
+   <h3>موجودی سهام بر مبنای دفتر معتبر</h3>
+   {holding?<p role="status">تعداد سهام: {holding.shareQuantity} | نسخه دفتر: {holding.ledgerVersion}</p>:
+    holdingUnavailable?<p role="status">موجودی معتبر سهام هنوز در دسترس نیست؛ نبود رکورد به معنای صفر سهم نیست.</p>:null}
+   <p>نمایش فقط‌خواندنی است؛ معامله، انتقال سهام و محاسبه ارزش فعال نیست.</p>
+  </div>:null}
  </section>;
 }
