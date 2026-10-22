@@ -16,7 +16,7 @@ Vercel team `team_n6CStwBbEYPsdb886A3Xm2Vp` (account `tajikinews-6739`):
 
 | Role | Vercel project | Project ID | Preview status |
 | --- | --- | --- | --- |
-| Backend | `tto-api-preview` | `prj_dd1k3kjAM05ru7VFFVELnPqEiffB` | **created, no deployment** |
+| Backend | `tto-api-preview` | `prj_dd1k3kjAM05ru7VFFVELnPqEiffB` | **created; no deployment; protected OIDC Trusted Sources configured** |
 | Shareholder | `tto-shareholder-preview` | `prj_WWvZY31IsOEZLQLrKG98M9rZQ2q5` | earlier UI READY, backend disconnected |
 | Cooperative | `tto-cooperative-preview` | `prj_akvZAPInGMPwy0Am0gOOC4N2RBSz` | earlier UI READY, backend disconnected |
 | National admin | `tto-national-preview` | `prj_d0s538suEmpmtIEicOMYdRy6lc1q` | earlier UI READY, backend disconnected |
@@ -24,6 +24,9 @@ Vercel team `team_n6CStwBbEYPsdb886A3Xm2Vp` (account `tajikinews-6739`):
 Backend Vercel settings created: NestJS, `services/api` monorepo root, external repo files included, Node 22, Vercel Authentication for all deployment URLs, OIDC workload identity enabled; Preview-only settings `TTO_MOCK_SMSOTP_PROVIDER=false` and `TTO_ENFORCE_ABUSE_GUARD=true`. NO API.ir, DB connection, or real auth pepper has been configured.
 
 Current Supabase visibility: only organization `ttixeequmvxsuizyxxce` named **BourseAI**, on Free plan; two prior BourseAI projects only. Tool contract requires user choice of organization and explicit approval of any positive project cost. Do not infer consent to use BourseAI organization or to purchase a paid tier.
+
+
+**Completed on Vercel (2026-10-22):** The backend project `tto-api-preview` accepted an update to its Trusted Sources, expressly listing only the three TTO portal project IDs, with `from:preview` → `to:preview` and `enableVercelCiSameRepository:false`. That provider write succeeded. **A live OIDC round trip has not been verified** (pending Vercel deployment and `@vercel/oidc` caller implementation); do not claim working server-to-server access. The deployment protection remains enabled.
 
 ## Phase A — separate TTO PostgreSQL 17
 
@@ -51,7 +54,7 @@ Current Supabase visibility: only organization `ttixeequmvxsuizyxxce` named **Bo
 **The current BFF endpoints do not forward a Vercel workload identity to the backend.** Simply adding `TTO_API_BASE_URL` to the three Next projects is insufficient: Vercel's protected cross-project requests fail without a trusted source.
 
 1. Implement and pin `@vercel/oidc` in the three Next packages (include revised `pnpm-lock.yaml`). Server-only Next BFFs must call `getVercelOidcToken()` and attach the short-lived token via `x-vercel-trusted-oidc-idp-token` on requests to the trusted exact backend Preview URL. Never expose it to browser code or logs. Strictly verify `https`, host/project allowlist, non-redirecting fetch and no dev fallback in Vercel.
-2. In backend project **Settings → Deployment Protection → Trusted Sources → Vercel Projects**, explicitly authorize ONLY `tto-shareholder-preview`, `tto-cooperative-preview`, and `tto-national-preview`, each with `from: preview -> to: preview`. Do not grant other environments, production, or future projects. This access-control change requires explicit review. See https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/trusted-sources
+2. Already configured backend Trusted Sources through Vercel API; inspect them in **Settings → Deployment Protection → Trusted Sources → Vercel Projects** before deployment. The configured set contains ONLY `tto-shareholder-preview`, `tto-cooperative-preview`, and `tto-national-preview`, each with `from: preview -> to: preview`. Do not grant other environments, production, or future projects. Validate its exact membership and effective rules; this was explicitly part of the requested Preview-only three-panel connection. See https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/trusted-sources
 3. Negative tests: arbitrary unauthenticated Internet traffic cannot reach backend; a nontrusted Vercel project is denied; unrecognized OIDC tokens are denied; disabled/mock API.ir cannot send real messages. Positive tests: each Vercel Next BFF can call backend readiness and session endpoints from its own Preview context.
 4. Then set secret-independent `TTO_API_BASE_URL` with exact verified backend URL in **Preview** scope of three existing projects and redeploy the three approved branch SHA previews; no changes to production targets.
 
