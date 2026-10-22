@@ -21,6 +21,18 @@ for (let idx=0;idx<slugs.length;idx++){
    await new Promise(r=>setTimeout(r,200));
   }
   if(!ready)throw Error(slug+" not ready");
+  for(const [path,title] of [["/modules/nav-02","NAV-02"],["/modules/nav-11","NAV-11"]]){
+   const response=await fetch("http://127.0.0.1:"+port+path);
+   if(response.status!==200)throw Error(slug+" module route "+path+" returned "+response.status);
+   const html=await response.text();
+   if(!html.includes(title)||!html.includes("ساختار این بخش آماده بررسی است")||!html.includes('aria-current="page"'))
+      throw Error(slug+" module view missing safe placeholder/current navigation");
+   if(!html.includes("هیچ داده، مانده سهام"))throw Error(slug+" module claims unspecified business values");
+   checks++;
+  }
+  const invalid=await fetch("http://127.0.0.1:"+port+"/modules/nav-12");
+  if(invalid.status!==404)throw Error(slug+" invalid NAV route did not reject");
+  checks++;
   for(const route of ["/api/auth/otp/request","/api/auth/otp/verify"]){
    const response=await fetch("http://127.0.0.1:"+port+route,{
     method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mobile:"09123456789",otp:"123456"})
