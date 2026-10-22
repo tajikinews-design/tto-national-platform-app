@@ -94,6 +94,32 @@ class TestReleaseSuitePolicy(unittest.TestCase):
         ):
             with self.subTest(required=required):self.assertIn(required,r)
 
+    def test_docker_attestation_accepts_id_and_declared_unpublished_ports(self):
+        r=self.release
+        # Docker normalizes 'container:<name>' to 'container:<id>' on some engines.
+        # The target must still match the verified PG container full/short ID.
+        for required in (
+            'Inspect-DisposableContainer',
+            'docker inspect --type container',
+            'ConvertFrom-Json',
+            'Has-PublishedHostPorts',
+            'TTO_RELEASE_DISPOSABLE_RESOURCE_ATTESTATION_PASS',
+            'TTO_RELEASE_NO_HOST_PORTS_VERIFIED',
+            'TTO_RELEASE_HOST_PORT_PUBLICATION_FORBIDDEN',
+            'TTO_RELEASE_DISPOSABLE_NODE_NAMESPACE_MISMATCH',
+            'TTO_RELEASE_DISPOSABLE_POSTGRES_NETWORK_MISMATCH',
+            'TTO_RELEASE_DISPOSABLE_CONTAINER_IDENTITY_MISMATCH',
+            'StartsWith($target, [StringComparison]::OrdinalIgnoreCase)',
+            '$pgNetworks.Count -ne 1',
+            '$pgMode -notin @($PrivateNetwork,$privateNetworkId)',
+            '$Info.HostConfig.PublishAllPorts',
+            '$Info.NetworkSettings.Ports',
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required,r)
+        self.assertNotIn('$nodeNetwork -ne ("container:" + $PostgresContainer)',r)
+        self.assertNotIn('$pgPorts -notin @("null","{}")',r)
+
     def test_release_four_images_no_open_port_or_registry_push(self):
         r=self.release
         for required in (
