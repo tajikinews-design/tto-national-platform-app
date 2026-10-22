@@ -77,6 +77,25 @@ async function main(){
   {cleanFileId:"dddddddd-dddd-4ddd-8ddd-ddddddddddd1",version:1},201);
  await call("POST","/v1/tenants/"+a+"/documents/"+doc+"/legal-holds",actorToken,
   {ruleReference:"LEGAL-CASE-2026",reason:"Synthetic preservation required"},201);
+ const userBToken=await tokenFor("22222222-2222-4222-8222-222222222222");
+ const holdDoc=await admin.query("SELECT hold_id FROM tto.legal_holds WHERE document_id=$1 ORDER BY applied_at DESC LIMIT 1",[doc]);
+ assert.equal(holdDoc.rowCount,1);
+ const releasePath="/v1/tenants/"+a+"/legal-holds/"+holdDoc.rows[0].hold_id+"/release";
+ await call("POST",releasePath,actorToken,{releaseEvidenceId:randomUUID()},403);
+ await call("POST",releasePath,userBToken,{releaseEvidenceId:randomUUID()},201);
+ await call("POST",releasePath,userBToken,{releaseEvidenceId:randomUUID()},403);
+ await call("POST","/v1/tenants/cccccccc-cccc-4ccc-8ccc-aaaaaaaaaaaa/lifecycle/transition",actorToken,
+ {fromStatus:"ACTIVE",toStatus:"SUSPENDED",expectedVersion:3},201);
+ await call("POST","/v1/tenants/cccccccc-cccc-4ccc-8ccc-aaaaaaaaaaaa/lifecycle/transition",actorToken,
+ {fromStatus:"ACTIVE",toStatus:"SUSPENDED",expectedVersion:3},403);
+ const oldParty=randomUUID(),currentParty=randomUUID();
+ await admin.query("INSERT INTO tto.parties(party_id,party_kind,display_label) VALUES($1,'PERSON','Synthetic origin'),($2,'PERSON','Synthetic target')",[oldParty,currentParty]);
+ await call("POST","/v1/tenants/"+a+"/parties/aliases/merge",userBToken,
+ {oldPartyId:oldParty,currentPartyId:currentParty},403);
+ await call("POST","/v1/tenants/"+a+"/parties/aliases/merge",actorToken,
+ {oldPartyId:oldParty,currentPartyId:currentParty},201);
+ await call("POST","/v1/tenants/"+a+"/parties/aliases/merge",actorToken,
+ {oldPartyId:oldParty,currentPartyId:currentParty},403);
  await call("POST","/v1/auth/logout",actorToken,null,204);
  await call("GET","/v1/tenants/"+a+"/context",actorToken,null,401);
  console.log("TTO_CF01_03_REAL_HTTP_WORKFLOWS_PASS="+count);
