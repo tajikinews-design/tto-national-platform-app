@@ -51,7 +51,8 @@
         "GitHub feature branch feat/cf01-03-next-nest-postgres-foundation, draft PR #3. main untouched",
         "Three real Next.js 16 programs with shared Vazirmatn font and Next app runtime authenticated-page SSO preview built READY in Vercel (3 deployment IDs in docs/deployment/VERCEL_NEXT_VAZIRMATN_OTP_2026-10-22.md).",
         "CI three Next runtimes started and fail-closed OTP routes verified 9/9 (run 39779478142).",
-        "Run 39781753954: 12/12 Next runtime OTP fail-closed and dynamic backend flag checks passed across all three portals."
+        "Run 39781753954: 12/12 Next runtime OTP fail-closed and dynamic backend flag checks passed across all three portals.",
+        "GitHub Actions run 39790001499: actual three Next.js16 BFF HTTP -> NestJS11 -> ephemeral PostgreSQL17; 70/70 E2E checks PASS across shareholder/cooperative-management/national-admin (synthetic enrolled mobile, explicit mock SMS, no external service). Includes OTP verify, replay denial, HttpOnly Secure SameSite=Lax, origin rejection, confirmed Nest logout and revoked session replay rejection."
       ],
       "blockers": [
         "Live backend/API and preview relational datastore not provisioned; business domain pages beyond dashboard shells incomplete"
@@ -64,11 +65,12 @@
         "Forced RLS, tenant/role/classification policies, transaction-local session context, revoked-role deny validated on real PostgreSQL 17 Actions #39762676049",
         "10 real Nest HTTP authenticated/negative cases PASS on ephemeral PG17; synthetically seeded session, cross-tenant denial and security-epoch invalidation; Actions #39762676049",
         "CF01 migration 0005 verified-mobile SMSOTP challenge issuance, delivery gating and per-mobile limit + Nest request/verify HTTP against ephemeral PostgreSQL17: PASS, GitHub Actions 39779478115.",
-        "API.ir real transport adapter and server endpoint wired; tests use explicit test-only fake provider and no real SMS; sensitive APIIR_TOKEN only in Vercel Preview project environment, never in GitHub."
+        "API.ir real transport adapter and server endpoint wired; tests use explicit test-only fake provider and no real SMS; sensitive APIIR_TOKEN only in Vercel Preview project environment, never in GitHub.",
+        "GitHub Actions run 39790001499: actual three Next.js16 BFF HTTP -> NestJS11 -> ephemeral PostgreSQL17; 70/70 E2E checks PASS across shareholder/cooperative-management/national-admin (synthetic enrolled mobile, explicit mock SMS, no external service). Includes OTP verify, replay denial, HttpOnly Secure SameSite=Lax, origin rejection, confirmed Nest logout and revoked session replay rejection."
       ],
       "blockers": [
         "Live SMS delivery to consented test number and provider receipts NOT TESTED",
-        "Preview has no connected Next server API destination or persistent synthetic PostgreSQL; login remains fail-closed/disabled",
+        "Vercel Preview still has no connected Next server API destination or persistent synthetic PostgreSQL. Local GitHub CI E2E is proven (39790001499) but online protected Preview login remains fail-closed/disabled.",
         "Independent mobile enrollment, IP/device throttling, reliable outbox and complete 155 source acceptance scenarios not complete",
         "Full CF02/03 domain coverage still incomplete"
       ]
@@ -121,11 +123,14 @@
       "evidence": [
         "3 real Next.js 16 builds deployed, target Preview/null and state READY with Vercel SSO All Deployments protection; dashboard and OTP disabled status are displayed",
         "Real protected Vercel review deployment URLs recorded separately; no live backend connected",
-        "GitHub Actions anonymous smoke 39786443223: 3/3 Vercel previews issued recognized HTTPS SSO redirect without cookies or bypass (7/7 verifier tests PASS)."
+        "GitHub Actions anonymous smoke 39786443223: 3/3 Vercel previews issued recognized HTTPS SSO redirect without cookies or bypass (7/7 verifier tests PASS).",
+        "GitHub Actions run 39790001499: actual three Next.js16 BFF HTTP -> NestJS11 -> ephemeral PostgreSQL17; 70/70 E2E checks PASS across shareholder/cooperative-management/national-admin (synthetic enrolled mobile, explicit mock SMS, no external service). Includes OTP verify, replay denial, HttpOnly Secure SameSite=Lax, origin rejection, confirmed Nest logout and revoked session replay rejection."
       ],
       "blockers": [
         "No live CF01 OTP backend in Vercel, no synthetic persistent preview PostgreSQL",
-        "Authorized reviewer browser login and full 23-domain interactions NOT_TESTED. Anonymous Vercel SSO redirection is verified separately by GitHub Actions 39786443223."
+        "Authorized reviewer browser login and full 23-domain interactions NOT_TESTED. Anonymous Vercel SSO redirection is verified separately by GitHub Actions 39786443223.",
+        "Authorized reviewer SSO browser acceptance remains NOT_TESTED: Vercel connector web_fetch_vercel_url returned 403 at read_protection_bypass for all three deployments; team/project authorization must be refreshed. Do not use bypass as proof of reviewer login.",
+        "EPHEMERAL CI Backend/PostgreSQL E2E is PASS but a protected and persistently available preview Backend/PostgreSQL has not been deployed or approved; real API.ir SMS disabled."
       ]
     },
     "PHASE-12": {

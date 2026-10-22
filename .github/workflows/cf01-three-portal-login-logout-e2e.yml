@@ -1,0 +1,45 @@
+name: TTO CF01 three Next portals Nest PG17 login logout E2E (NO DEPLOY)
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  three-portal-login-logout-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: tto
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tto"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      APIIR_TOKEN: ""
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: {node-version: "22"}
+      - run: npm install -g pnpm@10.18.0
+      - run: pnpm install --frozen-lockfile
+      - name: Compile actual Next 16 applications and NestJS 11
+        run: |
+          pnpm build
+          pnpm check
+      - name: Create disposable PostgreSQL17 schema, no external DB
+        run: |
+          for migration in database/migrations/000{1,2,3,4,5}_*.sql; do
+            docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$migration"
+          done
+      - name: Real three-portal BFF to Nest HTTP to PostgreSQL E2E (synthetic no SMS)
+        env:
+          TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+        run: node scripts/e2e-cf01-three-portal-login-logout.cjs

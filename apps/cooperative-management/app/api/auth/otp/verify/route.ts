@@ -3,7 +3,8 @@ export const runtime="nodejs";
 export const dynamic="force-dynamic";
 export async function POST(request:NextRequest){
  const api=process.env.TTO_API_BASE_URL;
- if(!api || (!api.startsWith("https://") && !(process.env.NODE_ENV==="test"&&api.startsWith("http://127.0.0.1:"))))
+ const loopbackE2E=process.env.TTO_LOOPBACK_E2E==="1" && process.env.CI==="true" && !process.env.VERCEL && /^http:\/\/127\.0\.0\.1:[0-9]{4,5}$/.test(api??"");
+ if(!api || (!api.startsWith("https://") && !(loopbackE2E || (process.env.NODE_ENV==="test"&&api.startsWith("http://127.0.0.1:")))))
   return NextResponse.json({error:"BACKEND_UNAVAILABLE"},{status:503});
  const origin=request.headers.get("origin");
  if(origin && new URL(origin).host!==request.headers.get("host"))
