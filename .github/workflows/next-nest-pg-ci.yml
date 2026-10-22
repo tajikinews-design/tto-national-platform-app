@@ -1,0 +1,56 @@
+name: TTO Next Nest PostgreSQL CF01-03 checks (NO DEPLOY)
+on:
+  push:
+    branches: ["feat/cf01-03-next-nest-postgres-foundation"]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  next-nest-build:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      CI: "true"
+    steps:
+      - name: Checkout (do not persist credentials)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Install pinned package manager
+        run: npm install -g pnpm@10.18.0
+      - name: Install in temporary CI workspace (lockfile gate remains pending)
+        run: pnpm install --no-frozen-lockfile
+      - name: Build all three Next apps and Nest API
+        run: pnpm build
+      - name: Typecheck workspace
+        run: pnpm check
+      - name: Existing offline structural regression
+        run: python3 -m unittest discover -s tests -v
+
+  postgres-rls:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: tto
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tto"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout migrations and RLS tests
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Run migration as isolated privileged migration owner
+        run: docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0001_cf01_cf03_foundation.sql
+      - name: Run real PostgreSQL 17 RLS positive and negative cases
+        run: docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/tenant-isolation.sql
