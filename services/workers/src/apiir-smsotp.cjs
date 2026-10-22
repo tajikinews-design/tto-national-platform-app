@@ -17,7 +17,7 @@ async function sendSmsOtp({code,mobile,template=1},{token=process.env.APIIR_TOKE
     const response=await fetchImpl(ENDPOINT,{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload),signal:controller.signal,redirect:"error"});
     if(!response.ok) throw Error("APIIR_HTTP_DELIVERY_REJECTED");
     const result=await response.json();
-    if(!result||result.success!==true) throw Error("APIIR_DELIVERY_NOT_CONFIRMED");
+    if(!result||result.success!==true||result.data!==true) throw Error("APIIR_DELIVERY_NOT_CONFIRMED");
     return {status:"PROVIDER_ACCEPTED",delivered:false,providerCode:typeof result.code==="number"?result.code:null};
   } catch (e) {
     if(e?.message?.startsWith("APIIR_")) throw e;
