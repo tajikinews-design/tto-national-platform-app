@@ -77,7 +77,7 @@ async function main(){
   {cleanFileId:"dddddddd-dddd-4ddd-8ddd-ddddddddddd1",version:1},201);
  await call("POST","/v1/tenants/"+a+"/documents/"+doc+"/legal-holds",actorToken,
   {ruleReference:"LEGAL-CASE-2026",reason:"Synthetic preservation required"},201);
- await call("POST","/v1/auth/logout",actorToken,null,204);
+ await call("POST","/v1/auth/logout",actorToken,{},204);
  await call("GET","/v1/tenants/"+a+"/context",actorToken,null,401);
  console.log("TTO_CF01_03_REAL_HTTP_WORKFLOWS_PASS="+count);
 }
