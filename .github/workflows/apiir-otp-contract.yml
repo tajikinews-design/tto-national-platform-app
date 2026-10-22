@@ -1,0 +1,19 @@
+name: TTO API.ir SmsOTP contract tests (no SMS sent)
+on:
+  pull_request:
+  push:
+    branches: ["feat/apiir-otp-adapter-preview-gates"]
+permissions:
+  contents: read
+jobs:
+  contract-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Offline contract, no API.ir credentials
+        run: node --test services/workers/test/apiir-smsotp.test.cjs
