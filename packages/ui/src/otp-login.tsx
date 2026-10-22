@@ -1,5 +1,5 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 /** OTP UI never holds API.ir credentials; form is unavailable until a protected backend is configured. */
 export function OtpLogin({enabled}:{enabled:boolean}){
  const [mobile,setMobile]=useState("");
@@ -8,6 +8,30 @@ export function OtpLogin({enabled}:{enabled:boolean}){
  const [busy,setBusy]=useState(false);
  const [message,setMessage]=useState("");
  const [verified,setVerified]=useState(false);
+ const [checking,setChecking]=useState(enabled);
+ const [checkFailed,setCheckFailed]=useState(false);
+ const [checkAttempt,setCheckAttempt]=useState(0);
+ useEffect(()=>{
+  if(!enabled)return;
+  let active=true;
+  setChecking(true);setCheckFailed(false);
+  async function restore(){
+   try{
+    const response=await fetch("/api/auth/session",{method:"GET",credentials:"same-origin",cache:"no-store"});
+    if(!response.ok)throw Error("SESSION_STATUS_UNAVAILABLE");
+    const data=await response.json() as {authenticated?:unknown};
+    if(typeof data.authenticated!=="boolean")throw Error("BAD_SESSION_STATUS");
+    if(active){
+     setVerified(data.authenticated);
+     setMessage(data.authenticated?"نشست ورود شما تأیید شد. دسترسی به خدمات تابع نقش و محدوده تعاونی است.":"");
+    }
+   }catch{
+    if(active){setCheckFailed(true);setMessage("");}
+   }finally{if(active)setChecking(false);}
+  }
+  void restore();
+  return ()=>{active=false;};
+ },[enabled,checkAttempt]);
  async function issue(e:FormEvent){
   e.preventDefault();if(!enabled||busy)return;
   setBusy(true);setMessage("");
@@ -44,7 +68,10 @@ export function OtpLogin({enabled}:{enabled:boolean}){
  return <section className="otp-panel" aria-label="ورود با پیامک">
   <h2>ورود با رمز یک‌بارمصرف</h2>
   <p>ارسال و تأیید کد از مسیر امن سمت سرور انجام می‌شود.</p>
-  {!enabled?<p className="otp-unavailable">در این نسخه پیش‌نمایش، پایگاه داده و سرویس ورود متصل نیست. ارسال پیامک واقعی غیرفعال است.</p>:verified?<div><p role="status">{message}</p><button type="button" disabled={busy} onClick={logout}>خروج از حساب</button></div>:
+  {!enabled?<p className="otp-unavailable">در این نسخه پیش‌نمایش، پایگاه داده و سرویس ورود متصل نیست. ارسال پیامک واقعی غیرفعال است.</p>:
+  checking?<p role="status">در حال بررسی نشست ورود...</p>:
+  checkFailed?<div><p role="alert">بررسی نشست ممکن نیست. برای حفظ امنیت، ورود جدید تا ارتباط با سرور غیرفعال است.</p><button type="button" onClick={()=>setCheckAttempt(n=>n+1)}>تلاش مجدد</button></div>:
+  verified?<div><p role="status">{message}</p><button type="button" disabled={busy} onClick={logout}>خروج از حساب</button></div>:
    <div className="otp-forms">
     <form onSubmit={issue}>
      <label htmlFor="tto-mobile">شماره موبایل ثبت‌شده</label>
@@ -61,6 +88,6 @@ export function OtpLogin({enabled}:{enabled:boolean}){
      <button type="submit" disabled={busy}>تأیید کد</button>
     </form>:null}
    </div>}
-  {enabled&&message?<p role="status" aria-live="polite">{message}</p>:null}
+  {enabled&&!verified&&!checkFailed&&message?<p role="status" aria-live="polite">{message}</p>:null}
  </section>;
 }
