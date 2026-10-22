@@ -13,7 +13,7 @@ DO $t$ BEGIN
  IF NOT tto.begin_smsotp_login('09123456789','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa12',decode(repeat('ab',32),'hex'),now()+interval '4 minutes')
  THEN RAISE EXCEPTION 'VERIFIED_PHONE_NOT_ALLOWED'; END IF;
  -- Do not issue session until provider accepts delivery.
- IF (SELECT tto.consume_challenge('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa12',decode(repeat('ab',32),'hex'),decode(repeat('01',32),'hex')) IS NOT NULL
+ IF (SELECT tto.consume_challenge('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa12',decode(repeat('ab',32),'hex'),decode(repeat('01',32),'hex'))) IS NOT NULL
  THEN RAISE EXCEPTION 'SESSION_ISSUED_BEFORE_DELIVERY'; END IF;
  IF NOT tto.complete_smsotp_delivery('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa12',true)
  THEN RAISE EXCEPTION 'DELIVERY_CONFIRMATION_REJECTED'; END IF;
@@ -23,7 +23,7 @@ DO $t$ BEGIN
  THEN RAISE EXCEPTION 'SECOND_CHALLENGE_REJECTED'; END IF;
  IF NOT tto.complete_smsotp_delivery('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa13',false)
  THEN RAISE EXCEPTION 'FAILURE_ATTESTATION_REJECTED'; END IF;
- IF (SELECT tto.consume_challenge('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa13',decode(repeat('ac',32),'hex'),decode(repeat('02',32),'hex')) IS NOT NULL
+ IF (SELECT tto.consume_challenge('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa13',decode(repeat('ac',32),'hex'),decode(repeat('02',32),'hex'))) IS NOT NULL
  THEN RAISE EXCEPTION 'FAILED_DELIVERY_ISSUED_SESSION'; END IF;
  IF NOT tto.begin_smsotp_login('09123456789','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa14',decode(repeat('ad',32),'hex'),now()+interval '4 minutes')
  THEN RAISE EXCEPTION 'THIRD_CHALLENGE_REJECTED'; END IF;
