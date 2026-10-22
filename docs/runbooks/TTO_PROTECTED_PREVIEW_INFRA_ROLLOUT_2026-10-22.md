@@ -87,3 +87,17 @@ Post-install read-only SQL confirmed **25** tables under schema `tto`; **17** ta
 - Vercel Preview shows secret-name entries `TTO_DB_APP_PASSWORD`, `AUTH_CHALLENGE_HMAC_SECRET`, `AUTH_ABUSE_HMAC_SECRET`, plus project ref `TTO_DB_PROJECT_REF`. Do not print their values.
 - **Supabase role `tto_app` remains `NOLOGIN`** per live read-only check. A connector security gate prevented completion of assigning the generated password to this role. DO NOT declare backend connected, even though Vercel secret entries exist. A secure manual secret reconciliation/rotation is required to put the same password in `tto_app` and the Vercel secret manager. The missing `TTO_DB_POOLER_HOST` must be obtained from the correct project's Supabase Connect dialog, not guessed.
 - The latest checked commit `0f89fa8...` completed all 13 GitHub Actions workflows green. This is NOT a live Preview test.
+
+## Verified TTO transaction pooler — 2026-10-22
+
+User-provided Supabase **Connect → Direct → Transaction pooler** confirmed:
+
+- Host: `aws-0-ap-northeast-1.pooler.supabase.com`
+- Port: `6543`
+- Database: `postgres`
+- Example privileged username in Supabase UI: `postgres.zkfwsgrgslxxlusxrwce` **(DO NOT use this for the application)**.
+- Expected nonowner runtime username for our secure configuration: `tto_app.zkfwsgrgslxxlusxrwce` (verify with successful connection test; do not infer success from naming alone).
+
+The backend Vercel project `tto-api-preview` received `TTO_DB_POOLER_HOST` with the exact host above, **Preview scope only**. Subsequent `filter_project_envs` confirms it exists and other Preview-only secret variables remain present (values not displayed).
+
+A read-only SQL check confirms `tto_app`: `rolcanlogin=false, rolsuper=false, rolbypassrls=false`. **Do not deploy or claim a live database connection** until a securely generated credential has been assigned to this nonowner role, and the same credential has been entered into Vercel Preview `TTO_DB_APP_PASSWORD` through protected settings. Previous attempt to synchronize secrets across tools was blocked by the safety boundary; do not attempt to circumvent it. The operator must rotate both ends to one matching randomly generated password and test `current_user='tto_app'` through the actual serverless pooler. Never share that password in chat or version control. Transaction pooler is the correct serverless mode; do not order or enable the optional dedicated IPv4 add-on.
