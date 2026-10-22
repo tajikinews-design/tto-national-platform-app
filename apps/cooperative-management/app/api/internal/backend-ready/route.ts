@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ready:false},{status:404,headers});
   }
   const base=process.env.TTO_API_BASE_URL;
-  if (base !== "https://tto-api-preview-6ok591xqv-tajikinews-6739.vercel.app") {
+  if (base !== "https://tto-api-preview-6l9c3huqs-tajikinews-6739.vercel.app") {
     return NextResponse.json({ready:false},{status:503,headers});
   }
   try {
