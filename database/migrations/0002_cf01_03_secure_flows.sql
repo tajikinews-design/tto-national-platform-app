@@ -134,8 +134,8 @@ CREATE FUNCTION tto.consume_challenge(p_challenge uuid,p_candidate bytea,p_sessi
  RETURNS uuid LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog,tto AS $fn$
  DECLARE r tto.auth_challenges%ROWTYPE; max_attempts integer; ttl integer; epoch bigint; active text;
  BEGIN
- SELECT max_attempts,session_ttl_minutes INTO max_attempts,ttl FROM tto.auth_policy
- WHERE policy_key='SESSION_CHALLENGE';
+ SELECT p.max_attempts,p.session_ttl_minutes INTO max_attempts,ttl FROM tto.auth_policy p
+ WHERE p.policy_key='SESSION_CHALLENGE';
  IF max_attempts IS NULL OR octet_length(p_candidate)<>32 OR octet_length(p_session_hash)<>32 THEN RETURN NULL; END IF;
  SELECT * INTO r FROM tto.auth_challenges WHERE challenge_id=p_challenge FOR UPDATE;
  IF NOT FOUND OR r.consumed_at IS NOT NULL OR r.expires_at<=clock_timestamp()
