@@ -35,10 +35,11 @@ SET ROLE tto_app;
 BEGIN;
 SELECT set_config('tto.actor_id','11111111-1111-4111-8111-111111111111',true);
 SELECT set_config('tto.tenant_id','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
-DO $t$ DECLARE gid uuid; BEGIN
- SELECT grant_id INTO gid FROM tto.jit_access_grants WHERE purpose='Synthetic review purpose for test' ORDER BY requested_at DESC LIMIT 1;
- IF gid IS NULL OR NOT tto.decide_jit(gid,true) THEN RAISE EXCEPTION 'JIT_APPROVAL_DENIED'; END IF;
-END $t$;
+SELECT tto.decide_jit(:'requested_id'::uuid,true) AS jit_decision \gset
+\if :jit_decision
+\else
+  SELECT 1/0;
+\endif
 COMMIT;
 RESET ROLE;
 SET ROLE tto_app;
