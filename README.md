@@ -1,52 +1,23 @@
-# TTO National Cooperative Platform — Application
+# TTO National Cooperative Platform — Implementation repository
 
-**Implementation repository**: [tajikinews-design/tto-national-platform-app](https://github.com/tajikinews-design/tto-national-platform-app) · PRIVATE
+**SOURCE / immutable:** `tajikinews-design/tto-national-platform` (15 original files, read-only, pinned tree `5eb6be8edfbb61f2eca740a42c30f572b493f023`).
 
-**Read-only approved originals**: [tajikinews-design/tto-national-platform](https://github.com/tajikinews-design/tto-national-platform) · `main` pinned at `5eb6be8edfbb61f2eca740a42c30f572b493f023` · exactly 15 files. No original Word/Excel/PNG files are replicated here.
+## Real implementation status (2026-10-22)
 
-## Current status
+- **Three Next.js 16 / React / TypeScript apps** now exist at `apps/shareholder/app`, `apps/cooperative-management/app`, `apps/national-admin/app` and share `@tto/ui`. They compile and are RTL UI skeletons only; no operational login or business workflows.
+- **NestJS 11 / Fastify API** at `services/api`: valid opaque-session lookup, tenant context and RLS-protected document metadata read endpoints. Session issuance / full authorization authority workflows are **not implemented**.
+- **PostgreSQL 17** migration at `database/migrations/0001_cf01_cf03_foundation.sql`: initial subset of CF01, CF02, CF03 logical entities with forced RLS. Real PostgreSQL and Nest HTTP negative integration tests passed (see [checkpoint](docs/reports/CF01_03_FOUNDATION.md)).
+- **Draft PR #3**: [Next/Nest/PostgreSQL foundation](https://github.com/tajikinews-design/tto-national-platform-app/pull/3); `main` remains unchanged.
+- **Vercel**: internal synthetic protected preview only, not yet deployed. **Production**: ArvanCloud exclusively upon explicit approval; never deploy to Production by automation.
 
-- Actual application backend/database/auth/business-domain implementation: **NOT STARTED**.
-- Three `apps/` surfaces are restored from a previously CI-tested static prototype, for review only. They do not log in, store or modify data, or simulate business success.
-- Technology ADR is pending. Current basic HTML/CSS/JS is a **stack-neutral temporary preview**, not the selection of a production frontend framework.
-- No Vercel deployment or Production deployment has been performed. **Production target is only ArvanCloud following explicit approval**.
+## Commands (developer environment)
 
-## Repository layout
+- Install Node 22 and pnpm 10.18.0.
+- `pnpm install --no-frozen-lockfile` (bootstrap only: reviewed lockfile not yet committed).
+- `pnpm build` builds all 3 Next apps and Nest API; `pnpm check` typechecks workspace.
+- Migrations run **only** in a disposable PostgreSQL 17 database with a privileged migration owner. API runs under non-owner `tto_app` role that cannot BYPASSRLS, with DATABASE_URL injected from a secure secret manager.
+- GitHub Actions run real database+API tests; no production deployments.
 
-```text
-apps/{shareholder,cooperative-management,national-admin,preview-index}/
-packages/ui/assets/              # temporary shared static UI for internal review
-packages/{core,domains,contracts}/
-services/{api,workers}/
-database/
-infra/
-configs/                      # access/deployment policy docs
-scripts/build_preview.py
-scripts/check_source_baseline.py
-tests/test_bootstrap.py
-status/PHASE_GATES.json
-docs/source/SOURCE_BASELINE.json
-docs/analysis/CHILD_CATALOG.json
-docs/plan/{IMPLEMENTATION_PLAN,DECISION_LOG}.md
-.github/workflows/foundation-ci.yml
-```
+See [ADR-001](docs/architecture/ADR-001-FINAL-STACK.md), [Phase status](status/PHASE_GATES.json), [Core mapping](docs/analysis/CHILD23_EXECUTION_REVIEW.md), and [API boundary](services/api/README.md).
 
-## Validate and assemble offline preview
-
-```bash
-python3 -m unittest discover -s tests -v
-python3 scripts/build_preview.py
-# open locally using an isolated static web server only if appropriate
-# python3 -m http.server --directory dist 8000
-```
-
-Built static routes: `/shareholder/`, `/cooperative-management/`, `/national-admin/`. No route is authenticated; **do not expose these on a public URL**. Protect the entire hosting deployment before making preview URLs available.
-
-## Next engineering decisions
-
-1. Read all 15 originals, complete requirement/permission/entity/commands/tests traceability and resolve formal legal gate ambiguities.
-2. Record ADR for runtime stack, tenancy model, infrastructure, storage, API, deployment regions and operational security. Need user approval for non-reversible/security-critical choices.
-3. Implement CF-01..CF-05 then domain children 06..23 with real backend, persistent storage, tests, logs and tenant security.
-4. Configure approved protected Vercel Preview only after commercial eligibility and auth-gate verified. Never deploy Production outside ArvanCloud and without explicit approval.
-
-All updates via independent branch and PR. **No inference that passing static checks means product functionality is complete.**
+The previously imported legacy static HTML prototypes remain in `apps/*/index.html` as historical review resources; the actual Next routes are `apps/*/app/page.tsx`. Never portray read-only HTML as a functional platform.

@@ -1,0 +1,42 @@
+name: TTO API / PostgreSQL 17 integration (NO DEPLOY)
+on:
+  push:
+    branches: ["feat/cf01-03-next-nest-postgres-foundation"]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  api-tenant-e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: tto
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tto"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - run: npm install -g pnpm@10.18.0
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm --filter @tto/api build
+      - name: Migrate ephemeral PostgreSQL 17
+        run: docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0001_cf01_cf03_foundation.sql
+      - name: Seed and run RLS negative tests
+        run: docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/tenant-isolation.sql
+      - name: Actual Nest HTTP authentication / tenant isolation integration
+        env:
+          TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+        run: node services/api/test/tenant-auth.integration.cjs

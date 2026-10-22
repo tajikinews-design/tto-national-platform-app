@@ -1,0 +1,13 @@
+{
+  "name": "tto-national-platform",
+  "private": true,
+  "packageManager": "pnpm@10.18.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "check": "pnpm --recursive --if-present typecheck",
+    "build": "pnpm --recursive --if-present build",
+    "test:sql": "psql -v ON_ERROR_STOP=1 -f tests/sql/tenant-isolation.sql"
+  }
+}
