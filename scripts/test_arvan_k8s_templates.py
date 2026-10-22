@@ -3,7 +3,7 @@
 from pathlib import Path
 import yaml
 
-root=Path(__file__).resolve().parents[2]
+root=Path(__file__).resolve().parents[1]
 resources=[x for x in yaml.safe_load_all((root/"infra/arvan/k8s/base.yaml").read_text()) if x]
 deploy=[x for x in resources if x["kind"]=="Deployment"]
 svc=[x for x in resources if x["kind"]=="Service"]
