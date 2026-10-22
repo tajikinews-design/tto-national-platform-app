@@ -24,17 +24,22 @@
       "evidence": [
         "23 distinct Child Specification headings directly indexed from approved Unified Pack",
         "155 distinct normative acceptance test IDs indexed, status NOT_RUN; mapping to requirements remains incomplete",
-        "MVP baseline records 108/108 requirements and 47/47 prior tests adjudicated (NOT evidence of implemented tests)"
+        "MVP baseline records 108/108 requirements and 47/47 prior tests adjudicated (NOT evidence of implemented tests)",
+        "Full source-owned 23-Child policy/permission/invariants/concurrency/handoffs and first exact entity field contracts indexed; 148 entity contracts, 71 states, 165 commands, 90 queries, 89 events, 155 acceptance test IDs NOT_RUN."
       ],
       "blockers": [
-        "Detailed semantic and permission/command/state/event and legal gate traceability not yet complete"
+        "Remaining exact entity field/command/state physical-to-implementation reconciliation and cross-document legal/UI comparisons to verify before complete Phase 01 green"
       ]
     },
     "PHASE-02": {
-      "status": "AWAITING_APPROVAL",
-      "evidence": [],
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "Delegated owner authorization for Framework/Database choice 2026-10-22",
+        "ADR-001 approved engineering selection: Next.js 16, NestJS 11/Fastify, PostgreSQL 17 SQL/RLS, portable OCI images"
+      ],
       "blockers": [
-        "Technology and tenancy ADR must be reviewed"
+        "Next/Nest dependency installation and reproducible build not yet executed",
+        "PostgreSQL migrations, RLS isolation, Arvan portability deployment spike NOT TESTED"
       ]
     },
     "PHASE-03": {
@@ -74,9 +79,11 @@
     },
     "PHASE-10": {
       "status": "BLOCKED",
-      "evidence": [],
+      "evidence": [
+        "Owner designated Hobby solely for internal synthetic noncommercial evaluation, no payments/real user data"
+      ],
       "blockers": [
-        "Vercel connected Hobby account, 0 projects/linked Git; commercial preview and access gate not ready"
+        "Vercel project and authenticated preview protection have not yet been configured and verified; Hobby plan is NOT itself a block; actual commercial-purpose compliance must be checked before release"
       ]
     },
     "PHASE-11": {
@@ -94,5 +101,7 @@
       "evidence": [],
       "blockers": []
     }
-  }
+  },
+  "final_framework_selection": "Next.js 16 stable / NestJS 11 Fastify / PostgreSQL 17 SQL-first + RLS",
+  "framework_choice_delegated_approved": true
 }

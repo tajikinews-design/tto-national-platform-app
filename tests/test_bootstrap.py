@@ -67,6 +67,23 @@ class FoundationTests(unittest.TestCase):
     self.assertEqual(len(cases),10)
     self.assertTrue(all(x["status"]=="NOT_RUN" for x in cases))
 
+  def test_approved_adr_and_source_policy_matrix(self):
+    import json
+    p=(ROOT/"docs/architecture/ADR-001-FINAL-STACK.md").read_text()
+    self.assertIn("Next.js 16",p)
+    self.assertIn("NestJS 11",p)
+    self.assertIn("PostgreSQL 17",p)
+    self.assertIn("No Production",p)
+    gate=json.loads((ROOT/"status/PHASE_GATES.json").read_text())
+    self.assertTrue(gate["framework_choice_delegated_approved"])
+    self.assertFalse(gate["production_authorized"])
+    self.assertNotEqual(gate["phases"]["PHASE-02"]["status"],"GREEN")
+    data=json.loads((ROOT/"docs/analysis/CHILD23_SOURCE_POLICY_WORKFLOW_MAP.json").read_text())
+    self.assertEqual(len(data["children"]),23)
+    self.assertEqual(data["table_counts"]["entities"],148)
+    self.assertEqual(data["table_counts"]["acceptance"],155)
+    self.assertTrue(all(c["status"]=="SOURCE_EXTRACTED_NOT_IMPLEMENTED" for c in data["children"]))
+
   def test_preview_build(self):
     r=subprocess.run([sys.executable,str(ROOT/"scripts/build_preview.py")],capture_output=True,text=True)
     self.assertEqual(r.returncode,0,r.stdout+r.stderr)
