@@ -1,0 +1,14 @@
+.git
+.github
+node_modules
+**/node_modules
+**/.next
+**/dist
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.dump
+coverage

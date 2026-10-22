@@ -1,3 +1,3 @@
-/** Portable Node/OCI build: no Vercel-only runtime dependencies. */
-const config={output:'standalone',transpilePackages:['@tto/ui']};
+import path from "node:path";
+const config={output:"standalone",outputFileTracingRoot:path.resolve(process.cwd(),"../.."),transpilePackages:["@tto/ui"]};
 export default config;

@@ -24,7 +24,7 @@ jobs:
       - name: Install pinned package manager
         run: npm install -g pnpm@10.18.0
       - name: Install in temporary CI workspace (lockfile gate remains pending)
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Build all three Next apps and Nest API
         run: pnpm build
       - name: Typecheck workspace
