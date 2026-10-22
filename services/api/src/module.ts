@@ -19,6 +19,7 @@ export class Database {
     }
   }
   async onModuleDestroy(): Promise<void> { await this.pool.end(); }
+  async isReady(): Promise<void> { await this.pool.query("SELECT 1 FROM tto.tenants LIMIT 0"); }
   async consumeChallenge(challengeId:string, verifier:Buffer, sessionHash:Buffer): Promise<boolean> {
     const result=await this.pool.query<{user_id:string|null}>(
       "SELECT tto.consume_challenge($1,$2,$3) AS user_id",[challengeId,verifier,sessionHash]);
@@ -123,7 +124,12 @@ export class DocumentsController {
 export class DocumentsAuditModule {}
 @Controller()
 export class HealthController {
+  constructor(private readonly db:Database) {}
   @Get("health") status() { return {status:"ok",stage:"CF01-03_FOUNDATION",note:"Not proof of database/tenant health"}; }
+  @Get("ready") async ready() {
+    try { await this.db.isReady(); return {status:"ready",database:"reachable"}; }
+    catch { throw new ServiceUnavailableException("Service not ready"); }
+  }
 }
 
 /** Tenant commands are routed only through verified session -> transaction-local identity context. */
