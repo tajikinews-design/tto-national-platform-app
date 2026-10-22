@@ -253,19 +253,19 @@ function OCI-Build-And-Smoke {
             Docker-Step ("Start OCI " + $label + " with NO NETWORK and NO PORTS") @(
                 "run","-d","--name",$runtime,"--network","none",$tag
             )
-            $js = @'
-const url="http://127.0.0.1:3000/";
-fetch(url,{signal:AbortSignal.timeout(3500)}).then(async (res)=>{
-  const body=await res.text();
-  if(res.status!==200 || !body.includes('dir="rtl"') || !body.includes("داده")){
-    console.error("OCI_RUNTIME_RTL_OR_NO_FAKE_DATA_GATE_FAILED");process.exitCode=1;
-  }
-}).catch((error)=>{console.error("OCI_RUNTIME_NOT_READY",error.message);process.exitCode=1;});
-'@
+            # Execute an auditable Node file, not multiline inline eval:
+            # Windows PowerShell may remove embedded JavaScript quote marks.
+            $probeFile = Join-Path $context "scripts\ci\oci-runtime-smoke.mjs"
+            if (-not (Test-Path -LiteralPath $probeFile -PathType Leaf)) {
+                throw "TTO_OCI_PROBE_SOURCE_NOT_FOUND"
+            }
+            Docker-Step ("Copy OCI probe " + $label) @(
+                "cp", $probeFile, ($runtime + ":/tmp/tto-oci-runtime-smoke.mjs")
+            )
             $ready = $false
             for ($try=0; $try -lt 60; $try++) {
-                # node exists inside all portable Next images; request never leaves container.
-                & docker exec $runtime node --input-type=module -e $js *> $null
+                # No output to native stderr for expected service startup delays.
+                & docker exec $runtime node /tmp/tto-oci-runtime-smoke.mjs | Out-Null
                 if ($LASTEXITCODE -eq 0) { $ready = $true; break }
                 Start-Sleep -Seconds 1
             }
