@@ -1,7 +1,7 @@
 name: TTO CF01 three Next portals Nest PG17 login logout E2E (NO DEPLOY)
 on:
-  pull_request:
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

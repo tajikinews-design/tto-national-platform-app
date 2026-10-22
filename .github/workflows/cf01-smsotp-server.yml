@@ -1,9 +1,7 @@
 name: TTO CF01 API.ir OTP server-side HTTP + PostgreSQL17 (NO SMS / NO DEPLOY)
 on:
-  push:
-    branches: ["feat/vazirmatn-next-preview-otp"]
-  pull_request:
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

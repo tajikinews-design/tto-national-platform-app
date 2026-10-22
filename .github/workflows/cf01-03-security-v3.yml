@@ -1,8 +1,7 @@
 name: TTO CF01-03 v3 JIT, Party, documents, lifecycle (NO DEPLOY)
 on:
-  push:
-    branches: [feat/cf01-03-security-lifecycle-v2]
-  pull_request:
+  workflow_dispatch:
+
 permissions:
   contents: read
 jobs:
