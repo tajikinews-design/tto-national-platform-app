@@ -209,6 +209,75 @@ async function main(){
  await status(await get("/v1/tenants/"+B+"/me/shareholding",myToken),403,"cross cooperative holdings read denied");
  await status(await get(memberPath,tokenMap.get(MANAGER)),403,"manager cannot read other private member");
  await status(await get(sharePath,tokenMap.get(NATIONAL)),403,"national JIT cannot inspect private shares");
+ // Source adapter staging: independent CI fixture metadata only; NO promotion of raw claims.
+ const sha=()=>createHash("sha256").update(randomUUID()).digest();
+ const batchInsert=async(domain,sourceRef,tenant=A,attestor=APPROVER,artifactEvidence=DEC,submitter=REVIEWER)=>{
+  const id=randomUUID();
+  await db.query("INSERT INTO tto.source_import_batches(batch_id,tenant_id,domain,source_ref,external_batch_ref,submitted_by,artifact_sha256,attested_by,attested_at,attestation_evidence_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,CASE WHEN $8::uuid IS NULL THEN NULL ELSE now() END,$9)",
+   [id,tenant,domain,sourceRef,"CI-batch-"+randomUUID(),submitter,sha(),attestor,artifactEvidence]);
+  return id;
+ };
+ const claimInsert=async(batch,domain,fields={})=>{
+  const id=randomUUID();
+  await db.query("INSERT INTO tto.source_import_claims(claim_id,batch_id,tenant_id,domain,party_id,source_event_id,source_version,membership_status,shareholder_account_id,ledger_entry_ref,ledger_version,share_quantity,effective_at,claim_sha256) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)",[
+   id,batch,fields.tenant??A,domain,fields.party??PARTY,
+   domain==="CHILD06_MEMBERSHIP"?(fields.event??projection.source_event_id):null,
+   domain==="CHILD06_MEMBERSHIP"?(fields.version??1):null,
+   domain==="CHILD06_MEMBERSHIP"?(fields.memberStatus??"ACTIVE"):null,
+   domain==="CHILD07_HOLDINGS"?(fields.account??account):null,
+   domain==="CHILD07_HOLDINGS"?(fields.entry??randomUUID()):null,
+   domain==="CHILD07_HOLDINGS"?(fields.version??3):null,
+   domain==="CHILD07_HOLDINGS"?(fields.qty??19):null,
+   fields.asOf??new Date(),sha()
+  ]);
+  return id;
+ };
+ const assess=async(claim)=> {
+  const r=await db.query("SELECT tto.assess_source_import_claim($1) AS verdict",[claim]);
+  return r.rows[0].verdict;
+ };
+ const memberBatch=await batchInsert("CHILD06_MEMBERSHIP",memberRef);
+ const sameMemberClaim=await claimInsert(memberBatch,"CHILD06_MEMBERSHIP");
+ assert.equal(await assess(sameMemberClaim),"REPLAY_IDENTICAL_REFERENCE");checks++;
+ const badMembershipClaim=await claimInsert(memberBatch,"CHILD06_MEMBERSHIP",{event:randomUUID()});
+ assert.equal(await assess(badMembershipClaim),"MEMBER_MASTER_PROJECTION_MISMATCH");checks++;
+ const unattestedBatch=await batchInsert("CHILD07_HOLDINGS",holdingRef,A,null,null);
+ assert.equal(await assess(await claimInsert(unattestedBatch,"CHILD07_HOLDINGS")),"QUARANTINED_NO_INDEPENDENT_ATTESTATION");checks++;
+ const selfAttested=await batchInsert("CHILD07_HOLDINGS",holdingRef,A,REVIEWER,DEC,REVIEWER);
+ assert.equal(await assess(await claimInsert(selfAttested,"CHILD07_HOLDINGS")),"QUARANTINED_SOD_VIOLATION");checks++;
+ const delayedBatch=randomUUID();
+ await db.query("INSERT INTO tto.source_import_batches(batch_id,tenant_id,domain,source_ref,external_batch_ref,submitted_by,artifact_sha256,received_at,attested_by,attested_at,attestation_evidence_id) VALUES($1,$2,'CHILD07_HOLDINGS',$3,$4,$5,$6,now()-interval '2 days',$7,now(),$8)",
+ [delayedBatch,A,holdingRef,"CI-delayed-"+randomUUID(),REVIEWER,sha(),APPROVER,DEC]);
+ assert.equal(await assess(await claimInsert(delayedBatch,"CHILD07_HOLDINGS")),"READY_FOR_INDEPENDENT_REVIEW");checks++;
+ const invalidEvidence=await batchInsert("CHILD07_HOLDINGS",holdingRef,A,APPROVER,REQ);
+ // Both REQ/DEC are published same-tenant evidence in synthetic test, so this is a valid independent record.
+ assert.equal(await assess(await claimInsert(invalidEvidence,"CHILD07_HOLDINGS")),"READY_FOR_INDEPENDENT_REVIEW");checks++;
+ const foreignBatch=await batchInsert("CHILD07_HOLDINGS",holdingRef,B);
+ assert.equal(await assess(await claimInsert(foreignBatch,"CHILD07_HOLDINGS")),"CROSS_TENANT_OR_DOMAIN_MISMATCH");checks++;
+ const unapprovedBatch=await batchInsert("CHILD07_HOLDINGS","NO-APPROVAL-SOURCE");
+ assert.equal(await assess(await claimInsert(unapprovedBatch,"CHILD07_HOLDINGS")),"SOURCE_CONTRACT_NOT_APPROVED");checks++;
+ const holdBatch=await batchInsert("CHILD07_HOLDINGS",holdingRef);
+ const claimReady=await claimInsert(holdBatch,"CHILD07_HOLDINGS",{version:3,qty:19});
+ assert.equal(await assess(claimReady),"READY_FOR_INDEPENDENT_REVIEW");checks++;
+ assert.equal(await assess(await claimInsert(holdBatch,"CHILD07_HOLDINGS",{version:5})),"VERSION_GAP");checks++;
+ assert.equal(await assess(await claimInsert(holdBatch,"CHILD07_HOLDINGS",{version:1})),"STALE_SOURCE_VERSION");checks++;
+ const existingLedger=(await db.query("SELECT ledger_entry_ref FROM tto.shareholding_source_snapshots WHERE tenant_id=$1 AND shareholder_account_id=$2 AND ledger_version=2",[A,account])).rows[0].ledger_entry_ref;
+ assert.equal(await assess(await claimInsert(holdBatch,"CHILD07_HOLDINGS",{version:2,entry:existingLedger,qty:0})),"REPLAY_IDENTICAL_REFERENCE");checks++;
+ assert.equal(await assess(await claimInsert(holdBatch,"CHILD07_HOLDINGS",{version:2,qty:99})),"CONFLICT_SAME_VERSION");checks++;
+ const reusedRefBatch=await batchInsert("CHILD07_HOLDINGS",holdingRef);
+ assert.equal(await assess(await claimInsert(reusedRefBatch,"CHILD07_HOLDINGS",{version:3,entry:existingLedger})),"REUSED_LEDGER_ENTRY_REF");checks++;
+ assert.equal(await assess(await claimInsert(holdBatch,"CHILD07_HOLDINGS",{version:3,asOf:new Date("2020-01-01T00:00:00Z")})),"EFFECTIVE_TIME_REGRESSION");checks++;
+ assert.equal(await assess(await claimInsert(holdBatch,"CHILD07_HOLDINGS",{version:3,asOf:new Date("2099-01-01T00:00:00Z")})),"FUTURE_EFFECTIVE_DATE");checks++;
+ const wrongDomain=await claimInsert(holdBatch,"CHILD06_MEMBERSHIP");
+ assert.equal(await assess(wrongDomain),"CROSS_TENANT_OR_DOMAIN_MISMATCH");checks++;
+ const unknown=await assess(randomUUID());
+ assert.equal(unknown,"UNKNOWN_CLAIM");checks++;
+ await assert.rejects(()=>db.query("UPDATE tto.source_import_claims SET source_version=77 WHERE claim_id=$1",[sameMemberClaim]));checks++;
+ await assert.rejects(()=>db.query("DELETE FROM tto.source_import_batches WHERE batch_id=$1",[holdBatch]));checks++;
+ // The stage is inert: no new share snapshot or relationship was written by assessment.
+ const unchangedLedger=await db.query("SELECT count(*)::integer AS n FROM tto.shareholding_source_snapshots WHERE tenant_id=$1 AND shareholder_account_id=$2",[A,account]);
+ assert.equal(unchangedLedger.rows[0].n,2);checks++;
+
  await db.query("UPDATE tto.source_contract_approvals SET enabled=false WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
  await status(await get(sharePath,myToken),403,"source revocation hides shares immediately");
  await status(await get(memberPath,myToken),200,"independent member source unaffected");
@@ -223,9 +292,10 @@ async function main(){
  try{
   await assert.rejects(()=>app.query("SELECT * FROM tto.identity_link_cases"),e=>e.code==="42501");checks++;
   await assert.rejects(()=>app.query("SELECT * FROM tto.identity_review_authorizations"),e=>e.code==="42501");checks++;
-  for(const tbl of ["source_contract_approvals","member_source_snapshots","shareholder_source_accounts","shareholding_source_snapshots"]){
+  for(const tbl of ["source_contract_approvals","member_source_snapshots","shareholder_source_accounts","shareholding_source_snapshots","source_import_batches","source_import_claims"]){
    await assert.rejects(()=>app.query("SELECT * FROM tto."+tbl),e=>e.code==="42501");checks++;
   }
+  await assert.rejects(()=>app.query("SELECT tto.assess_source_import_claim($1)",[claimReady]),e=>e.code==="42501");checks++;
  }finally{await app.end();}
  // Session revocation must invalidate both Nest and shareholder BFF owner reads instantly.
  await db.query("UPDATE tto.user_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL",[USER]);
