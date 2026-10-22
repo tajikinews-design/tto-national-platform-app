@@ -34,7 +34,7 @@ jobs:
       - name: Apply full disposable PG17 migrations and domain negative tests
         run: |
           set -euo pipefail
-          for s in database/migrations/0001_cf01_cf03_foundation.sql tests/sql/tenant-isolation.sql database/migrations/0002_cf01_03_secure_flows.sql tests/sql/cf01-cf03-v2.sql database/migrations/0003_cf01_03_role_jit_party_document.sql tests/sql/cf01-cf03-v3.sql; do
+          for s in database/migrations/0001_cf01_cf03_foundation.sql tests/sql/tenant-isolation.sql database/migrations/0002_cf01_03_secure_flows.sql tests/sql/cf01-cf03-v2.sql database/migrations/0003_cf01_03_role_jit_party_document.sql tests/sql/cf01-cf03-v3.sql database/migrations/0004_cf02_privileged_lifecycle_cf03_hold_release.sql tests/sql/cf02-cf03-v4.sql; do
             docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$s"
           done
       - name: Generate ephemeral CI-only challenge HMAC secret (never committed/logged)
