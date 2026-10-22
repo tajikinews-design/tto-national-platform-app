@@ -7,8 +7,37 @@ import { ApiIrSmsOtpProvider } from "./apiir-provider";
 export class Database {
   private readonly pool: Pool;
   constructor() {
-    if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL_NOT_CONFIGURED");
-    this.pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 8, application_name: "tto_api" });
+    // Preview-only: construct the connection server-side so its password never
+    // appears in GitHub or in a non-secret URL environment variable.
+    // The Supabase pooler hostname MUST be copied from this project's Connect
+    // dialog: region-based hostname guessing can target another pooler.
+    let connectionString = process.env.DATABASE_URL;
+    let tls: { rejectUnauthorized: true; ca: string } | undefined;
+    if (!connectionString && process.env.VERCEL) {
+      const host = process.env.TTO_DB_POOLER_HOST ?? "";
+      const password = process.env.TTO_DB_APP_PASSWORD ?? "";
+      const projectRef = process.env.TTO_DB_PROJECT_REF ?? "";
+      const rootCA = process.env.TTO_DB_CA_PEM ?? "";
+      if (!/^[a-z0-9-]+\.pooler\.supabase\.com$/.test(host) ||
+          projectRef !== "zkfwsgrgslxxlusxrwce" || password.length < 60 ||
+          !rootCA.startsWith("-----BEGIN CERTIFICATE-----") ||
+          !rootCA.trimEnd().endsWith("-----END CERTIFICATE-----")) {
+        throw new Error("TTO_PREVIEW_DATABASE_CONFIGURATION_INCOMPLETE");
+      }
+      connectionString = "postgresql://" +
+        encodeURIComponent("tto_app." + projectRef) + ":" +
+        encodeURIComponent(password) + "@" + host + ":6543/postgres";
+      tls = { rejectUnauthorized: true, ca: rootCA };
+    }
+    if (!connectionString) throw new Error("DATABASE_URL_NOT_CONFIGURED");
+    this.pool = new Pool({
+      connectionString,
+      ...(tls ? {ssl:tls} : {}),
+      max: process.env.VERCEL ? 1 : 8,
+      connectionTimeoutMillis: process.env.VERCEL ? 3800 : 10000,
+      idleTimeoutMillis: 10000,
+      application_name: "tto_api"
+    });
   }
   async onModuleInit(): Promise<void> {
     const result = await this.pool.query<{rolsuper:boolean;rolbypassrls:boolean;rolname:string}>(
@@ -219,7 +248,8 @@ export class FoundationCommandsController {
     // Do not make public issuance available without an actual configured SMS provider
     // or explicit test-only delivery mode. No SMS credentials in browser code.
     const fake=process.env.NODE_ENV==="test" && process.env.TTO_MOCK_SMSOTP_PROVIDER==="true";
-    if(!fake && (!process.env.APIIR_TOKEN || process.env.APIIR_TOKEN.length<12))
+    if(!fake && (process.env.TTO_ENABLE_REAL_SMSOTP_DELIVERY!=="true" ||
+        !process.env.APIIR_TOKEN || process.env.APIIR_TOKEN.length<12))
       throw new ServiceUnavailableException("SMS provider unavailable");
     const requestId=randomUUID();
     // In regular runtime, missing abuse guard configuration or SQL function must fail CLOSED.

@@ -68,6 +68,36 @@ ROLLBACK;
 DO $t$ BEGIN
  IF (SELECT count(*) FROM tto.documents)<>0 THEN RAISE EXCEPTION 'TRANSACTION_CONTEXT_LEAK'; END IF;
 END $t$;
+-- A second, unrelated synthetic cooperative/actor can see its own
+-- MEMBER-only records but cannot view A or write as a manager.
+BEGIN;
+SELECT set_config('tto.actor_id','22222222-2222-4222-8222-222222222222',true);
+SELECT set_config('tto.tenant_id','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',true);
+DO $t$ DECLARE denied boolean:=false; BEGIN
+ IF (SELECT count(*) FROM tto.tenants)<>1 OR
+    (SELECT count(*) FROM tto.documents)<>1 OR
+    (SELECT count(*) FROM tto.documents WHERE tenant_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')<>0 THEN
+   RAISE EXCEPTION 'TENANT_B_READ_ISOLATION_FAILED';
+ END IF;
+ BEGIN
+   INSERT INTO tto.documents(document_id,tenant_id,title,classification)
+   VALUES ('44444444-4444-4444-8444-444444444446','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','Member tried manager insert','MEMBER');
+ EXCEPTION WHEN insufficient_privilege THEN denied:=true;
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'TENANT_B_MEMBER_CAN_CREATE_DOCUMENT'; END IF;
+END $t$;
+ROLLBACK;
+-- Tenant B actor cannot acquire A's identity by selecting tenant A context.
+BEGIN;
+SELECT set_config('tto.actor_id','22222222-2222-4222-8222-222222222222',true);
+SELECT set_config('tto.tenant_id','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
+DO $t$ BEGIN
+ IF (SELECT count(*) FROM tto.tenants)<>0 OR
+    (SELECT count(*) FROM tto.documents)<>0 THEN
+   RAISE EXCEPTION 'TENANT_B_CROSS_CONTEXT_ESCALATION';
+ END IF;
+END $t$;
+ROLLBACK;
 -- Actor A may not switch tenant selector to B and gain access.
 BEGIN;
 SELECT set_config('tto.actor_id','11111111-1111-4111-8111-111111111111',true);

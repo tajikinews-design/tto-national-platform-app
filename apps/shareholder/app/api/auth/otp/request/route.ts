@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trustedBackendHeaders } from "../../../../../lib/trusted-backend";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 export async function POST(request:NextRequest){
@@ -13,7 +14,7 @@ export async function POST(request:NextRequest){
  if(body.length>512)return NextResponse.json({error:"BAD_REQUEST"},{status:400});
  try{
   const response=await fetch(new URL("/v1/auth/challenges/request",api),{
-    method:"POST",headers:{"Content-Type":"application/json"},
+    method:"POST",headers:{"Content-Type":"application/json",...trustedBackendHeaders(request)},
     body,cache:"no-store",redirect:"error",signal:AbortSignal.timeout(9500)
   });
   if(!response.ok)return NextResponse.json({error:"REQUEST_UNAVAILABLE"},{status:response.status>=500?503:400});

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trustedBackendHeaders } from "../../../../lib/trusted-backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
   try {
     const upstream = await fetch(upstreamUrl,{
       method:"POST",
-      headers:{Authorization:`Bearer ${token}`},
+      headers:{Authorization:`Bearer ${token}`,...trustedBackendHeaders(request)},
       cache:"no-store",
       redirect:"error",
       signal:AbortSignal.timeout(9500)

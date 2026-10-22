@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { trustedBackendHeaders } from "../../../../lib/trusted-backend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,7 +36,7 @@ export async function GET(request:NextRequest){
   }catch{return unavailable();}
   try{
     const upstream=await fetch(url,{
-      method:"GET",headers:{Authorization:`Bearer ${token}`},
+      method:"GET",headers:{Authorization:`Bearer ${token}`,...trustedBackendHeaders(request)},
       cache:"no-store",redirect:"error",signal:AbortSignal.timeout(9500)
     });
     if(upstream.status===401)return noSession(true);
