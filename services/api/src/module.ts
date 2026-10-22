@@ -282,6 +282,24 @@ export class FoundationCommandsController {
     if(!accepted)throw new ForbiddenException("Identity decision denied");
     return {recorded:true};
   }
+  // Child06/07 read-only self service: private user data is resolved solely
+  // from approved source snapshots and live verified actor/tenant context.
+  @Get("tenants/:tenantId/me/member-record")
+  async ownMemberRecord(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Headers("authorization") auth?:string){
+    const record=await this.run<Record<string,unknown>|null>(tenant,auth,
+      "SELECT tto.my_member_profile_from_source($1) AS out",[tenant]);
+    if(!record)throw new ForbiddenException("Verified member record unavailable");
+    return {record};
+  }
+  @Get("tenants/:tenantId/me/shareholding")
+  async ownShareholding(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Headers("authorization") auth?:string){
+    const record=await this.run<Record<string,unknown>|null>(tenant,auth,
+      "SELECT tto.my_shareholding_from_source($1) AS out",[tenant]);
+    if(!record)throw new ForbiddenException("Verified shareholding unavailable");
+    return {record};
+  }
   @Post("auth/challenges/request")
   @HttpCode(202)
   async requestSmsLogin(@Body() payload:Record<string,unknown>,@Req() req:{ip?:string}){

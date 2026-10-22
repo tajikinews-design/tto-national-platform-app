@@ -153,11 +153,86 @@ async function main(){
   [expiredGrant,A,NATIONAL,APPROVER]);
  assert.deepEqual(await options(na,NATIONAL),[]);checks++;
  await status(await get("/v1/tenants/"+A+"/context",tokenMap.get(NATIONAL)),403,"expired national JIT fails closed");
+ // Child06/07: never infer membership or share balance from successful login/Party link.
+ const memberPath="/v1/tenants/"+A+"/me/member-record";
+ const sharePath="/v1/tenants/"+A+"/me/shareholding";
+ const memberBff=sh.origin+"/api/tenants/"+A+"/me/member-record";
+ const shareBff=sh.origin+"/api/tenants/"+A+"/me/shareholding";
+ const cookie={Cookie:"tto_session="+myToken};
+ await status(await get(memberPath,myToken),403,"member source unapproved");
+ await status(await get(sharePath,myToken),403,"share source unapproved");
+ const guest=await fetch(memberBff,{headers:{Authorization:"Bearer "+myToken,"X-Party":PARTY}});
+ await status(guest,401,"forged browser bearer cannot read membership");
+ const unapprovedResponse=await fetch(memberBff,{headers:cookie});
+ const unapprovedBody=await status(unapprovedResponse,403,"BFF member is initially blocked");
+ assert.deepEqual(unapprovedBody,{available:false,code:"SOURCE_OR_PERMISSION_NOT_APPROVED"});checks++;
+ // Only synthetic CI migration-owner fixture represents a future approved source adapter.
+ const projection=(await db.query("SELECT source_event_id,source_version FROM tto.relationship_projections WHERE tenant_id=$1 AND party_id=$2",[A,PARTY])).rows[0];
+ const memberRef="CI-APPROVED-CHILD06-V1",holdingRef="CI-APPROVED-CHILD07-V1";
+ await db.query("INSERT INTO tto.member_source_snapshots(tenant_id,party_id,source_ref,source_event_id,source_version,membership_status,source_as_of) VALUES($1,$2,$3,$4,$5,'ACTIVE',now())",
+  [A,PARTY,memberRef,projection.source_event_id,projection.source_version]);
+ const account=randomUUID();
+ await db.query("INSERT INTO tto.shareholder_source_accounts(tenant_id,party_id,shareholder_account_id,source_ref,source_version,account_status) VALUES($1,$2,$3,$4,1,'ACTIVE')",
+  [A,PARTY,account,memberRef]);
+ await db.query("INSERT INTO tto.source_contract_approvals(tenant_id,domain,source_ref,rule_snapshot_ref,evidence_id,approved_by,valid_until,enabled) VALUES($1,'CHILD06_MEMBERSHIP',$2,$3,$4,$5,now()+interval '1 hour',false),($1,'CHILD07_HOLDINGS',$6,$7,$4,$5,now()+interval '1 hour',false)",
+  [A,memberRef,randomUUID(),DEC,APPROVER,holdingRef,randomUUID()]);
+ await status(await get(memberPath,myToken),403,"approval disabled even with member row");
+ await db.query("UPDATE tto.source_contract_approvals SET enabled=true WHERE tenant_id=$1 AND domain='CHILD06_MEMBERSHIP'",[A]);
+ const verifiedMember=await status(await get(memberPath,myToken),200,"approved Child06 membership read");
+ assert.equal(verifiedMember.record.membershipStatus,"ACTIVE");checks++;
+ assert.equal(verifiedMember.record.partyKind,"PERSON");checks++;
+ assert.equal(verifiedMember.record.sourceVersion,1);checks++;
+ const memberPrivate=await status(await fetch(memberBff,{headers:cookie,cache:"no-store"}),200,"shareholder BFF approved member");
+ assert.equal(memberPrivate.available,true);checks++;
+ assert.equal(memberPrivate.record.membershipStatus,"ACTIVE");checks++;
+ await status(await get(sharePath,myToken),403,"Child07 independent approval still required");
+ await db.query("UPDATE tto.source_contract_approvals SET enabled=true WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
+ await status(await get(sharePath,myToken),403,"absent ledger entry must not be zero shares");
+ const absentShares=await status(await fetch(shareBff,{headers:cookie,cache:"no-store"}),403,"BFF unknown holdings not zero");
+ assert.deepEqual(absentShares,{available:false,code:"SOURCE_OR_PERMISSION_NOT_APPROVED"});checks++;
+ await db.query("INSERT INTO tto.shareholding_source_snapshots(snapshot_id,tenant_id,shareholder_account_id,source_ref,ledger_entry_ref,ledger_version,share_quantity,ledger_as_of) VALUES($1,$2,$3,$4,$5,1,37,now())",
+ [randomUUID(),A,account,holdingRef,randomUUID()]);
+ const verifiedShare=await status(await get(sharePath,myToken),200,"approved Child07 holding read");
+ assert.equal(verifiedShare.record.shareQuantity,"37");checks++;
+ assert.equal(verifiedShare.record.ledgerVersion,1);checks++;
+ const privateShare=await fetch(shareBff,{headers:cookie,cache:"no-store"});
+ const privateBody=await status(privateShare,200,"BFF exact sourced holdings");
+ assert.equal(privateBody.record.shareQuantity,"37");checks++;
+ ok(/no-store/.test(privateShare.headers.get("cache-control")??""),"shareholding no-cache");
+ ok(!JSON.stringify(privateBody).includes(myToken),"opaque session never exposed");
+ await db.query("INSERT INTO tto.shareholding_source_snapshots(snapshot_id,tenant_id,shareholder_account_id,source_ref,ledger_entry_ref,ledger_version,share_quantity,ledger_as_of) VALUES($1,$2,$3,$4,$5,2,0,now())",
+  [randomUUID(),A,account,holdingRef,randomUUID()]);
+ const zeroSource=await status(await get(sharePath,myToken),200,"explicit sourced zero remains zero");
+ assert.equal(zeroSource.record.shareQuantity,"0");checks++;
+ assert.equal(zeroSource.record.ledgerVersion,2);checks++;
+ await status(await get("/v1/tenants/"+B+"/me/member-record",myToken),403,"cross cooperative member read denied");
+ await status(await get("/v1/tenants/"+B+"/me/shareholding",myToken),403,"cross cooperative holdings read denied");
+ await status(await get(memberPath,tokenMap.get(MANAGER)),403,"manager cannot read other private member");
+ await status(await get(sharePath,tokenMap.get(NATIONAL)),403,"national JIT cannot inspect private shares");
+ await db.query("UPDATE tto.source_contract_approvals SET enabled=false WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
+ await status(await get(sharePath,myToken),403,"source revocation hides shares immediately");
+ await status(await get(memberPath,myToken),200,"independent member source unaffected");
+ await db.query("UPDATE tto.source_contract_approvals SET enabled=true WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
+ await db.query("UPDATE tto.source_contract_approvals SET approved_at=now()-interval '3 hours',valid_until=now()-interval '1 hour' WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
+ await status(await get(sharePath,myToken),403,"expired holdings source approval blocked");
+ await db.query("UPDATE tto.source_contract_approvals SET enabled=false WHERE tenant_id=$1 AND domain='CHILD06_MEMBERSHIP'",[A]);
+ await status(await get(memberPath,myToken),403,"membership source revocation immediate");
+ await status(await get(sharePath,myToken),403,"holdings depend on active Child06 source");
+
  const app=new Client({connectionString:"postgresql://tto_app@127.0.0.1:5432/tto"});await app.connect();
  try{
   await assert.rejects(()=>app.query("SELECT * FROM tto.identity_link_cases"),e=>e.code==="42501");checks++;
   await assert.rejects(()=>app.query("SELECT * FROM tto.identity_review_authorizations"),e=>e.code==="42501");checks++;
+  for(const tbl of ["source_contract_approvals","member_source_snapshots","shareholder_source_accounts","shareholding_source_snapshots"]){
+   await assert.rejects(()=>app.query("SELECT * FROM tto."+tbl),e=>e.code==="42501");checks++;
+  }
  }finally{await app.end();}
+ // Session revocation must invalidate both Nest and shareholder BFF owner reads instantly.
+ await db.query("UPDATE tto.user_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL",[USER]);
+ await status(await get(memberPath,myToken),401,"revoked member session blocked");
+ await status(await get(sharePath,myToken),401,"revoked holdings session blocked");
+ await status(await fetch(memberBff,{headers:cookie}),401,"revoked BFF member session blocked");
+ await status(await fetch(shareBff,{headers:cookie}),401,"revoked BFF holdings session blocked");
  const audit=await db.query("SELECT count(*)::integer AS n FROM tto.audit_events WHERE event_name LIKE 'IDENTITY_LINK_%'");
  ok(audit.rows[0].n===4,"identity case audit events recorded transactionally");
  console.log("TTO_CF02_IDENTITY_MANAGER_NATIONAL_E2E_PASS_CHECKS="+checks);
