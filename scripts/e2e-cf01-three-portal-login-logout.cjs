@@ -17,6 +17,8 @@ const db = new Client({connectionString:ADMIN_DB});
 const NEXT = ["shareholder","cooperative-management","national-admin"];
 const MOBILE = "09123456789"; // synthetic CI-only fixture, no actual delivery
 const OTP = "111222"; // existing NODE_ENV=test mock code
+const ALLOWED_TENANT = randomUUID();
+const OTHER_TENANT = randomUUID();
 const BACKEND_PORT = 31994;
 const API = "http://127.0.0.1:" + BACKEND_PORT;
 const running=[];
@@ -48,6 +50,11 @@ async function setup(){
  const userId=randomUUID();
  await db.query("INSERT INTO tto.user_accounts(user_id) VALUES($1)",[userId]);
  await db.query("INSERT INTO tto.verified_mobile_identifiers(mobile,user_id,verified_at) VALUES($1,$2,now())",[MOBILE,userId]);
+ // Disposable fixtures only: real CF02 RLS resolves a scoped active role.
+ await db.query("INSERT INTO tto.tenants(tenant_id,slug,display_name,status) VALUES($1,$2,$3,'ACTIVE'),($4,$5,$6,'ACTIVE')",
+  [ALLOWED_TENANT,"ci-allowed","CI Allowed",OTHER_TENANT,"ci-other","CI Other"]);
+ await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'MEMBER')",
+  [randomUUID(),userId,ALLOWED_TENANT]);
  const nest=startNode(["dist/main.js"],resolve(ROOT,"services/api"),{
   DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto", PORT:String(BACKEND_PORT),
   NODE_ENV:"test", TTO_MOCK_SMSOTP_PROVIDER:"true", APIIR_TOKEN:"",
@@ -109,6 +116,23 @@ async function checkPortal(slug,index) {
  assert.ok(!(JSON.stringify(sessionPayload)).includes(token),slug+" must not leak bearer");checks++;
  assert.match(browserSession.headers.get("cache-control")??"",/no-store/);checks++;
 
+
+ // Browser Authorization and forged role headers cannot substitute the HttpOnly session.
+ const allowedUrl=url+"/api/tenants/"+ALLOWED_TENANT+"/context";
+ const anonymousContext=await fetch(allowedUrl,{headers:{Authorization:"Bearer "+token,"X-Role":"COOPERATIVE_MANAGER"}});
+ assertStatus(anonymousContext,401,slug+" tenant gate forged bearer blocked");
+ assert.deepEqual(await anonymousContext.json(),{tenantContextVerified:false,code:"SESSION_REQUIRED"});checks++;
+ const malformedContext=await fetch(url+"/api/tenants/not-a-uuid/context",{headers:{Cookie:"tto_session="+token}});
+ assertStatus(malformedContext,400,slug+" malformed tenant ID blocked");
+ const authorizedContext=await fetch(allowedUrl,{headers:{Cookie:"tto_session="+token}});
+ assertStatus(authorizedContext,200,slug+" verified same-tenant read-only context");
+ const authPayload=await authorizedContext.json();
+ assert.deepEqual(authPayload,{tenantContextVerified:true,tenantId:ALLOWED_TENANT});checks++;
+ assert.match(authorizedContext.headers.get("cache-control")??"",/no-store/);checks++;
+ assert.ok(!JSON.stringify(authPayload).includes(token),slug+" tenant gate leaked credential");checks++;
+ const crossContext=await fetch(url+"/api/tenants/"+OTHER_TENANT+"/context",{headers:{Cookie:"tto_session="+token}});
+ assertStatus(crossContext,403,slug+" cross-tenant access blocked by RLS");
+ assert.deepEqual(await crossContext.json(),{tenantContextVerified:false,code:"TENANT_ACCESS_DENIED"});checks++;
  const backendSession=await fetch(API+"/v1/auth/session",{headers:{Authorization:"Bearer "+token}});
  assertStatus(backendSession,200,slug+" direct Nest PG17 validation");
  assert.deepEqual(await backendSession.json(),{authenticated:true});checks++;
@@ -132,6 +156,8 @@ async function checkPortal(slug,index) {
  assert.deepEqual(await stale.json(),{authenticated:false});checks++;
  assert.match(stale.headers.get("set-cookie")??"",/max-age=0/i);checks++;
 
+ const revokedContext=await fetch(allowedUrl,{headers:{Cookie:"tto_session="+token}});
+ assertStatus(revokedContext,401,slug+" revoked session denied for tenant context");
  const revoked=await post(API+"/v1/auth/logout",null,{headers:{Authorization:"Bearer "+token}});
  assertStatus(revoked,401,slug+" revoked bearer replay rejected by Nest/PG17");
  console.log("CF01_THREE_PORTAL_E2E_"+slug.toUpperCase().replace(/-/g,"_")+"_PASS");

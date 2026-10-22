@@ -30,6 +30,24 @@ for (let idx=0;idx<slugs.length;idx++){
    if(!html.includes("هیچ داده، مانده سهام"))throw Error(slug+" module claims unspecified business values");
    checks++;
   }
+  // Tenant context BFF must fail closed even in protected Preview, without a user session.
+  const tid="44444444-4444-4444-8444-444444444444";
+  const contextUrl="http://127.0.0.1:"+port+"/api/tenants/"+tid+"/context";
+  const anonymousContext=await fetch(contextUrl);
+  if(anonymousContext.status!==401 || (await anonymousContext.json()).tenantContextVerified!==false)
+    throw Error(slug+" anonymous tenant access was not denied");
+  if(!/no-store/.test(anonymousContext.headers.get("cache-control")??""))
+    throw Error(slug+" tenant gate response cache policy missing");
+  checks+=2;
+  const forgedContext=await fetch(contextUrl,{headers:{Authorization:"Bearer "+"a".repeat(48),"X-Tenant-Id":tid,"X-Role":"COOPERATIVE_MANAGER"}});
+  if(forgedContext.status!==401)throw Error(slug+" tenant gate accepted forged client headers");
+  checks++;
+  const invalidContext=await fetch("http://127.0.0.1:"+port+"/api/tenants/not-a-uuid/context");
+  if(invalidContext.status!==400)throw Error(slug+" malformed tenant ID accepted");
+  checks++;
+  const localCookie=await fetch(contextUrl,{headers:{Cookie:"tto_session="+"b".repeat(48)}});
+  if(localCookie.status!==503)throw Error(slug+" tenant gate did not fail closed on missing backend");
+  checks++;
   const invalid=await fetch("http://127.0.0.1:"+port+"/modules/nav-12");
   if(invalid.status!==404)throw Error(slug+" invalid NAV route did not reject");
   checks++;
