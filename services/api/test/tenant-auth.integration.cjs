@@ -62,6 +62,7 @@ async function run() {
   server.stderr.on("data", data => {serverError += data.toString().slice(0, 1000);});
   const base = "http://127.0.0.1:" + port;
   await waitForServer(base);
+  await assertRequest(base, "/ready", null, 200, body => assert.equal(body.database, "reachable"));
   await assertRequest(base, "/v1/tenants/" + tenantA + "/context", null, 401);
   await assertRequest(base, "/v1/tenants/" + tenantA + "/context", tokenA, 200,
     body => assert.equal(body.tenant_id,tenantA));
