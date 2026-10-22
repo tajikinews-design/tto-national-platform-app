@@ -32,12 +32,12 @@ jobs:
       - run: npm install -g pnpm@10.18.0
       - run: pnpm install --frozen-lockfile
       - run: pnpm build && pnpm check
-      - name: Disposable PostgreSQL17 schema through 0008, no hosted database
+      - name: Disposable PostgreSQL17 schema through 0009, no hosted database
         run: |
-          for migration in database/migrations/000{1,2,3,4,5,6,7,8}_*.sql; do
+          for migration in database/migrations/000{1,2,3,4,5,6,7,8,9}_*.sql; do
             docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$migration"
           done
-      - name: Real HTTP positive and negative identity, manager, national E2E
+      - name: Real HTTP positive and negative identity, manager, national and Child06/07 owner-only source E2E
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
         run: node scripts/e2e-cf02-identity-authority.cjs
