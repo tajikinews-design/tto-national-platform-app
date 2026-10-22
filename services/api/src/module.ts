@@ -1,4 +1,4 @@
-import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, HttpCode } from "@nestjs/common";
+import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, HttpCode, Req } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
 import { createHash, createHmac, randomBytes, randomUUID, randomInt } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
@@ -27,6 +27,12 @@ export class Database {
       [mobile,id,hash]
     );
     return r.rows[0]?.ok===true;
+  }
+  async reservePublicOtpRequest(ipKey:Buffer,mobileKey:Buffer):Promise<boolean>{
+    const result=await this.pool.query<{ok:boolean}>(
+      "SELECT tto.reserve_public_otp_request($1,$2) AS ok",[ipKey,mobileKey]
+    );
+    return result.rows[0]?.ok===true;
   }
   async attestSmsDelivery(id:string, accepted:boolean):Promise<boolean>{
     const r=await this.pool.query<{ok:boolean}>(
@@ -203,7 +209,7 @@ export class FoundationCommandsController {
   }
   @Post("auth/challenges/request")
   @HttpCode(202)
-  async requestSmsLogin(@Body() payload:Record<string,unknown>){
+  async requestSmsLogin(@Body() payload:Record<string,unknown>,@Req() req:{ip?:string}){
     const mobile=payload?.mobile;
     if(typeof mobile!=="string" || !/^09[0-9]{9}$/.test(mobile))
       throw new BadRequestException("Invalid mobile");
@@ -216,6 +222,28 @@ export class FoundationCommandsController {
     if(!fake && (!process.env.APIIR_TOKEN || process.env.APIIR_TOKEN.length<12))
       throw new ServiceUnavailableException("SMS provider unavailable");
     const requestId=randomUUID();
+    // In regular runtime, missing abuse guard configuration or SQL function must fail CLOSED.
+    // Legacy isolated NODE_ENV=test fixtures may omit it unless explicitly opting in.
+    const enforceAbuseGuard=process.env.NODE_ENV!=="test" ||
+      process.env.TTO_ENFORCE_ABUSE_GUARD==="true";
+    if(enforceAbuseGuard){
+      const secret=process.env.AUTH_ABUSE_HMAC_SECRET;
+      const ip=req?.ip;
+      if(!secret || Buffer.byteLength(secret)<32 || typeof ip!=="string" ||
+         ip.length<3 || ip.length>64)
+        throw new ServiceUnavailableException("Authentication capacity unavailable");
+      // IPv4/IPv6 are supplied by Fastify request.ip from the actual socket.
+      // Do not consume public X-Forwarded-For or user-supplied device identifier.
+      const ipKey=createHmac("sha256",secret).update("ip:v1:"+ip).digest();
+      const mobileKey=createHmac("sha256",secret).update("mobile:v1:"+mobile).digest();
+      try{
+        const allowed=await this.db.reservePublicOtpRequest(ipKey,mobileKey);
+        // Generic response prevents the limit revealing enrolled mobile identifiers.
+        if(!allowed) return {requestId,status:"ACCEPTED"};
+      }catch{
+        throw new ServiceUnavailableException("Authentication capacity unavailable");
+      }
+    }
     const code=fake ? "111222" : String(randomInt(100000,1000000));
     const digest=createHmac("sha256",pepper).update(requestId+":"+code).digest();
     const created=await this.db.prepareSmsLogin(mobile,requestId,digest);
