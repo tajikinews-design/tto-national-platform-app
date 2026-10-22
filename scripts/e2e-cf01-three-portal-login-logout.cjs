@@ -38,7 +38,7 @@ function startNode(args,cwd,env) {
  return proc;
 }
 async function post(url,payload,opts={}) {
- const headers={"Content-Type":"application/json",...(opts.headers??{})};
+ const headers={...(payload?{"Content-Type":"application/json"}:{}),...(opts.headers??{})};
  return fetch(url,{method:"POST",headers,body:payload?JSON.stringify(payload):undefined,redirect:"manual",cache:"no-store",signal:AbortSignal.timeout(9500)});
 }
 async function setup(){
