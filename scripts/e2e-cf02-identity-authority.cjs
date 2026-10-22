@@ -213,7 +213,7 @@ async function main(){
  await status(await get(sharePath,myToken),403,"source revocation hides shares immediately");
  await status(await get(memberPath,myToken),200,"independent member source unaffected");
  await db.query("UPDATE tto.source_contract_approvals SET enabled=true WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
- await db.query("UPDATE tto.source_contract_approvals SET valid_until=now()-interval '1 second' WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
+ await db.query("UPDATE tto.source_contract_approvals SET approved_at=now()-interval '3 hours',valid_until=now()-interval '1 hour' WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
  await status(await get(sharePath,myToken),403,"expired holdings source approval blocked");
  await db.query("UPDATE tto.source_contract_approvals SET enabled=false WHERE tenant_id=$1 AND domain='CHILD06_MEMBERSHIP'",[A]);
  await status(await get(memberPath,myToken),403,"membership source revocation immediate");
