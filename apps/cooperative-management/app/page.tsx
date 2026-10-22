@@ -1,2 +1,2 @@
-import { PortalShell } from "@tto/ui";
-export default function Home() { return <PortalShell surface="cooperative" />; }
+import { PortalShell, OtpLogin } from "@tto/ui";
+export default function Home() { return <PortalShell surface="cooperative"><OtpLogin/></PortalShell>; }
