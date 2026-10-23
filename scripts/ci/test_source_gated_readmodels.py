@@ -36,7 +36,7 @@ class SourceGatedReadModelsTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIn(f'@Get("{path}")',NEST)
                 head=NEST.index(f'async {method}(')
-                body=NEST[head:NEST.index("\\n  }",head)]
+                body=NEST[head:NEST.index("  }",head)]
                 self.assertIn('await this.db.sessionActor(auth)',body)
                 self.assertIn('throw new ForbiddenException("Source or permission not approved")',body)
                 self.assertNotIn('return {items:',body)
