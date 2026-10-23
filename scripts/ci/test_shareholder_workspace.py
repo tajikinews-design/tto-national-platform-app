@@ -110,6 +110,29 @@ class ShareholderWorkspaceContractTests(unittest.TestCase):
         self.assertIn(gate,runner)
         self.assertLess(runner.index(gate),runner.index('Run-Node "Build all portals and API; typecheck"'))
 
+    def test_runtime_smoke_checks_protected_module_states_instead_of_old_placeholder(self):
+        smoke=(ROOT/"scripts/smoke-next-otp.mjs").read_text(encoding="utf-8")
+        for marker in (
+            'protectedShareholder=slug==="shareholder"',
+            '"/modules/nav-02","/modules/nav-03","/modules/nav-05"',
+            '["/modules/nav-03","NAV-03"]',
+            '["/modules/nav-05","NAV-05"]',
+            'html.includes("در این نسخه پیش‌نمایش")',
+            'html.includes("کارپوشه شخصی سهامدار")',
+            'html.includes("عضویت فعال — منبع تأییدشده")',
+            'legacy module lost safe placeholder',
+            'const anonymous=await fetch(endpoint)',
+            'const forged=await fetch(endpoint',
+            'payload.code!=="SESSION_REQUIRED"',
+            '"member-record","shareholding"',
+            '"X-Role":"MEMBER"',
+            'cache-control',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker,smoke)
+        self.assertIn('if(!html.includes(title)||!html.includes(\'aria-current="page"\'))',smoke)
+        self.assertNotIn('module view missing safe placeholder/current navigation',smoke)
+
     def test_navigation_and_design_are_responsive_and_accessible(self):
         for key in ('NAV-02','NAV-03','NAV-05'):
             with self.subTest(nav=key):self.assertIn(key,self.module)
