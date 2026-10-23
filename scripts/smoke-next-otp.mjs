@@ -112,8 +112,9 @@ for (let idx=0;idx<slugs.length;idx++){
     checks++;
     const cookie=await fetch(endpoint,{headers:{Cookie:"tto_session="+"b".repeat(48)}});
     const disabled=await cookie.json();
-    if(cookie.status!==403||disabled.available!==false||
-       disabled.code!=="SOURCE_OR_PERMISSION_NOT_APPROVED"||
+    // Valid-looking token without a configured backend is NOT authenticated.
+    if(cookie.status!==503||disabled.available!==false||
+       disabled.code!=="SOURCE_UNAVAILABLE"||
        !/no-store/.test(cookie.headers.get("cache-control")??""))
       throw Error("source-gated "+domain+" accepted unapproved source");
     checks++;
