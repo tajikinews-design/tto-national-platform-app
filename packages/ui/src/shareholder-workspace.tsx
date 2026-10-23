@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
+import {ShareholderReadModels} from "./shareholder-read-models";
 
 export type ShareholderView="overview"|"membership"|"requests"|"notices";
 type Candidate={tenantId:string;displayName:string;evidenceStatus:"MEMBERSHIP_EVIDENCE"|"EVIDENCE_PENDING"};
@@ -59,7 +60,8 @@ function EvidenceMessage({kind,domain}:{kind:Evidence<unknown>["kind"];domain:"m
 /**
  * Shareholder-only workspace. Never accepts partyId, role or share quantity from
  * the browser; the BFF resolves a revocable HttpOnly session and source gates.
- * Trade requests/notices deliberately have NO synthetic API or submission.
+ * Trade requests and notices use separate deny-default candidate read models;
+ * no submission, settlement or fabricated publication is enabled.
  */
 export function ShareholderWorkspace({initialView="overview"}:{initialView?:ShareholderView}){
  const [view,setView]=useState<ShareholderView>(initialView);
@@ -231,6 +233,7 @@ export function ShareholderWorkspace({initialView="overview"}:{initialView?:Shar
        <div><b>۲. مستندات</b><span>ثبت و کنترل شواهد قرارداد و پرداخت مستقیم خریدار به فروشنده</span></div>
        <div><b>۳. تصویب و ثبت</b><span>تصمیم مرجع قانونی و تغییر دفتر سهام فقط در سامانه مالک داده</span></div>
       </div>
+      <ShareholderReadModels tenantId={verified?selected:""} domain="trade-requests"/>
       <p className="sw-message sw-warning" role="status">API معتبر ثبت یا فهرست درخواست‌ها هنوز فعال نشده است؛ هیچ سفارش، تعداد درخواست، پرداخت یا انتقال سهم نمایش داده نمی‌شود.</p>
       <p className="sw-footnote">پلتفرم کیف پول نقدی و خدمات حسابداری عمومی تعاونی ندارد. این صفحه مجوز معامله یا انتقال خودکار ایجاد نمی‌کند.</p>
     </article>:null}
@@ -242,6 +245,7 @@ export function ShareholderWorkspace({initialView="overview"}:{initialView?:Shar
        <span>اطلاعیه‌های عمومی تعاونی</span><span>مجامع و جلسات</span>
        <span>اعلان‌های مخصوص سهامدار</span>
      </div>
+     <ShareholderReadModels tenantId={verified?selected:""} domain="notices"/>
      <p className="sw-message sw-warning" role="status">هیچ اطلاعیه‌ای بدون سند انتشار مصوب، محدوده تعاونی و کنترل دسترسی ارائه نمی‌شود. نبود فهرست به معنی نبود اطلاعیه نیست.</p>
    </article>:null}
    <div className="sw-guard">این کارپوشه فقط داده‌های دارای منبع تأییدشده را نشان می‌دهد؛ «داده نامعلوم»، «در انتظار تأیید» و «صفر سهمِ تأییدشده» یکسان نیستند.</div>
