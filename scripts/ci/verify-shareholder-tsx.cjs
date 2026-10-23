@@ -14,7 +14,11 @@ const files = [
   "packages/ui/src/otp-login.tsx",
   "packages/ui/src/index.tsx",
   "apps/shareholder/app/page.tsx",
-  "apps/shareholder/app/modules/[id]/page.tsx"
+  "apps/shareholder/app/modules/[id]/page.tsx",
+  "apps/shareholder/app/review/review-portal.tsx",
+  "apps/shareholder/app/review/layout.tsx",
+  "apps/shareholder/app/review/page.tsx",
+  "apps/shareholder/app/review/[id]/page.tsx"
 ];
 for (const relative of files) {
   const file = path.join(root, relative);
