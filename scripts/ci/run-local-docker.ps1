@@ -8,7 +8,8 @@
 [CmdletBinding()]
 param(
     [string]$Repository = "",
-    [string]$ExpectedCommit = ""
+    [string]$ExpectedCommit = "",
+    [ValidateSet("Core","Release")][string]$Suite = "Core"
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -67,7 +68,7 @@ $tempFolder = Join-Path $env:TEMP "tto-local-ci-$runId"
 $reportsFolder = Join-Path $env:USERPROFILE "Downloads\TTO-Local-CI-Reports"
 New-Item -ItemType Directory -Path $tempFolder, $reportsFolder -Force | Out-Null
 $archivePath = Join-Path $tempFolder "tracked-source.tar"
-$logPath = Join-Path $reportsFolder ("TTO-Core-" + (Get-Date -Format "yyyyMMdd-HHmmss") + "-$runId.log")
+$logPath = Join-Path $reportsFolder ("TTO-" + $Suite + "-" + (Get-Date -Format "yyyyMMdd-HHmmss") + "-$runId.log")
 $hasVolume = $false
 $hasNetwork = $false
 $hasPostgres = $false
@@ -75,6 +76,7 @@ $hasNode = $false
 
 Start-Transcript -Path $logPath -Force | Out-Null
 try {
+    Write-Host "TTO_LOCAL_SUITE=$Suite"
     Write-Host "TTO_LOCAL_SOURCE_SHA=$commit"
     Write-Host "TTO_LOCAL_DATABASE=DISPOSABLE_POSTGRES17"
     Write-Host "TTO_LOCAL_HOST_PORTS=NONE"
@@ -140,6 +142,20 @@ try {
         "-C", "/workspace"
     )
 
+    if ($Suite -eq "Release") {
+        # Run the Docker security attestation BEFORE costly Core build/tests.
+        $releaseParameters = @{
+            RunId = $runId
+            PostgresContainer = $pgContainer
+            NodeContainer = $nodeContainer
+            SourceVolume = $sourceVolume
+            PrivateNetwork = $networkName
+            ReviewedArchive = $archivePath
+            TempFolder = $tempFolder
+        }
+        & (Join-Path $PSScriptRoot "local-release-helper.ps1") @releaseParameters -AttestationOnly
+    }
+
     Docker-Checked "Offline Python baseline and CI policy checks" @(
         "run", "--rm", "--network", "none",
         "-v", ($sourceVolume + ":/workspace"), "-w", "/workspace",
@@ -170,10 +186,20 @@ try {
     }
 
     Run-Node "Real Child06/07 identity, tenant and source quarantine E2E" "node scripts/e2e-cf02-identity-authority.cjs"
-    Write-Host "TTO_LOCAL_CORE_PASS_SHA=$commit" -ForegroundColor Green
+    if ($Suite -eq "Release") {
+        Write-Host "TTO_LOCAL_CORE_PHASE_PASS_SHA=$commit" -ForegroundColor Green
+        # Same reviewed archive, same disposable Node+PG17 containers; no new host DB.
+        & (Join-Path $PSScriptRoot "local-release-helper.ps1") @releaseParameters
+        # The helper throws for every failed required test. Do not reuse
+        # a stale native LASTEXITCODE from a best-effort cleanup command.
+        Write-Host "TTO_LOCAL_RELEASE_PASS_SHA=$commit" -ForegroundColor Green
+    }
+    else {
+        Write-Host "TTO_LOCAL_CORE_PASS_SHA=$commit" -ForegroundColor Green
+    }
 }
 catch {
-    Write-Host ("TTO_LOCAL_CORE_FAILED={0}" -f $_.Exception.Message) -ForegroundColor Red
+    Write-Host ("TTO_LOCAL_{0}_FAILED={1}" -f $Suite.ToUpperInvariant(), $_.Exception.Message) -ForegroundColor Red
     throw
 }
 finally {
