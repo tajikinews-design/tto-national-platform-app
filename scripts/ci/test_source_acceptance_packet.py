@@ -69,10 +69,11 @@ class SourceAcceptanceTests(unittest.TestCase):
             'approved identity/holdings cannot bypass ',
             'valid actor "+domain+" BFF still denied',
             'wrong-tenant "+domain+" cannot be enumerated',
+            'cross-tenant BFF "+domain+" denied',
             'browser forged headers cannot bypass ',
             'domain+" is explicitly read-only',
             'revoked session denies "+domain+" on Nest',
-            'revoked token stays denied by closed BFF "+domain',
+            'revoked session denies "+domain+" on BFF',
             'TTO_CF02_NO_REAL_IDENTITIES_NO_SHARE_LEDGER_NO_HOSTED_MIGRATION',
         ):
             with self.subTest(fragment=fragment):
