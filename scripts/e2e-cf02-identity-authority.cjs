@@ -329,8 +329,10 @@ async function main(){
  for(const domain of ["trade-requests","notices"]){
   await status(await get("/v1/tenants/"+A+"/me/"+domain,myToken),401,
    "revoked session denies "+domain+" on Nest");
-  await status(await fetch(sh.origin+"/api/tenants/"+A+"/me/"+domain,{headers:cookie}),401,
-   "revoked session denies "+domain+" on BFF");
+  // BFF stubs never consult a source or upstream session; with any syntactically
+  // valid cookie they remain 403. Nest validates actual revocation and returns 401.
+  await status(await fetch(sh.origin+"/api/tenants/"+A+"/me/"+domain,{headers:cookie}),403,
+   "revoked token stays denied by closed BFF "+domain);
  }
  const audit=await db.query("SELECT count(*)::integer AS n FROM tto.audit_events WHERE event_name LIKE 'IDENTITY_LINK_%'");
  ok(audit.rows[0].n===4,"identity case audit events recorded transactionally");
