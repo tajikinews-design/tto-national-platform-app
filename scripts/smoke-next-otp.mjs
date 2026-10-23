@@ -21,13 +21,37 @@ for (let idx=0;idx<slugs.length;idx++){
    await new Promise(r=>setTimeout(r,200));
   }
   if(!ready)throw Error(slug+" not ready");
-  for(const [path,title] of [["/modules/nav-02","NAV-02"],["/modules/nav-11","NAV-11"]]){
+  // Shareholder NAV-02/03/05 now have session-gated workspaces, not the
+  // legacy static placeholder. Without a backend they MUST render only the
+  // fail-closed OTP surface and MUST NOT render private workspace content.
+  const moduleCases=[
+   ["/modules/nav-02","NAV-02"],
+   ["/modules/nav-11","NAV-11"],
+   ...(slug==="shareholder"?[
+     ["/modules/nav-03","NAV-03"],
+     ["/modules/nav-05","NAV-05"]
+   ]:[])
+  ];
+  for(const [path,title] of moduleCases){
    const response=await fetch("http://127.0.0.1:"+port+path);
    if(response.status!==200)throw Error(slug+" module route "+path+" returned "+response.status);
    const html=await response.text();
-   if(!html.includes(title)||!html.includes("ساختار این بخش آماده بررسی است")||!html.includes('aria-current="page"'))
-      throw Error(slug+" module view missing safe placeholder/current navigation");
-   if(!html.includes("هیچ داده، مانده سهام"))throw Error(slug+" module claims unspecified business values");
+   if(!html.includes(title)||!html.includes('aria-current="page"'))
+     throw Error(slug+" module view lost canonical/current navigation");
+   const protectedShareholder=slug==="shareholder" &&
+     ["/modules/nav-02","/modules/nav-03","/modules/nav-05"].includes(path);
+   if(protectedShareholder){
+     if(!html.includes("ورود با رمز یک‌بارمصرف")||
+        !html.includes("در این نسخه پیش‌نمایش")||
+        html.includes("کارپوشه شخصی سهامدار")||
+        html.includes("عضویت فعال — منبع تأییدشده")||
+        html.includes("تعداد سهام: "))
+       throw Error(slug+" protected module leaked private data or lacked fail-closed OTP");
+   }else{
+     if(!html.includes("ساختار این بخش آماده بررسی است")||
+        !html.includes("هیچ داده، مانده سهام"))
+       throw Error(slug+" legacy module lost safe placeholder");
+   }
    checks++;
   }
   // Tenant context BFF must fail closed even in protected Preview, without a user session.
