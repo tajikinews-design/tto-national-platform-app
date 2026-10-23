@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "1.0",
+  "packetType": "SOURCE_AUTHORITY_READINESS_NOT_ACTIVATION",
+  "project": "TTO_NATIONAL_PLATFORM",
+  "workstream": "SHAREHOLDER_READ_MODELS_PHASE2B",
+  "baseEvidence": {
+    "phase2aCommit": "707a45fc3de09e05c0e0ba2b3219d85f66a24981",
+    "localRelease": "PASS_NO_REAL_DATA"
+  },
+  "authorizationState": "LEGAL_AND_SOURCE_NOT_APPROVED",
+  "runtimeActivationSupported": false,
+  "tenantScopedApprovalRequired": true,
+  "decisionAuthority": "EXTERNAL_LEGAL_SOURCE_OWNER_AND_DATA_GOVERNANCE_REVIEW",
+  "neverDeriveApprovalFrom": [
+    "GITHUB_MERGE",
+    "CI_PASS",
+    "TEST_FIXTURE",
+    "VERIFIED_SESSION",
+    "TENANT_ROLE",
+    "DOCUMENT_PUBLICATION_ALONE",
+    "SMS_DELIVERY"
+  ],
+  "domains": [
+    {
+      "sourceDomain": "CHILD07",
+      "sourceContract": "TTO-SHARE-CAPITAL-MARKET-IMPLEMENTATION",
+      "businessOwner": "Share capital market domain",
+      "route": "trade-requests",
+      "decision": "BLOCKED",
+      "requiredEvidence": [
+        {
+          "controlId": "AUTHORITATIVE_SOURCE_OWNER_APPROVAL",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "CF02_VERIFIED_SESSION_TENANT_PARTY_BINDING",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "CHILD06_SHAREHOLDER_ELIGIBILITY",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "CF04_EFFECTIVE_TENANT_RULE_SNAPSHOT",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "CHILD07_VERSIONED_REQUEST_EVENT_AND_REPLAY_CONTRACT",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "CF03_EVIDENCE_RETENTION_AUDIT",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "INDEPENDENT_RLS_RECIPIENT_AND_REVOCATION_E2E",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        }
+      ],
+      "sourceConnection": {
+        "status": "NOT_IMPLEMENTED",
+        "endpoint": null,
+        "credentialRef": null
+      },
+      "publicationOrTradingWritesAllowed": false
+    },
+    {
+      "sourceDomain": "CHILD09",
+      "sourceContract": "TTO-COMMUNICATIONS-NOTICE-IMPLEMENTATION",
+      "businessOwner": "Communications publication and notice assurance domain",
+      "route": "notices",
+      "decision": "BLOCKED",
+      "requiredEvidence": [
+        {
+          "controlId": "AUTHORITATIVE_PUBLISHER_APPROVAL",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "CF02_VERIFIED_SESSION_TENANT_PARTY_BINDING",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "CF04_PUBLICATION_AND_CLASSIFICATION_RULE_SNAPSHOT",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "CHILD09_VERSIONED_PUBLISHED_ITEM",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "CHILD09_FROZEN_RECIPIENT_SNAPSHOT_AND_ACL",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "CHILD09_DELIVERED_READ_ACKNOWLEDGED_SEPARATION",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "CF03_EVIDENCE_RETENTION_AUDIT",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "INDEPENDENT_RLS_RECIPIENT_AND_REVOCATION_E2E",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        }
+      ],
+      "sourceConnection": {
+        "status": "NOT_IMPLEMENTED",
+        "endpoint": null,
+        "credentialRef": null
+      },
+      "publicationOrTradingWritesAllowed": false
+    }
+  ]
+}

@@ -198,6 +198,33 @@ async function main(){
  const privateShare=await fetch(shareBff,{headers:cookie,cache:"no-store"});
  const privateBody=await status(privateShare,200,"BFF exact sourced holdings");
  assert.equal(privateBody.record.shareQuantity,"37");checks++;
+ // Phase-2B: even a REAL valid CI session, approved Child06 membership,
+ // approved Child07 holdings and tenant context do NOT authorize Child07
+ // trade-request history or Child09 publication. These independent legal
+ // sources have not been reviewed or activated. No synthetic real notices.
+ for(const domain of ["trade-requests","notices"]){
+  const backendPath="/v1/tenants/"+A+"/me/"+domain;
+  const browserPath=sh.origin+"/api/tenants/"+A+"/me/"+domain;
+  await status(await get(backendPath,myToken),403,
+   "approved identity/holdings cannot bypass "+domain+" Nest source gate");
+  await status(await get("/v1/tenants/"+B+"/me/"+domain,myToken),403,
+   "wrong-tenant "+domain+" cannot be enumerated");
+  const bff=await fetch(browserPath,{headers:cookie,cache:"no-store"});
+  const payload=await status(bff,403,"valid actor "+domain+" BFF still denied");
+  assert.deepEqual(payload,{available:false,code:"SOURCE_OR_PERMISSION_NOT_APPROVED"});checks++;
+  ok(/no-store/.test(bff.headers.get("cache-control")??""),
+    domain+" no-store on denied valid-session read");
+  await status(await fetch(browserPath,{headers:{
+   Authorization:"Bearer "+myToken,"X-Role":"COOPERATIVE_MANAGER",
+   "X-Party-Id":PARTY,"X-Tenant-Id":A
+  }}),401,"browser forged headers cannot bypass "+domain);
+  // Framework-generated HTTP 405 responses may have an empty body.
+  // Verify the status directly; never demand a JSON error payload.
+  const rejectedWrite=await fetch(browserPath,{method:"POST",headers:cookie});
+  assert.equal(rejectedWrite.status,405,
+   domain+" is explicitly read-only actual="+rejectedWrite.status);checks++;
+  await rejectedWrite.arrayBuffer();
+ }
  ok(/no-store/.test(privateShare.headers.get("cache-control")??""),"shareholding no-cache");
  ok(!JSON.stringify(privateBody).includes(myToken),"opaque session never exposed");
  await db.query("INSERT INTO tto.shareholding_source_snapshots(snapshot_id,tenant_id,shareholder_account_id,source_ref,ledger_entry_ref,ledger_version,share_quantity,ledger_as_of) VALUES($1,$2,$3,$4,$5,2,0,now())",
@@ -303,6 +330,14 @@ async function main(){
  await status(await get(sharePath,myToken),401,"revoked holdings session blocked");
  await status(await fetch(memberBff,{headers:cookie}),401,"revoked BFF member session blocked");
  await status(await fetch(shareBff,{headers:cookie}),401,"revoked BFF holdings session blocked");
+ for(const domain of ["trade-requests","notices"]){
+  await status(await get("/v1/tenants/"+A+"/me/"+domain,myToken),401,
+   "revoked session denies "+domain+" on Nest");
+  // BFF stubs never consult a source or upstream session; with any syntactically
+  // valid cookie they remain 403. Nest validates actual revocation and returns 401.
+  await status(await fetch(sh.origin+"/api/tenants/"+A+"/me/"+domain,{headers:cookie}),403,
+   "revoked token stays denied by closed BFF "+domain);
+ }
  const audit=await db.query("SELECT count(*)::integer AS n FROM tto.audit_events WHERE event_name LIKE 'IDENTITY_LINK_%'");
  ok(audit.rows[0].n===4,"identity case audit events recorded transactionally");
  console.log("TTO_CF02_IDENTITY_MANAGER_NATIONAL_E2E_PASS_CHECKS="+checks);
