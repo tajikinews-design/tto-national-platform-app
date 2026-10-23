@@ -164,6 +164,7 @@ try {
     )
 
     Run-Node "Install pinned dependencies (once)" "npm install -g pnpm@10.18.0; pnpm install --frozen-lockfile"
+    Run-Node "Shareholder TSX AST and UI type preflight" "node scripts/ci/verify-shareholder-tsx.cjs; pnpm --filter @tto/ui typecheck"
     Run-Node "Build all portals and API; typecheck" "pnpm build; pnpm check"
     Run-Node "SMS mock and scanner protocol tests" "node --test services/workers/test/apiir-smsotp.test.cjs services/workers/test/clamav.test.cjs"
     Run-Node "SMS send disabled and Vercel protection classifier" "node --test services/api/test/sms-delivery-opt-in.test.cjs; node --test scripts/verify-vercel-preview-protection.test.mjs"

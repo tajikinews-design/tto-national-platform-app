@@ -93,8 +93,8 @@ function navHref(i: number) {
 }
 
 export function PortalShell({
-  surface, children, activeId = "NAV-01"
-}: { surface: Surface; children?: ReactNode; activeId?: NavId }) {
+  surface, children, activeId = "NAV-01", suppressStaticKpis = false
+}: { surface: Surface; children?: ReactNode; activeId?: NavId; suppressStaticKpis?: boolean }) {
   const cfg = surfaces[surface];
   const active = NAV_IDS.indexOf(activeId);
   const home = active === 0;
@@ -118,7 +118,7 @@ export function PortalShell({
         <h1>{currentTitle}</h1><p>{home ? cfg.description : cfg.sectionDescriptions[selection]}</p>
         <p className="hint">نمایش داده‌های مرتبط با کاربر تنها پس از تأیید نشست، نقش قانونی، محدوده تعاونی و سطح مجوز امکان‌پذیر است.</p>
       </section>
-      {home && <div className="kpi-grid">{cfg.chips.map(label =>
+      {home && !suppressStaticKpis && <div className="kpi-grid">{cfg.chips.map(label =>
         <section className="metric" key={label}>
           <span>{label}</span><strong aria-label="داده موجود نیست">—</strong><small>داده تأییدشده در دسترس نیست</small>
         </section>)}</div>}
@@ -137,6 +137,9 @@ export function PortalShell({
                 <small>مشاهده ساختار بخش ←</small>
               </a>)}
           </div>
+        </> : children ? <>
+          {children}
+          <a className="return-link" href="/">بازگشت به داشبورد</a>
         </> : <>
           <div className="module-status" role="status">
             <strong>ساختار این بخش آماده بررسی است</strong>
@@ -152,7 +155,9 @@ export function PortalShell({
           <a className="return-link" href="/">بازگشت به داشبورد</a>
         </>}
       </section>
-      <footer>پیش‌نمایش محافظت‌شده Next.js · بدون داده واقعی سهامدار · نقش، اختیار و Tenant هنوز در این صفحات به API دامنه متصل نشده‌اند</footer>
+      <footer>{surface==="shareholder"&&children?
+        "پیش‌نمایش محافظت‌شده سهامدار · استعلام فقط‌خواندنی با گیت‌های مستقل منبع و مجوز · ثبت معامله و داده واقعی غیرفعال":
+        "پیش‌نمایش محافظت‌شده Next.js · داده واقعی نمایش داده نمی‌شود؛ عملیات دامنه نیازمند مجوز مستقل است"}</footer>
     </main>
   </div>;
 }
@@ -162,3 +167,4 @@ export function PortalModulePreview({surface,moduleId}:{surface:Surface;moduleId
 }
 
 export { OtpLogin } from "./otp-login";
+export { ShareholderWorkspace } from "./shareholder-workspace";
