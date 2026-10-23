@@ -95,6 +95,21 @@ class ShareholderWorkspaceContractTests(unittest.TestCase):
         self.assertNotIn('tradeApi',s)
         self.assertNotIn('transactionId',s)
 
+    def test_real_tsx_parser_runs_before_expensive_next_builds(self):
+        script=(ROOT/"scripts/ci/verify-shareholder-tsx.cjs").read_text(encoding="utf-8")
+        runner=(ROOT/"scripts/ci/run-local-docker.ps1").read_text(encoding="utf-8")
+        self.assertTrue(self.ui.rstrip().endswith("}"))
+        for expected in (
+            'ts.createSourceFile',
+            'source.parseDiagnostics',
+            'TTO_SHAREHOLDER_TSX_PARSE_PASS',
+            'packages/ui/src/shareholder-workspace.tsx',
+        ):
+            self.assertIn(expected,script)
+        gate='node scripts/ci/verify-shareholder-tsx.cjs; pnpm --filter @tto/ui typecheck'
+        self.assertIn(gate,runner)
+        self.assertLess(runner.index(gate),runner.index('Run-Node "Build all portals and API; typecheck"'))
+
     def test_navigation_and_design_are_responsive_and_accessible(self):
         for key in ('NAV-02','NAV-03','NAV-05'):
             with self.subTest(nav=key):self.assertIn(key,self.module)
