@@ -10,6 +10,7 @@ const uiRequire = createRequire(path.join(root, "packages/ui/package.json"));
 const ts = uiRequire("typescript");
 const files = [
   "packages/ui/src/shareholder-workspace.tsx",
+  "packages/ui/src/shareholder-read-models.tsx",
   "packages/ui/src/otp-login.tsx",
   "packages/ui/src/index.tsx",
   "apps/shareholder/app/page.tsx",
