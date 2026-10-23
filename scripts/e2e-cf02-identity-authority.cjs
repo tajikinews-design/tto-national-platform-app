@@ -218,8 +218,12 @@ async function main(){
    Authorization:"Bearer "+myToken,"X-Role":"COOPERATIVE_MANAGER",
    "X-Party-Id":PARTY,"X-Tenant-Id":A
   }}),401,"browser forged headers cannot bypass "+domain);
-  await status(await fetch(browserPath,{method:"POST",headers:cookie}),405,
-   domain+" is explicitly read-only");
+  // Framework-generated HTTP 405 responses may have an empty body.
+  // Verify the status directly; never demand a JSON error payload.
+  const rejectedWrite=await fetch(browserPath,{method:"POST",headers:cookie});
+  assert.equal(rejectedWrite.status,405,
+   domain+" is explicitly read-only actual="+rejectedWrite.status);checks++;
+  await rejectedWrite.arrayBuffer();
  }
  ok(/no-store/.test(privateShare.headers.get("cache-control")??""),"shareholding no-cache");
  ok(!JSON.stringify(privateBody).includes(myToken),"opaque session never exposed");
