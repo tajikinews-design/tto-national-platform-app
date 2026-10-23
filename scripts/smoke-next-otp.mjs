@@ -124,6 +124,23 @@ for (let idx=0;idx<slugs.length;idx++){
     checks++;
    }
   }
+  // Anonymous navigation is allowed only for public-design review copy.
+  // The actual shareholder operational portal remains guarded by OTP and legal sources.
+  if(slug==="shareholder"){
+   const reviews=["/review",...Array.from({length:10},(_,i)=>
+    "/review/nav-"+String(i+2).padStart(2,"0"))];
+   for(const route of reviews){
+    const response=await fetch("http://127.0.0.1:"+port+route);
+    if(response.status!==200)throw Error("shareholder review route failed: "+route+" status="+response.status);
+    const page=await response.text();
+    if(!page.includes("نسخه بازبینی")||!page.includes("بدون اطلاعات یا عملیات واقعی"))
+     throw Error("shareholder review disclosure missing: "+route);
+    checks++;
+   }
+   const invalidReview=await fetch("http://127.0.0.1:"+port+"/review/not-a-nav");
+   if(invalidReview.status!==404)throw Error("shareholder review invalid slug allowed");
+   checks++;
+  }
   const invalid=await fetch("http://127.0.0.1:"+port+"/modules/nav-12");
   if(invalid.status!==404)throw Error(slug+" invalid NAV route did not reject");
   checks++;
