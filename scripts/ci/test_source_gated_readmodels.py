@@ -92,9 +92,9 @@ class SourceGatedReadModelsTests(unittest.TestCase):
     def test_runtime_and_prebuild_cover_new_routes(self):
         self.assertIn('"packages/ui/src/shareholder-read-models.tsx"',PARSER)
         self.assertIn('["trade-requests","notices"]',SMOKE)
-        self.assertIn('disabled.code!=="SOURCE_OR_PERMISSION_NOT_APPROVED"',SMOKE)
+        self.assertIn('disabled.code!=="SOURCE_UNAVAILABLE"',SMOKE)
         self.assertIn('spoofed.status!==401',SMOKE)
-        self.assertIn('cookie.status!==403',SMOKE)
+        self.assertIn('cookie.status!==503',SMOKE)
         self.assertIn('malformed.status!==400',SMOKE)
 
 if __name__=="__main__":
