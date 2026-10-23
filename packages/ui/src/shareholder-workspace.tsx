@@ -246,3 +246,4 @@ export function ShareholderWorkspace({initialView="overview"}:{initialView?:Shar
    </article>:null}
    <div className="sw-guard">این کارپوشه فقط داده‌های دارای منبع تأییدشده را نشان می‌دهد؛ «داده نامعلوم»، «در انتظار تأیید» و «صفر سهمِ تأییدشده» یکسان نیستند.</div>
  </section>;
+}
