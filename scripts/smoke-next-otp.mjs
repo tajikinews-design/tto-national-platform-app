@@ -94,6 +94,34 @@ for (let idx=0;idx<slugs.length;idx++){
     if(forged.status!==401)throw Error("shareholder "+domain+" trusted forged client credentials");
     checks++;
    }
+   // Phase-2 source-authority gates: a syntactically valid cookie cannot
+   // enable a read model while Child07/Child09 approvals are unimplemented.
+   for(const domain of ["trade-requests","notices"]){
+    const endpoint="http://127.0.0.1:"+port+"/api/tenants/"+tid+"/me/"+domain;
+    const anon=await fetch(endpoint);
+    const unauthBody=await anon.json();
+    if(anon.status!==401||unauthBody.available!==false||unauthBody.code!=="SESSION_REQUIRED"||
+       !/no-store/.test(anon.headers.get("cache-control")??""))
+      throw Error("source-gated "+domain+" leaked anonymous data");
+    checks++;
+    const spoofed=await fetch(endpoint,{headers:{
+     Authorization:"Bearer "+"a".repeat(48),"X-Role":"MEMBER","X-Party-Id":tid,
+     "X-Tenant-Id":tid
+    }});
+    if(spoofed.status!==401)throw Error("source-gated "+domain+" trusted forged client headers");
+    checks++;
+    const cookie=await fetch(endpoint,{headers:{Cookie:"tto_session="+"b".repeat(48)}});
+    const disabled=await cookie.json();
+    if(cookie.status!==403||disabled.available!==false||
+       disabled.code!=="SOURCE_OR_PERMISSION_NOT_APPROVED"||
+       !/no-store/.test(cookie.headers.get("cache-control")??""))
+      throw Error("source-gated "+domain+" accepted unapproved source");
+    checks++;
+    const malformed=await fetch("http://127.0.0.1:"+port+
+     "/api/tenants/invalid-tenant/me/"+domain);
+    if(malformed.status!==400)throw Error("source-gated "+domain+" accepted invalid tenant ID");
+    checks++;
+   }
   }
   const invalid=await fetch("http://127.0.0.1:"+port+"/modules/nav-12");
   if(invalid.status!==404)throw Error(slug+" invalid NAV route did not reject");

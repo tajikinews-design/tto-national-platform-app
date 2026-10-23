@@ -248,6 +248,21 @@ export class FoundationCommandsController {
       return {items:result.rows};
     });
   }
+  // Candidate Child07/Child09 source read-model routes. Always fail closed.
+  // Neither a tenant role nor an authenticated session proves shareholder
+  // standing, source approval, publication or recipient authorization.
+  @Get("tenants/:tenantId/me/trade-requests")
+  async ownTradeRequests(@Param("tenantId",new ParseUUIDPipe()) _tenant:string,
+    @Headers("authorization") auth?:string){
+    await this.db.sessionActor(auth);
+    throw new ForbiddenException("Source or permission not approved");
+  }
+  @Get("tenants/:tenantId/me/notices")
+  async ownPublishedNotices(@Param("tenantId",new ParseUUIDPipe()) _tenant:string,
+    @Headers("authorization") auth?:string){
+    await this.db.sessionActor(auth);
+    throw new ForbiddenException("Source or permission not approved");
+  }
   // CF02 staged legal-identity case: no document bytes or Party data returned.
   // Request always applies to the verified session actor, never a target user from JSON.
   @Post("tenants/:tenantId/identity-links")
