@@ -243,7 +243,9 @@ function OCI-Build-And-Smoke {
             }
             if (-not $stopped) { throw "TTO_RELEASE_API_WITHOUT_DB_STILL_RUNNING" }
             $exitCode = (& docker inspect --format "{{.State.ExitCode}}" $runtime).Trim()
-            $log = (& docker logs $runtime 2>&1 | Out-String)
+            # The generated runtime name is restricted to ASCII hex plus a fixed label.
+            $log = (& cmd.exe /d /c ("docker logs " + $runtime + " 2>&1") | Out-String)
+            if ($LASTEXITCODE -ne 0) { throw "TTO_RELEASE_API_LOGS_FAILED" }
             if ($exitCode -eq "0" -or $log -notmatch "TTO_API_STARTUP_FAILED|DATABASE_URL_NOT_CONFIGURED") {
                 throw "TTO_RELEASE_API_FAIL_CLOSED_NOT_PROVEN"
             }
