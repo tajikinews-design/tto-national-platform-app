@@ -37,7 +37,7 @@ class ShareholderReviewOnlyContract(unittest.TestCase):
   self.assertEqual(UI.count('legal:"'),11)
   self.assertEqual(UI.count('status:"'),11)
   for topic in ("سهام و عضویت","خرید و فروش","مجامع","اطلاعیه","خدمات",
-                "پروژه","گزارش","بدون اطلاعات واقعی"):
+                "پروژه","گزارش","بدون اطلاعات یا عملیات واقعی"):
    self.assertIn(topic,UI+NAV+HOME)
 
  def test_review_never_uses_real_user_data_or_mutates_server(self):
@@ -48,15 +48,11 @@ class ShareholderReviewOnlyContract(unittest.TestCase):
    "dangerouslySetInnerHTML", "shareQuantity:", "walletBalance",
    "Math.random()", "Date.now()", "tenantId:"
   ):self.assertNotIn(bad,UI)
-  for token in ("هیچ عملیات واقعی فعال نیست", "بدون داده واقعی",
-                "نه کیف پول","حقوق مخاطبان", "بدون ورود"):
-   # Copy might use variants but must carry multiple explicit limitations.
-   self.assertTrue(any(x in UI for x in (
-      "هیچ عملیات واقعی فعال نیست",
-      "بدون داده واقعی یا دسترسی معاملاتی",
-      "بدون اطلاعات یا عملیات واقعی",
-      "هیچ داده سهامدار بارگذاری نشده است"
-   )))
+  for token in ("هیچ عملیات واقعی فعال نیست",
+                "بدون داده واقعی یا دسترسی معاملاتی",
+                "بدون اطلاعات یا عملیات واقعی",
+                "هیچ داده سهامدار بارگذاری نشده است"):
+   self.assertIn(token,UI)
   self.assertIn('robots:{index:false,follow:false',LAYOUT)
   self.assertNotIn('metadata:{index:true',LAYOUT)
 
@@ -70,7 +66,7 @@ class ShareholderReviewOnlyContract(unittest.TestCase):
 
  def test_runtime_smoke_requires_all_11_routes_and_bad_id_denial(self):
   self.assertIn('shareholder review',SMOKE)
-  self.assertIn('"/review/nav-"+String(i).padStart(2,"0")',SMOKE)
+  self.assertIn('"/review/nav-"+String(i+2).padStart(2,"0")',SMOKE)
   self.assertIn('"/review/not-a-nav"',SMOKE)
 
 if __name__=="__main__": unittest.main()
