@@ -81,6 +81,14 @@ class SourceAcceptanceTests(unittest.TestCase):
         for path in ('me/trade-requests','me/notices'):
             self.assertIn('@Get("tenants/:tenantId/'+path+'")',self.nest)
 
+    def test_empty_body_http_405_does_not_require_json(self):
+        # Next can produce an empty 405; the E2E must assert the method gate
+        # directly rather than run the JSON-only 'status' helper.
+        self.assertIn('const rejectedWrite=await fetch(browserPath,{method:"POST",headers:cookie});',self.e2e)
+        self.assertIn('assert.equal(rejectedWrite.status,405,',self.e2e)
+        self.assertIn('await rejectedWrite.arrayBuffer();',self.e2e)
+        self.assertNotIn('await status(await fetch(browserPath,{method:"POST",headers:cookie}),405',self.e2e)
+
     def test_previously_approved_membership_is_not_trade_approval(self):
         self.assertIn('const verifiedShare=await status(await get(sharePath,myToken),200',self.e2e)
         self.assertIn('const privateBody=await status(privateShare,200',self.e2e)
