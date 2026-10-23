@@ -18,15 +18,32 @@ class SourceGatedReadModelsTests(unittest.TestCase):
                     'export async function GET(', 'UUID.test(tenantId)',
                     'request.cookies.get("tto_session")?.value',
                     'TOKEN.test(token)', 'deny(401,"SESSION_REQUIRED")',
-                    'return deny(403,"SOURCE_OR_PERMISSION_NOT_APPROVED")',
+                    'verifySessionTenantForClosedRead(request,tenantId,token)',
+                    'return deny(rejected.status,rejected.code)',
                     '"Cache-Control":"private, no-store"', '"Vary":"Cookie"',
                     '"X-Content-Type-Options":"nosniff"'
                 ):
                     self.assertIn(marker,route)
-                self.assertLess(route.index('request.cookies.get'),route.index('return deny(403,'))
+                self.assertLess(route.index('request.cookies.get'),route.index('verifySessionTenantForClosedRead(request,'))
                 for prohibited in ('process.env.', 'request.headers.get("authorization")',
                                    'fetch(', 'items:[]', 'available:true', 'POST(', 'wallet'):
                     self.assertNotIn(prohibited,route)
+
+    def test_candidate_gate_checks_revocable_nest_session_without_source_activation(self):
+        gate=(ROOT/"apps/shareholder/lib/source-read-access.ts").read_text(encoding="utf-8")
+        for token in (
+            '"/v1/tenants/"+tenantId+"/context"', 'Authorization:`Bearer ${token}`',
+            'trustedBackendHeaders(request)', 'response.status===401',
+            'response.status===403||response.status===404',
+            'response.status!==200', 'scoped.tenant_id!==tenantId',
+            'scoped.status!=="ACTIVE"', 'return DENIED',
+            'return UNAVAILABLE', 'cache:"no-store"', 'redirect:"error"',
+            'AbortSignal.timeout(9500)', 'LOOPBACK.test(base??"")'
+        ):
+            with self.subTest(token=token):self.assertIn(token,gate)
+        for prohibited in ("available:true", "walletBalance", "process.env.TTO_ENABLE",
+                           "request.headers.get(\"authorization\")", "sourceDomain"):
+            self.assertNotIn(prohibited,gate)
 
     def test_nest_candidate_routes_never_emit_data(self):
         for method,path in (
@@ -75,9 +92,9 @@ class SourceGatedReadModelsTests(unittest.TestCase):
     def test_runtime_and_prebuild_cover_new_routes(self):
         self.assertIn('"packages/ui/src/shareholder-read-models.tsx"',PARSER)
         self.assertIn('["trade-requests","notices"]',SMOKE)
-        self.assertIn('disabled.code!=="SOURCE_OR_PERMISSION_NOT_APPROVED"',SMOKE)
+        self.assertIn('disabled.code!=="SOURCE_UNAVAILABLE"',SMOKE)
         self.assertIn('spoofed.status!==401',SMOKE)
-        self.assertIn('cookie.status!==403',SMOKE)
+        self.assertIn('cookie.status!==503',SMOKE)
         self.assertIn('malformed.status!==400',SMOKE)
 
 if __name__=="__main__":

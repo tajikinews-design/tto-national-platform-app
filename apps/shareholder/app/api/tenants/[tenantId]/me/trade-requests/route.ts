@@ -1,4 +1,5 @@
 import {NextRequest,NextResponse} from "next/server";
+import {verifySessionTenantForClosedRead} from "../../../../../../lib/source-read-access";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
@@ -18,6 +19,8 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{tenantId
  if(!UUID.test(tenantId))return deny(400,"INVALID_TENANT_ID");
  const token=request.cookies.get("tto_session")?.value;
  if(!token||!TOKEN.test(token))return deny(401,"SESSION_REQUIRED");
- // Deliberately NO source/backend fetch, database query or feature flag bypass.
- return deny(403,"SOURCE_OR_PERMISSION_NOT_APPROVED");
+ // Authenticate against current revocable Nest session AND independently scoped tenant.
+ // Even if valid, Child07/Child09 source authority remains disabled.
+ const rejected=await verifySessionTenantForClosedRead(request,tenantId,token);
+ return deny(rejected.status,rejected.code);
 }
