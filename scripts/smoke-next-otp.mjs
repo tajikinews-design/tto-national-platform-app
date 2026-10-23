@@ -76,6 +76,25 @@ for (let idx=0;idx<slugs.length;idx++){
   if(unauth.status!==401||(await unauth.json()).items.length!==0)
     throw Error(slug+" exposed tenant options to anonymous user");
   checks++;
+  // Never expose Child06 membership or Child07 holdings through a forged
+  // browser Authorization header. Both reads require the real HttpOnly cookie
+  // and remain unavailable when the protected backend is not configured.
+  if(slug==="shareholder"){
+   for(const domain of ["member-record","shareholding"]){
+    const endpoint="http://127.0.0.1:"+port+"/api/tenants/"+tid+"/me/"+domain;
+    const anonymous=await fetch(endpoint);
+    const payload=await anonymous.json();
+    if(anonymous.status!==401||payload.available!==false||payload.code!=="SESSION_REQUIRED"||
+       !/no-store/.test(anonymous.headers.get("cache-control")??""))
+      throw Error("shareholder "+domain+" did not fail closed for anonymous user");
+    checks++;
+    const forged=await fetch(endpoint,{headers:{
+      Authorization:"Bearer "+"a".repeat(48),"X-Tenant-Id":tid,"X-Role":"MEMBER"
+    }});
+    if(forged.status!==401)throw Error("shareholder "+domain+" trusted forged client credentials");
+    checks++;
+   }
+  }
   const invalid=await fetch("http://127.0.0.1:"+port+"/modules/nav-12");
   if(invalid.status!==404)throw Error(slug+" invalid NAV route did not reject");
   checks++;
