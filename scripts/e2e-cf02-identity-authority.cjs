@@ -209,6 +209,9 @@ async function main(){
    "approved identity/holdings cannot bypass "+domain+" Nest source gate");
   await status(await get("/v1/tenants/"+B+"/me/"+domain,myToken),403,
    "wrong-tenant "+domain+" cannot be enumerated");
+  await status(await fetch(sh.origin+"/api/tenants/"+B+"/me/"+domain,
+   {headers:cookie}),403,"cross-tenant BFF "+domain+" denied");
+
   const bff=await fetch(browserPath,{headers:cookie,cache:"no-store"});
   const payload=await status(bff,403,"valid actor "+domain+" BFF still denied");
   assert.deepEqual(payload,{available:false,code:"SOURCE_OR_PERMISSION_NOT_APPROVED"});checks++;
@@ -333,10 +336,10 @@ async function main(){
  for(const domain of ["trade-requests","notices"]){
   await status(await get("/v1/tenants/"+A+"/me/"+domain,myToken),401,
    "revoked session denies "+domain+" on Nest");
-  // BFF stubs never consult a source or upstream session; with any syntactically
-  // valid cookie they remain 403. Nest validates actual revocation and returns 401.
-  await status(await fetch(sh.origin+"/api/tenants/"+A+"/me/"+domain,{headers:cookie}),403,
-   "revoked token stays denied by closed BFF "+domain);
+  // Live Nest tenant-context check now detects revoked sessions even in the
+  // source-disabled BFF. No Child07 or Child09 record becomes readable.
+  await status(await fetch(sh.origin+"/api/tenants/"+A+"/me/"+domain,{headers:cookie}),401,
+   "revoked session denies "+domain+" on BFF");
  }
  const audit=await db.query("SELECT count(*)::integer AS n FROM tto.audit_events WHERE event_name LIKE 'IDENTITY_LINK_%'");
  ok(audit.rows[0].n===4,"identity case audit events recorded transactionally");
