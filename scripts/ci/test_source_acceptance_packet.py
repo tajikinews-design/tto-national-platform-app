@@ -72,7 +72,7 @@ class SourceAcceptanceTests(unittest.TestCase):
             'browser forged headers cannot bypass ',
             'domain+" is explicitly read-only',
             'revoked session denies "+domain+" on Nest',
-            'revoked session denies "+domain+" on BFF',
+            'revoked token stays denied by closed BFF "+domain',
             'TTO_CF02_NO_REAL_IDENTITIES_NO_SHARE_LEDGER_NO_HOSTED_MIGRATION',
         ):
             with self.subTest(fragment=fragment):
