@@ -129,11 +129,11 @@ jobs:
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
         run: bash scripts/ci/release-regression.sh
-      - name: Validate Arvan manifests without deployment
+      - name: Validate Arvan manifests without deployment (offline; no deploy)
         if: steps.scope.outputs.suite == 'release'
         run: |
-          python3 -m pip install 'PyYAML>=6,<7'
-          python3 scripts/test_arvan_k8s_templates.py
+          set -euo pipefail
+          node scripts/test_arvan_k8s_templates.cjs
       - name: Build and smoke all four OCI images without registry push
         if: steps.scope.outputs.suite == 'release'
         run: bash scripts/ci/release-oci-smoke.sh

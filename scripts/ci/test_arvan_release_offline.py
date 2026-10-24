@@ -47,5 +47,15 @@ class ArvanReleaseOfflineContract(unittest.TestCase):
         self.assertIn('mutations.length', NODE)
         self.assertIn('TTO_ARVAN_YAML_LINT_NETWORK_INSTALLS=0', NODE)
 
+    def test_github_release_gate_uses_offline_arvan_validator(self):
+        workflow = (ROOT / ".github/workflows/tto-adaptive-ci.yml").read_text(encoding="utf-8")
+        marker = "      - name: Validate Arvan manifests without deployment (offline; no deploy)\n"
+        self.assertEqual(workflow.count(marker), 1)
+        section = workflow.split(marker, 1)[1].split("      - name:", 1)[0]
+        self.assertIn("if: steps.scope.outputs.suite == 'release'", section)
+        self.assertIn("node scripts/test_arvan_k8s_templates.cjs", section)
+        self.assertNotIn("pip install", section)
+        self.assertNotIn("test_arvan_k8s_templates.py", section)
+
 if __name__ == "__main__":
     unittest.main()
