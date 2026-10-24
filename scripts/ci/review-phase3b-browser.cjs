@@ -50,10 +50,29 @@ async function activeVisible(page){
  return page.evaluate(()=>{
   const nav=document.querySelector(".rv-navigation");
   const current=nav?.querySelector('[aria-current="page"]');
-  if(!nav||!current)return false;
+  const label=current?.querySelector(".rv-nav-name");
+  if(!nav||!current||!label)return false;
   const box=nav.getBoundingClientRect();
   const target=current.getBoundingClientRect();
-  return target.left>=box.left-2&&target.right<=box.right+2;
+  const text=label.getBoundingClientRect();
+  // Both the clickable surface and its actual text must be fully visible.
+  return target.left>=box.left-2&&target.right<=box.right+2 &&
+   text.left>=box.left-2&&text.right<=box.right+2 &&
+   label.scrollWidth<=label.clientWidth+2;
+ });
+}
+async function threeTabsVisible(page){
+ return page.evaluate(()=>{
+  const row=document.querySelector(".rv-tabs");
+  if(!row)return false;
+  const box=row.getBoundingClientRect();
+  return row.scrollWidth<=row.clientWidth+2 &&
+   [...row.querySelectorAll('[role="tab"]')].length===3 &&
+   [...row.querySelectorAll('[role="tab"]')].every(tab=>{
+    const r=tab.getBoundingClientRect();
+    return r.left>=box.left-2&&r.right<=box.right+2 &&
+     tab.scrollWidth<=tab.clientWidth+2;
+   });
  });
 }
 (async()=>{
@@ -92,9 +111,12 @@ async function activeVisible(page){
      await page.waitForFunction(()=> {
       const nav=document.querySelector(".rv-navigation");
       const el=nav?.querySelector('[aria-current="page"]');
-      if(!nav||!el)return false;
-      const n=nav.getBoundingClientRect(),r=el.getBoundingClientRect();
-      return r.left>=n.left-2&&r.right<=n.right+2;
+      const label=el?.querySelector(".rv-nav-name");
+      if(!nav||!el||!label)return false;
+      const n=nav.getBoundingClientRect(),r=el.getBoundingClientRect(),t=label.getBoundingClientRect();
+      return r.left>=n.left-2&&r.right<=n.right+2 &&
+       t.left>=n.left-2&&t.right<=n.right+2 &&
+       label.scrollWidth<=label.clientWidth+2;
      },null,{timeout:10000});
      check(await activeVisible(page),viewport.name+" "+route+" active menu in viewport");
      check(await page.locator(".rv-nav-hint").isVisible(),viewport.name+" "+route+" swipe hint visible");
@@ -127,6 +149,9 @@ async function activeVisible(page){
     }else{
      const buttons=page.getByRole("tab");
      check(await buttons.count()===3,viewport.name+" "+route+" 3 tabs");
+     if(viewport.name==="mobile") {
+      check(await threeTabsVisible(page),viewport.name+" "+route+" full tab labels fit without horizontal clipping");
+     }
      for(let t=0;t<tabs.length;t++){
       await buttons.nth(t).click();
       check(await buttons.nth(t).getAttribute("aria-selected")==="true",
