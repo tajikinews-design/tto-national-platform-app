@@ -1,6 +1,6 @@
 "use client";
 
-import {useState} from "react";
+import {useEffect,useRef,useState} from "react";
 import {NAV_IDS,shareholderNavigation} from "@tto/ui";
 
 type ReviewTab="overview"|"journey"|"access";
@@ -106,6 +106,15 @@ export function ShareholderReview({activeId="NAV-01"}:{activeId?:string}){
  const safe=index<0?0:index;
  const item=SECTIONS[safe];
  const [tab,setTab]=useState<ReviewTab>("overview");
+ const navigationRef=useRef<HTMLElement|null>(null);
+ useEffect(()=>{
+  // Deep links must reveal the active item inside the narrow RTL menu.
+  // Only scroll the mobile navigation, not the full page or desktop sidebar.
+  const navigation=navigationRef.current;
+  if(!navigation||!window.matchMedia("(max-width: 760px)").matches)return;
+  const active=navigation.querySelector<HTMLElement>('[aria-current="page"]');
+  active?.scrollIntoView({block:"nearest",inline:"center"});
+ },[safe]);
  const tabs:readonly {id:ReviewTab;label:string}[]=[
   {id:"overview",label:"طرح صفحه"},
   {id:"journey",label:"مراحل و تعاملات"},
@@ -115,7 +124,8 @@ export function ShareholderReview({activeId="NAV-01"}:{activeId?:string}){
   <aside className="rv-sidebar" aria-label="فهرست بخش‌ها">
    <a className="rv-brand" href="/review"><span className="rv-brand-mark">T</span><span><strong>توسعه و عمران</strong><small>پلتفرم ملی تعاونی‌ها</small></span></a>
    <div className="rv-side-title"><span>فضای بازبینی سهامداران</span><span className="rv-mode">نسخه نمایشی</span></div>
-   <nav className="rv-navigation" aria-label="۱۱ بخش پنل سهامدار">
+   <p className="rv-nav-hint">فهرست بخش‌ها را افقی بکشید ↔</p>
+   <nav ref={navigationRef} className="rv-navigation" aria-label="۱۱ بخش پنل سهامدار">
     {shareholderNavigation.map((name,i)=><a key={NAV_IDS[i]} href={pathFor(i)}
       aria-current={safe===i?"page":undefined}
       className={"rv-nav-link"+(safe===i?" rv-current":"")}>
