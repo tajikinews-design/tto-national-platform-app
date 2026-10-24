@@ -13,13 +13,13 @@ $ProgressPreference="SilentlyContinue"
 function Require([string]$Command) {
  if (-not (Get-Command $Command -ErrorAction SilentlyContinue)) { throw "MISSING_TOOL=$Command" }
 }
-function DockerCheck([string]$Description,[string[]]$Args) {
+function DockerCheck([string]$Description,[string[]]$DockerArguments) {
  Write-Host "=== $Description ===" -ForegroundColor Cyan
- & docker @Args
+ & docker @DockerArguments
  if ($LASTEXITCODE -ne 0) { throw "DOCKER_STEP_FAILED=$Description; exit=$LASTEXITCODE" }
 }
-function ReadDockerObject([string[]]$Args,[string]$ErrorId) {
- $lines=@(& docker @Args)
+function ReadDockerObject([string[]]$DockerArguments,[string]$ErrorId) {
+ $lines=@(& docker @DockerArguments)
  if ($LASTEXITCODE -ne 0 -or $lines.Count -ne 1) { throw $ErrorId }
  return ($lines[0] | ConvertFrom-Json)
 }
