@@ -188,12 +188,9 @@ function Historical-Regression {
     Write-Host "TTO_LOCAL_RELEASE_HISTORICAL_PASS"
 }
 function Arvan-Static-Only {
-    Docker-Step "Arvan YAML portability lint; never deploy" @(
-        "run","--rm","--network",$PrivateNetwork,
-        "-v",($SourceVolume + ":/workspace"),"-w","/workspace",
-        "python:3.13-slim","sh","-c",
-        "set -eu; python3 -m pip install --quiet 'PyYAML>=6,<7'; python3 scripts/test_arvan_k8s_templates.py"
-    )
+    # Use pinned project YAML dependency in the same disposable Node22 container.
+    # Do not download Python packages. Preserve parsing and negative checks.
+    Node-Step "Arvan YAML portability lint; never deploy" "node scripts/test_arvan_k8s_templates.cjs"
     Write-Host "TTO_LOCAL_RELEASE_ARVAN_STATIC_PASS"
 }
 function OCI-Build-And-Smoke {

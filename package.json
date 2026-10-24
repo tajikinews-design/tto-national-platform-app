@@ -9,5 +9,8 @@
     "check": "pnpm --recursive --if-present typecheck",
     "build": "pnpm --recursive --if-present build",
     "test:sql": "psql -v ON_ERROR_STOP=1 -f tests/sql/tenant-isolation.sql"
+  },
+  "devDependencies": {
+    "js-yaml": "4.3.2"
   }
 }
