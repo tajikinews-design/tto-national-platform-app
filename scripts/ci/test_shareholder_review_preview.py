@@ -73,7 +73,9 @@ class ShareholderReviewOnlyContract(unittest.TestCase):
    self.assertIn(token,UI)
   for token in (".rv-nav-hint{display:none}",
                 ".rv-navigation{scroll-padding-inline:12px;scroll-snap-type:x proximity}",
-                ".rv-navigation .rv-nav-link{scroll-snap-align:center"):
+                ".rv-navigation .rv-nav-link{scroll-snap-align:center",
+                ".rv-navigation .rv-nav-name{flex:0 0 auto;min-width:max-content}",
+                "grid-template-columns:repeat(3,minmax(0,1fr))"):
    self.assertIn(token,CSS)
 
  def test_phase3b_contrast_and_complete_tab_evidence(self):
@@ -85,6 +87,8 @@ class ShareholderReviewOnlyContract(unittest.TestCase):
                 'await activeVisible(page)', "value>=4.5",
                 'const expected=2*(1+10*3)',
                 'no external/private/mutation requests',
+                "label.scrollWidth<=label.clientWidth+2",
+                "threeTabsVisible(page)",
                 "phase3b-report.json"):
    self.assertIn(token,BROWSER)
 
