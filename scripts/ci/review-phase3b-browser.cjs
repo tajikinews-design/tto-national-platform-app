@@ -40,7 +40,7 @@ async function sampleContrast(page,selector){
   let background="rgb(255, 255, 255)";
   while(ancestor){
    const c=getComputedStyle(ancestor).backgroundColor;
-   if(c&&c!=="transparent"&&!c.endsWith(", 0)")&&!c.endsWith(", 0)")){background=c;break}
+   if(c&&c!=="transparent"&&!c.endsWith(", 0)")){background=c;break}
    ancestor=ancestor.parentElement;
   }
   return {foreground:style.color,background,size:parseFloat(style.fontSize)};
@@ -111,8 +111,8 @@ async function activeVisible(page){
      viewport.name+" "+route+" preview-only disclosure");
     check(await page.locator(".rv-app form,.rv-app input,.rv-app textarea,.rv-app select").count()===0,
      viewport.name+" "+route+" no data entry");
-    const contrastTargets=[".rv-section-head p",".rv-top-label"];
-    if(idx===0)contrastTargets.push(".rv-module-card p");
+    const contrastTargets=[".rv-section-head p",".rv-top-label",".rv-section-kicker",".rv-section-count"];
+    if(idx===0)contrastTargets.push(".rv-module-card p",".rv-module-footer");
     else contrastTargets.push(".rv-tab:not(.rv-tab-active)");
     for(const selector of contrastTargets){
      const example=await sampleContrast(page,selector);
