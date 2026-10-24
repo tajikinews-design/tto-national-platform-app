@@ -50,3 +50,33 @@
 .rv-mode{color:#0a609b}
 .rv-nav-symbol{color:#416780}
 .rv-feature{font-size:13px}
+
+/* Phase 3b follow-up: avoid clipping of actual menu text and tab labels. */
+@media(max-width:760px){
+ .rv-navigation{padding-inline:12px;scroll-padding-inline:12px}
+ .rv-navigation .rv-nav-link{
+  flex:0 0 max-content;
+  width:max-content;
+  min-width:max-content;
+  max-width:none;
+  scroll-margin-inline:14px
+ }
+ .rv-navigation .rv-nav-name{flex:0 0 auto;min-width:max-content}
+ .rv-tabs{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:4px;
+  padding:8px;
+  overflow:visible
+ }
+ .rv-tabs .rv-tab{
+  min-width:0;
+  width:100%;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  font-size:12.5px;
+  line-height:1.6;
+  padding:10px 4px;
+  min-height:52px
+ }
+}
