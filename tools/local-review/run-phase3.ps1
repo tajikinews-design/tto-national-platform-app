@@ -26,8 +26,14 @@ function OwnedContainer {
     $names=@(docker ps -a --format '{{.Names}}')
     if ($LASTEXITCODE -ne 0) { throw 'DOCKER_PS_FAILED' }
     if ($names -cnotcontains $Container) { return $false }
-    $label=(& docker inspect --format '{{ index .Config.Labels "tto.phase3.review" }}' $Container).Trim()
-    if ($LASTEXITCODE -ne 0 -or $label -cne $SHA) { throw 'CONTAINER_OWNER_MISMATCH' }
+    # Avoid quoted Go-template map keys: Windows PowerShell 5.1 strips
+    # native argument quotes, making Docker parse "tto" as a function.
+    $raw=@(& docker inspect --type container --format '{{json .}}' $Container)
+    if ($LASTEXITCODE -ne 0 -or $raw.Count -ne 1) { throw 'REVIEW_CONTAINER_INSPECT_FAILED' }
+    $info=$raw[0] | ConvertFrom-Json
+    $property=$info.Config.Labels.PSObject.Properties['tto.phase3.review']
+    if ($null -eq $property -or [string]$property.Value -cne $SHA) { throw 'CONTAINER_OWNER_MISMATCH' }
+    if (-not $info.State.Running) { throw 'REVIEW_CONTAINER_NOT_RUNNING' }
     return $true
 }
 function Ready {
@@ -51,8 +57,11 @@ if ($Action -eq 'Stop') {
     if (OwnedContainer) { DockerStep 'Stop only this review container' @('rm','-f',$Container) }
     $volumes=@(& docker volume ls -q --filter ('name=^'+$Volume+'$'))
     if ($volumes -ccontains $Volume) {
-        $label=(& docker volume inspect --format '{{ index .Labels "tto.phase3.review" }}' $Volume).Trim()
-        if ($LASTEXITCODE -ne 0 -or $label -cne $SHA) { throw 'VOLUME_OWNER_MISMATCH' }
+        $vRaw=@(& docker volume inspect --format '{{json .}}' $Volume)
+        if ($LASTEXITCODE -ne 0 -or $vRaw.Count -ne 1) { throw 'REVIEW_VOLUME_INSPECT_FAILED' }
+        $vInfo=$vRaw[0] | ConvertFrom-Json
+        $vProperty=$vInfo.Labels.PSObject.Properties['tto.phase3.review']
+        if ($null -eq $vProperty -or [string]$vProperty.Value -cne $SHA) { throw 'VOLUME_OWNER_MISMATCH' }
         DockerStep 'Delete only review source volume' @('volume','rm',$Volume)
     }
     Write-Host 'TTO_REVIEW_STOP_PASS_REPORTS_RETAINED' -ForegroundColor Green
