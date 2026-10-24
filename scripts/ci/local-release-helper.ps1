@@ -189,7 +189,7 @@ function Historical-Regression {
 }
 function Arvan-Static-Only {
     # Use pinned project YAML dependency in the same disposable Node22 container.
-    # No runtime pip install, no PyPI DNS. Preserve parsing and negative checks.
+    # Do not download Python packages. Preserve parsing and negative checks.
     Node-Step "Arvan YAML portability lint; never deploy" "node scripts/test_arvan_k8s_templates.cjs"
     Write-Host "TTO_LOCAL_RELEASE_ARVAN_STATIC_PASS"
 }
