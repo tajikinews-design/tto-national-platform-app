@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 [CmdletBinding()]
 param([ValidateSet('All','Test','Stop')][string]$Action='All')
 Set-StrictMode -Version Latest
