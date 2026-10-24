@@ -40,3 +40,13 @@
  .rv-module-card p{margin:0 0 8px;font-size:12.5px;line-height:1.75}
  .rv-module-arrow{width:27px;height:27px}
 }
+
+/* Secondary labels and status copy also meet normal-text contrast targets. */
+.rv-section-kicker,.rv-section-count,.rv-module-num,.rv-module-footer,
+.rv-breadcrumb a,.rv-hero .rv-eyebrow,.rv-feature small,
+.rv-step-number{color:#145c9a}
+.rv-step-preview{color:#70521d;font-size:12px}
+.rv-next p,.rv-next-link{color:#654b26;font-size:12px}
+.rv-mode{color:#0a609b}
+.rv-nav-symbol{color:#416780}
+.rv-feature{font-size:13px}
