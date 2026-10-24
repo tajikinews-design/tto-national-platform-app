@@ -33,3 +33,15 @@ This is a **review-only, nonoperative** prototype. No user profile record, holdi
 - Screenshot-based human acceptance at the new SHA.
 - Hosted CI only after GitHub account usage restriction is lifted.
 - No merging until explicit approval.
+
+## Screenshot audit — 62-image handoff
+
+The user-provided `TTO-Phase3B-Visual-Review.zip` contains 62 PNG images plus `phase3b-report.json` and `phase3b-report.md`. Its self-reported source is `abb8a5c531f38de1c16595e8df092ddd2ed00846`. ZIP integrity: valid. JSON gate: 530 checks PASS, 62/62 screenshots, zero reported failures. The archived screenshot set was manually reviewed for desktop and mobile, including all three tabs for each of ten detail pages.
+
+**Confirmed improvements:** page-specific headings and descriptive flows render across all modules; mobile current navigation selection is brought into the horizontal menu; contrast is improved; trade controls remain explicitly non-operative; all three tab states are present in screenshots.
+
+**Remaining visual issues observed at the reviewed SHA:** mobile `mobile-nav-03-overview.png` and `mobile-nav-04-overview.png` clip portions of the active horizontal menu label at the left screen edge even though its clickable element passed bounding-box assertions. The 390px tab strip also cuts off an inactive tab title in screenshots such as `mobile-nav-11-overview.png`. Browser assertions on the containing element were insufficient to detect its overflowing child label.
+
+**Corrective follow-up on the same Draft PR branch:** size mobile nav links and their labels by text content, display the three mobile tabs in equal-width wrapping columns, and enforce that the active label itself and all three tabs fit inside their respective viewports. Add static assertions for these rules.
+
+**Gate interpretation:** Phase 3b revision `abb8a5c5` receives AUTOMATED ACCEPTANCE PASS, HUMAN VISUAL ACCEPTANCE CONDITIONAL. The corrective follow-up needs a new exact-SHA Docker/browser run and fresh screenshots before it can receive final visual approval. Do not merge based solely on previous results.
