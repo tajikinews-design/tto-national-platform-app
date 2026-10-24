@@ -233,7 +233,7 @@ const problems=(v,r,e)=>{fails.push({viewport:v,route:r,error:String(e?.message|
 })().catch(e=>{console.error(e);process.exitCode=1});
 '@
 $browserFile=Join-Path $Output 'review-browser.cjs'
-[IO.File]::WriteAllText($browserFile,$js,(New-Object System.Text.UTF8Encoding($false)))
+[IO.File]::WriteAllText($browserFile,$js,([System.Text.UTF8Encoding]::new($false)))
 DockerStep 'Run Chromium in isolated browser container' @(
     'run','--rm','--network',('container:'+$Container),'--security-opt','no-new-privileges',
     '--mount',('type=bind,source='+$browserFile+',target=/tmp/review-browser.cjs,readonly'),
