@@ -138,6 +138,9 @@ export function ShareholderWorkspace({
    if(result.tenantContextVerified!==true||result.tenantId!==tenantId)
     throw Error("SCOPE_UNAVAILABLE");
    setScope("verified");
+   // Informational section views need tenant scope only. Never fetch a
+   // membership or ownership record just to view generic section rules.
+   if(view==="section")return;
    setMember({kind:"loading"});setHolding({kind:"loading"});
    const root="/api/tenants/"+tenantId+"/me/";
    const [m,h]=await Promise.all([
