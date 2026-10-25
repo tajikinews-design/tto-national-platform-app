@@ -2,7 +2,7 @@
 import {useEffect,useRef,useState} from "react";
 import {ShareholderReadModels} from "./shareholder-read-models";
 import {SHAREHOLDER_SECTION_RULES,type ShareholderSectionId} from "./shareholder-section-config";
-import {shareholderNavigation} from "./index";
+import {shareholderNavigation} from "./shareholder-navigation";
 
 export type ShareholderView="overview"|"membership"|"requests"|"notices"|"section";
 type Candidate={tenantId:string;displayName:string;evidenceStatus:"MEMBERSHIP_EVIDENCE"|"EVIDENCE_PENDING"};
