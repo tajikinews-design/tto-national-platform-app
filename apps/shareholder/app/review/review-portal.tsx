@@ -108,12 +108,24 @@ export function ShareholderReview({activeId="NAV-01"}:{activeId?:string}){
  const [tab,setTab]=useState<ReviewTab>("overview");
  const navigationRef=useRef<HTMLElement|null>(null);
  useEffect(()=>{
-  // Deep links must reveal the active item inside the narrow RTL menu.
-  // Only scroll the mobile navigation, not the full page or desktop sidebar.
+  // RTL horizontal scrolling uses negative scrollLeft in Chromium.
+  // Move ONLY the menu, by a physical pixel delta; scrollIntoView also
+  // affects ancestors and can conflict with scroll-snap/full-page capture.
   const navigation=navigationRef.current;
   if(!navigation||!window.matchMedia("(max-width: 760px)").matches)return;
-  const active=navigation.querySelector<HTMLElement>('[aria-current="page"]');
-  active?.scrollIntoView({block:"nearest",inline:"center"});
+  let cancelled=false;
+  const centerActive=()=>{
+   if(cancelled)return;
+   const active=navigation.querySelector<HTMLElement>('[aria-current="page"]');
+   if(!active)return;
+   const navRect=navigation.getBoundingClientRect();
+   const activeRect=active.getBoundingClientRect();
+   const delta=(activeRect.left+activeRect.right-navRect.left-navRect.right)/2;
+   if(Math.abs(delta)>1)navigation.scrollBy({left:delta,behavior:"instant"});
+  };
+  const frame=window.requestAnimationFrame(centerActive);
+  void document.fonts.ready.then(()=>window.requestAnimationFrame(centerActive));
+  return ()=>{cancelled=true;window.cancelAnimationFrame(frame);};
  },[safe]);
  const tabs:readonly {id:ReviewTab;label:string}[]=[
   {id:"overview",label:"طرح صفحه"},
