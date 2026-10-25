@@ -12,7 +12,7 @@ const OUT=process.env.TTO_PHASE4B_OUTPUT_DIR||"/results";
 const SHA=process.env.TTO_PHASE4B_EXPECTED_SOURCE_SHA||"";
 const TENANT="44444444-4444-4444-8444-444444444444";
 const checkpoints=[],failures=[];
-let requests=0;
+let requests=0,casesPassed=0,casesExecuted=0;
 function ok(condition,label){
  if(!condition)throw Error(label);
  checkpoints.push(label);
@@ -26,6 +26,7 @@ async function until(predicate,label){
  throw Error("TIMEOUT "+label);
 }
 async function exercise(browser,name,fn){
+ casesExecuted++;
  const context=await browser.newContext({
   viewport:{width:390,height:844},locale:"fa-IR",reducedMotion:"reduce"
  });
@@ -81,6 +82,7 @@ async function exercise(browser,name,fn){
   await fn(page,state);
   ok(state.forbidden.length===0,name+" no external/mutation/unmapped API "+state.forbidden.join(","));
   ok(errors.length===0,name+" no page errors "+errors.join(","));
+  casesPassed++;
   console.log("PASS "+name);
  }catch(e){
   failures.push({case:name,error:String(e?.stack||e),requests:state.log,forbidden:state.forbidden});
@@ -199,9 +201,8 @@ async function locked(page,name){
   schema:"tto-phase4b-session-mocked-browser-v1",sourceSha:SHA||"UNSET",
   browserOnlySyntheticBff:true,realAuthenticationVerified:false,
   operationalSourceApproval:false,checksPassed:checkpoints.length,
-  casesPassed:11-failures.filter(x=>x.case!=="suite").length,
-  casesExpected:11,requestsIntercepted:requests,
-  failures,pass:failures.length===0
+  casesPassed,casesExecuted,casesExpected:11,requestsIntercepted:requests,
+  failures,pass:failures.length===0&&casesExecuted===11&&casesPassed===11
  };
  fs.writeFileSync(path.join(OUT,"phase4b-session-report.json"),JSON.stringify(result,null,2)+"\n");
  fs.writeFileSync(path.join(OUT,"phase4b-session-report.md"),[
