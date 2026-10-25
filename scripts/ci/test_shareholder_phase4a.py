@@ -71,7 +71,7 @@ class Phase4A(unittest.TestCase):
                        'حوزه مستقل','فاقد منبع عملیاتی تأییدشده'):
             self.assertIn(marker,self.ui)
         self.assertIn('ایجاد نمی‌کند',self.ui)
-        self.assertIn('عدم',self.rules) if False else None
+        self.assertIn('if(view==="section")return;',self.ui)
 
     def test_new_sections_contain_no_synthetic_data_or_write_controls(self):
         for invalid in ('fetch(', 'axios(', 'localStorage',
