@@ -194,17 +194,23 @@
       "CLEAR_PRIVATE_UI_ON_EXPIRED_OR_UNVERIFIABLE_SESSION",
       "PROPAGATE_401_FROM_TENANT_MEMBER_HOLDING_TRADE_AND_NOTICE_READS",
       "REMOVE_CLIENT_REVALIDATION_LISTENERS_AND_REQUEST_ON_UNMOUNT",
-      "NO_NEW_API_DB_SCHEMA_SOURCE_ACTIVATION_OR_TRANSACTION"
+      "NO_NEW_API_DB_SCHEMA_SOURCE_ACTIVATION_OR_TRANSACTION",
+      "ELEVEN_CASE_SYNTHETIC_CHROMIUM_SESSION_REVOKE_AND_RETRY_BROWSER_HARNESS",
+      "ALL_TEN_OPERATIONAL_MODULES_ANONYMOUS_SSR_FAIL_CLOSED_SMOKE"
     ],
     "acceptance": {
       "isolated_branch_implementation": "IMPLEMENTED_CANDIDATE",
       "local_static_source_analysis": "PASS_PRELIMINARY",
-      "exact_sha_docker_release": "PENDING",
+      "exact_sha_docker_release": "PENDING_LOCAL_DOCKER",
       "real_browser_revoke_resume_and_retry": "PENDING",
       "source_and_legal_approvals": "BLOCKED",
       "production_go_live": "NOT_AUTHORIZED",
-      "hosted_actions": "BILLING_RESTRICTED"
+      "hosted_actions": "BILLING_RESTRICTED",
+      "synthetic_chromium_session_browser": "PENDING_LOCAL_DOCKER",
+      "real_server_session_revocation_e2e": "PENDING"
     },
-    "report": "docs/reports/SHAREHOLDER_SESSION_PRIVACY_PHASE4B_2026-10-25.md"
+    "report": "docs/reports/SHAREHOLDER_SESSION_PRIVACY_PHASE4B_2026-10-25.md",
+    "browser_runner": "scripts/ci/run-phase4b-browser-docker.ps1",
+    "browser_report": "phase4b-session-report.json"
   }
 }
