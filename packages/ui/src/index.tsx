@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import {shareholderNavigation} from "./shareholder-navigation";
+export {shareholderNavigation} from "./shareholder-navigation";
 
 export const NAV_IDS = Array.from({ length: 11 }, (_, i) => `NAV-${String(i + 1).padStart(2, "0")}`);
 export type Surface = "shareholder" | "cooperative" | "national";
@@ -8,11 +10,6 @@ export const managementNavigation = [
   "داشبورد", "اعضا و سهام", "بازار و سرمایه", "حاکمیت و مجامع",
   "ارتباط با سهامداران", "عملیات و خدمات", "کسب‌وکار و بازار",
   "پروژه و توسعه", "ریسک و شفافیت", "گزارش و هوشمندی", "تنظیمات"
-] as const;
-export const shareholderNavigation = [
-  "داشبورد", "سهام و عضویت من", "خرید و فروش سهام", "مجامع و انتخابات",
-  "اخبار و ارتباط با شرکت", "خدمات من", "فروشگاه و فرصت‌ها",
-  "پروژه‌های شرکت", "شفافیت و اسناد شرکت", "گزارش‌های من", "تنظیمات حساب"
 ] as const;
 
 /** Source-aligned NAV-01 .. NAV-11.  No number is ever inferred from the DB. */
