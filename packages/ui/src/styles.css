@@ -96,3 +96,10 @@ button,input,textarea,select{font-family:var(--tto-font),Vazirmatn,Tahoma,Arial,
 .sw-read-list li{display:flex;flex-direction:column;gap:4px;border:1px solid #dae8f4;border-radius:9px;background:#fff;padding:13px;overflow-wrap:anywhere}
 .sw-read-list strong{font-size:13px;color:#154e7e}.sw-read-list span{font-size:12px;color:#385974}
 .sw-read-list small{font-size:11px;color:#647892}
+
+/* Phase 4A: protected, tenant-scoped informational modules; never an action panel. */
+.sw-closed-section{display:grid;gap:16px}
+.sw-section-boundary{display:grid;grid-template-columns:1fr 1fr;column-gap:18px;row-gap:6px;padding:16px;border-radius:10px;border:1px solid #dce6f4;background:#f7faff}
+.sw-section-boundary h4{font-size:12px;line-height:1.8;margin:0;color:#174b82}
+.sw-section-boundary p{font-size:12px;line-height:2;margin:0;color:#425975}
+@media(max-width:640px){.sw-section-boundary{grid-template-columns:1fr;gap:5px;padding:13px}.sw-closed-section{gap:12px}}
