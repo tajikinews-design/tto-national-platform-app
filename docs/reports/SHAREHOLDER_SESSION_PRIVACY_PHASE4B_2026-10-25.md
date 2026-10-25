@@ -56,3 +56,15 @@ Use exactly the immutable Phase4B head SHA shown in Draft PR #31 after final com
 ```
 
 The script uses disposable isolated PostgreSQL17 and Node22 and must preserve the user’s other Docker resources. Inspect the log under `Downloads\TTO-Local-CI-Reports`. Do not call this phase GREEN without the exact-SHA success evidence and browser checks.
+
+## Added 2026-10-25 — deterministic browser revoke regression (no real data)
+
+A separate **mock-only** Chromium browser harness now covers eleven explicit cases: anonymous access closed, active approved *synthetic* holding unmounted on revocation, 503 fail-closed plus retry without stale values, malformed session status fail-closed, tenant-discovery 401, tenant-context 401, membership 401, source-read 401 for requests and notices, tenant 403 without false logout, and approved-session/source-403 without false logout.
+
+- `scripts/ci/phase4b-session-browser.cjs` captures all same-origin API requests via Playwright route interception in an isolated browser; no real tenant/member records, API authorization, notification services, payment rails or server credentials are used. The fixture showing **271 shares is imaginary test data only** and must never be surfaced in the real application or a release report as business evidence.
+- `scripts/ci/run-phase4b-browser-docker.ps1` creates an exact-commit, isolated Docker source volume and Node22 Next server bound to host loopback port `32165`; uses a separate Playwright image with the same network namespace; `TTO_API_BASE_URL=https://invalid.example` is only a local UI enablement flag while every browser API call is intercepted. Persistent resources are named/labelled with the exact SHA to prevent accidental ownership confusion; the script does not prune Docker or modify the production network.
+- `scripts/ci/test_shareholder_phase4b_browser.py` asserts mock-only, source-locked, ten-module anonymous SSR and diagnostic report properties. Existing `scripts/smoke-next-otp.mjs` now tests the anonymous fail-closed shell of all ten operational module routes, including the previous three.
+- Synthetic-browser report files are `phase4b-session-report.json` and `phase4b-session-report.md` in a user-supplied reports directory.
+- **Exact-SHA Release and Chromium browser checks remain `PENDING_LOCAL_DOCKER`.** The browser suite is *not* real authentication, server revocation, Postgres RLS, legal approval or a substitute for production integration tests. Acceptance requires both the isolated full Release regression and the separate 11-case Chromium run to pass at the identical SHA. A true server-backed revoke/expired cookie scenario also remains a distinct integration gate.
+
+New browser-suite source and launcher static syntax/contract checks passed while authoring, but **no actual Windows PowerShell/Chromium run was observed**. Do not promote the merged product or claim runtime verification without the user's local logs.
