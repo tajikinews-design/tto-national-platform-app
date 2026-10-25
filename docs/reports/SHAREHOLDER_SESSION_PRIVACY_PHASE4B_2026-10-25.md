@@ -68,3 +68,17 @@ A separate **mock-only** Chromium browser harness now covers eleven explicit cas
 - **Exact-SHA Release and Chromium browser checks remain `PENDING_LOCAL_DOCKER`.** The browser suite is *not* real authentication, server revocation, Postgres RLS, legal approval or a substitute for production integration tests. Acceptance requires both the isolated full Release regression and the separate 11-case Chromium run to pass at the identical SHA. A true server-backed revoke/expired cookie scenario also remains a distinct integration gate.
 
 New browser-suite source and launcher static syntax/contract checks passed while authoring, but **no actual Windows PowerShell/Chromium run was observed**. Do not promote the merged product or claim runtime verification without the user's local logs.
+
+## 2026-10-25 user Docker evidence — dependency recovery and mock 401 test bug
+
+User's full local log confirms that at source SHA `e0ba3a3a95cf0a03b2c02aa59ddf4d1255f6280f`:
+
+- the original Release first passed 59 Python tests and stopped on external npm registry `ECONNRESET` before a Next build; this is a network interruption, not an assertion about application behavior;
+- the external **test-infrastructure-only** npm retry/limited parallelism override successfully installed pinned dependencies, ran TSX parser and Next.js/TypeScript production build;
+- Chromium actually ran 11 mock-only scenarios: **10 PASS, one FAIL** (`trade-401-unmounts`), 60 checks, zero release green. The Release suite was *not* reached after Chromium exited nonzero.
+
+**Root cause found in the automated test fixture, not yet an application regression:** the BFF route `/me/trade-requests` looked up `state[domain]` where `domain="trade-requests"`, while the fixture defined `state.trade=403` and the scenario set `state.trade=401`. The missing key provided an `undefined` status to Playwright `route.fulfill`, so the test never actually sent the intended 401; the privacy callback did not run. The corresponding `notices` fixture correctly used `state.notices` and passed.
+
+**Committed fix in same Draft PR:** map the `trade-requests` domain to `state.trade`, fail the fixture on any undefined/invalid HTTP mock status, and assert that the 401-unmount test actually delivered HTTP 401 at its source endpoint. Add a Python offline regression against the former erroneous lookup. This is **test code only**; no change to runtime authorization, account security, company data, or transaction logic.
+
+**Required retest:** execute the corrected mock harness against the *verified unchanged* application build for a quick 11-case Chromium diagnosis; label evidence with BOTH `applicationSha=e0ba3a3...` and the corrected `harnessSha` rather than claiming a fresh build. Then independently run exact-new-SHA Docker Release before declaring phase acceptance. Report both results; do not merge PRs, change hosted CI, or touch production resources.
