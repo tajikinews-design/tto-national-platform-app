@@ -15,7 +15,8 @@ const screens=["/review",...Array.from({length:10},(_,i)=>"/review/nav-"+String(
 const sizes=[{name:"desktop",width:1440,height:900},{name:"mobile",width:390,height:844}];
 const tabs=[["overview",".rv-detail-body"],["journey",".rv-journey"],["access",".rv-access"]];
 const expectedSource=process.env.TTO_REVIEW_EXPECTED_SOURCE_SHA||"";
-const failures=[],checks=[],captures=[];
+const failures=[],checks=[],captures=[],mobileNavDiagnostics=[];
+const DIAGNOSTICS=path.join(OUT,"diagnostics");
 
 function check(ok,label){
  if(!ok)throw Error(label);
@@ -44,6 +45,27 @@ async function sampleContrast(page,selector){
    ancestor=ancestor.parentElement;
   }
   return {foreground:style.color,background,size:parseFloat(style.fontSize)};
+ });
+}
+async function navGeometry(page){
+ return page.evaluate(()=>{
+  const nav=document.querySelector(".rv-navigation");
+  const active=nav?.querySelector('[aria-current="page"]');
+  const label=active?.querySelector(".rv-nav-name");
+  if(!nav||!active||!label)return null;
+  const rect=x=>{
+   const r=x.getBoundingClientRect();
+   return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width};
+  };
+  const navRect=rect(nav),activeRect=rect(active),labelRect=rect(label);
+  return {navRect,activeRect,labelRect,
+   scrollLeft:nav.scrollLeft,scrollWidth:nav.scrollWidth,clientWidth:nav.clientWidth,
+   labelScrollWidth:label.scrollWidth,labelClientWidth:label.clientWidth,
+   viewportWidth:document.documentElement.clientWidth,
+   visible:activeRect.left>=navRect.left-2&&activeRect.right<=navRect.right+2&&
+    labelRect.left>=navRect.left-2&&labelRect.right<=navRect.right+2&&
+    labelScrollWidthWithin(label)};
+  function labelScrollWidthWithin(el){return el.scrollWidth<=el.clientWidth+2}
  });
 }
 async function activeVisible(page){
@@ -77,6 +99,7 @@ async function threeTabsVisible(page){
 }
 (async()=>{
  fs.mkdirSync(OUT,{recursive:true});
+ fs.mkdirSync(DIAGNOSTICS,{recursive:true});
  let browser;
  try{
   browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
@@ -120,6 +143,13 @@ async function threeTabsVisible(page){
      },null,{timeout:10000});
      check(await activeVisible(page),viewport.name+" "+route+" active menu in viewport");
      check(await page.locator(".rv-nav-hint").isVisible(),viewport.name+" "+route+" swipe hint visible");
+     const initialNav=await navGeometry(page);
+     check(initialNav?.visible,viewport.name+" "+route+" initial geometry visible");
+     const beforeName=viewport.name+"-"+slug+"-viewport-before.png";
+     await page.screenshot({path:path.join(DIAGNOSTICS,beforeName),fullPage:false,animations:"disabled"});
+     const afterViewport=await navGeometry(page);
+     check(afterViewport?.visible,viewport.name+" "+route+" viewport screenshot kept current nav visible");
+     mobileNavDiagnostics.push({route,initial:initialNav,afterViewport,beforeScreenshot:beforeName});
     }else{
      check(!await page.locator(".rv-nav-hint").isVisible(),viewport.name+" "+route+" swipe hint hidden");
     }
@@ -163,6 +193,20 @@ async function threeTabsVisible(page){
       captures.push(path.basename(target));
      }
     }
+    if(viewport.name==="mobile"){
+     const beforeFullPage=mobileNavDiagnostics[mobileNavDiagnostics.length-1];
+     // fullPage capture should never silently hide the current nav selection.
+     const afterFullPage=await navGeometry(page);
+     check(afterFullPage?.visible,viewport.name+" "+route+" active nav visible AFTER fullPage/tab capture");
+     await page.evaluate(()=>window.scrollTo(0,0));
+     const afterName=viewport.name+"-"+slug+"-viewport-after.png";
+     await page.screenshot({path:path.join(DIAGNOSTICS,afterName),fullPage:false,animations:"disabled"});
+     const afterViewport=await navGeometry(page);
+     check(afterViewport?.visible,viewport.name+" "+route+" nav visible AFTER viewport recapture");
+     beforeFullPage.afterFullPage=afterFullPage;
+     beforeFullPage.afterFinalViewport=afterViewport;
+     beforeFullPage.afterScreenshot=afterName;
+    }
     check(forbidden.length===0,viewport.name+" "+route+" no external/private/mutation requests: "+forbidden.join(","));
     check(jsErrors.length===0,viewport.name+" "+route+" no page errors: "+jsErrors.join(","));
     console.log("PASS "+viewport.name+" "+route+" images="+(idx===0?1:3));
@@ -182,6 +226,10 @@ async function threeTabsVisible(page){
  }finally{if(browser)await browser.close()}
  const expected=2*(1+10*3);
  if(captures.length!==expected)failures.push({screen:"screenshots",detail:"expected "+expected+" got "+captures.length});
+ if(mobileNavDiagnostics.length!==11 ||
+   mobileNavDiagnostics.some(d=>!d.afterFinalViewport?.visible)){
+  failures.push({screen:"mobile-nav-diagnostics",detail:"expected 11 complete before/after screenshot pairs"});
+ }
  const report={
   schema:"tto-phase3b-review-v1",
   reviewedSourceSha:expectedSource||"SPECIFY_SOURCE_SHA",
@@ -191,6 +239,9 @@ async function threeTabsVisible(page){
   screenshotsExpected:expected,
   screenshotsCaptured:captures.length,
   screenshots:captures,
+  mobileNavDiagnostics,
+  diagnosticScreenshotsExpected:22,
+  diagnosticScreenshotsCaptured:mobileNavDiagnostics.reduce((n,d)=>n+Number(Boolean(d.beforeScreenshot))+Number(Boolean(d.afterScreenshot)),0),
   failures,
   pass:failures.length===0
  };
@@ -205,6 +256,7 @@ async function threeTabsVisible(page){
   ...failures.map(f=>"- "+f.screen+": "+f.detail)
  ].join("\n")+"\n");
  console.log("TTO_PHASE3B_BROWSER_SCREENSHOTS="+captures.length);
+ console.log("TTO_PHASE3B_MOBILE_NAV_DIAGNOSTIC_SCREENSHOTS="+report.diagnosticScreenshotsCaptured);
  console.log("TTO_PHASE3B_BROWSER_CHECKS="+checks.length);
  console.log("TTO_PHASE3B_BROWSER_FAILURES="+failures.length);
  if(!failures.length)console.log("TTO_PHASE3B_LOCAL_BROWSER_PASS_SHA="+report.reviewedSourceSha);
