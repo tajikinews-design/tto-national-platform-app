@@ -29,6 +29,14 @@ class SyntheticSessionBrowserContract(unittest.TestCase):
         self.assertIn('casesExecuted++',self.browser)
         self.assertIn('casesExecuted===11&&casesPassed===11',self.browser)
 
+    def test_trade_401_fixture_requires_explicit_actual_status(self):
+        # Regression: state[domain] did not resolve for domain='trade-requests';
+        # the test silently got a 200 response and reported a false 401 failure.
+        self.assertIn('domain==="trade-requests"?state.trade:state.notices',self.browser)
+        self.assertIn('state.responseStatuses[endpoint]===401',self.browser)
+        self.assertIn('INVALID_SYNTHETIC_HTTP_STATUS',self.browser)
+        self.assertNotIn('return json(state[domain],',self.browser)
+
     def test_intercepts_only_in_isolated_browser(self):
         for marker in ('await context.route("**/*"', 'url.origin!==BASE',
                        'url.pathname.startsWith("/api/")',
