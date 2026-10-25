@@ -66,8 +66,8 @@ function EvidenceMessage({kind,domain}:{kind:Evidence<unknown>["kind"];domain:"m
  * no submission, settlement or fabricated publication is enabled.
  */
 export function ShareholderWorkspace({
- initialView="overview",initialSectionId
-}:{initialView?:ShareholderView;initialSectionId?:ShareholderSectionId}){
+ initialView="overview",initialSectionId,onSessionInvalidated
+}:{initialView?:ShareholderView;initialSectionId?:ShareholderSectionId;onSessionInvalidated?:()=>void}){
  const section=initialSectionId?SHAREHOLDER_SECTION_RULES[initialSectionId]:null;
  const [view,setView]=useState<ShareholderView>(section?"section":initialView);
  const views:readonly {id:ShareholderView;name:string;description:string}[]=section&&initialSectionId?[
@@ -91,6 +91,7 @@ export function ShareholderWorkspace({
   setDiscovering(true);
   fetch("/api/me/tenant-options",init)
    .then(async response=>{
+    if(response.status===401)throw Error("SESSION_EXPIRED");
     if(!response.ok)throw Error("DISCOVERY_NOT_APPROVED");
     return response.json() as Promise<{items?:unknown}>;
    })
@@ -105,7 +106,11 @@ export function ShareholderWorkspace({
     }))throw Error("DISCOVERY_BAD_CONTRACT");
     setOptions(result.items as Candidate[]);
     setDiscoveryError(false);
-   }).catch(()=>{if(!controller.signal.aborted){setOptions([]);setDiscoveryError(true);}})
+   }).catch(error=>{
+    if(controller.signal.aborted)return;
+    setOptions([]);setDiscoveryError(true);
+    if(error instanceof Error&&error.message==="SESSION_EXPIRED")onSessionInvalidated?.();
+   })
    .finally(()=>{if(!controller.signal.aborted)setDiscovering(false);});
   return ()=>{controller.abort();pending.current?.abort();sequence.current++;};
  },[]);
@@ -151,6 +156,10 @@ export function ShareholderWorkspace({
    setMember(m);setHolding(h);
   }catch(error){
    if(!active())return;
+   if(error instanceof Error&&error.message==="SESSION_EXPIRED"){
+    setMember(EMPTY_MEMBER);setHolding(EMPTY_HOLDING);setScope("denied");
+    onSessionInvalidated?.();return;
+   }
    setMember(EMPTY_MEMBER);setHolding(EMPTY_HOLDING);setScope("unavailable");
    setMessage(error instanceof Error&&error.message==="SESSION_EXPIRED"?
     "نشست ورود معتبر نیست؛ دوباره وارد حساب شوید.":
@@ -262,7 +271,7 @@ export function ShareholderWorkspace({
        <div><b>۲. مستندات</b><span>ثبت و کنترل شواهد قرارداد و پرداخت مستقیم خریدار به فروشنده</span></div>
        <div><b>۳. تصویب و ثبت</b><span>تصمیم مرجع قانونی و تغییر دفتر سهام فقط در سامانه مالک داده</span></div>
       </div>
-      <ShareholderReadModels tenantId={verified?selected:""} domain="trade-requests"/>
+      <ShareholderReadModels tenantId={verified?selected:""} domain="trade-requests" onSessionInvalidated={onSessionInvalidated}/>
       <p className="sw-message sw-warning" role="status">API معتبر ثبت یا فهرست درخواست‌ها هنوز فعال نشده است؛ هیچ سفارش، تعداد درخواست، پرداخت یا انتقال سهم نمایش داده نمی‌شود.</p>
       <p className="sw-footnote">پلتفرم کیف پول نقدی و خدمات حسابداری عمومی تعاونی ندارد. این صفحه مجوز معامله یا انتقال خودکار ایجاد نمی‌کند.</p>
     </article>:null}
@@ -274,7 +283,7 @@ export function ShareholderWorkspace({
        <span>اطلاعیه‌های عمومی تعاونی</span><span>مجامع و جلسات</span>
        <span>اعلان‌های مخصوص سهامدار</span>
      </div>
-     <ShareholderReadModels tenantId={verified?selected:""} domain="notices"/>
+     <ShareholderReadModels tenantId={verified?selected:""} domain="notices" onSessionInvalidated={onSessionInvalidated}/>
      <p className="sw-message sw-warning" role="status">هیچ اطلاعیه‌ای بدون سند انتشار مصوب، محدوده تعاونی و کنترل دسترسی ارائه نمی‌شود. نبود فهرست به معنی نبود اطلاعیه نیست.</p>
    </article>:null}
    <div className="sw-guard">این کارپوشه فقط داده‌های دارای منبع تأییدشده را نشان می‌دهد؛ «داده نامعلوم»، «در انتظار تأیید» و «صفر سهمِ تأییدشده» یکسان نیستند.</div>
