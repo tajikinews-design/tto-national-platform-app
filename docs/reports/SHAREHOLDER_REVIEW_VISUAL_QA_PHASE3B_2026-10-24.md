@@ -45,3 +45,13 @@ The user-provided `TTO-Phase3B-Visual-Review.zip` contains 62 PNG images plus `p
 **Corrective follow-up on the same Draft PR branch:** size mobile nav links and their labels by text content, display the three mobile tabs in equal-width wrapping columns, and enforce that the active label itself and all three tabs fit inside their respective viewports. Add static assertions for these rules.
 
 **Gate interpretation:** Phase 3b revision `abb8a5c5` receives AUTOMATED ACCEPTANCE PASS, HUMAN VISUAL ACCEPTANCE CONDITIONAL. The corrective follow-up needs a new exact-SHA Docker/browser run and fresh screenshots before it can receive final visual approval. Do not merge based solely on previous results.
+
+## Phase 3b follow-up — RTL mobile navigation stabilization and screenshot attestation (2026-10-25)
+
+The exact-SHA local Docker/Chromium gate for `e1fc9ff048bb637e022f2150686da1f1afc40961` returned **540 assertions PASS, 62/62 full-page screenshots and zero automated errors**, but subsequent visual inspection of the uploaded screenshots still found cropped selected-menu text in several 390px images.
+
+**Implementation correction:** change the mobile-only active-menu centering from `element.scrollIntoView` to scrolling the **navigation container only** by the physical-center pixel delta. Run once on animation frame and again after `document.fonts.ready` so font substitution cannot invalidate alignment. Disable competing horizontal scroll-snap in the mobile navigation. No operational flow, authentication, database access, or trade feature is introduced.
+
+**New evidence at the NEXT SHA:** retain exactly 62 normal full-page images, plus 22 **viewport-only** mobile diagnostics saved under `diagnostics/` (before and after full-page captures for 11 routes). `phase3b-report.json` includes `mobileNavDiagnostics` per route: `navRect`, `activeRect`, `labelRect`, `scrollLeft`, widths, and visibility recorded before and after screenshots. The browser gate fails if the active link/label becomes clipped after a full-page screenshot, even if it was visible before capture.
+
+**Acceptance:** rerun Docker at the new exact SHA, check 62 full-page + 22 diagnostic PNGs, and visually inspect the mobile NAV-03, NAV-04, NAV-07, NAV-08, NAV-09, NAV-10, NAV-11 before/after pairs. A green automated result alone still does not close the human visual audit. No merge until explicit approval; PR #28 and PR #29 remain Draft.
