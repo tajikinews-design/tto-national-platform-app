@@ -31,7 +31,7 @@ async function exercise(browser,name,fn){
   viewport:{width:390,height:844},locale:"fa-IR",reducedMotion:"reduce"
  });
  const state={session:"valid",discovery:200,scope:200,member:200,holding:200,
-  trade:403,notices:403,forbidden:[],log:[]};
+  trade:403,notices:403,forbidden:[],log:[],responseStatuses:{}};
  await context.route("**/*",async route=>{
   const req=route.request(),url=new URL(req.url()),method=req.method();
   if(url.origin!==BASE){state.forbidden.push(method+" "+url.origin);await route.abort();return;}
@@ -42,11 +42,16 @@ async function exercise(browser,name,fn){
    await route.fulfill({status:405,body:"{}"});
    return;
   }
-  const json=(status,body)=>route.fulfill({
-   status,contentType:"application/json",
-   headers:{"Cache-Control":"private, no-store"},
-   body:JSON.stringify(body)
-  });
+  const json=(status,body)=>{
+   if(!Number.isInteger(status)||status<200||status>599)
+    throw Error("INVALID_SYNTHETIC_HTTP_STATUS "+String(status)+" "+url.pathname);
+   state.responseStatuses[url.pathname]=status;
+   return route.fulfill({
+    status,contentType:"application/json",
+    headers:{"Cache-Control":"private, no-store"},
+    body:JSON.stringify(body)
+   });
+  };
   const p=url.pathname;
   if(p==="/api/auth/session"){
    if(state.session==="expired")return json(200,{authenticated:false});
@@ -72,7 +77,8 @@ async function exercise(browser,name,fn){
     {available:false,code:"SESSION_REQUIRED"});
   for(const domain of ["trade-requests","notices"])
    if(p===`/api/tenants/${TENANT}/me/${domain}`)
-    return json(state[domain],{available:false,code:"SOURCE_UNAVAILABLE"});
+    return json(domain==="trade-requests"?state.trade:state.notices,
+     {available:false,code:"SOURCE_UNAVAILABLE"});
   state.forbidden.push("UNKNOWN "+method+" "+p);
   return json(404,{error:"NOT_MOCKED"});
  });
@@ -176,6 +182,8 @@ async function locked(page,name){
     await page.locator("#sw-tenant").selectOption(TENANT);
     await page.getByRole("button",{name:"تأیید محدوده و استعلام"}).click();
     await locked(page,domain+" source 401");
+    const endpoint="/api/tenants/"+TENANT+"/me/"+(domain==="trade"?"trade-requests":"notices");
+    ok(state.responseStatuses[endpoint]===401,domain+" source returned REAL MOCK 401");
    });
   }
   await exercise(browser,"scope-403-stays-locked-not-logged-out",async(page,state)=>{
