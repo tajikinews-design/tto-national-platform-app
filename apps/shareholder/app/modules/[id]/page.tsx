@@ -16,6 +16,11 @@ export default async function ModulePage({params}:{params:Promise<{id:string}>})
   </PortalShell>;
   const sectionId=shareholderSectionId(moduleId);
   if(sectionId)return <PortalShell surface="shareholder" activeId={moduleId}>
+    <div className="module-status" role="status">
+      <strong>ساختار این بخش آماده بررسی است</strong>
+      <span>داده اختصاصی تنها پس از احراز نشست، محدوده تعاونی و تأیید منبع حقوقی بررسی می‌شود.</span>
+    </div>
+    <p className="sw-footnote">هیچ داده، مانده سهام یا گزارش شخصی بدون استعلام معتبر نمایش داده نمی‌شود.</p>
     <OtpLogin surface="shareholder" enabled={Boolean(process.env.TTO_API_BASE_URL)}
       initialShareholderSectionId={sectionId}/>
   </PortalShell>;
