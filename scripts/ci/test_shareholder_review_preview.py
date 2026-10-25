@@ -11,6 +11,7 @@ SECTION=(APP/"review/[id]/page.tsx").read_text(encoding="utf-8")
 LAYOUT=(APP/"review/layout.tsx").read_text(encoding="utf-8")
 PARSER=(ROOT/"scripts/ci/verify-shareholder-tsx.cjs").read_text(encoding="utf-8")
 SMOKE=(ROOT/"scripts/smoke-next-otp.mjs").read_text(encoding="utf-8")
+BROWSER=(ROOT/"scripts/ci/review-phase3b-browser.cjs").read_text(encoding="utf-8")
 NAV=(ROOT/"packages/ui/src/index.tsx").read_text(encoding="utf-8")
 
 class ShareholderReviewOnlyContract(unittest.TestCase):
@@ -42,7 +43,7 @@ class ShareholderReviewOnlyContract(unittest.TestCase):
 
  def test_review_never_uses_real_user_data_or_mutates_server(self):
   for bad in (
-   "fetch(", "useEffect(", "localStorage", "sessionStorage",
+   "fetch(", "localStorage", "sessionStorage",
    "document.cookie", "process.env.", "Authorization",
    "sendSms", "POST(", "PUT(", "PATCH(", "DELETE(",
    "dangerouslySetInnerHTML", "shareQuantity:", "walletBalance",
@@ -63,6 +64,39 @@ class ShareholderReviewOnlyContract(unittest.TestCase):
   for route in ("review/review-portal.tsx","review/layout.tsx",
                 "review/page.tsx","review/[id]/page.tsx"):
    self.assertIn(route,PARSER)
+
+ def test_phase3b_mobile_deep_link_is_non_operational_scroll(self):
+  for token in ('useEffect(()=>{','useRef<HTMLElement|null>(null)',
+                'window.matchMedia("(max-width: 760px)")',
+                'navigation.scrollBy({left:delta,behavior:"instant"})',
+                'document.fonts.ready.then(', 'ref={navigationRef}',
+                'className="rv-nav-hint"'):
+   self.assertIn(token,UI)
+  for token in (".rv-nav-hint{display:none}",
+                ".rv-navigation{scroll-padding-inline:12px;scroll-snap-type:x proximity}",
+                ".rv-navigation .rv-nav-link{scroll-snap-align:center",
+                ".rv-navigation .rv-nav-name{flex:0 0 auto;min-width:max-content}",
+                "grid-template-columns:repeat(3,minmax(0,1fr))",
+                "scroll-snap-type:none;overscroll-behavior-inline:contain"):
+   self.assertIn(token,CSS)
+
+ def test_phase3b_contrast_and_complete_tab_evidence(self):
+  for token in (".rv-module-card p{font-size:13px",
+                ".rv-tab{color:#465a70;font-size:13px}",
+                ".rv-module-card{padding:13px 15px}"):
+   self.assertIn(token,CSS)
+  for token in ('const tabs=[["overview"', 'await buttons.nth(t).click()',
+                'await activeVisible(page)', "value>=4.5",
+                'const expected=2*(1+10*3)',
+                'no external/private/mutation requests',
+                "label.scrollWidth<=label.clientWidth+2",
+                "threeTabsVisible(page)",
+                "phase3b-report.json",
+                "mobileNavDiagnostics",
+                "navGeometry(page)",
+                "diagnosticScreenshotsExpected:22",
+                "active nav visible AFTER fullPage/tab capture"):
+   self.assertIn(token,BROWSER)
 
  def test_runtime_smoke_requires_all_11_routes_and_bad_id_denial(self):
   self.assertIn('shareholder review',SMOKE)
