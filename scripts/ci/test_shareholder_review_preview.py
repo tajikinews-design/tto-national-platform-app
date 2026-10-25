@@ -13,6 +13,7 @@ PARSER=(ROOT/"scripts/ci/verify-shareholder-tsx.cjs").read_text(encoding="utf-8"
 SMOKE=(ROOT/"scripts/smoke-next-otp.mjs").read_text(encoding="utf-8")
 BROWSER=(ROOT/"scripts/ci/review-phase3b-browser.cjs").read_text(encoding="utf-8")
 NAV=(ROOT/"packages/ui/src/index.tsx").read_text(encoding="utf-8")
+NAV_LABELS=(ROOT/"packages/ui/src/shareholder-navigation.ts").read_text(encoding="utf-8")
 
 class ShareholderReviewOnlyContract(unittest.TestCase):
  def test_every_canonical_nav_has_browsable_review_route(self):
@@ -29,6 +30,8 @@ class ShareholderReviewOnlyContract(unittest.TestCase):
   self.assertIn('const section=parsePortalModuleId(id);',SECTION)
   self.assertIn('if(!section)notFound();',SECTION)
   self.assertIn('NAV_IDS = Array.from({ length: 11 }',NAV)
+  self.assertIn('import {shareholderNavigation} from "./shareholder-navigation"',NAV)
+  self.assertIn('export const shareholderNavigation = [',NAV_LABELS)
   self.assertIn('href="/review"',HOME)
 
  def test_all_sections_contain_described_features_and_governance(self):
@@ -39,7 +42,7 @@ class ShareholderReviewOnlyContract(unittest.TestCase):
   self.assertEqual(UI.count('status:"'),11)
   for topic in ("سهام و عضویت","خرید و فروش","مجامع","اطلاعیه","خدمات",
                 "پروژه","گزارش","بدون اطلاعات یا عملیات واقعی"):
-   self.assertIn(topic,UI+NAV+HOME)
+   self.assertIn(topic,UI+NAV+NAV_LABELS+HOME)
 
  def test_review_never_uses_real_user_data_or_mutates_server(self):
   for bad in (

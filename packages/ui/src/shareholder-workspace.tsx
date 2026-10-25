@@ -1,8 +1,10 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 import {ShareholderReadModels} from "./shareholder-read-models";
+import {SHAREHOLDER_SECTION_RULES,type ShareholderSectionId} from "./shareholder-section-config";
+import {shareholderNavigation} from "./shareholder-navigation";
 
-export type ShareholderView="overview"|"membership"|"requests"|"notices";
+export type ShareholderView="overview"|"membership"|"requests"|"notices"|"section";
 type Candidate={tenantId:string;displayName:string;evidenceStatus:"MEMBERSHIP_EVIDENCE"|"EVIDENCE_PENDING"};
 type Member={membershipStatus:"ACTIVE";partyKind:"PERSON"|"ORGANIZATION";sourceVersion:number;sourceAsOf:string};
 type Holding={shareQuantity:string;ledgerVersion:number;ledgerAsOf:string};
@@ -63,8 +65,15 @@ function EvidenceMessage({kind,domain}:{kind:Evidence<unknown>["kind"];domain:"m
  * Trade requests and notices use separate deny-default candidate read models;
  * no submission, settlement or fabricated publication is enabled.
  */
-export function ShareholderWorkspace({initialView="overview"}:{initialView?:ShareholderView}){
- const [view,setView]=useState<ShareholderView>(initialView);
+export function ShareholderWorkspace({
+ initialView="overview",initialSectionId
+}:{initialView?:ShareholderView;initialSectionId?:ShareholderSectionId}){
+ const section=initialSectionId?SHAREHOLDER_SECTION_RULES[initialSectionId]:null;
+ const [view,setView]=useState<ShareholderView>(section?"section":initialView);
+ const views:readonly {id:ShareholderView;name:string;description:string}[]=section&&initialSectionId?[
+  {id:"section",name:shareholderNavigation[Number(initialSectionId.slice(4))-1],description:"نمای فقط‌خواندنی و بدون منبع متصل"},
+  ...VIEWS
+ ]:VIEWS;
  const [options,setOptions]=useState<Candidate[]>([]);
  const [selected,setSelected]=useState("");
  const [discovering,setDiscovering]=useState(true);
@@ -129,6 +138,9 @@ export function ShareholderWorkspace({initialView="overview"}:{initialView?:Shar
    if(result.tenantContextVerified!==true||result.tenantId!==tenantId)
     throw Error("SCOPE_UNAVAILABLE");
    setScope("verified");
+   // Informational section views need tenant scope only. Never fetch a
+   // membership or ownership record just to view generic section rules.
+   if(view==="section")return;
    setMember({kind:"loading"});setHolding({kind:"loading"});
    const root="/api/tenants/"+tenantId+"/me/";
    const [m,h]=await Promise.all([
@@ -178,7 +190,7 @@ export function ShareholderWorkspace({initialView="overview"}:{initialView?:Shar
      {verified?<p className="sw-scope-ok" role="status">محدوده این تعاونی تأیید شد. نتایج عضویت و دفتر سهام مستقل‌اند.</p>:null}
    </div>
    <div className="sw-tabs" aria-label="بخش‌های کارپوشه">
-     {VIEWS.map(item=><button type="button" key={item.id} onClick={()=>setView(item.id)}
+     {views.map(item=><button type="button" key={item.id} onClick={()=>setView(item.id)}
        className={view===item.id?"sw-tab selected":"sw-tab"}
        aria-pressed={view===item.id} title={item.description}>{item.name}</button>)}
    </div>
@@ -205,6 +217,23 @@ export function ShareholderWorkspace({initialView="overview"}:{initialView?:Shar
         <button type="button" onClick={()=>setView("notices")}>مشاهده اطلاعیه‌ها</button></article>
      </div>
    </div>:null}
+   {view==="section"&&section&&initialSectionId?<article className="sw-card sw-feature sw-closed-section"
+      aria-label={"وضعیت دسترسی "+shareholderNavigation[Number(initialSectionId.slice(4))-1]}>
+     <div className="sw-feature-heading">
+      <div><span className="sw-eyebrow">{initialSectionId} · حوزه مستقل</span>
+       <h3>{shareholderNavigation[Number(initialSectionId.slice(4))-1]}</h3>
+       <p>{section.description}</p></div>
+      <span className="sw-pill">فاقد منبع عملیاتی تأییدشده</span>
+     </div>
+     <div className="sw-section-boundary">
+      <h4>مرجع موردنیاز</h4><p>{section.authority}</p>
+      <h4>قابلیت پیش‌بینی‌شده پس از تصویب</h4><p>{section.capability}</p>
+     </div>
+     <p className="sw-message sw-warning" role="status">{verified?
+       "محدوده تعاونی بررسی شده، اما منبع داده، مجوز مخاطب و اختیار این بخش هنوز مستقلاً تأیید نشده‌اند. هیچ فهرست، پرونده یا عملیاتی نمایش داده نمی‌شود.":
+       "ابتدا تعاونی و محدوده مجاز را تأیید کنید. ورود به حساب به‌تنهایی حق مشاهده یا انجام عملیات این بخش ایجاد نمی‌کند."}</p>
+     <p className="sw-footnote">این بخش فقط‌خواندنی است. درخواست، رأی‌گیری، دانلود سند، ویرایش تنظیمات و پرداخت در این مرحله فعال نیست.</p>
+    </article>:null}
    {view==="membership"?<div className="sw-cards sw-membership">
      <article className="sw-card"><h3>پرونده عضویت</h3>
        {verifiedMember?<div className="sw-confirmed" role="status">

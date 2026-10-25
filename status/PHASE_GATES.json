@@ -6,7 +6,7 @@
   "production_host": "ArvanCloud",
   "production_authorized": false,
   "preview_host": "Vercel (protected only)",
-  "updated_at": "2026-10-22",
+  "updated_at": "2026-10-25",
   "all_children_implemented": false,
   "phases": {
     "PHASE-00": {
@@ -151,5 +151,38 @@
     }
   },
   "final_framework_selection": "Next.js 16 stable / NestJS 11 Fastify / PostgreSQL 17 SQL-first + RLS",
-  "framework_choice_delegated_approved": true
+  "framework_choice_delegated_approved": true,
+  "shareholder_phase4a": {
+    "status": "IN_PROGRESS",
+    "base_visual_sha": "8c3e5e6aadc6914f062d9f26caa8ac0c1aef4336",
+    "branch": "feat/shareholder-protected-sections-phase4a-20261025",
+    "completed_candidate_scope": [
+      "AUTH_GATED_NAV04",
+      "AUTH_GATED_NAV06",
+      "AUTH_GATED_NAV07",
+      "AUTH_GATED_NAV08",
+      "AUTH_GATED_NAV09",
+      "AUTH_GATED_NAV10",
+      "AUTH_GATED_NAV11",
+      "ONE_NAV_LABEL_SOURCE",
+      "SOURCE_CLOSED_PANEL",
+      "OFFLINE_CONTRACT_TEST"
+    ],
+    "acceptance": {
+      "static_contract": "PASS_INITIAL",
+      "exact_sha_docker_release": "PENDING",
+      "authenticated_browser": "PENDING",
+      "independent_sources_and_legal_permissions": "BLOCKED",
+      "hosted_ci": "BILLING_RESTRICTED",
+      "production_go_live": "NOT_AUTHORIZED"
+    },
+    "guardrails": [
+      "PR28_AND_PR29_REMAIN_DRAFT",
+      "MAIN_UNCHANGED",
+      "NO_PRODUCTION_DB",
+      "NO_TRADE_OR_PAYMENT_ENABLEMENT",
+      "NO_REAL_USER_DATA"
+    ],
+    "report": "docs/reports/SHAREHOLDER_PROTECTED_SECTIONS_PHASE4A_2026-10-25.md"
+  }
 }
