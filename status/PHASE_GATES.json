@@ -206,11 +206,20 @@
       "source_and_legal_approvals": "BLOCKED",
       "production_go_live": "NOT_AUTHORIZED",
       "hosted_actions": "BILLING_RESTRICTED",
-      "synthetic_chromium_session_browser": "PENDING_LOCAL_DOCKER",
+      "synthetic_chromium_session_browser": "FAILED_10_OF_11_PRE_FIX_FIXTURE_SHA_PENDING_RETEST",
       "real_server_session_revocation_e2e": "PENDING"
     },
     "report": "docs/reports/SHAREHOLDER_SESSION_PRIVACY_PHASE4B_2026-10-25.md",
     "browser_runner": "scripts/ci/run-phase4b-browser-docker.ps1",
-    "browser_report": "phase4b-session-report.json"
+    "browser_report": "phase4b-session-report.json",
+    "last_user_evidence": {
+      "source_sha": "e0ba3a3a95cf0a03b2c02aa59ddf4d1255f6280f",
+      "dependency_install_retry": "PASS",
+      "production_next_build": "PASS",
+      "chromium_synthetic_cases": "10_OF_11_FAIL_TEST_FIXTURE",
+      "root_cause": "MOCK_DOMAIN_TRADE_REQUESTS_REFERENCED_MISSING_STATE_KEY",
+      "business_runtime_change": "NONE",
+      "new_fixture_test": "PENDING_RERUN"
+    }
   }
 }
