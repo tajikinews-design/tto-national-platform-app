@@ -80,3 +80,8 @@
   min-height:52px
  }
 }
+
+/* Deterministic RTL deep-link centering: snap must not move the selected item. */
+@media(max-width:760px){
+ .rv-navigation{scroll-snap-type:none;overscroll-behavior-inline:contain}
+}
