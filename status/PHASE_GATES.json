@@ -184,5 +184,27 @@
       "NO_REAL_USER_DATA"
     ],
     "report": "docs/reports/SHAREHOLDER_PROTECTED_SECTIONS_PHASE4A_2026-10-25.md"
+  },
+  "shareholder_phase4b": {
+    "status": "IN_PROGRESS",
+    "parent_phase4a_sha": "429b66076e8a0df1ca1e1629e470a2181dd5b0d5",
+    "branch": "feat/shareholder-session-privacy-phase4b-20261025",
+    "scope": [
+      "REVALIDATE_PG_BACKED_SESSION_ON_FOCUS_VISIBILITY_INTERVAL",
+      "CLEAR_PRIVATE_UI_ON_EXPIRED_OR_UNVERIFIABLE_SESSION",
+      "PROPAGATE_401_FROM_TENANT_MEMBER_HOLDING_TRADE_AND_NOTICE_READS",
+      "REMOVE_CLIENT_REVALIDATION_LISTENERS_AND_REQUEST_ON_UNMOUNT",
+      "NO_NEW_API_DB_SCHEMA_SOURCE_ACTIVATION_OR_TRANSACTION"
+    ],
+    "acceptance": {
+      "isolated_branch_implementation": "IMPLEMENTED_CANDIDATE",
+      "local_static_source_analysis": "PASS_PRELIMINARY",
+      "exact_sha_docker_release": "PENDING",
+      "real_browser_revoke_resume_and_retry": "PENDING",
+      "source_and_legal_approvals": "BLOCKED",
+      "production_go_live": "NOT_AUTHORIZED",
+      "hosted_actions": "BILLING_RESTRICTED"
+    },
+    "report": "docs/reports/SHAREHOLDER_SESSION_PRIVACY_PHASE4B_2026-10-25.md"
   }
 }
