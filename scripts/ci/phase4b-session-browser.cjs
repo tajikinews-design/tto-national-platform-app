@@ -94,7 +94,7 @@ async function authenticated(page,route="/modules/nav-02"){
  ok(r&&r.status()===200,route+" HTTP200");
  await page.locator("section.sw").waitFor({timeout:15000});
  ok(await page.locator("section.sw").count()===1,route+" verified-only workspace mounted");
- await page.locator('#sw-tenant option[value="'+TENANT+'"]').waitFor({timeout:10000});
+ await page.locator('#sw-tenant option[value="'+TENANT+'"]').waitFor({state:"attached",timeout:10000});
 }
 async function selectAndVerify(page){
  await page.locator("#sw-tenant").selectOption(TENANT);
