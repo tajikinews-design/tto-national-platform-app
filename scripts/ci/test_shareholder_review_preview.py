@@ -68,14 +68,16 @@ class ShareholderReviewOnlyContract(unittest.TestCase):
  def test_phase3b_mobile_deep_link_is_non_operational_scroll(self):
   for token in ('useEffect(()=>{','useRef<HTMLElement|null>(null)',
                 'window.matchMedia("(max-width: 760px)")',
-                "scrollIntoView({block:",'ref={navigationRef}',
+                'navigation.scrollBy({left:delta,behavior:"instant"})',
+                'document.fonts.ready.then(', 'ref={navigationRef}',
                 'className="rv-nav-hint"'):
    self.assertIn(token,UI)
   for token in (".rv-nav-hint{display:none}",
                 ".rv-navigation{scroll-padding-inline:12px;scroll-snap-type:x proximity}",
                 ".rv-navigation .rv-nav-link{scroll-snap-align:center",
                 ".rv-navigation .rv-nav-name{flex:0 0 auto;min-width:max-content}",
-                "grid-template-columns:repeat(3,minmax(0,1fr))"):
+                "grid-template-columns:repeat(3,minmax(0,1fr))",
+                "scroll-snap-type:none;overscroll-behavior-inline:contain"):
    self.assertIn(token,CSS)
 
  def test_phase3b_contrast_and_complete_tab_evidence(self):
@@ -89,7 +91,11 @@ class ShareholderReviewOnlyContract(unittest.TestCase):
                 'no external/private/mutation requests',
                 "label.scrollWidth<=label.clientWidth+2",
                 "threeTabsVisible(page)",
-                "phase3b-report.json"):
+                "phase3b-report.json",
+                "mobileNavDiagnostics",
+                "navGeometry(page)",
+                "diagnosticScreenshotsExpected:22",
+                "active nav visible AFTER fullPage/tab capture"):
    self.assertIn(token,BROWSER)
 
  def test_runtime_smoke_requires_all_11_routes_and_bad_id_denial(self):
