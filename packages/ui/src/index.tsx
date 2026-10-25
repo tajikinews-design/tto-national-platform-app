@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import {shareholderNavigation} from "./shareholder-navigation";
 export {shareholderNavigation} from "./shareholder-navigation";
+export {shareholderSectionId} from "./shareholder-section-config";
 
 export const NAV_IDS = Array.from({ length: 11 }, (_, i) => `NAV-${String(i + 1).padStart(2, "0")}`);
 export type Surface = "shareholder" | "cooperative" | "national";
