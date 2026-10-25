@@ -21,15 +21,20 @@ for (let idx=0;idx<slugs.length;idx++){
    await new Promise(r=>setTimeout(r,200));
   }
   if(!ready)throw Error(slug+" not ready");
-  // Shareholder NAV-02/03/05 now have session-gated workspaces, not the
-  // legacy static placeholder. Without a backend they MUST render only the
-  // fail-closed OTP surface and MUST NOT render private workspace content.
+  // All ten shareholder module pages mount only fail-closed public SSR without
+  // backend/session; authenticated owner information never renders anonymously.
   const moduleCases=[
    ["/modules/nav-02","NAV-02"],
    ["/modules/nav-11","NAV-11"],
    ...(slug==="shareholder"?[
      ["/modules/nav-03","NAV-03"],
-     ["/modules/nav-05","NAV-05"]
+     ["/modules/nav-05","NAV-05"],
+     ["/modules/nav-04","NAV-04"],
+     ["/modules/nav-06","NAV-06"],
+     ["/modules/nav-07","NAV-07"],
+     ["/modules/nav-08","NAV-08"],
+     ["/modules/nav-09","NAV-09"],
+     ["/modules/nav-10","NAV-10"]
    ]:[])
   ];
   for(const [path,title] of moduleCases){
@@ -39,7 +44,9 @@ for (let idx=0;idx<slugs.length;idx++){
    if(!html.includes(title)||!html.includes('aria-current="page"'))
      throw Error(slug+" module view lost canonical/current navigation");
    const protectedShareholder=slug==="shareholder" &&
-     ["/modules/nav-02","/modules/nav-03","/modules/nav-05"].includes(path);
+     ["/modules/nav-02","/modules/nav-03","/modules/nav-05",
+      "/modules/nav-04","/modules/nav-06","/modules/nav-07","/modules/nav-08",
+      "/modules/nav-09","/modules/nav-10","/modules/nav-11"].includes(path);
    if(protectedShareholder){
      if(!html.includes("ورود با رمز یک‌بارمصرف")||
         !html.includes("در این نسخه پیش‌نمایش")||

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {TenantScopePicker} from "./tenant-scope-picker";
 import {ShareholderWorkspace,type ShareholderView} from "./shareholder-workspace";
 import type {ShareholderSectionId} from "./shareholder-section-config";
@@ -14,6 +14,12 @@ export function OtpLogin({enabled,surface,initialShareholderView="overview",init
  const [checking,setChecking]=useState(enabled);
  const [checkFailed,setCheckFailed]=useState(false);
  const [checkAttempt,setCheckAttempt]=useState(0);
+ // A 401 from any private BFF read invalidates the entire shareholder UI.
+ // Unmounting the workspace discards scoped membership/shareholding from React state.
+ const invalidateSession=useCallback(()=>{
+  setVerified(false);setCheckFailed(false);setRequestId("");setCode("");
+  setMessage("نشست شما معتبر نیست؛ برای مشاهده داده‌های شخصی دوباره وارد شوید.");
+ },[]);
  useEffect(()=>{
   if(!enabled)return;
   let active=true;
@@ -35,6 +41,49 @@ export function OtpLogin({enabled,surface,initialShareholderView="overview",init
   void restore();
   return ()=>{active=false;};
  },[enabled,checkAttempt]);
+ // Verification at login time is not a permanent grant. Reconfirm a revocable
+ // PG-backed session on resume and periodically while the private UI is visible.
+ // Unavailable verification closes the UI; it must never be interpreted as a logout.
+ useEffect(()=>{
+  if(!enabled||!verified||surface!=="shareholder")return;
+  let active=true;
+  let inFlight=false;
+  let controller:AbortController|null=null;
+  async function revalidate(){
+   if(!active||inFlight||document.visibilityState!=="visible")return;
+   inFlight=true;
+   const next=new AbortController();
+   controller=next;
+   try{
+    const response=await fetch("/api/auth/session",{
+     method:"GET",credentials:"same-origin",cache:"no-store",signal:next.signal
+    });
+    if(!response.ok)throw Error("SESSION_CHECK_UNAVAILABLE");
+    const data:unknown=await response.json();
+    if(!data||typeof data!=="object"||Array.isArray(data)||
+       typeof (data as {authenticated?:unknown}).authenticated!=="boolean")
+     throw Error("BAD_SESSION_STATUS");
+    if(!active||next.signal.aborted)return;
+    if((data as {authenticated:boolean}).authenticated!==true)invalidateSession();
+   }catch{
+    if(active&&!next.signal.aborted){
+     setVerified(false);setCheckFailed(true);
+     setMessage("اعتبار نشست قابل بررسی نیست؛ نمایش داده‌های شخصی متوقف شد.");
+    }
+   }finally{inFlight=false;if(controller===next)controller=null;}
+  }
+  const onVisible=()=>{if(document.visibilityState==="visible")void revalidate();};
+  const onFocus=()=>{void revalidate();};
+  const periodic=window.setInterval(()=>{void revalidate();},60000);
+  window.addEventListener("focus",onFocus);
+  document.addEventListener("visibilitychange",onVisible);
+  void revalidate();
+  return ()=>{
+   active=false;controller?.abort();window.clearInterval(periodic);
+   window.removeEventListener("focus",onFocus);
+   document.removeEventListener("visibilitychange",onVisible);
+  };
+ },[enabled,verified,surface,invalidateSession]);
  async function issue(e:FormEvent){
   e.preventDefault();if(!enabled||busy)return;
   setBusy(true);setMessage("");
@@ -74,7 +123,7 @@ export function OtpLogin({enabled,surface,initialShareholderView="overview",init
   {!enabled?<p className="otp-unavailable">در این نسخه پیش‌نمایش، پایگاه داده و سرویس ورود متصل نیست. ارسال پیامک واقعی غیرفعال است.</p>:
   checking?<p role="status">در حال بررسی نشست ورود...</p>:
   checkFailed?<div><p role="alert">بررسی نشست ممکن نیست. برای حفظ امنیت، ورود جدید تا ارتباط با سرور غیرفعال است.</p><button type="button" onClick={()=>setCheckAttempt(n=>n+1)}>تلاش مجدد</button></div>:
-  verified?<div><p role="status">{message}</p>{surface==="shareholder"?<ShareholderWorkspace initialView={initialShareholderView} initialSectionId={initialShareholderSectionId}/>:<TenantScopePicker surface={surface}/>}<button type="button" disabled={busy} onClick={logout}>خروج از حساب</button></div>:
+  verified?<div><p role="status">{message}</p>{surface==="shareholder"?<ShareholderWorkspace initialView={initialShareholderView} initialSectionId={initialShareholderSectionId} onSessionInvalidated={invalidateSession}/>:<TenantScopePicker surface={surface}/>}<button type="button" disabled={busy} onClick={logout}>خروج از حساب</button></div>:
    <div className="otp-forms">
     <form onSubmit={issue}>
      <label htmlFor="tto-mobile">شماره موبایل ثبت‌شده</label>

@@ -48,7 +48,7 @@ const NOTICE_CATEGORY={GENERAL:"عمومی",ASSEMBLY:"مجمع و جلسات",SH
 /** Candidate read-model, default-denied at the BFF and Nest boundary.
  * Rendering a verified response is NOT legal approval to trade, settle or publish.
  */
-export function ShareholderReadModels({tenantId,domain}:{tenantId:string;domain:Domain}){
+export function ShareholderReadModels({tenantId,domain,onSessionInvalidated}:{tenantId:string;domain:Domain;onSessionInvalidated?:()=>void}){
  const [result,setResult]=useState<ReadState>(UNKNOWN);
  useEffect(()=>{
   if(!UUID.test(tenantId))return;
@@ -57,7 +57,10 @@ export function ShareholderReadModels({tenantId,domain}:{tenantId:string;domain:
   setResult({tenantId,status:"loading",items:[]});
   fetch("/api/tenants/"+tenantId+"/me/"+domain,init)
    .then(async response=>{
-    if(response.status===401)return {tenantId,status:"denied",items:[]} as ReadState;
+    if(response.status===401){
+     if(!controller.signal.aborted)onSessionInvalidated?.();
+     return {tenantId,status:"denied",items:[]} as ReadState;
+    }
     if(response.status===403||response.status===404)return {tenantId,status:"denied",items:[]} as ReadState;
     if(response.status!==200)return {tenantId,status:"unavailable",items:[]} as ReadState;
     const payload:unknown=await response.json();
@@ -67,7 +70,7 @@ export function ShareholderReadModels({tenantId,domain}:{tenantId:string;domain:
    .then(value=>{if(!controller.signal.aborted)setResult(value);})
    .catch(()=>{if(!controller.signal.aborted)setResult({tenantId,status:"unavailable",items:[]});});
   return ()=>controller.abort();
- },[tenantId,domain]);
+ },[tenantId,domain,onSessionInvalidated]);
  const status=tenantId===result.tenantId?result.status:"idle";
  const title=domain==="trade-requests"?"درخواست‌های سهام":"اطلاعیه‌های منتشرشده";
  if(status==="idle")return <p role="status" className="sw-message">برای استعلام {title} ابتدا محدوده مجاز را تأیید کنید.</p>;
