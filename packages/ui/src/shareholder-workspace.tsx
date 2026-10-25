@@ -113,7 +113,7 @@ export function ShareholderWorkspace({
    })
    .finally(()=>{if(!controller.signal.aborted)setDiscovering(false);});
   return ()=>{controller.abort();pending.current?.abort();sequence.current++;};
- },[]);
+ },[onSessionInvalidated]);
  const current=options.find(x=>x.tenantId===selected);
  function changeTenant(value:string){
   pending.current?.abort();sequence.current++;
