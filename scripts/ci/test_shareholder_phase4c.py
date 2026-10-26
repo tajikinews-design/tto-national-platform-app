@@ -42,12 +42,26 @@ class LiveSessionPhase4C(unittest.TestCase):
                        'await DB.connect()',
                        'await browser.newContext',
                        'context.addCookies',
-                       'await page.goto(APP+"/modules/nav-04"',
+                       'await page.goto(BROWSER_APP+"/modules/nav-04"',
                        'await page.evaluate(()=>window.dispatchEvent(new Event("focus")))',
                        'await page.locator("section.sw").waitFor({state:"detached"',
                        'await checkDead(s.token,'):
             with self.subTest(marker=marker):
                 self.assertIn(marker,self.e)
+
+    def test_browser_secure_cookie_loopback_origin_matches_chromium(self):
+        # Chromium accepts Secure cookies over http://localhost only as
+        # a development exception. http://127.0.0.1 does not qualify here.
+        # Keep the production Secure, HttpOnly and SameSite protections.
+        self.assertIn('const APP="http://127.0.0.1:32972";',self.e)
+        self.assertIn('const BROWSER_APP="http://localhost:32972";',self.e)
+        self.assertIn('domain:"localhost",path:"/",httpOnly:true,secure:true,sameSite:"Lax"',self.e)
+        self.assertIn('const cookieCheck=await context.cookies(BROWSER_APP)',self.e)
+        self.assertIn('const cookies=await context.cookies(BROWSER_APP)',self.e)
+        self.assertNotIn('domain:"127.0.0.1",path:"/",httpOnly:true,secure:true',self.e)
+        self.assertNotIn('secure:false',self.e)
+        self.assertIn('const cookie=cookies.find(c=>c.name==="tto_session")',self.e)
+        self.assertIn('cookie.httpOnly&&cookie.secure&&cookie.sameSite==="Lax"',self.e)
 
     def test_four_real_security_transitions(self):
         for marker in ('real-out-of-band-revocation',
