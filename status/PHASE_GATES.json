@@ -6,7 +6,7 @@
   "production_host": "ArvanCloud",
   "production_authorized": false,
   "preview_host": "Vercel (protected only)",
-  "updated_at": "2026-10-25",
+  "updated_at": "2026-10-26",
   "all_children_implemented": false,
   "phases": {
     "PHASE-00": {
@@ -201,13 +201,14 @@
     "acceptance": {
       "isolated_branch_implementation": "IMPLEMENTED_CANDIDATE",
       "local_static_source_analysis": "PASS_PRELIMINARY",
-      "exact_sha_docker_release": "PENDING_LOCAL_DOCKER",
+      "exact_sha_docker_release": "PASS_LOCAL_2f195b1d97a11eef85ebaa4975e407885e920146",
       "real_browser_revoke_resume_and_retry": "PENDING",
       "source_and_legal_approvals": "BLOCKED",
       "production_go_live": "NOT_AUTHORIZED",
       "hosted_actions": "BILLING_RESTRICTED",
-      "synthetic_chromium_session_browser": "FAILED_10_OF_11_PRE_FIX_FIXTURE_SHA_PENDING_RETEST",
-      "real_server_session_revocation_e2e": "PENDING"
+      "synthetic_chromium_session_browser": "PASS_11_OF_11_66_CHECKS_AT_CORRECTED_HARNESS_SHA_2f195b1d97a11eef85ebaa4975e407885e920146",
+      "real_server_session_revocation_e2e": "PENDING",
+      "real_browser_with_backend": "PHASE4C_PENDING"
     },
     "report": "docs/reports/SHAREHOLDER_SESSION_PRIVACY_PHASE4B_2026-10-25.md",
     "browser_runner": "scripts/ci/run-phase4b-browser-docker.ps1",
@@ -220,6 +221,56 @@
       "root_cause": "MOCK_DOMAIN_TRADE_REQUESTS_REFERENCED_MISSING_STATE_KEY",
       "business_runtime_change": "NONE",
       "new_fixture_test": "PENDING_RERUN"
+    },
+    "local_accepted_sha": "2f195b1d97a11eef85ebaa4975e407885e920146"
+  },
+  "shareholder_phase4c": {
+    "status": "IMPLEMENTED_CANDIDATE",
+    "parent_local_accepted_sha": "2f195b1d97a11eef85ebaa4975e407885e920146",
+    "branch": "feat/shareholder-live-session-e2e-phase4c-20261026",
+    "scenarios": [
+      "REMOTE_SESSION_REVOCATION_WITH_REAL_NEXT_NEST_PG17",
+      "PG_SERVER_EXPIRATION_AND_COOKIE_INVALIDATION",
+      "ACCOUNT_SECURITY_EPOCH_REVOCATION",
+      "REAL_USER_LOGOUT_REVOKES_SESSION_IN_PG17",
+      "REAL_BROWSER_OTP_FORM_WITH_SYNTHETIC_SMS_PROVIDER_ISSUES_HTTPONLY_COOKIE_AND_PG_SESSION_THEN_REVOKES"
+    ],
+    "acceptance": {
+      "synthetic_only_disposable_postgres": "REQUIRED_ENFORCED",
+      "no_browser_http_interception": "REQUIRED_ENFORCED",
+      "offline_contract_review": "PASS_70_OF_70_PYTHON_AT_06c890907bbc39b682b61c9896b172f6fbeaca23_PREVIOUS_SHA",
+      "live_chromium_next_nest_pg17": "FAILED_0_OF_5_DUE_TO_HTTP_127_SECURE_COOKIE_ORIGIN_TEST_FIXTURE_FIXED_PENDING_EXACT_SHA_RERUN",
+      "exact_sha_all_portals_api_build_and_regression": "PENDING_LOCAL_DOCKER_RELEASE",
+      "hosted_actions": "BILLING_RESTRICTED",
+      "real_otp_provider": "NOT_IN_SCOPE",
+      "source_and_legal_authority": "BLOCKED",
+      "main_merge_or_deploy": "NOT_AUTHORIZED",
+      "browser_cases_required": 5,
+      "browser_network_mocking": "PROHIBITED",
+      "real_sms_delivery": "DISABLED_TEST_PROVIDER_ONLY"
+    },
+    "entrypoint": "scripts/e2e-phase4c-real-session-browser.cjs",
+    "report": "docs/reports/SHAREHOLDER_LIVE_SESSION_PHASE4C_2026-10-26.md",
+    "first_docker_attempt": {
+      "source_sha": "49f6cfec4341e3debeb9cc33377a82681c8a363b",
+      "preflight_python": "69_OF_70",
+      "failure": "test_expiry_and_revocation_close_all_owner_routes_expected_nonEXISTENT_LITERAL_v1_auth_session",
+      "runtime_browser_executed": false,
+      "release_executed": false,
+      "network_or_security_incident": false,
+      "remediation": "CHECK_NEST_CONTROLLER_AND_GET_DECORATOR_COMPOSITION_PLUS_ACTUAL_RESOLVE_SESSION"
+    },
+    "second_docker_attempt": {
+      "source_sha": "06c890907bbc39b682b61c9896b172f6fbeaca23",
+      "offline_python": "70_OF_70_PASS",
+      "pinned_packages": "319_PNPM_INSTALL_PASS",
+      "next_nest_builds": "ALL_PASS",
+      "cf02_identity_authority": "165_CHECKS_PASS",
+      "actual_browser": "0_OF_5_FAIL_SECURE_COOKIE_HTTP_127_TEST_ORIGIN",
+      "checks_before_fail": "60",
+      "full_release_completed": false,
+      "fix": "BROWSER_APP_HTTP_LOCALHOST_AND_KEEP_BACKEND_APP_HTTP_127_NO_RUNTIME_CODE_CHANGE",
+      "current_verified_acceptance": "NOT_ACCEPTED"
     }
   }
 }

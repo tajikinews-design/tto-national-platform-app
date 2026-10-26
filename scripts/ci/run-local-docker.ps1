@@ -163,7 +163,7 @@ try {
         "set -eu; python3 scripts/check_source_baseline.py; python3 -m unittest discover -s tests -v; python3 -m unittest discover -s scripts/ci -p test_*.py -v; python3 scripts/build_preview.py"
     )
 
-    Run-Node "Install pinned dependencies (once)" "npm install -g pnpm@10.18.0; pnpm install --frozen-lockfile"
+    Run-Node "Install pinned dependencies (once)" "npm config set fetch-retries 8; npm config set fetch-retry-mintimeout 20000; npm config set fetch-retry-maxtimeout 120000; npm install -g pnpm@10.18.0; pnpm install --frozen-lockfile --network-concurrency=3 || (sleep 15; pnpm install --frozen-lockfile --network-concurrency=3) || (sleep 30; pnpm install --frozen-lockfile --network-concurrency=3)"
     Run-Node "Shareholder TSX AST and UI type preflight" "node scripts/ci/verify-shareholder-tsx.cjs; pnpm --filter @tto/ui typecheck"
     Run-Node "Build all portals and API; typecheck" "pnpm build; pnpm check"
     Run-Node "SMS mock and scanner protocol tests" "node --test services/workers/test/apiir-smsotp.test.cjs services/workers/test/clamav.test.cjs"
@@ -187,6 +187,21 @@ try {
     }
 
     Run-Node "Real Child06/07 identity, tenant and source quarantine E2E" "node scripts/e2e-cf02-identity-authority.cjs"
+    if ($Suite -eq "Release") {
+        # Real end-to-end Chromium through live Nest/Next and this invocation's
+        # disposable PG17. No request interception or synthetic HTTP responses.
+        # Playwright image shares the PG namespace; NO host port publication.
+        Docker-Checked "Phase4C real Chromium Next Nest PG17 session revoke/expiry E2E" @(
+            "run", "--rm", "--network", ("container:" + $pgContainer),
+            "--security-opt", "no-new-privileges",
+            "-v", ($sourceVolume + ":/workspace"), "-w", "/workspace",
+            "-e", "TEST_ADMIN_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/tto",
+            "-e", ("TTO_PHASE4C_EXPECTED_SOURCE_SHA=" + $commit),
+            "-e", "APIIR_TOKEN=", "-e", "NEXT_TELEMETRY_DISABLED=1",
+            "mcr.microsoft.com/playwright:v1.56.1-noble", "bash", "-lc",
+            "set -euo pipefail; npm config set fetch-retries 8; npm config set fetch-retry-mintimeout 20000; npm config set fetch-retry-maxtimeout 120000; (npm install --prefix /tmp/tto-phase4c --no-audit --no-fund --silent playwright@1.56.1 || (sleep 15; npm install --prefix /tmp/tto-phase4c --no-audit --no-fund --silent playwright@1.56.1)); test -f /tmp/tto-phase4c/node_modules/playwright/package.json; NODE_PATH=/tmp/tto-phase4c/node_modules node scripts/e2e-phase4c-real-session-browser.cjs"
+        )
+    }
     if ($Suite -eq "Release") {
         Write-Host "TTO_LOCAL_CORE_PHASE_PASS_SHA=$commit" -ForegroundColor Green
         # Same reviewed archive, same disposable Node+PG17 containers; no new host DB.
