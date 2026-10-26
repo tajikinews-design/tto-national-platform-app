@@ -58,7 +58,10 @@ class LiveSessionPhase4C(unittest.TestCase):
                        'security_epoch=security_epoch+1',
                        'real-session-logout-through-BFF',
                        'SELECT revoked_at IS NOT NULL AS revoked',
-                       'results.length===4&&passed===4'):
+                       'browser-OTP-mock-provider-creates-real-PG-session',
+                       'real Next verify delivered a Secure HttpOnly SameSite=Lax cookie',
+                       'TTO_ENABLE_REAL_SMSOTP_DELIVERY:"false"',
+                       'results.length===5&&passed===5'):
             with self.subTest(marker=marker):
                 self.assertIn(marker,self.e)
 
