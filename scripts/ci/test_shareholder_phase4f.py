@@ -2,6 +2,7 @@
 import copy
 from datetime import datetime, timezone
 import hashlib
+import inspect
 import json
 from pathlib import Path
 import re
@@ -212,7 +213,7 @@ class Phase4FLegalAuthorityChain(unittest.TestCase):
         self.assertIn("GENERAL_ACCOUNTING",self.policy["permanentDeny"])
 
     def test_no_network_or_live_activation_import(self):
-        source=Path(__file__).read_text("utf-8")
+        source=inspect.getsource(evaluate)
         for forbidden in ("requests.get(","urlopen(","supabase.com","apiir.ir",
                           "INSERT INTO tto.","ALTER TABLE tto."):
             self.assertNotIn(forbidden,source)
