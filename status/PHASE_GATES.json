@@ -225,7 +225,7 @@
     "local_accepted_sha": "2f195b1d97a11eef85ebaa4975e407885e920146"
   },
   "shareholder_phase4c": {
-    "status": "IMPLEMENTED_CANDIDATE",
+    "status": "IN_PROGRESS",
     "parent_local_accepted_sha": "2f195b1d97a11eef85ebaa4975e407885e920146",
     "branch": "feat/shareholder-live-session-e2e-phase4c-20261026",
     "scenarios": [
@@ -238,9 +238,9 @@
     "acceptance": {
       "synthetic_only_disposable_postgres": "REQUIRED_ENFORCED",
       "no_browser_http_interception": "REQUIRED_ENFORCED",
-      "offline_contract_review": "PASS_70_OF_70_PYTHON_AT_06c890907bbc39b682b61c9896b172f6fbeaca23_PREVIOUS_SHA",
-      "live_chromium_next_nest_pg17": "FAILED_0_OF_5_DUE_TO_HTTP_127_SECURE_COOKIE_ORIGIN_TEST_FIXTURE_FIXED_PENDING_EXACT_SHA_RERUN",
-      "exact_sha_all_portals_api_build_and_regression": "PENDING_LOCAL_DOCKER_RELEASE",
+      "offline_contract_review": "PASS_71_OF_71_PYTHON_AT_d78f2d6ca1ca15f99301776501aeadf163e5a0ad_LOCAL_DOCKER",
+      "live_chromium_next_nest_pg17": "PASS_5_OF_5_156_CHECKS_ZERO_FAILURES_AT_d78f2d6ca1ca15f99301776501aeadf163e5a0ad_LOCAL_DOCKER",
+      "exact_sha_all_portals_api_build_and_regression": "PASS_LOCAL_DOCKER_RELEASE_AT_d78f2d6ca1ca15f99301776501aeadf163e5a0ad",
       "hosted_actions": "BILLING_RESTRICTED",
       "real_otp_provider": "NOT_IN_SCOPE",
       "source_and_legal_authority": "BLOCKED",
@@ -271,6 +271,54 @@
       "full_release_completed": false,
       "fix": "BROWSER_APP_HTTP_LOCALHOST_AND_KEEP_BACKEND_APP_HTTP_127_NO_RUNTIME_CODE_CHANGE",
       "current_verified_acceptance": "NOT_ACCEPTED"
+    },
+    "final_local_acceptance": {
+      "source_sha": "d78f2d6ca1ca15f99301776501aeadf163e5a0ad",
+      "post_date": "2026-10-26",
+      "python_checks": "71_71",
+      "real_browser_cases": "5_5",
+      "browser_checks": 156,
+      "browser_failures": 0,
+      "oci_images": 4,
+      "source_authority_still_blocked": true,
+      "log_path": "C:\\Users\\Sadra\\Downloads\\TTO-Local-CI-Reports\\TTO-Release-20261026-153201-89dbdea30d29.log",
+      "review_reference": "PR32_COMMENT_6416077017"
+    }
+  },
+  "shareholder_phase4d": {
+    "status": "IN_PROGRESS",
+    "branch": "feat/shareholder-source-readiness-phase4d-20261026",
+    "base_sha": "d78f2d6ca1ca15f99301776501aeadf163e5a0ad",
+    "scope": "INDEPENDENT_READ_ONLY_CHILD06_MEMBER_AND_CHILD07_LEDGER_SOURCE_GOVERNANCE_ONLY",
+    "contract": "docs/contracts/shareholder-source-readiness-phase4d-v1.json",
+    "report": "docs/reports/SHAREHOLDER_SOURCE_READINESS_PHASE4D_2026-10-26.md",
+    "validator": "scripts/ci/verify_shareholder_source_readiness_phase4d.py",
+    "offline_tests": "scripts/ci/test_shareholder_phase4d.py",
+    "sources": [
+      {
+        "domain": "CHILD06_MEMBERSHIP",
+        "evidence_controls": 9,
+        "source_approval": "BLOCKED",
+        "connection": "NO_LIVE_CONNECTION"
+      },
+      {
+        "domain": "CHILD07_HOLDINGS",
+        "evidence_controls": 10,
+        "source_approval": "BLOCKED",
+        "connection": "NO_LIVE_CONNECTION"
+      }
+    ],
+    "acceptance": {
+      "review_schema": "IMPLEMENTED_NOT_EXECUTED_DOCKER",
+      "offline_mutation_tests": "PENDING_EXACT_SHA_LOCAL_RUN",
+      "reused_previous_security_e2e": "SUPPORTED_BY_ACCEPTED_PHASE4C",
+      "local_docker_release": "PENDING_EXACT_SHA",
+      "real_legal_owner_approval": "BLOCKED",
+      "sources_activation": "NOT_AUTHORIZED",
+      "child07_trade_and_child09_notices": "REMAIN_BLOCKED",
+      "personal_data": "NOT_PRESENT",
+      "main_merge": "NOT_AUTHORIZED",
+      "production": "NOT_AUTHORIZED"
     }
   }
 }
