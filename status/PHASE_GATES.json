@@ -309,16 +309,51 @@
       }
     ],
     "acceptance": {
-      "review_schema": "IMPLEMENTED_NOT_EXECUTED_DOCKER",
-      "offline_mutation_tests": "PENDING_EXACT_SHA_LOCAL_RUN",
+      "review_schema": "EXECUTED_LOCAL_RELEASE_PASS_KEEP_LEGAL_BLOCKED",
+      "offline_mutation_tests": "PASS_BY_EXACT_SHA_DOCKER_RELEASE_MARKER_IN_USER_LOG",
       "reused_previous_security_e2e": "SUPPORTED_BY_ACCEPTED_PHASE4C",
-      "local_docker_release": "PENDING_EXACT_SHA",
+      "local_docker_release": "PASS_EXACT_SHA_559ba83e2b8c66d279bfaf3a01e27bc36ae1bac6_USER_LOG_20261026_191154",
       "real_legal_owner_approval": "BLOCKED",
       "sources_activation": "NOT_AUTHORIZED",
       "child07_trade_and_child09_notices": "REMAIN_BLOCKED",
       "personal_data": "NOT_PRESENT",
       "main_merge": "NOT_AUTHORIZED",
       "production": "NOT_AUTHORIZED"
+    },
+    "local_acceptance": {
+      "source_sha": "559ba83e2b8c66d279bfaf3a01e27bc36ae1bac6",
+      "scope": "TECHNICAL_LOCAL_RELEASE_ONLY",
+      "test_log": "C:\\Users\\Sadra\\Downloads\\TTO-Local-CI-Reports\\TTO-Release-20261026-191154-152280d7657a.log",
+      "pr_comment": "PR33_COMMENT_6420614566",
+      "legal_evidence": "BLOCKED"
+    }
+  },
+  "shareholder_phase4e": {
+    "status": "IN_PROGRESS",
+    "branch": "feat/shareholder-source-admission-security-phase4e-20261026",
+    "parent_local_accepted_sha": "559ba83e2b8c66d279bfaf3a01e27bc36ae1bac6",
+    "scope": "DISPOSABLE_REAL_PG17_ATTACK_MATRIX_FOR_SYNTHETIC_SOURCE_ADMISSION_ONLY",
+    "attack_matrix": "scripts/e2e-phase4e-source-admission-attack-matrix.cjs",
+    "offline_contract": "scripts/ci/test_shareholder_phase4e.py",
+    "report": "docs/reports/SHAREHOLDER_SOURCE_ADMISSION_SECURITY_PHASE4E_2026-10-26.md",
+    "expected_attack_cases": 22,
+    "assessment_write_side_effects": "PROHIBITED",
+    "temporary_approvals": "TRANSACTION_ONLY_ROLLBACK",
+    "source_governance_controls_remaining": 19,
+    "acceptance": {
+      "python_contract": "PENDING_EXACT_SHA_LOCAL_DOCKER",
+      "real_pg17_attack_matrix": "PENDING_EXACT_SHA_LOCAL_DOCKER_22_CASES",
+      "full_local_release": "PENDING_EXACT_SHA",
+      "prior_source_or_membership_reviews": "NOT_AUTHORITY",
+      "child06_membership_source": "BLOCKED",
+      "child07_official_ledger_source": "BLOCKED",
+      "trade_requests_and_child09_notices": "BLOCKED",
+      "real_legal_approvals": "BLOCKED",
+      "real_personal_data": "NONE",
+      "real_sms": "DISABLED",
+      "production_connections": "FORBIDDEN",
+      "main_merge": "NOT_AUTHORIZED",
+      "deploy": "NOT_AUTHORIZED"
     }
   }
 }
