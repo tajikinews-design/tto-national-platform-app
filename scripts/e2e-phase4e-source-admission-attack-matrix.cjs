@@ -115,17 +115,20 @@ async function run(){
    eq(await valid(A,"CHILD06_MEMBERSHIP",M),true,"member approval independent");
   });
   await test("11-read-only-admission-is-not-promotion",async()=>{
+   await main.query("UPDATE tto.source_contract_approvals SET enabled=true WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
    const r=await main.query(`
     SELECT c.claim_id,tto.assess_source_import_claim(c.claim_id) AS verdict
     FROM tto.source_import_claims c
     JOIN tto.source_import_batches b ON b.batch_id=c.batch_id
     WHERE b.tenant_id=$1 AND b.domain='CHILD07_HOLDINGS'
+      AND tto.assess_source_import_claim(c.claim_id)='READY_FOR_INDEPENDENT_REVIEW'
     ORDER BY c.claim_id LIMIT 1`,[A]);
    ok(r.rowCount>0,"prior synthetic claim exists");
-   ok(typeof r.rows[0].verdict==="string","assessment returns verdict only");
+   eq(r.rows[0].verdict,"READY_FOR_INDEPENDENT_REVIEW","review-ready is not an approval");
    const again=await main.query("SELECT tto.assess_source_import_claim($1) AS verdict",[r.rows[0].claim_id]);
    eq(again.rows[0].verdict,r.rows[0].verdict,"assessment repeat deterministic within same state");
    eq(await counts(),baseline,"assessment and authority toggles create zero ledger changes");
+   await main.query("UPDATE tto.source_contract_approvals SET enabled=false WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
   });
   await test("12-unknown-claim-does-not-create-account",async()=>{
    const r=await main.query("SELECT tto.assess_source_import_claim($1) AS verdict",[randomUUID()]);
