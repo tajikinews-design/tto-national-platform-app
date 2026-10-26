@@ -62,3 +62,15 @@
 ```
 
 به‌دلیل رخدادهای `ECONNRESET` در npm، هنگام اجرا می‌توان صرفاً کپی موقت **خارج از Git** از Runner را با تلاش مجدد pnpm اجرا کرد؛ منبع SHA و Docker ایزوله باید همان نسخه ثابت بماند. اگر Playwright image یا نصب dependency ناموفق شد، این **مانع شبکه/زیرساخت** است و نه PASS برای رفتار امنیتی.
+
+## شواهد اولین اجرای واقعی فاز ۴ج — ۱۴۰۵/۰۸/۰۴
+
+گزارش ارسال‌شده از Windows Docker Desktop با `TTO_LOCAL_SOURCE_SHA=49f6cfec4341e3debeb9cc33377a82681c8a363b`:
+
+- PostgreSQL 17 و Node 22 در شبکه خصوصی و بدون پورت میزبان ساخته شدند؛ آزمون مالکیت منابع و گزارش `TTO_RELEASE_DISPOSABLE_RESOURCE_ATTESTATION_PASS` موفق بود.
+- **۶۹ آزمون از ۷۰ آزمون Python به پایان موفق رسیدند؛ تنها آزمون `test_expiry_and_revocation_close_all_owner_routes` شکست خورد.** به‌دلیل توقف fail-closed همان‌جا، ساخت Next/Nest و پنج سناریوی Chromium اصلاً اجرا نشد.
+- علت دقیق شکست: assertion پیشین وجود رشته مستقل `/v1/auth/session` در فایل TypeScript را می‌خواست، درحالی‌که مسیر واقعی NestJS به‌صورت مرکب تعریف شده است: `@Controller("v1")` بر کلاس `FoundationCommandsController` و `@Get("auth/session")` بر متد `session`. این شکست به‌تنهایی نشانه نقض امنیت نشست یا خرابی مسیر HTTP نیست.
+- **اصلاح آزمون در PR #32:** به‌جای تطبیق رشته غیرواقعی، قراردادن decorator داخل کلاس controller، وجود متد session، فراخوانی `this.db.sessionActor(auth)` و اتصال `tto.resolve_session` بررسی می‌شود. هیچ شرط امنیتی حذف یا BFF/Nest/SQL عملیاتی تغییر نکرد.
+- **وضعیت:** `PENDING_LOCAL_DOCKER_RELEASE`. نتیجه آزمون‌های واقعی مرورگر و Release کامل روی SHA اصلاح‌شده همچنان نیازمند لاگ اجرایی است؛ به هیچ وجه `PASS` محسوب نمی‌شود.
+
+گزارش اولین تلاش: `C:\Users\Sadra\Downloads\TTO-Local-CI-Reports\TTO-Release-20261026-101225-2d652f6c0de9.log`.
