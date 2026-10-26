@@ -6,7 +6,7 @@
   "production_host": "ArvanCloud",
   "production_authorized": false,
   "preview_host": "Vercel (protected only)",
-  "updated_at": "2026-10-25",
+  "updated_at": "2026-10-26",
   "all_children_implemented": false,
   "phases": {
     "PHASE-00": {
@@ -201,13 +201,14 @@
     "acceptance": {
       "isolated_branch_implementation": "IMPLEMENTED_CANDIDATE",
       "local_static_source_analysis": "PASS_PRELIMINARY",
-      "exact_sha_docker_release": "PENDING_LOCAL_DOCKER",
+      "exact_sha_docker_release": "PASS_LOCAL_2f195b1d97a11eef85ebaa4975e407885e920146",
       "real_browser_revoke_resume_and_retry": "PENDING",
       "source_and_legal_approvals": "BLOCKED",
       "production_go_live": "NOT_AUTHORIZED",
       "hosted_actions": "BILLING_RESTRICTED",
-      "synthetic_chromium_session_browser": "FAILED_10_OF_11_PRE_FIX_FIXTURE_SHA_PENDING_RETEST",
-      "real_server_session_revocation_e2e": "PENDING"
+      "synthetic_chromium_session_browser": "PASS_11_OF_11_66_CHECKS_AT_CORRECTED_HARNESS_SHA_2f195b1d97a11eef85ebaa4975e407885e920146",
+      "real_server_session_revocation_e2e": "PENDING",
+      "real_browser_with_backend": "PHASE4C_PENDING"
     },
     "report": "docs/reports/SHAREHOLDER_SESSION_PRIVACY_PHASE4B_2026-10-25.md",
     "browser_runner": "scripts/ci/run-phase4b-browser-docker.ps1",
@@ -220,6 +221,31 @@
       "root_cause": "MOCK_DOMAIN_TRADE_REQUESTS_REFERENCED_MISSING_STATE_KEY",
       "business_runtime_change": "NONE",
       "new_fixture_test": "PENDING_RERUN"
-    }
+    },
+    "local_accepted_sha": "2f195b1d97a11eef85ebaa4975e407885e920146"
+  },
+  "shareholder_phase4c": {
+    "status": "IMPLEMENTED_CANDIDATE",
+    "parent_local_accepted_sha": "2f195b1d97a11eef85ebaa4975e407885e920146",
+    "branch": "feat/shareholder-live-session-e2e-phase4c-20261026",
+    "scenarios": [
+      "REMOTE_SESSION_REVOCATION_WITH_REAL_NEXT_NEST_PG17",
+      "PG_SERVER_EXPIRATION_AND_COOKIE_INVALIDATION",
+      "ACCOUNT_SECURITY_EPOCH_REVOCATION",
+      "REAL_USER_LOGOUT_REVOKES_SESSION_IN_PG17"
+    ],
+    "acceptance": {
+      "synthetic_only_disposable_postgres": "REQUIRED_ENFORCED",
+      "no_browser_http_interception": "REQUIRED_ENFORCED",
+      "offline_contract_review": "IN_PROGRESS",
+      "live_chromium_next_nest_pg17": "PENDING_LOCAL_DOCKER_RELEASE",
+      "exact_sha_all_portals_api_build_and_regression": "PENDING_LOCAL_DOCKER_RELEASE",
+      "hosted_actions": "BILLING_RESTRICTED",
+      "real_otp_provider": "NOT_IN_SCOPE",
+      "source_and_legal_authority": "BLOCKED",
+      "main_merge_or_deploy": "NOT_AUTHORIZED"
+    },
+    "entrypoint": "scripts/e2e-phase4c-real-session-browser.cjs",
+    "report": "docs/reports/SHAREHOLDER_LIVE_SESSION_PHASE4C_2026-10-26.md"
   }
 }
