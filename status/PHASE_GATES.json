@@ -238,8 +238,8 @@
     "acceptance": {
       "synthetic_only_disposable_postgres": "REQUIRED_ENFORCED",
       "no_browser_http_interception": "REQUIRED_ENFORCED",
-      "offline_contract_review": "IN_PROGRESS",
-      "live_chromium_next_nest_pg17": "PENDING_LOCAL_DOCKER_RELEASE",
+      "offline_contract_review": "FIRST_DOCKER_ATTEMPT_69_OF_70_ONE_STATIC_ASSERTION_REPAIRED_PENDING_RETEST",
+      "live_chromium_next_nest_pg17": "PENDING_LOCAL_DOCKER_RELEASE_NOT_STARTED_FIRST_ATTEMPT",
       "exact_sha_all_portals_api_build_and_regression": "PENDING_LOCAL_DOCKER_RELEASE",
       "hosted_actions": "BILLING_RESTRICTED",
       "real_otp_provider": "NOT_IN_SCOPE",
@@ -250,6 +250,15 @@
       "real_sms_delivery": "DISABLED_TEST_PROVIDER_ONLY"
     },
     "entrypoint": "scripts/e2e-phase4c-real-session-browser.cjs",
-    "report": "docs/reports/SHAREHOLDER_LIVE_SESSION_PHASE4C_2026-10-26.md"
+    "report": "docs/reports/SHAREHOLDER_LIVE_SESSION_PHASE4C_2026-10-26.md",
+    "first_docker_attempt": {
+      "source_sha": "49f6cfec4341e3debeb9cc33377a82681c8a363b",
+      "preflight_python": "69_OF_70",
+      "failure": "test_expiry_and_revocation_close_all_owner_routes_expected_nonEXISTENT_LITERAL_v1_auth_session",
+      "runtime_browser_executed": false,
+      "release_executed": false,
+      "network_or_security_incident": false,
+      "remediation": "CHECK_NEST_CONTROLLER_AND_GET_DECORATOR_COMPOSITION_PLUS_ACTUAL_RESOLVE_SESSION"
+    }
   }
 }
