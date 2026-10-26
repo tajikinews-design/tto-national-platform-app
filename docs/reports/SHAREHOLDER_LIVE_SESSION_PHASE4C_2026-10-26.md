@@ -74,3 +74,17 @@
 - **وضعیت:** `PENDING_LOCAL_DOCKER_RELEASE`. نتیجه آزمون‌های واقعی مرورگر و Release کامل روی SHA اصلاح‌شده همچنان نیازمند لاگ اجرایی است؛ به هیچ وجه `PASS` محسوب نمی‌شود.
 
 گزارش اولین تلاش: `C:\Users\Sadra\Downloads\TTO-Local-CI-Reports\TTO-Release-20261026-101225-2d652f6c0de9.log`.
+
+## 2026-10-26 — دومین اجرای Docker: ۰/۵ به دلیل مبدأ HTTP کوکی مرورگر
+
+اجرای واقعی نسخه `06c890907bbc39b682b61c9896b172f6fbeaca23` در Windows Docker Desktop نشان داد:
+- پیش‌پرواز Python با `TTO_PHASE4C_OFFLINE_PREFLIGHT_PASS` و سپس **۷۰ از ۷۰ تست آفلاین** موفق؛ نصب pnpm، TypeScript، هر سه Next.js و NestJS، آزمون SMS غیرواقعی، ۷۱ smoke سه پنل و CF02 با ۱۶۵ بررسی موفق.
+- آزمون واقعی Chromium آغاز شد، اما در هر **پنج** سناریو، کنترل وجود کوکی امن در `context.cookies(APP)` شکست خورد. `TTO_PHASE4C_REAL_BROWSER_CASES=0/5` و `checksPassed=60`. **این نتیجه هیچ‌گونه پذیرش امنیتی یا Release کامل نیست.**
+- بررسی مستقل با Chromium/Playwright نشان داد: کوکی `Secure` روی `http://127.0.0.1:<port>` در مخزن کوکی وجود دارد ولی فهرست کوکی‌های قابل استفاده برای مبدأ HTTP آن خالی است؛ همان کوکی روی `http://localhost:<port>` قابل استفاده می‌شود (استثنای `localhost` برای توسعه). برای کوکی صادرشده با `Set-Cookie: Secure` نیز مسیر Browser باید `localhost` باشد.
+- کد عملیاتی `apps/shareholder/app/api/auth/otp/verify/route.ts` از قبل به شکل صحیح `httpOnly:true,secure:true,sameSite:"lax"` صادر می‌کند؛ امنیت کوکی نباید برای پاس شدن آزمون تضعیف شود.
+- **اصلاح آزمون فقط**: آدرس مرورگر `BROWSER_APP=http://localhost:32972`، دامنه cookie fixture `localhost`، و تمام `page.goto` / `context.cookies` در Chromium مبتنی بر آن. ارتباط داخلی Node→Next و Next→Nest روی `127.0.0.1` و محدود به Docker private namespace باقی مانده است. `HttpOnly, Secure, SameSite=Lax` بدون تغییر و قابل راستی‌آزمایی هستند.
+- آزمون Python جدید `test_browser_secure_cookie_loopback_origin_matches_chromium` بررسی می‌کند که سازوکار regression برنگردد یا با `secure:false` دور زده نشود.
+
+**وضعیت پس از commit اصلاحی: `PENDING_LOCAL_DOCKER_RELEASE`**. پنج سناریوی واقعی باید روی SHA جدید اجرا و موفق شوند؛ موفقیت ۷۰ آزمون Python یا Release فاز ۴ب مجوز پذیرش فاز ۴ج نیست.
+
+گزارش اجرای ناموفق: `C:\Users\Sadra\Downloads\TTO-Local-CI-Reports\TTO-Release-20261026-111109-1eb33f2ed707.log`.
