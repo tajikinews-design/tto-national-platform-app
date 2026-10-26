@@ -187,6 +187,9 @@ try {
     }
 
     Run-Node "Real Child06/07 identity, tenant and source quarantine E2E" "node scripts/e2e-cf02-identity-authority.cjs"
+    # Attack matrix uses only disposable PG17 fixtures seeded by the preceding E2E.
+    # All temporary PG superuser changes are ROLLBACK-ed; no live admission.
+    Run-Node "Phase4E PG17 synthetic source-admission attack matrix" "node scripts/e2e-phase4e-source-admission-attack-matrix.cjs"
     if ($Suite -eq "Release") {
         # Real end-to-end Chromium through live Nest/Next and this invocation's
         # disposable PG17. No request interception or synthetic HTTP responses.
