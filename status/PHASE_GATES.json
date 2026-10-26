@@ -238,8 +238,8 @@
     "acceptance": {
       "synthetic_only_disposable_postgres": "REQUIRED_ENFORCED",
       "no_browser_http_interception": "REQUIRED_ENFORCED",
-      "offline_contract_review": "FIRST_DOCKER_ATTEMPT_69_OF_70_ONE_STATIC_ASSERTION_REPAIRED_PENDING_RETEST",
-      "live_chromium_next_nest_pg17": "PENDING_LOCAL_DOCKER_RELEASE_NOT_STARTED_FIRST_ATTEMPT",
+      "offline_contract_review": "PASS_70_OF_70_PYTHON_AT_06c890907bbc39b682b61c9896b172f6fbeaca23_PREVIOUS_SHA",
+      "live_chromium_next_nest_pg17": "FAILED_0_OF_5_DUE_TO_HTTP_127_SECURE_COOKIE_ORIGIN_TEST_FIXTURE_FIXED_PENDING_EXACT_SHA_RERUN",
       "exact_sha_all_portals_api_build_and_regression": "PENDING_LOCAL_DOCKER_RELEASE",
       "hosted_actions": "BILLING_RESTRICTED",
       "real_otp_provider": "NOT_IN_SCOPE",
@@ -259,6 +259,18 @@
       "release_executed": false,
       "network_or_security_incident": false,
       "remediation": "CHECK_NEST_CONTROLLER_AND_GET_DECORATOR_COMPOSITION_PLUS_ACTUAL_RESOLVE_SESSION"
+    },
+    "second_docker_attempt": {
+      "source_sha": "06c890907bbc39b682b61c9896b172f6fbeaca23",
+      "offline_python": "70_OF_70_PASS",
+      "pinned_packages": "319_PNPM_INSTALL_PASS",
+      "next_nest_builds": "ALL_PASS",
+      "cf02_identity_authority": "165_CHECKS_PASS",
+      "actual_browser": "0_OF_5_FAIL_SECURE_COOKIE_HTTP_127_TEST_ORIGIN",
+      "checks_before_fail": "60",
+      "full_release_completed": false,
+      "fix": "BROWSER_APP_HTTP_LOCALHOST_AND_KEEP_BACKEND_APP_HTTP_127_NO_RUNTIME_CODE_CHANGE",
+      "current_verified_acceptance": "NOT_ACCEPTED"
     }
   }
 }
