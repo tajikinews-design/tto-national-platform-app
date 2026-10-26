@@ -1,0 +1,133 @@
+{
+  "schemaVersion": "1.0",
+  "project": "TTO_NATIONAL_PLATFORM",
+  "phase": "SHAREHOLDER_PHASE4F",
+  "model": "SYNTHETIC_OFFLINE_EXTERNAL_LEGAL_CHAIN_REVIEW_ONLY",
+  "priorAcceptedLocalSha": "7eb11f91a00e67d1325fcb7531540e2aec8d8d5e",
+  "sourcePacket": "docs/contracts/shareholder-source-readiness-phase4d-v1.json",
+  "sourceApprovalsReal": false,
+  "externalAuthorityValidated": false,
+  "artifactGrantsRights": false,
+  "canActivateSource": false,
+  "realDocumentsInRepo": false,
+  "runtimeDataConnection": null,
+  "allowedOutcomes": [
+    "BLOCKED_PENDING_INDEPENDENT_PROOF",
+    "SYNTHETIC_REVIEW_CHAIN_READY_NOT_LEGAL_APPROVAL"
+  ],
+  "requiredDistinctRoles": [
+    {
+      "code": "SOURCE_SUBMITTER",
+      "purpose": "Register a proposed source and scope; no decision power"
+    },
+    {
+      "code": "AUTHORIZED_SOURCE_CUSTODIAN",
+      "purpose": "Named cooperative/source custodian with independently verified delegation; cannot review own case"
+    },
+    {
+      "code": "INDEPENDENT_LEGAL_REVIEWER",
+      "purpose": "Review source mandate and all controls; cannot be requester or custodian"
+    },
+    {
+      "code": "TECHNICAL_OPERATOR",
+      "purpose": "Separate later technical activation officer; role alone can never approve legal evidence"
+    }
+  ],
+  "requiredEvidenceClasses": [
+    "SOURCE_CUSTODIAN_APPOINTMENT",
+    "SOURCE_OWNER_MANDATE_OR_DELEGATION",
+    "PURPOSE_AND_LAWFUL_BASIS",
+    "TENANT_AND_SOURCE_SCOPE",
+    "EVIDENCE_PROVENANCE_AND_INTEGRITY",
+    "INDEPENDENT_REVIEW_ATTESTATION",
+    "RETENTION_WITHDRAWAL_POLICY"
+  ],
+  "mustBeVerifiedOffPlatform": [
+    "SOURCE_OWNER_LEGAL_COMPETENCE",
+    "APPOINTMENT_AND_DELEGATION_AUTHENTICITY",
+    "REGULATORY_OR_BOARD_AUTHORITY_WHERE_APPLICABLE",
+    "ORIGINAL_SIGNED_DOCUMENTS",
+    "INDEPENDENT_REVIEWER_COMPETENCE"
+  ],
+  "timePolicy": {
+    "syntheticMaxDays": 90,
+    "origin": "PROPOSED_TECHNICAL_CEILING_NOT_STATUTORY_RULE",
+    "startInclusive": true,
+    "endExclusive": true,
+    "denyIfDelegationExpired": true,
+    "denyIfEvidenceExpired": true,
+    "denyIfReviewerInactive": true,
+    "denyIfWithdrawn": true,
+    "reapprovalRequiredAfter": [
+      "SOURCE_OWNER_CHANGE",
+      "TENANT_SCOPE_CHANGE",
+      "DATA_SOURCE_REPLACEMENT",
+      "MANDATE_REVOCATION",
+      "EVIDENCE_EXPIRATION",
+      "REVIEWER_AUTHORITY_REVOCATION"
+    ]
+  },
+  "scope": {
+    "tenantBound": true,
+    "domainBound": true,
+    "sourceRefBound": true,
+    "uniqueControlSet": true,
+    "sourceDomains": [
+      {
+        "domain": "CHILD06_MEMBERSHIP",
+        "route": "member-record",
+        "requiredControlIds": [
+          "TENANT_PARTY_NOT_USER_EQUIVALENCE",
+          "ACTIVE_MEMBERSHIP_NEEDS_AUTHORITATIVE_SOURCE",
+          "SOURCE_EVENT_ID_AND_VERSION_PROVENANCE",
+          "NO_ROLE_AS_MEMBERSHIP_EVIDENCE",
+          "SOURCE_BATCH_ATTESTATION_REPLAY_CONTROL",
+          "REVOKED_SESSION_AND_TENANT_RLS",
+          "INDEPENDENT_LAWFUL_BASIS_DATA_MINIMIZATION",
+          "INDEPENDENT_TENANT_SCOPED_APPROVAL_WITH_EXPIRY",
+          "RETENTION_AUDIT_AND_SOURCE_WITHDRAWAL"
+        ],
+        "minimumControls": 9,
+        "legalApprovalState": "PENDING_EXTERNAL_AUTHORITY"
+      },
+      {
+        "domain": "CHILD07_HOLDINGS",
+        "route": "shareholding",
+        "requiredControlIds": [
+          "OFFICIAL_LEDGER_OWNER_AND_LEGAL_BASIS",
+          "TENANT_PARTY_TO_SHAREHOLDER_ACCOUNT_BINDING",
+          "LEDGER_VERSION_ENTRY_REF_AND_AS_OF",
+          "EXACT_NONNEGATIVE_INTEGER_QUANTITY_EXPLICIT_ZERO_ONLY",
+          "PAYMENT_REQUEST_NOT_TRANSFER_OR_SETTLEMENT",
+          "SOURCE_BATCH_ATTESTATION_STALE_AND_REPLAY",
+          "MEMBERSHIP_APPROVAL_NOT_LEDGER_APPROVAL",
+          "SELF_ONLY_RLS_AND_SESSION_REVOCATION",
+          "INDEPENDENT_TIMEBOUND_TENANT_LEDGER_APPROVAL",
+          "AUDIT_RETENTION_AND_SOURCE_WITHDRAWAL"
+        ],
+        "minimumControls": 10,
+        "legalApprovalState": "PENDING_EXTERNAL_AUTHORITY"
+      }
+    ]
+  },
+  "nonAuthorities": [
+    "SOURCE_ROLE",
+    "LOGIN_OR_OTP",
+    "GITHUB_CI",
+    "APPROVED_MEMBERSHIP_PROJECTION",
+    "OTHER_DOMAIN_APPROVAL",
+    "HASH_ONLY",
+    "SYNTHETIC_SIGNATURE",
+    "SIGNED_LETTER_WITHOUT_TRUST_VERIFICATION"
+  ],
+  "auditRequirement": "Timestamped independently verified signed records must be retained outside GitHub by authorized data governance; synthetic artifact fingerprints only",
+  "permanentDeny": [
+    "CHILD07_TRADE_OPERATIONS",
+    "CHILD09_NOTICES",
+    "SOURCE_DATA_IMPORT",
+    "OWNERSHIP_LEDGER_WRITE",
+    "GENERAL_ACCOUNTING",
+    "WALLET_OR_PAYMENT",
+    "PRODUCTION_DEPLOYMENT"
+  ]
+}
