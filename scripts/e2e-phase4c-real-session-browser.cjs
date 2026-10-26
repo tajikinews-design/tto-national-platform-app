@@ -20,7 +20,8 @@ if(process.env.APIIR_TOKEN||process.env.VERCEL||process.env.TTO_API_BASE_URL)
  throw Error("PHASE4C_EXTERNAL_SERVICE_ENV_FORBIDDEN");
 const DB=new Client({connectionString:DB_URL});
 const API="http://127.0.0.1:32971";
-const APP="http://127.0.0.1:32972";
+const APP="http://127.0.0.1:32972"; // server-side fetch only
+const BROWSER_APP="http://localhost:32972"; // Chromium permits Secure loopback cookies on localhost
 const TENANT=randomUUID(),OTHER=randomUUID(),USER=randomUUID(),PARTY=randomUUID();
 const MOBILE="09123336666"; // synthetic registered test fixture; no actual SMS is sent
 const running=[],results=[],checks=[];
@@ -103,14 +104,14 @@ async function newSession(){
 }
 async function freshPage(session){
  const context=await browser.newContext({viewport:{width:390,height:844},locale:"fa-IR",reducedMotion:"reduce"});
- await context.addCookies([{name:"tto_session",value:session.token,domain:"127.0.0.1",path:"/",httpOnly:true,secure:true,sameSite:"Lax"}]);
- const cookieCheck=await context.cookies(APP);
+ await context.addCookies([{name:"tto_session",value:session.token,domain:"localhost",path:"/",httpOnly:true,secure:true,sameSite:"Lax"}]);
+ const cookieCheck=await context.cookies(BROWSER_APP);
  ok(cookieCheck.some(c=>c.name==="tto_session"&&c.value===session.token&&c.httpOnly&&c.secure),
   "browser accepted secure HttpOnly loopback fixture cookie");
  const page=await context.newPage();
  const consoleErrors=[];
  page.on("pageerror",e=>consoleErrors.push(e.message));
- await page.goto(APP+"/modules/nav-04",{waitUntil:"domcontentloaded",timeout:30000});
+ await page.goto(BROWSER_APP+"/modules/nav-04",{waitUntil:"domcontentloaded",timeout:30000});
  await page.locator("section.sw").waitFor({state:"visible",timeout:20000});
  ok(consoleErrors.length===0,"hydration and runtime have no JS errors");
  await page.locator("#sw-tenant").waitFor({state:"visible",timeout:15000});
@@ -175,7 +176,7 @@ async function go(){
    await checkDead(s.token,"revoked");
    await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
    await locked(page,"remote revocation");
-   const cookies=await context.cookies(APP);
+   const cookies=await context.cookies(BROWSER_APP);
    ok(!cookies.some(c=>c.name==="tto_session"&&c.value===s.token),"revoked cookie cleared by BFF");
   }finally{await context.close();}
  });
@@ -223,7 +224,7 @@ async function go(){
   const context=await browser.newContext({viewport:{width:390,height:844},locale:"fa-IR"});
   const page=await context.newPage();
   try{
-   await page.goto(APP+"/modules/nav-04",{waitUntil:"domcontentloaded",timeout:30000});
+   await page.goto(BROWSER_APP+"/modules/nav-04",{waitUntil:"domcontentloaded",timeout:30000});
    await page.locator("#tto-mobile").waitFor({state:"visible",timeout:15000});
    await page.locator("#tto-mobile").fill(MOBILE);
    await page.getByRole("button",{name:"دریافت کد"}).click();
@@ -231,7 +232,7 @@ async function go(){
    await page.locator("#tto-code").fill("111222");
    await page.getByRole("button",{name:"تأیید کد"}).click();
    await page.locator("section.sw").waitFor({state:"visible",timeout:20000});
-   const cookies=await context.cookies(APP);
+   const cookies=await context.cookies(BROWSER_APP);
    const cookie=cookies.find(c=>c.name==="tto_session");
    ok(!!cookie&&cookie.httpOnly&&cookie.secure&&cookie.sameSite==="Lax",
      "real Next verify delivered a Secure HttpOnly SameSite=Lax cookie");
