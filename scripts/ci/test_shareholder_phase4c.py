@@ -78,7 +78,16 @@ class LiveSessionPhase4C(unittest.TestCase):
                        'no owner PII in SSR'):
             with self.subTest(marker=marker):
                 self.assertIn(marker,self.e)
-        self.assertIn('/v1/auth/session',self.api)
+        # Nest composes its actual URL from the controller prefix and the
+        # method decorator; a literal '/v1/auth/session' does not appear.
+        marker='@Controller("v1")\nexport class FoundationCommandsController {'
+        self.assertIn(marker,self.api)
+        controller=self.api.split(marker,1)[1].split('\n}\n\n@Module(',1)[0]
+        self.assertIn('@Get("auth/session")',controller)
+        session_handler=controller.split('@Get("auth/session")',1)[1].split('@Post("auth/logout")',1)[0]
+        self.assertIn('async session(',session_handler)
+        self.assertIn('await this.db.sessionActor(auth)',session_handler)
+        self.assertIn('return {authenticated:true}',session_handler)
         self.assertIn('tto.resolve_session',self.api)
         self.assertIn('cache:"no-store"',self.session)
         self.assertIn('if(upstream.status===401)return noSession(true)',self.session)
