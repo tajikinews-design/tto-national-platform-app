@@ -103,7 +103,7 @@ async function newSession(){
 }
 async function freshPage(session){
  const context=await browser.newContext({viewport:{width:390,height:844},locale:"fa-IR",reducedMotion:"reduce"});
- await context.addCookies([{name:"tto_session",value:session.token,url:APP,httpOnly:true,secure:true,sameSite:"Lax"}]);
+ await context.addCookies([{name:"tto_session",value:session.token,domain:"127.0.0.1",path:"/",httpOnly:true,secure:true,sameSite:"Lax"}]);
  const cookieCheck=await context.cookies(APP);
  ok(cookieCheck.some(c=>c.name==="tto_session"&&c.value===session.token&&c.httpOnly&&c.secure),
   "browser accepted secure HttpOnly loopback fixture cookie");
