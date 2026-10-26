@@ -55,9 +55,28 @@ def evaluate(case,policy,at=AT):
     try:
         if type(case) is not dict or type(policy) is not dict:
             return DENY
+        # Strict whitelist: unknown approval flags cannot be smuggled into the
+        # review packet as a second, unreviewed activation mechanism.
+        if set(case)!={"tenant","domain","sourceRef","caseState","requester","custodian",
+                      "reviewer","mandate","reviewedAt","expiresAt","withdrawnAt","evidence"}:
+            return DENY
+        if set(policy)!={"schemaVersion","project","phase","model","priorAcceptedLocalSha",
+                        "sourcePacket","sourceApprovalsReal","externalAuthorityValidated",
+                        "artifactGrantsRights","canActivateSource","realDocumentsInRepo",
+                        "runtimeDataConnection","allowedOutcomes","requiredDistinctRoles",
+                        "requiredEvidenceClasses","mustBeVerifiedOffPlatform","timePolicy",
+                        "scope","nonAuthorities","auditRequirement","permanentDeny"}:
+            return DENY
         if policy.get("canActivateSource") is not False or policy.get("artifactGrantsRights") is not False:
             return DENY
-        if policy.get("externalAuthorityValidated") is not False:
+        if (policy.get("externalAuthorityValidated") is not False
+             or policy.get("sourceApprovalsReal") is not False
+             or policy.get("realDocumentsInRepo") is not False
+             or policy.get("runtimeDataConnection") is not None
+             or policy.get("allowedOutcomes")!=[DENY,REVIEW]):
+            return DENY
+        if (type(policy.get("timePolicy",{}).get("syntheticMaxDays")) is not int
+             or policy["timePolicy"]["syntheticMaxDays"]!=90):
             return DENY
         if case.get("caseState")!="INDEPENDENT_REVIEWED" or case.get("withdrawnAt") is not None:
             return DENY
@@ -67,7 +86,17 @@ def evaluate(case,policy,at=AT):
         spec=next((x for x in policy["scope"]["sourceDomains"] if x["domain"]==domain),None)
         if spec is None or spec["legalApprovalState"]!="PENDING_EXTERNAL_AUTHORITY":
             return DENY
+        if set(case["mandate"])!={"tenant","domain","sourceRef","custodianId",
+                                   "delegationVerifiedExternally","digest",
+                                   "startsAt","expiresAt","revokedAt"}:
+            return DENY
+        if any(type(case[x]) is not dict for x in ("requester","custodian","reviewer")):
+            return DENY
         who=[case["requester"],case["custodian"],case["reviewer"]]
+        if set(who[0])!={"id","role","active"} or any(
+             set(p)!={"id","role","active","externallyVerified","validUntil"}
+             for p in who[1:]):
+            return DENY
         ids=[x["id"] for x in who]
         if any(type(x) is not str or not x for x in ids) or len(set(ids))!=3:
             return DENY
@@ -104,7 +133,8 @@ def evaluate(case,policy,at=AT):
         if {x.get("controlId") for x in evidence if isinstance(x,dict)}!=set(expected):
             return DENY
         for item in evidence:
-            if type(item) is not dict:
+            if type(item) is not dict or set(item)!={"controlId","tenant","domain","sourceRef",
+                  "digest","verifiedExternally","verifiedBy","verifiedAt","expiresAt"}:
                 return DENY
             if (item.get("tenant"),item.get("domain"),item.get("sourceRef"))!=(tenant,domain,ref):
                 return DENY
@@ -203,6 +233,12 @@ class Phase4FLegalAuthorityChain(unittest.TestCase):
         self.assertEqual(evaluate(self.member,p),DENY)
         p=copy.deepcopy(self.policy);p["artifactGrantsRights"]=True
         self.assertEqual(evaluate(self.member,p),DENY)
+        p=copy.deepcopy(self.policy);p["liveApprovalOverride"]=True
+        self.assertEqual(evaluate(self.member,p),DENY)
+        case=copy.deepcopy(self.member);case["overrideApproved"]=True
+        self.assertEqual(evaluate(case,self.policy),DENY)
+        case=copy.deepcopy(self.member);case["evidence"][0]["smuggledPermission"]=True
+        self.assertEqual(evaluate(case,self.policy),DENY)
 
     def test_actual_legal_trust_is_external(self):
         self.assertIn("ORIGINAL_SIGNED_DOCUMENTS",self.policy["mustBeVerifiedOffPlatform"])
