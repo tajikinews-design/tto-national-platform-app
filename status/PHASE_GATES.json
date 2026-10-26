@@ -341,9 +341,9 @@
     "temporary_approvals": "TRANSACTION_ONLY_ROLLBACK",
     "source_governance_controls_remaining": 19,
     "acceptance": {
-      "python_contract": "PENDING_EXACT_SHA_LOCAL_DOCKER",
-      "real_pg17_attack_matrix": "PENDING_EXACT_SHA_LOCAL_DOCKER_22_CASES",
-      "full_local_release": "PENDING_EXACT_SHA",
+      "python_contract": "PASS_LOCAL_DOCKER_AT_7eb11f91a00e67d1325fcb7531540e2aec8d8d5e",
+      "real_pg17_attack_matrix": "PASS_22_CASES_65_CHECKS_LOCAL_DOCKER_AT_7eb11f91a00e67d1325fcb7531540e2aec8d8d5e",
+      "full_local_release": "PASS_LOCAL_DOCKER_AT_7eb11f91a00e67d1325fcb7531540e2aec8d8d5e",
       "prior_source_or_membership_reviews": "NOT_AUTHORITY",
       "child06_membership_source": "BLOCKED",
       "child07_official_ledger_source": "BLOCKED",
@@ -354,6 +354,46 @@
       "production_connections": "FORBIDDEN",
       "main_merge": "NOT_AUTHORIZED",
       "deploy": "NOT_AUTHORIZED"
+    },
+    "local_acceptance": {
+      "sha": "7eb11f91a00e67d1325fcb7531540e2aec8d8d5e",
+      "log": "C:\\Users\\Sadra\\Downloads\\TTO-Local-CI-Reports\\TTO-Release-20261026-195023-6b2905cbce14.log",
+      "pr_comment": "PR34_COMMENT_6423004891",
+      "cases": 22,
+      "checks": 65,
+      "python_tests": 86,
+      "chromium_cases": 5,
+      "chromium_checks": 156,
+      "oci_images": 4,
+      "technical_only": true
+    }
+  },
+  "shareholder_phase4f": {
+    "status": "IN_PROGRESS",
+    "branch": "feat/shareholder-legal-source-chain-phase4f-20261026",
+    "parent_local_accepted_sha": "7eb11f91a00e67d1325fcb7531540e2aec8d8d5e",
+    "scope": "SYNTHETIC_EXTERNAL_LEGAL_CHAIN_POLICY_NO_REAL_AUTHORITY",
+    "contract": "docs/contracts/shareholder-legal-source-chain-phase4f-v1.json",
+    "report": "docs/reports/SHAREHOLDER_LEGAL_SOURCE_AUTHORITY_PHASE4F_2026-10-26.md",
+    "python_tests": "scripts/ci/test_shareholder_phase4f.py",
+    "pg_shadow_matrix": "scripts/e2e-phase4f-legal-authority-chain.cjs",
+    "pg_expected_cases": 32,
+    "phase4d_controls_remaining_pending": 19,
+    "technical_validity_ceiling_days": 90,
+    "time_ceiling_status": "PROPOSED_NOT_STATUTORY",
+    "acceptance": {
+      "offline_python": "PENDING_EXACT_SHA",
+      "actual_postgres17_shadow": "PENDING_EXACT_SHA_32_CASES",
+      "full_local_release": "PENDING_EXACT_SHA",
+      "external_legal_owner_validation": "BLOCKED",
+      "real_documents": "NONE",
+      "operational_source_approvals": "BLOCKED",
+      "child07_trade_requests": "BLOCKED",
+      "child09_notices": "BLOCKED",
+      "real_data_connection": "FORBIDDEN",
+      "source_tables_mutation": "FORBIDDEN",
+      "main_merge": "NOT_AUTHORIZED",
+      "production": "NOT_AUTHORIZED"
     }
   }
 }

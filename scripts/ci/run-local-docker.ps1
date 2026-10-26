@@ -190,6 +190,9 @@ try {
     # Attack matrix uses only disposable PG17 fixtures seeded by the preceding E2E.
     # All temporary PG superuser changes are ROLLBACK-ed; no live admission.
     Run-Node "Phase4E PG17 synthetic source-admission attack matrix" "node scripts/e2e-phase4e-source-admission-attack-matrix.cjs"
+    # Phase4F is a TEMP/ROLLBACK-only PG17 legal-authority shadow model.
+    # This does not populate tto.source_contract_approvals or grant real authority.
+    Run-Node "Phase4F PG17 independent legal source-chain synthetic QA" "node scripts/e2e-phase4f-legal-authority-chain.cjs"
     if ($Suite -eq "Release") {
         # Real end-to-end Chromium through live Nest/Next and this invocation's
         # disposable PG17. No request interception or synthetic HTTP responses.
