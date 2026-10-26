@@ -1,0 +1,237 @@
+{
+  "schemaVersion": "1.0",
+  "packetType": "SHAREHOLDER_MEMBER_AND_LEDGER_SOURCE_READINESS_REVIEW_ONLY",
+  "project": "TTO_NATIONAL_PLATFORM",
+  "phase": "SHAREHOLDER_PHASE4D",
+  "priorAcceptedLocalSha": "d78f2d6ca1ca15f99301776501aeadf163e5a0ad",
+  "approvalState": "NO_LIVE_SOURCE_APPROVAL",
+  "tenantSpecificApprovalRequired": true,
+  "artifactCanGrantPermission": false,
+  "runtimeActivationRequested": false,
+  "productionConnection": null,
+  "realDataPresent": false,
+  "approvalAuthority": "INDEPENDENT_LEGAL_SOURCE_OWNER_AND_DATA_GOVERNANCE",
+  "neverUseAsApproval": [
+    "CI_PASS",
+    "GITHUB_MERGE",
+    "SIGNED_IN_SESSION",
+    "TENANT_ROLE",
+    "MEMBERSHIP_PROJECTION",
+    "SYNTHETIC_SOURCE_SNAPSHOT",
+    "ANOTHER_SOURCE_APPROVAL",
+    "DOCUMENT_PUBLICATION"
+  ],
+  "sourceDomains": [
+    {
+      "domain": "CHILD06_MEMBERSHIP",
+      "route": "member-record",
+      "officialOwner": null,
+      "tenantId": null,
+      "sourceRef": null,
+      "ruleSnapshotRef": null,
+      "authorityEvidenceId": null,
+      "independentApprover": null,
+      "approvalValidUntil": null,
+      "authorizedReadOnly": true,
+      "liveDataEnabled": false,
+      "writesAllowed": false,
+      "currentReadBoundary": "POSTGRES_TTO_MY_MEMBER_PROFILE_FROM_SOURCE",
+      "sourceTables": [
+        "tto.member_source_snapshots",
+        "tto.relationship_projections",
+        "tto.source_contract_approvals"
+      ],
+      "requiredResponseFields": [
+        "membershipStatus",
+        "partyKind",
+        "sourceVersion",
+        "sourceAsOf"
+      ],
+      "requirements": [
+        "TENANT_PARTY_NOT_USER_EQUIVALENCE",
+        "ACTIVE_MEMBERSHIP_NEEDS_AUTHORITATIVE_SOURCE",
+        "SOURCE_EVENT_ID_AND_VERSION_PROVENANCE",
+        "NO_ROLE_AS_MEMBERSHIP_EVIDENCE",
+        "SOURCE_BATCH_ATTESTATION_REPLAY_CONTROL",
+        "REVOKED_SESSION_AND_TENANT_RLS",
+        "INDEPENDENT_LAWFUL_BASIS_DATA_MINIMIZATION",
+        "INDEPENDENT_TENANT_SCOPED_APPROVAL_WITH_EXPIRY",
+        "RETENTION_AUDIT_AND_SOURCE_WITHDRAWAL"
+      ],
+      "evidence": [
+        {
+          "controlId": "TENANT_PARTY_NOT_USER_EQUIVALENCE",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "ACTIVE_MEMBERSHIP_NEEDS_AUTHORITATIVE_SOURCE",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "SOURCE_EVENT_ID_AND_VERSION_PROVENANCE",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "NO_ROLE_AS_MEMBERSHIP_EVIDENCE",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "SOURCE_BATCH_ATTESTATION_REPLAY_CONTROL",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "REVOKED_SESSION_AND_TENANT_RLS",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "INDEPENDENT_LAWFUL_BASIS_DATA_MINIMIZATION",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "INDEPENDENT_TENANT_SCOPED_APPROVAL_WITH_EXPIRY",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "RETENTION_AUDIT_AND_SOURCE_WITHDRAWAL",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        }
+      ]
+    },
+    {
+      "domain": "CHILD07_HOLDINGS",
+      "route": "shareholding",
+      "officialOwner": null,
+      "tenantId": null,
+      "sourceRef": null,
+      "ruleSnapshotRef": null,
+      "authorityEvidenceId": null,
+      "independentApprover": null,
+      "approvalValidUntil": null,
+      "authorizedReadOnly": true,
+      "liveDataEnabled": false,
+      "writesAllowed": false,
+      "currentReadBoundary": "POSTGRES_TTO_MY_SHAREHOLDING_FROM_SOURCE",
+      "sourceTables": [
+        "tto.shareholder_source_accounts",
+        "tto.shareholding_source_snapshots",
+        "tto.source_contract_approvals"
+      ],
+      "requiredResponseFields": [
+        "shareQuantity",
+        "ledgerVersion",
+        "ledgerAsOf"
+      ],
+      "requirements": [
+        "OFFICIAL_LEDGER_OWNER_AND_LEGAL_BASIS",
+        "TENANT_PARTY_TO_SHAREHOLDER_ACCOUNT_BINDING",
+        "LEDGER_VERSION_ENTRY_REF_AND_AS_OF",
+        "EXACT_NONNEGATIVE_INTEGER_QUANTITY_EXPLICIT_ZERO_ONLY",
+        "PAYMENT_REQUEST_NOT_TRANSFER_OR_SETTLEMENT",
+        "SOURCE_BATCH_ATTESTATION_STALE_AND_REPLAY",
+        "MEMBERSHIP_APPROVAL_NOT_LEDGER_APPROVAL",
+        "SELF_ONLY_RLS_AND_SESSION_REVOCATION",
+        "INDEPENDENT_TIMEBOUND_TENANT_LEDGER_APPROVAL",
+        "AUDIT_RETENTION_AND_SOURCE_WITHDRAWAL"
+      ],
+      "evidence": [
+        {
+          "controlId": "OFFICIAL_LEDGER_OWNER_AND_LEGAL_BASIS",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "TENANT_PARTY_TO_SHAREHOLDER_ACCOUNT_BINDING",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "LEDGER_VERSION_ENTRY_REF_AND_AS_OF",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "EXACT_NONNEGATIVE_INTEGER_QUANTITY_EXPLICIT_ZERO_ONLY",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "PAYMENT_REQUEST_NOT_TRANSFER_OR_SETTLEMENT",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "SOURCE_BATCH_ATTESTATION_STALE_AND_REPLAY",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "MEMBERSHIP_APPROVAL_NOT_LEDGER_APPROVAL",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "SELF_ONLY_RLS_AND_SESSION_REVOCATION",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "INDEPENDENT_TIMEBOUND_TENANT_LEDGER_APPROVAL",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        },
+        {
+          "controlId": "AUDIT_RETENTION_AND_SOURCE_WITHDRAWAL",
+          "status": "PENDING",
+          "evidenceRef": null,
+          "reviewedBy": null,
+          "reviewedAt": null
+        }
+      ]
+    }
+  ]
+}
