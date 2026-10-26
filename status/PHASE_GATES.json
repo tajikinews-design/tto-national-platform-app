@@ -232,7 +232,8 @@
       "REMOTE_SESSION_REVOCATION_WITH_REAL_NEXT_NEST_PG17",
       "PG_SERVER_EXPIRATION_AND_COOKIE_INVALIDATION",
       "ACCOUNT_SECURITY_EPOCH_REVOCATION",
-      "REAL_USER_LOGOUT_REVOKES_SESSION_IN_PG17"
+      "REAL_USER_LOGOUT_REVOKES_SESSION_IN_PG17",
+      "REAL_BROWSER_OTP_FORM_WITH_SYNTHETIC_SMS_PROVIDER_ISSUES_HTTPONLY_COOKIE_AND_PG_SESSION_THEN_REVOKES"
     ],
     "acceptance": {
       "synthetic_only_disposable_postgres": "REQUIRED_ENFORCED",
@@ -243,7 +244,10 @@
       "hosted_actions": "BILLING_RESTRICTED",
       "real_otp_provider": "NOT_IN_SCOPE",
       "source_and_legal_authority": "BLOCKED",
-      "main_merge_or_deploy": "NOT_AUTHORIZED"
+      "main_merge_or_deploy": "NOT_AUTHORIZED",
+      "browser_cases_required": 5,
+      "browser_network_mocking": "PROHIBITED",
+      "real_sms_delivery": "DISABLED_TEST_PROVIDER_ONLY"
     },
     "entrypoint": "scripts/e2e-phase4c-real-session-browser.cjs",
     "report": "docs/reports/SHAREHOLDER_LIVE_SESSION_PHASE4C_2026-10-26.md"
