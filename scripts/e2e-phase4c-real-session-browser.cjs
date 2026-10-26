@@ -22,6 +22,7 @@ const DB=new Client({connectionString:DB_URL});
 const API="http://127.0.0.1:32971";
 const APP="http://127.0.0.1:32972";
 const TENANT=randomUUID(),OTHER=randomUUID(),USER=randomUUID(),PARTY=randomUUID();
+const MOBILE="09123336666"; // synthetic registered test fixture; no actual SMS is sent
 const running=[],results=[],checks=[];
 let browser=null;
 function ok(value,label){assert.ok(value,label);checks.push(label);}
@@ -59,6 +60,8 @@ async function provision(){
  eq(server.rows[0].actor,"postgres","test fixture admin identity");
  await DB.query("ALTER ROLE tto_app LOGIN");
  await DB.query("INSERT INTO tto.user_accounts(user_id) VALUES($1)",[USER]);
+ await DB.query("INSERT INTO tto.auth_policy(policy_key,max_attempts,session_ttl_minutes) VALUES('SESSION_CHALLENGE',3,15) ON CONFLICT(policy_key) DO NOTHING");
+ await DB.query("INSERT INTO tto.verified_mobile_identifiers(mobile,user_id,verified_at) VALUES($1,$2,now())",[MOBILE,USER]);
  await DB.query("INSERT INTO tto.tenants(tenant_id,slug,display_name,status) VALUES($1,$2,'Phase4C Fixture Coop','ACTIVE'),($3,$4,'Out Of Scope Coop','ACTIVE')",
  [TENANT,"p4c-"+TENANT.slice(0,8),OTHER,"p4c-"+OTHER.slice(0,8)]);
  await DB.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'MEMBER')",
@@ -69,7 +72,8 @@ async function provision(){
  [TENANT,PARTY,randomUUID()]);
  const nest=spawnNode(["dist/main.js"],resolve(ROOT,"services/api"),{
   DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"32971",
-  NODE_ENV:"test",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"false",
+  NODE_ENV:"test",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",
+  TTO_ENABLE_REAL_SMSOTP_DELIVERY:"false",TTO_ENFORCE_ABUSE_GUARD:"true",
   AUTH_CHALLENGE_HMAC_SECRET:"phase4c-test-only-32-character-aaaaaaaaaaa",
   AUTH_ABUSE_HMAC_SECRET:"phase4c-test-only-other-32-char-bbbbbbbb"
  });
@@ -212,6 +216,35 @@ async function go(){
    ok(dbstate.rows[0]?.revoked===true,"server PG session actually marked revoked");
   }finally{await context.close();}
  });
+ await exercise("browser-OTP-mock-provider-creates-real-PG-session",async()=>{
+  // Different from direct synthetic PG session injection: exercise the full
+  // browser OTP form and real Next/Nest challenge flow, with an isolated
+  // TEST provider that never delivers a real SMS.
+  const context=await browser.newContext({viewport:{width:390,height:844},locale:"fa-IR"});
+  const page=await context.newPage();
+  try{
+   await page.goto(APP+"/modules/nav-04",{waitUntil:"domcontentloaded",timeout:30000});
+   await page.locator("#tto-mobile").waitFor({state:"visible",timeout:15000});
+   await page.locator("#tto-mobile").fill(MOBILE);
+   await page.getByRole("button",{name:"دریافت کد"}).click();
+   await page.locator("#tto-code").waitFor({state:"visible",timeout:15000});
+   await page.locator("#tto-code").fill("111222");
+   await page.getByRole("button",{name:"تأیید کد"}).click();
+   await page.locator("section.sw").waitFor({state:"visible",timeout:20000});
+   const cookies=await context.cookies(APP);
+   const cookie=cookies.find(c=>c.name==="tto_session");
+   ok(!!cookie&&cookie.httpOnly&&cookie.secure&&cookie.sameSite==="Lax",
+     "real Next verify delivered a Secure HttpOnly SameSite=Lax cookie");
+   await checkLiveTenant(cookie.value,"browser OTP");
+   await page.getByRole("button",{name:"خروج از حساب"}).click();
+   await locked(page,"browser OTP logout");
+   await checkDead(cookie.value,"browser OTP revoked");
+   const digest=createHash("sha256").update(cookie.value).digest();
+   const state=await DB.query("SELECT revoked_at IS NOT NULL AS revoked FROM tto.user_sessions WHERE session_hash=$1",[digest]);
+   ok(state.rowCount===1&&state.rows[0].revoked===true,
+      "real browser OTP session revoked in disposable PostgreSQL");
+  }finally{await context.close();}
+ });
  const passed=results.filter(r=>r.pass).length;
  const summary={
   suite:"TTO_PHASE4C_REAL_BROWSER_NEXT_NEST_PG17",
@@ -222,7 +255,7 @@ async function go(){
   realOtpProviderUsed:false,
   realSourcesApproved:false,
   casesExecuted:results.length,casesPassed:passed,checksPassed:checks.length,
-  pass:results.length===4&&passed===4,
+  pass:results.length===5&&passed===5,
   cases:results
  };
  console.log("TTO_PHASE4C_REAL_BROWSER_CASES="+passed+"/"+results.length);
