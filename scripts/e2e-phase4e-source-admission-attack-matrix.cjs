@@ -147,14 +147,22 @@ async function run(){
    const r=await app.query("SELECT tto.my_shareholding_from_source($1) AS record",[A]);
    eq(r.rows[0].record,null,"no actor context => no holdings");
   });
-  await test("21-snapshot-mutation-protected",async()=>{
-   await assert.rejects(()=>main.query("DELETE FROM tto.shareholding_source_snapshots WHERE tenant_id=$1",[A]),e=>String(e?.message??"").includes("immutable")||e.code==="P0001"||e.code==="23503");
-   checks++;
-  });
-  await test("22-quarantine-claims-immutable",async()=>{
-   await assert.rejects(()=>main.query("DELETE FROM tto.source_import_claims WHERE tenant_id=$1",[A]),e=>String(e?.message??"").includes("immutable")||e.code==="P0001"||e.code==="23503");
-   checks++;
-  });
+  // Savepoints are mandatory: expected PostgreSQL exceptions abort the
+  // current transaction unless the savepoint is explicitly restored.
+  async function rejectMutation(sql){
+   await main.query("SAVEPOINT phase4e_denied_write");
+   try{
+    await assert.rejects(()=>main.query(sql,[A]),e=>Boolean(e?.code)&&e.code!=="25P02");
+    checks++;
+   }finally{
+    await main.query("ROLLBACK TO SAVEPOINT phase4e_denied_write");
+    await main.query("RELEASE SAVEPOINT phase4e_denied_write");
+   }
+  }
+  await test("21-snapshot-mutation-protected",async()=>
+   rejectMutation("DELETE FROM tto.shareholding_source_snapshots WHERE tenant_id=$1"));
+  await test("22-quarantine-claims-immutable",async()=>
+   rejectMutation("DELETE FROM tto.source_import_claims WHERE tenant_id=$1"));
  }finally{
   // A failed SQL operation aborts the tx; ROLLBACK is unconditional and safe.
   await main.query("ROLLBACK");inTransaction=false;
