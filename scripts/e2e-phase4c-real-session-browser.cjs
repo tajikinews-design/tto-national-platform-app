@@ -100,6 +100,9 @@ async function newSession(){
 async function freshPage(session){
  const context=await browser.newContext({viewport:{width:390,height:844},locale:"fa-IR",reducedMotion:"reduce"});
  await context.addCookies([{name:"tto_session",value:session.token,url:APP,httpOnly:true,secure:true,sameSite:"Lax"}]);
+ const cookieCheck=await context.cookies(APP);
+ ok(cookieCheck.some(c=>c.name==="tto_session"&&c.value===session.token&&c.httpOnly&&c.secure),
+  "browser accepted secure HttpOnly loopback fixture cookie");
  const page=await context.newPage();
  const consoleErrors=[];
  page.on("pageerror",e=>consoleErrors.push(e.message));
@@ -225,6 +228,7 @@ async function go(){
  console.log("TTO_PHASE4C_REAL_BROWSER_CASES="+passed+"/"+results.length);
  console.log("TTO_PHASE4C_REAL_BROWSER_CHECKS="+checks.length);
  console.log("TTO_PHASE4C_REAL_BROWSER_FAILURES="+(results.length-passed));
+ console.log("TTO_PHASE4C_REAL_BROWSER_REPORT="+JSON.stringify(summary));
  if(summary.pass)console.log("TTO_PHASE4C_REAL_NEXT_NEST_PG17_BROWSER_PASS_SHA="+SOURCE_SHA);
  else process.exitCode=1;
 }
