@@ -1,0 +1,270 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "W0_SHAREHOLDER_EVIDENCE_INDEX_NON_AUTHORIZING",
+  "asOf": "2026-10-27",
+  "sourceRepository": "tajikinews-design/tto-national-platform",
+  "applicationRepository": "tajikinews-design/tto-national-platform-app",
+  "decisionDocument": "docs/decisions/SHAREHOLDER_NEXT_PHASE_EXECUTION_GATES_2026-10-27.json",
+  "reviewDocument": "docs/reports/SHAREHOLDER_ARCHITECTURE_CONSOLIDATION_PHASE4C_4G_2026-10-27.md",
+  "w0SourceParentSha": "c4f9dc5ba523b401a0ea3c9e875c945509441144",
+  "runtimeEvidenceSha": "e9f588f7e37c4c2a18853a7feb70a7f27a57b500",
+  "shaAuthority": "EXACT_GIT_COMMIT_PLUS_ATTESTED_LOG_ONLY_NEVER_POLICY_APPROVAL",
+  "historicalPRs": [
+    {
+      "number": 30,
+      "phase": "4A",
+      "sha": "429b66076e8a0df1ca1e1629e470a2181dd5b0d5",
+      "baseBranch": "feat/shareholder-review-visual-qa-phase3b",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "acceptanceEvidence": null,
+      "legalApproval": false,
+      "productionApproved": false
+    },
+    {
+      "number": 31,
+      "phase": "4B",
+      "sha": "2f195b1d97a11eef85ebaa4975e407885e920146",
+      "baseBranch": "feat/shareholder-protected-sections-phase4a-20261025",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "acceptanceEvidence": null,
+      "legalApproval": false,
+      "productionApproved": false
+    },
+    {
+      "number": 32,
+      "phase": "4C",
+      "sha": "d78f2d6ca1ca15f99301776501aeadf163e5a0ad",
+      "baseBranch": "feat/shareholder-session-privacy-phase4b-20261025",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "acceptanceEvidence": {
+        "kind": "USER_REPORTED_EXACT_SHA_LOCAL_RELEASE_PASS",
+        "cases": "CHROMIUM_5_OF_5",
+        "checks": 156
+      },
+      "legalApproval": false,
+      "productionApproved": false
+    },
+    {
+      "number": 33,
+      "phase": "4D",
+      "sha": "559ba83e2b8c66d279bfaf3a01e27bc36ae1bac6",
+      "baseBranch": "feat/shareholder-live-session-e2e-phase4c-20261026",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "acceptanceEvidence": {
+        "kind": "USER_REPORTED_EXACT_SHA_LOCAL_RELEASE_PASS",
+        "sourceControls": "NINE_PLUS_TEN_PENDING"
+      },
+      "legalApproval": false,
+      "productionApproved": false
+    },
+    {
+      "number": 34,
+      "phase": "4E",
+      "sha": "7eb11f91a00e67d1325fcb7531540e2aec8d8d5e",
+      "baseBranch": "feat/shareholder-source-readiness-phase4d-20261026",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "acceptanceEvidence": {
+        "kind": "USER_REPORTED_EXACT_SHA_LOCAL_RELEASE_PASS",
+        "cases": "PG17_22_OF_22",
+        "checks": 65
+      },
+      "legalApproval": false,
+      "productionApproved": false
+    },
+    {
+      "number": 35,
+      "phase": "4F",
+      "sha": "4da14db409504185a075d7f834b48619440656f5",
+      "baseBranch": "feat/shareholder-source-admission-security-phase4e-20261026",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "acceptanceEvidence": {
+        "kind": "USER_REPORTED_EXACT_SHA_LOCAL_RELEASE_PASS",
+        "cases": "PG17_32_OF_32",
+        "checks": 71
+      },
+      "legalApproval": false,
+      "productionApproved": false
+    },
+    {
+      "number": 36,
+      "phase": "4G",
+      "sha": "e9f588f7e37c4c2a18853a7feb70a7f27a57b500",
+      "baseBranch": "feat/shareholder-legal-source-chain-phase4f-20261026",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "acceptanceEvidence": {
+        "kind": "USER_REPORTED_EXACT_SHA_TERMINAL_RELEASE_PASS",
+        "details": "ORIGINAL_USER_EXCERPT_MISSING_INITIAL_PYTHON_AND_PG17_20_CASE_LINES",
+        "individualCaseOutputObserved": false
+      },
+      "legalApproval": false,
+      "productionApproved": false
+    },
+    {
+      "number": 37,
+      "phase": "ARCHITECTURE_REVIEW",
+      "sha": "c4f9dc5ba523b401a0ea3c9e875c945509441144",
+      "baseBranch": "feat/shareholder-confidential-legal-intake-phase4g-20261027",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "acceptanceEvidence": null,
+      "legalApproval": false,
+      "productionApproved": false
+    }
+  ],
+  "stackRule": "PR_30_TO_37_STACKED_DRAFT_UNMERGED_NO_AUTO_MERGE",
+  "commitStatuses": [
+    {
+      "pr": 35,
+      "sha": "4da14db409504185a075d7f834b48619440656f5",
+      "checkedAt": "2026-10-27",
+      "statusByTarget": {
+        "tto-api-preview": "failure",
+        "tto-cooperative-preview": "failure",
+        "tto-national-preview": "failure",
+        "tto-shareholder-preview": "failure"
+      },
+      "failureClass": "VERCEL_BUILD_RATE_LIMIT"
+    },
+    {
+      "pr": 36,
+      "sha": "e9f588f7e37c4c2a18853a7feb70a7f27a57b500",
+      "checkedAt": "2026-10-27",
+      "statusByTarget": {
+        "tto-api-preview": "failure",
+        "tto-cooperative-preview": "success",
+        "tto-national-preview": "success",
+        "tto-shareholder-preview": "success"
+      },
+      "failureClass": "VERCEL_API_BUILD_RATE_LIMIT"
+    },
+    {
+      "pr": 37,
+      "sha": "c4f9dc5ba523b401a0ea3c9e875c945509441144",
+      "checkedAt": "2026-10-27",
+      "statusByTarget": {
+        "tto-api-preview": "failure",
+        "tto-cooperative-preview": "failure",
+        "tto-national-preview": "failure",
+        "tto-shareholder-preview": "failure"
+      },
+      "failureClass": "VERCEL_BUILD_RATE_LIMIT"
+    }
+  ],
+  "localAcceptanceIsNot": [
+    "HOSTED_CI_PASS",
+    "SOURCE_OWNER_APPROVAL",
+    "LEGAL_EVIDENCE_AUTHENTICITY",
+    "REAL_DATA_CONNECTION_PERMISSION",
+    "MERGE_APPROVAL",
+    "DEPLOY_APPROVAL",
+    "SHARE_TRADE_AUTHORIZATION"
+  ],
+  "knownEvidenceDiscrepancies": [
+    {
+      "code": "PHASE4F_SOURCE_STATUS_STALE",
+      "statusFile": "status/PHASE_GATES.json",
+      "statusValue": "PENDING_EXACT_SHA",
+      "externalEvidence": "PR35_COMMENT_6425138945",
+      "resolution": "WRITE_NEW_SEPARATE_EVIDENCE_INDEX_DO_NOT_CHANGE_TESTED_SHA"
+    },
+    {
+      "code": "PHASE4G_SOURCE_STATUS_STALE",
+      "statusFile": "status/PHASE_GATES.json",
+      "statusValue": "PENDING_EXACT_SHA",
+      "externalEvidence": "PR36_COMMENT_6435386251",
+      "resolution": "DO_NOT_IMPLY_20_OF_20_MARKER_VISIBLE_IN_USER_LOG_EXCERPT"
+    },
+    {
+      "code": "HOSTED_BUILD_RATE_LIMIT",
+      "statusFile": ".github/workflows",
+      "resolution": "REVIEW_HOSTED_CI_AND_BUILD_RATE_LIMIT_IN_SEPARATE_APPROVED_DEVOPS_TASK"
+    },
+    {
+      "code": "APPROVED_BUY_SELL_SPEC_NOT_LOCATED_IN_APP_REPO",
+      "resolution": "BEFORE_WRITE_OPERATIONS_BIND_FINAL_APPROVED_SPEC_VERSION_AND_SIGNOFF_AS_EXTERNAL_INPUT"
+    }
+  ],
+  "authoritativeSourceGates": {
+    "child06Membership": {
+      "controlsPending": 9,
+      "operationalSource": "BLOCKED"
+    },
+    "child07Shareholding": {
+      "controlsPending": 10,
+      "operationalSource": "BLOCKED"
+    },
+    "child07TradeHistory": {
+      "controlsPending": 7,
+      "operationalSource": "BLOCKED"
+    },
+    "child09Notices": {
+      "controlsPending": 8,
+      "operationalSource": "BLOCKED"
+    },
+    "realEvidenceUpload": "DISABLED",
+    "realSms": "DISABLED",
+    "realShareTrading": "DISABLED",
+    "companyAccounting": "OUT_OF_SCOPE",
+    "inAppWallet": "OUT_OF_SCOPE"
+  },
+  "uiModules": {
+    "reference": "packages/ui/src/shareholder-navigation.ts",
+    "total": 11,
+    "experimentalReviewRoutes": "/review /review/nav-02..nav-11",
+    "implementedProtectedSlices": [
+      "NAV-01",
+      "NAV-02",
+      "NAV-03",
+      "NAV-05"
+    ],
+    "protectedInformationShells": [
+      "NAV-04",
+      "NAV-06",
+      "NAV-07",
+      "NAV-08",
+      "NAV-09",
+      "NAV-10",
+      "NAV-11"
+    ],
+    "nextSliceProposal": "W1_NON_OPERATIONAL_UI_ONLY",
+    "nextSliceAuthorization": "PROPOSED_AWAITING_PROJECT_OWNER_DECISION"
+  },
+  "externalDecisions": "DEC01_TO_DEC10_PENDING_IN_REFERENCE_REGISTER",
+  "syntheticUiAuthorization": {
+    "allowedToDesign": true,
+    "allowedToImplementOnlyAfterOwnerDecision": true,
+    "realUserData": false,
+    "officialPublication": false,
+    "tradePostEndpoint": false,
+    "personalFinancialClaims": false,
+    "realDocuments": false,
+    "realProviderAccess": false
+  },
+  "operations": {
+    "mainMerge": "NOT_AUTHORIZED",
+    "production": "NOT_AUTHORIZED",
+    "arvanDeploy": "NOT_AUTHORIZED",
+    "vercelPreviewProtection": "MUST_BE_VERIFIED_INDEPENDENTLY"
+  },
+  "notes": [
+    "Evidence is based on GitHub source/PR statuses and earlier user-provided local terminal logs, not this tool independently running Docker.",
+    "The 4G 20-case script exists but individual markers were not observed in the short user-provided log excerpt.",
+    "Vercel build-status success does not prove Deployment Protection/SSO for a user-facing preview.",
+    "Time-limited legal evidence TTL in Phase4F/4G tests is a proposed technical limit, not law."
+  ]
+}
