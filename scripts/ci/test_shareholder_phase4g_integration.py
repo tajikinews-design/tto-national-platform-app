@@ -17,7 +17,10 @@ class Phase4GIntegration(unittest.TestCase):
             self.assertIn(line,self.js)
         self.assertIn("CREATE TEMP TABLE phase4g_case",self.js)
         self.assertIn("CREATE TEMP TABLE phase4g_evidence",self.js)
-        self.assertNotIn("DATABASE_URL",self.js)
+        # Only a direct runtime DATABASE_URL lookup is unsafe here. The dedicated
+        # TEST_ADMIN_DATABASE_URL must remain present to pin disposable PG17.
+        self.assertNotRegex(self.js,r"process\s*\.\s*env\s*\.\s*DATABASE_URL\b")
+        self.assertIn("process.env.TEST_ADMIN_DATABASE_URL!==DB",self.js)
         self.assertNotIn("https://",self.js)
     def test_02_no_operational_table_writes(self):
         self.assertNotRegex(self.js,r"(?:INSERT INTO|UPDATE|DELETE FROM)\s+tto\.")
