@@ -33,3 +33,16 @@ Status: TECHNICAL LOCAL RELEASE PASS FOR THIS SHA; VISUAL ACCEPTANCE FAIL/PENDIN
 - Keep PR #47 Draft, no merge/deploy, no real source/attendance/voting/transactions.
 
 This review records visual evidence; it is not evidence of lawful assembly/publication, share ownership or statutory election authority.
+
+## Visual remediation pass — 2026-10-28 (DRAFT, no runtime acceptance)
+
+- Replaced hand-drawn room illustration with an optimized image crop of the **user-approved reference meeting room**. Added as `apps/shareholder/public/nav04-approved-meeting-demo.webp` (Git binary blob sha `4663ca8351bbbdf47e0fa5d2d46a23d81b395f7b`). It is a demo background, NOT evidence of a conducted assembly.
+- Rebuilt the assembly hero composition: same photo region, next-assembly label, assembly type, invitation status, date/time/location, attendee status band, detail shortcut and explicitly disabled attendance control.
+- Matched header semantic slots: sample cooperative selector, message/notification placeholders and shareholder sample identity. Preserved 11 canonical product navigation roots; they must NOT be swapped for UI-mock-only labels.
+- Added four explicitly fictional document rows and four fictional notice rows to mimic approved density. All remain visible **only after DEMO_CONTENT opt-in** and are not actual downloadable PDF links or legal publications.
+- Reworked panel spacing, card sizes, badges, color hierarchy and desktop/tablet/mobile wrapping. Kept historical legal gates, source denial, fixture count (6) and disabled vote/publishing controls unchanged.
+- Extended executable Chromium review to include an exact **1536×1024 full-page** screenshot alongside 1440, 768, 390 and 320 widths (5 viewports), and test loading of the approved photo, demo information density and disabled legal attendance.
+- Added local Python fixture photo / screenshot-path regression checks.
+- Source readback inspection: 28 visual/safety items checked (27 initial pass; one false negative from a check's title-matching regex was manually confirmed to have all 4 documents), 4/4 document and 4/4 notice titles, CSS braces balanced, unique H1.
+- **This changes the SHA. Previous successful local Release `a53b487c` DOES NOT validate the new candidate. No Chromium PNG from the new candidate has been inspected.**
+- Mandatory next gate: exact-SHA Docker Release on user's Windows host, SHA-tagged synthetic screenshot bundle, human screenshot comparison versus 1536×1024 reference. Keep visual status not accepted until visually reviewed.
