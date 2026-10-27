@@ -143,3 +143,5 @@ class Phase4GConfidentialIntake(unittest.TestCase):
         self.assertIn("APPROVE_ACTUAL_SOURCE",p["prohibitedActivities"])
         self.assertFalse(p["realSourceConnectionEnabled"])
 if __name__=="__main__":unittest.main()
+
+# Offline review simulation only.
