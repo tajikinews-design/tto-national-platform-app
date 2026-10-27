@@ -44,7 +44,7 @@ async function suite(viewport,doInteractions){
   await page.locator(".w1t-cases .w1t-case").first().waitFor();
   check(await page.locator("main[dir=rtl]").count()===1,"RTL_MAIN_"+viewport.width);
   check(await page.locator(".w1t-cases .w1t-case").count()===9,"NINE_FIXTURES_"+viewport.width);
-  check(await page.getByText("DEMO-SELL-QUEUED",{exact:true}).count()===1,"SAFE_DEFAULT_"+viewport.width);
+  check(await page.locator(".w1t-case").filter({hasText:"DEMO-SELL-QUEUED"}).count()===1,"SAFE_DEFAULT_"+viewport.width);
   check(await page.getByText("مالکیت منتقل نشده است",{exact:true}).count()===1,"NO_TRANSFER_DEFAULT_"+viewport.width);
   const disabled=page.locator(".w1t-disabled-actions button");
   check(await disabled.isDisabled(),"NO_OPERATIONS_"+viewport.width);
