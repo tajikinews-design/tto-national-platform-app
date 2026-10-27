@@ -166,6 +166,18 @@ for (let idx=0;idx<slugs.length;idx++){
     if(!nav03html.includes(text))throw Error("W1 NAV03 required source boundary missing: "+text);
    }
    checks++;
+   // Static review-only trade dossier must not expose operational user data.
+   if(slug==="shareholder"){
+    const caseRes=await fetch("http://127.0.0.1:"+port+"/review/interactive/nav-03/case-demo");
+    if(caseRes.status!==200)throw Error("W1 NAV03 case demo route "+caseRes.status);
+    const caseHtml=await caseRes.text();
+    for(const marker of ["جزئیات و پیگیری پرونده معامله","DEMO-SELL-QUEUED",
+                         "DEMO-BUY-COMPLETED","مالکیت منتقل نشده است",
+                         "داده کاملاً مصنوعی","هیچ پرونده واقعی خوانده یا ذخیره نمی‌شود"]){
+      if(!caseHtml.includes(marker))throw Error("W1 NAV03 case demo disclosure missing: "+marker);
+    }
+    checks++;
+   }
    const invalidReview=await fetch("http://127.0.0.1:"+port+"/review/not-a-nav");
    if(invalidReview.status!==404)throw Error("shareholder review invalid slug allowed");
    checks++;

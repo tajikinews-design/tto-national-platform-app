@@ -71,6 +71,10 @@ export function SyntheticShareMarket(){
   <p className="w1m-safety" role="note">
    <strong>فعال‌سازی غیرفعال:</strong> هیچ درخواست واقعی ثبت نمی‌شود، وضعیت‌ها را فقط برای مطالعه انتخاب می‌کنید و حتی نمایش «تکمیل‌شده» به معنی مالکیت نیست. هرگونه عملیات واقعی به تأیید مستقل منابع رسمی، اختیارات هیئت‌مدیره و قواعد بالادستی وابسته است.
   </p>
+  <div className="w1m-dossier-link" role="note">
+   <a href="/review/interactive/nav-03/case-demo">مشاهده جزئیات و پیگیری پرونده‌های ساختگی خریدوفروش ←</a>
+   <span>خط زمانی، مسئول اقدام، اختلاف و ثبت دفتر · هیچ پرونده حقیقی ایجاد نمی‌شود</span>
+  </div>
   <LegalGuide/>
   <div className="w1m-tabs" role="group" aria-label="گردش‌کار آزمایشی">
    <button type="button" aria-pressed={flow==="SELL"} className={flow==="SELL"?"w1m-tab w1m-tab-on":"w1m-tab"} onClick={()=>setFlow("SELL")}>
