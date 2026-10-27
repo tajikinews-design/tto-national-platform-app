@@ -165,6 +165,9 @@ try {
   officialDocumentPublication="BLOCKED"
   mergedOrDeployed=$false
  }
+ if(-not $KeepVisualContainers -and $VisualPassed) {
+  Cleanup-VisualOwnedResources $ExpectedCommit
+ }
  $Snapshot | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $ProgressFile -Encoding UTF8
  if($ReleasePassed) {
   Write-Host "TTO_W1_NAV03_NAV04_LOCAL_QA_PASS_SHA=$ExpectedCommit" -ForegroundColor Green
@@ -174,7 +177,4 @@ try {
  Write-Host "TTO_W1_VISUAL_REPORTS=$Out"
 }finally {
  if($TranscriptStarted){ Stop-Transcript | Out-Null }
- if(-not $KeepVisualContainers -and $VisualPassed) {
-  Cleanup-VisualOwnedResources $ExpectedCommit
- }
 }
