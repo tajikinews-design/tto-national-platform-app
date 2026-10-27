@@ -80,7 +80,7 @@ function makeCase(config:FixtureConfig):PreviewCase{
    page:config.register?"DEMO-PAGE":MASK,row:config.register?"DEMO-ROW":MASK,
    verifiedBy:config.register?"DEMO-VERIFIER (نمونه)":MASK},
   cancellation:{state:config.cancellation??"درخواستی ثبت نشده",rule:
-   "قبل از خریدار تابع Market Policy؛ پس از Reservation درخواست لغو؛ پس از پرداخت بررسی اختلاف؛ پس از COMPLETED فقط Correction Case مستقل."},
+   "قبل از خریدار تابع Market Policy؛ پس از Reservation فقط CANCELLATION_REQUEST؛ پس از پرداخت فقط CANCELLATION_REVIEW یا DISPUTE؛ پس از COMPLETED فقط Correction Case مستقل."},
   timestamps:{opened:SAMPLE_DATE,lastUpdate:SAMPLE_DATE},timeline
  };
 }
