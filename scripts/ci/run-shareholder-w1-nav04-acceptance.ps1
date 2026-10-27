@@ -101,6 +101,13 @@ foreach($File in @($DockerRelease,$VisualRunner,
 }
 if(-not(Test-Path -LiteralPath $ReportsRoot)){ New-Item -ItemType Directory -Force -Path $ReportsRoot | Out-Null }
 $ReportsRoot=(Resolve-Path -LiteralPath $ReportsRoot).Path
+$NormalizedRepository=$Repository.TrimEnd([char[]]@('\\','/'))
+$NormalizedReports=$ReportsRoot.TrimEnd([char[]]@('\\','/'))
+$RepoPrefix=$NormalizedRepository+[IO.Path]::DirectorySeparatorChar
+if($NormalizedReports -ieq $NormalizedRepository -or
+   $NormalizedReports.StartsWith($RepoPrefix,[StringComparison]::OrdinalIgnoreCase)) {
+ throw "REPORTS_DIRECTORY_MUST_BE_OUTSIDE_SOURCE_WORKTREE"
+}
 $Out=Join-Path $ReportsRoot ("TTO-W1-VISUAL-"+$ExpectedCommit.Substring(0,12))
 if(-not(Test-Path -LiteralPath $Out)){New-Item -ItemType Directory -Force -Path $Out | Out-Null}
 $Transcript=Join-Path $Out "acceptance-transcript.log"
