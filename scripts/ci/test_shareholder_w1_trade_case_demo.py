@@ -87,7 +87,7 @@ class W1SyntheticCaseDetails(unittest.TestCase):
   self.assertIn('پایان مهلت تأیید خودکار ایجاد نمی‌کند',CLIENT)
 
  def test_09_audit_metadata_is_fictional_and_structured(self):
-  for f in ('before:','after:','requestId:','reasonCode:','metadata:','at:','actor:'):
+  for f in ('before:','after:','requestId:','reasonCode:','metadata:','timestamp:','actor:','role:'):
    self.assertIn(f,FIX)
   for f in ('before','after','request_id','reason_code','metadata'):
    self.assertIn(f,CLIENT)
