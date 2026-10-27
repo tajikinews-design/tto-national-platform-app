@@ -35,7 +35,7 @@ function CaseDetails({item}:{item:PreviewCase}){
   <div className={"w1t-legal-effect"+(blockedEffect?" w1t-legal-blocked":"")}>
    <strong>وضعیت اثر حقوقی در این سناریو</strong>
    <p>{LEGAL_EFFECT_LABEL[item.legalEffect]}</p>
-   <span>در سامانه واقعی: مالکیت فقط بعد از تمام گیت‌ها و Finalization اتمیک منتقل می‌شود. این پیش‌نمایش هیچ مالکیتی ایجاد نمی‌کند.</span>
+   <span>در سامانه واقعی: مالکیت فقط بعد از تمام گیت‌ها و Finalization اتمیک منتقل می‌شود. این پیش‌نمایش هیچ مالکیت واقعی ایجاد نمی‌کند.</span>
   </div>
   <div className="w1t-detail-grid">
    <Detail title="شناسنامه و وضعیت پرونده">
