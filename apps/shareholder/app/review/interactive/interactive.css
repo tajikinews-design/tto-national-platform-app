@@ -32,3 +32,7 @@
 @media(max-width:1020px){.w1-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.w1-nav-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.w1-shell{padding:14px 12px 32px}.w1-hero{padding:22px 18px;align-items:flex-start;flex-direction:column}.w1-badge{min-height:62px;min-width:130px;flex-direction:row;padding:10px}.w1-cards,.w1-nav-grid{grid-template-columns:1fr}.w1-card{min-height:165px}.w1-status{display:block}.w1-options{display:grid;grid-template-columns:1fr 1fr}.w1-option{padding:10px 6px}.w1-controls{padding:16px}}
 @media(prefers-reduced-motion:reduce){.w1-shell *{scroll-behavior:auto;transition:none}}
+
+.w1-navigation-next{margin:17px 0;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#fff;border:1px solid #bbdbf2;border-radius:13px;padding:16px 20px;line-height:2}
+.w1-navigation-next a{font-weight:750;color:#095b96;border-bottom:1px solid #87b6d6}
+.w1-navigation-next span{font-size:11px;color:#657e96}
