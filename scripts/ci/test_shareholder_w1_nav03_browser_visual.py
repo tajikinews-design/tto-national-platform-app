@@ -27,6 +27,7 @@ class BrowserVisualPolicy(unittest.TestCase):
   self.assertIn('CARD_MIN_WIDTH_',JS)
   self.assertIn('NONEMPTY_RENDER_',JS)
   self.assertIn('shotSha256:',JS)
+  self.assertIn('path:join("/workspace/.qa-artifacts"',JS)
  def test_04_keyboard_case_selection_and_filters(self):
   for token in ('KEYBOARD_ENTER_FILTER','KEYBOARD_ENTER_CASE','page.keyboard.press("Enter")',
                 'BUY_FILTER_SIX','SELL_FILTER_THREE','DISPUTE_SELECTED',
@@ -45,6 +46,8 @@ class BrowserVisualPolicy(unittest.TestCase):
                   RUN.index('node scripts/e2e-shareholder-nav03-visual-review.cjs'))
   self.assertIn('mcr.microsoft.com/playwright:v1.56.1-noble',RUN)
   self.assertIn('TTO_LOCAL_HOST_PORTS=NONE',RUN)
+  self.assertIn('TTO_LOCAL_VISUAL_QA_PATH=',RUN)
+  self.assertIn('"cp", ($nodeContainer + ":/workspace/.qa-artifacts/" + $commit)',RUN)
  def test_07_fictitious_completion_does_not_signal_approved_ownership(self):
   self.assertIn('never use green approval styling',CSS)
   self.assertIn('w1t-legal-effect:not(.w1t-legal-blocked)',CSS)
