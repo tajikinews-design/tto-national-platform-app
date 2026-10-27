@@ -36,6 +36,7 @@ async function verify(width,height,interact){
   ok(await page.locator("main.w1a-shell[dir=rtl]").count()===1,"RTL_"+width);
   ok(await page.locator(".w1a-list .w1a-record").count()===0,"DEFAULT_SOURCE_BLOCKED_"+width);
   ok(await page.locator(".w1a-empty").count()===1,"NO_MOCK_BEFORE_OPTIN_"+width);
+  ok(await page.locator(".w1a-approved-overview").count()===0,"NO_APPROVED_FIXTURE_OVERVIEW_BEFORE_OPTIN_"+width);
   ok(await page.getByRole("button",{name:"ثبت رأی (غیرفعال)"}).count()===0,
     "NO_VOTE_WHEN_BLOCKED_"+width);
   // Opt into sample only: no public/legal/source record becomes valid.
@@ -43,6 +44,26 @@ async function verify(width,height,interact){
   await mock.click();
   ok(await mock.getAttribute("aria-pressed")==="true","DEMO_SWITCH_"+width);
   ok(await page.locator(".w1a-record").count()===6,"SIX_FIXTURES_"+width);
+  // The user-approved visual structure must render only after opting into DEMO.
+  ok(await page.locator(".w1a-approved-overview").count()===1,"APPROVED_OVERVIEW_VISIBLE_"+width);
+  ok(await page.locator(".w1a-next-meeting").count()===1,"APPROVED_NEXT_MEETING_"+width);
+  ok(await page.locator(".w1a-kpi").count()===4,"APPROVED_FOUR_STATUS_CARDS_"+width);
+  ok(await page.locator(".w1a-summary-panel").count()===4,"APPROVED_FOUR_INFORMATION_PANELS_"+width);
+  ok(await page.locator(".w1a-action").count()===4,"APPROVED_FOUR_ACTION_TILES_"+width);
+  ok(await page.locator(".w1a-sidebar .w1a-side-link").count()===11,"CANONICAL_ELEVEN_NAV_ROOTS_"+width);
+  ok(await page.locator(".w1a-global-header").count()===1,"SHARED_HEADER_PRESENT_"+width);
+  const screen=await page.evaluate(()=>{
+    const sidebar=document.querySelector(".w1a-sidebar");
+    const kpi=document.querySelector(".w1a-kpi");
+    const panel=document.querySelector(".w1a-summary-panel");
+    const box=sidebar?.getBoundingClientRect();
+    return {sidebarRect:box&&{x:box.x,width:box.width},
+      kpi: kpi&&getComputedStyle(kpi).backgroundColor,
+      panel:panel&&getComputedStyle(panel).backgroundColor,
+      bodyDirection:getComputedStyle(document.body).direction};
+  });
+  ok(screen.sidebarRect?.width>0,"SIDEBAR_DIMENSIONS_"+width);
+  ok(screen.bodyDirection==="rtl","GLOBAL_RTL_DIRECTION_"+width);
   const buttons=page.locator(".w1a-vote button");
   ok(await buttons.count()===3,"THREE_ACTIONS_PRESENT_"+width);
   for(let i=0;i<3;i++)ok(await buttons.nth(i).isDisabled(),"VOTING_PUBLISHING_DISABLED_"+width+"_"+i);
