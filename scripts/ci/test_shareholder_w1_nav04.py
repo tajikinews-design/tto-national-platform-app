@@ -31,7 +31,7 @@ class Nav04SyntheticAssemblies(unittest.TestCase):
   self.assertIn('DEMO-V1',FIX)
  def test_03_no_law_or_voting_eligibility_inferred(self):
   self.assertIn('legalReadiness:false,canVote:false,canCountVotes:false,resultOfficial:false',FIX)
-  self.assertEqual(FIX.count('canVote:false'),6)
+  self.assertEqual(FIX.count('legalReadiness:false,canVote:false'),6)
   for x in ('صلاحیت دعوت‌کننده','میزان حق رأی','نصاب','تعیین شود'):
    self.assertIn(x,UI)
   self.assertIn('اهلیت رأی‌دهنده، نوع رأی، نصاب',UI)
