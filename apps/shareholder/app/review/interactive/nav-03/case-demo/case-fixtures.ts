@@ -5,7 +5,7 @@ import {BUY_STEPS,SELL_STEPS,type PreviewFlow,type PreviewOwner} from "../market
 
 export type LegalEffect="NOT_TRANSFERRED"|"REGISTERED_NOT_FINAL"|"SYNTHETIC_COMPLETED";
 export type PreviewEvent={
- step:string; title:string; at:string; actor:PreviewOwner;
+ step:string; title:string; timestamp:string; actor:string; role:PreviewOwner;
  before:string; after:string; requestId:string; reasonCode:string; metadata:string;
 };
 export type PreviewCase={
@@ -43,8 +43,8 @@ function makeCase(config:FixtureConfig):PreviewCase{
  const steps=canonicalSteps(config.flow);
  const state=steps[config.stepIndex];
  const timeline:PreviewEvent[]=steps.slice(0,config.completedCount).map((step,index)=>({
-  step:step.code,title:step.title,at:SAMPLE_DATE,
-  actor:step.owner,
+  step:step.code,title:step.title,timestamp:SAMPLE_DATE,
+  actor:"DEMO-ACTOR-"+step.owner,role:step.owner,
   before:index===0?"—":steps[index-1].code,
   after:step.code,
   requestId:"DEMO-EVENT-"+config.id+"-"+String(index+1).padStart(2,"0"),
@@ -53,7 +53,7 @@ function makeCase(config:FixtureConfig):PreviewCase{
  }));
  if(config.exception)timeline.push({
   step:config.exception,title:config.exception==="CANCELLATION_REQUEST"?"درخواست بررسی انصراف":"ثبت وضعیت استثنایی آزمایشی",
-  at:SAMPLE_DATE,actor:"COOPERATIVE",
+  timestamp:SAMPLE_DATE,actor:"DEMO-ACTOR-COOPERATIVE",role:"COOPERATIVE",
   before:state.code,after:config.exception,
   requestId:"DEMO-EXCEPTION-"+config.id,
   reasonCode:"SYNTHETIC_EXCEPTION_ONLY",
