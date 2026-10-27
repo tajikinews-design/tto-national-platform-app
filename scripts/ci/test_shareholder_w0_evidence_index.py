@@ -64,7 +64,7 @@ class ShareholderW0IndexConsistency(unittest.TestCase):
         self.assertEqual(child["child07TradeHistory"]["controlsPending"],7)
         self.assertEqual(child["child09Notices"]["controlsPending"],8)
         self.assertEqual([len(x["evidence"]) for x in self.domains["sourceDomains"]],[9,10])
-        self.assertEqual([len(x["evidence"]) for x in self.authority["domains"]],[7,8])
+        self.assertEqual([len(x["requiredEvidence"]) for x in self.authority["domains"]],[7,8])
         self.assertTrue(all(x["operationalSource"]=="BLOCKED"
             for x in [child["child06Membership"],child["child07Shareholding"],
                       child["child07TradeHistory"],child["child09Notices"]]))
