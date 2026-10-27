@@ -140,7 +140,7 @@ export function SyntheticAssemblies(){
   </header>
   <section className="w1a-hero">
    <div><span className="w1a-eyebrow">مرجع انتشار رسمی مستقل · وضعیت فعلی: مسدود</span>
-    <h1>مجامع عمومی و انتخابات تعاونی</h1>
+    <h2>مجامع عمومی و انتخابات تعاونی</h2>
     <p>دعوت‌نامه‌ها، سوابق مجامع، صورت‌جلسات و اطلاعات انتخابات در یک محیط نمونه بررسی می‌شوند؛ هیچ حق رأی، نصاب، رأی‌دهنده یا نتیجه رسمی تعیین نمی‌شود.</p>
    </div>
    <div className="w1a-demo"><strong>DEMO</strong><span>داده کاملاً مصنوعی؛ فاقد اسناد و اشخاص واقعی</span></div>
