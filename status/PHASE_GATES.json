@@ -395,5 +395,18 @@
       "main_merge": "NOT_AUTHORIZED",
       "production": "NOT_AUTHORIZED"
     }
+  },
+  "shareholder_phase4g": {
+    "status": "IN_PROGRESS",
+    "parent_local_accepted_sha": "4da14db409504185a075d7f834b48619440656f5",
+    "contract": "docs/contracts/shareholder-confidential-intake-phase4g-v1.json",
+    "report": "docs/reports/SHAREHOLDER_CONFIDENTIAL_LEGAL_REVIEW_PHASE4G_2026-10-27.md",
+    "expected_pg17_cases": 20,
+    "expected_python_tests": 18,
+    "legal_controls_pending": 19,
+    "local_release": "PENDING_EXACT_SHA",
+    "real_documents": "NONE",
+    "production": "NOT_AUTHORIZED",
+    "source_approval": "BLOCKED"
   }
 }
