@@ -64,6 +64,28 @@ async function verify(width,height,interact){
   });
   ok(screen.sidebarRect?.width>0,"SIDEBAR_DIMENSIONS_"+width);
   ok(screen.bodyDirection==="rtl","GLOBAL_RTL_DIRECTION_"+width);
+  const layout=await page.evaluate(()=>{
+    const rect=(selector)=>{
+      const el=document.querySelector(selector);
+      if(!el)return null;
+      const b=el.getBoundingClientRect();
+      return {left:b.left,right:b.right,top:b.top,width:b.width};
+    };
+    return {sidebar:rect(".w1a-sidebar"),content:rect(".w1a-frame"),
+      image:rect(".w1a-meeting-tile"),information:rect(".w1a-meeting-info"),
+      counter:rect(".w1a-countdown"),
+      results:rect(".w1a-action-purple"),assemblies:rect(".w1a-action-blue")};
+  });
+  if(width>=981){
+    ok(layout.sidebar.left>layout.content.left,"APPROVED_RIGHT_RAIL_"+width);
+    ok(layout.image.left<layout.information.left &&
+       layout.information.left<layout.counter.left,"APPROVED_MEETING_LTR_GEOMETRY_"+width);
+    ok(layout.results.left>layout.assemblies.left,"APPROVED_ACTION_ORDER_"+width);
+  }else if(width<=680){
+    ok(layout.image.top<layout.information.top,"APPROVED_MOBILE_IMAGE_ABOVE_DETAILS_"+width);
+  }else{
+    ok(layout.image.left<layout.information.left,"APPROVED_TABLET_MEETING_LAYOUT_"+width);
+  }
   const buttons=page.locator(".w1a-vote button");
   ok(await buttons.count()===3,"THREE_ACTIONS_PRESENT_"+width);
   for(let i=0;i<3;i++)ok(await buttons.nth(i).isDisabled(),"VOTING_PUBLISHING_DISABLED_"+width+"_"+i);
