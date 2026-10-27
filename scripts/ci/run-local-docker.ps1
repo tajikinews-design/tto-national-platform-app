@@ -204,6 +204,7 @@ try {
             "-v", ($sourceVolume + ":/workspace"), "-w", "/workspace",
             "-e", "TEST_ADMIN_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/tto",
             "-e", ("TTO_PHASE4C_EXPECTED_SOURCE_SHA=" + $commit),
+            "-e", "CI=true", "-e", "TTO_LOOPBACK_E2E=1",
             "-e", "APIIR_TOKEN=", "-e", "NEXT_TELEMETRY_DISABLED=1",
             "mcr.microsoft.com/playwright:v1.56.1-noble", "bash", "-lc",
             "set -euo pipefail; npm config set fetch-retries 8; npm config set fetch-retry-mintimeout 20000; npm config set fetch-retry-maxtimeout 120000; (npm install --prefix /tmp/tto-phase4c --no-audit --no-fund --silent playwright@1.56.1 || (sleep 15; npm install --prefix /tmp/tto-phase4c --no-audit --no-fund --silent playwright@1.56.1)); test -f /tmp/tto-phase4c/node_modules/playwright/package.json; NODE_PATH=/tmp/tto-phase4c/node_modules node scripts/e2e-phase4c-real-session-browser.cjs; NODE_PATH=/tmp/tto-phase4c/node_modules node scripts/e2e-shareholder-nav03-visual-review.cjs"
