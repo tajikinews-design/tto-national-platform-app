@@ -25,3 +25,12 @@ Mockup visual approval is NOT a Release acceptance.
 Run isolated exact-SHA local Docker Release suite and Chromium NAV04 review using repository scripts; inspect screenshot PNGs manually versus the approved references. Verify no horizontal overflow, no external calls, keyboard interactions and no source leakage. Keep draft/unmerged and no production deployment until local acceptance and separate operational/legal authorization.
 
 Source of authority remains NAV Architecture, Child08 Governance & Assemblies and the consolidated Legal Gate Register. This report does not alter them.
+
+
+## QA follow-up, 2026-10-27
+- Verified current branch source through the GitHub connector: 33/33 structural/source-policy checks PASS. These are **not browser execution results**.
+- Hardened the existing real Chromium runner at `scripts/e2e-shareholder-nav04-review.cjs` with assertions for the approved overview, four status cards, four information panels, four actions, eleven menu entries and global RTL in each of 1440x900, 768x1024, 390x844 and 320x740.
+- Existing test continues to check default denied state, opt-in demo, keyboard interaction, disabled legal actions, external requests and horizontal overflow.
+- GitHub Actions attempt on branch was reported as FAILED, with no successful exact-SHA test evidence or retrievable logs from that run. Vercel shareholder preview was blocked by a build-rate-limit status. Neither should be counted as a browser pass.
+- The assistant runtime has Chromium installed but cannot reach or clone this private GitHub repository from its container. Therefore an **exact-source Next.js build and screenshot comparison has not been conducted**. No pixel-match or local acceptance claim is made.
+- Run the existing isolated repository `-Suite Release` script at the final exact branch SHA from a trusted local worktree. The script emits `TTO_LOCAL_VISUAL_QA_PATH` containing screenshots and `TTO_LOCAL_RELEASE_PASS_SHA` only after all required checks succeed. Review saved screenshots visually against the three approved master dashboard images and the approved NAV04 mockup.
