@@ -20,13 +20,13 @@
 .w1t-case small{font-size:10px;color:#7c91aa;text-align:right;overflow-wrap:anywhere}
 .w1t-case strong{font-size:13px;color:#215782;line-height:1.7}
 .w1t-case span{font-size:10px;color:#768fa6;direction:ltr;text-align:right;overflow-wrap:anywhere}
-.w1t-case-selected{background:#e9f4ff;border-color:#6ab0dd;box-shadow:inset 4px 0 0 #137bb9}
+.w1t-case-selected{background:#e9f4ff;border-color:#6ab0dd;box-shadow:inset -4px 0 0 #137bb9}
 .w1t-summary{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;flex-wrap:wrap;background:#fff;border:1px solid #dce6f4;border-radius:16px;padding:22px 25px;margin-bottom:16px}
 .w1t-section-label{font-size:11px;color:#2879ad;font-weight:750}
 .w1t-summary h2{font-size:22px;color:#123c6c;margin:10px 0}.w1t-summary p{line-height:2;margin:0;color:#566f8d;max-width:780px}
 .w1t-owner{background:#eaf6f2;color:#236c5c;border-radius:12px;padding:15px;min-width:178px;display:flex;flex-direction:column;gap:7px}
 .w1t-owner small{font-size:11px}.w1t-owner strong{font-size:20px}
-.w1t-legal-effect{border:1px solid #b3dec7;border-radius:13px;padding:17px 21px;margin-bottom:18px;background:#effaf3;color:#225f48;line-height:2}
+.w1t-legal-effect{border:1px solid #c0d8ec;border-radius:13px;padding:17px 21px;margin-bottom:18px;background:#f1f7fd;color:#28557b;line-height:2}
 .w1t-legal-blocked{border-color:#ead7b5;background:#fff9ed;color:#825e2b}
 .w1t-legal-effect strong{font-size:14px}.w1t-legal-effect p{margin:4px 0;font-size:18px;font-weight:850}
 .w1t-legal-effect span{font-size:11px}
@@ -62,3 +62,4 @@
 @media(max-width:1050px){.w1t-cases{grid-template-columns:repeat(2,minmax(0,1fr))}.w1t-detail-grid{grid-template-columns:1fr}}
 @media(max-width:670px){.w1t-shell{padding:13px 12px 29px}.w1t-hero{flex-direction:column;align-items:flex-start;padding:18px}.w1t-cases,.w1t-timeline{grid-template-columns:1fr}.w1t-summary{padding:17px}.w1t-selector,.w1t-detail-section{padding:16px}.w1t-dl>div{grid-template-columns:1fr;gap:3px}.w1t-case{min-height:88px}.w1t-top{align-items:flex-start}}
 @media(prefers-reduced-motion:reduce){.w1t-shell *{transition:none;scroll-behavior:auto}}
+\n/* Even mock COMPLETED is educational: never use green approval styling. */\n.w1t-legal-effect:not(.w1t-legal-blocked){border-style:dashed}\n.w1t-case:focus-visible{outline:3px solid #f1a827;outline-offset:3px}\n.w1t-timeline code,.w1t-dl dd{overflow-wrap:anywhere}\n
