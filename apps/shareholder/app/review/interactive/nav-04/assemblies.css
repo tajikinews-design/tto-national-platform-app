@@ -197,3 +197,30 @@
  .w1a-summary-panel{min-height:0}
  .w1a-brand strong{font-size:11px}
 }
+
+
+/* NAV-04 approved 1536x1024 visual review: right nav ~188px,
+   meeting preview: right countdown / central info / left meeting visual.
+   Explicit responsive reset prevents offscreen CSS-grid items. */
+@media(min-width:981px){
+ .w1a-shell{grid-template-columns:clamp(188px,12.25vw,220px)}
+ .w1a-next-meeting{grid-template-columns:118px minmax(0,1fr) minmax(220px,309px);align-items:stretch}
+ .w1a-countdown{grid-column:1;grid-row:1;align-self:center}
+ .w1a-meeting-info{grid-column:2;grid-row:1}
+ .w1a-meeting-tile{grid-column:3;grid-row:1;height:220px}
+}
+@media(max-width:980px){
+ .w1a-next-meeting{grid-template-columns:minmax(0,1fr) minmax(150px,220px)}
+ .w1a-meeting-info{grid-column:1;grid-row:1}
+ .w1a-meeting-tile{grid-column:2;grid-row:1;height:170px}
+ .w1a-countdown{display:none}
+}
+@media(max-width:680px){
+ .w1a-next-meeting{grid-template-columns:1fr}
+ .w1a-meeting-tile{grid-column:1;grid-row:1}
+ .w1a-meeting-info{grid-column:1;grid-row:2}
+}
+.w1a-action-blue{background:#f0ecff;order:4}
+.w1a-action-green{background:#ecfaf3;order:3}
+.w1a-action-orange{background:#fff3e8;order:2}
+.w1a-action-purple{background:#eaf4ff;order:1}
