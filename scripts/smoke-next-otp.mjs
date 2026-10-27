@@ -153,6 +153,11 @@ for (let idx=0;idx<slugs.length;idx++){
       !interactiveHtml.includes("داشبورد سهامدار"))
       throw Error("W1 synthetic preview legal boundary missing");
    checks++;
+   const nav02=await fetch("http://127.0.0.1:"+port+"/review/interactive/nav-02");
+   if(nav02.status!==200)throw Error("W1 NAV02 synthetic route unavailable");
+   const nav02html=await nav02.text();
+   if(!nav02html.includes("CHILD06_MEMBERSHIP")||!nav02html.includes("CHILD07_HOLDINGS"))throw Error("W1 NAV02 boundaries missing");
+   checks++;
    const invalidReview=await fetch("http://127.0.0.1:"+port+"/review/not-a-nav");
    if(invalidReview.status!==404)throw Error("shareholder review invalid slug allowed");
    checks++;
