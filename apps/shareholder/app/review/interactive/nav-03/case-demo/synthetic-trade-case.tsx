@@ -1,12 +1,12 @@
 "use client";
 
-import {useState} from "react";
+import {useState,type ReactNode} from "react";
 import {OWNER_LABEL,SOURCE_SPEC,type PreviewFlow} from "../market-flow-model";
 import {CASES,DISPUTE_REASONS,LEGAL_EFFECT_LABEL,type PreviewCase} from "./case-fixtures";
 
 type Filter="ALL"|PreviewFlow;
 
-function Detail({title,children}:{title:string;children:React.ReactNode}){
+function Detail({title,children}:{title:string;children:ReactNode}){
  return <section className="w1t-detail-section">
   <h3>{title}</h3>{children}
  </section>;
