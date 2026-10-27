@@ -84,12 +84,11 @@ class NAV03MarketSpec(unittest.TestCase):
     self.assertIn('ثمن مستقیم خریدار→فروشنده',MODEL)
     self.assertIn('PAYMENT_REPORTED',MODEL)
     self.assertIn('PAYMENT_CONFIRMED',MODEL)
-    self.assertIn('ترانسفر',MODEL) if False else None
  def test_08_rules_legal_help_and_forbidden_hardcode(self):
     for token in ('⚖ راهنمای قانونی این صفحه','TTO-SHARE-MARKET-SPEC v3.0',
                   'COOP_APPROVED_POLICY','ACTIVE_PRICING_RULE',
                   'LEGAL_GATE-CAPITAL-COMMITMENT-PRICE','قیمت دلخواه',
-                  'در انتظار تأیید مستقل','ثبت دفتر سهام'):
+                  'نیازمند تأیید مستقل','ثبت دفتر سهام'):
       self.assertIn(token,CLIENT+"\n"+MODEL)
     self.assertNotIn('REAL_VALUE + BANK_INTEREST',CLIENT+"\n"+MODEL)
     self.assertNotIn('unit_price: 100000',CLIENT+"\n"+MODEL)
