@@ -63,11 +63,11 @@ function DataSection({
    <strong>{chosen?.label}</strong>
    <span>{chosen?.message}</span>
   </div>
-  <div className={"w1n-details"+(isMock?" w1n-details-mock":"")} aria-label={"جزئیات "+title}>
+  <dl className={"w1n-details"+(isMock?" w1n-details-mock":"")} aria-label={"جزئیات "+title}>
    {fields.map(field=><div className="w1n-detail" key={field.label}>
     <dt>{field.label}</dt><dd>{isMock?field.value:"—"}</dd>
    </div>)}
-  </div>
+  </dl>
   <div className="w1n-provenance" aria-label={"منشأ داده "+title}>
    <h3>مرجع و اعتبار اطلاعات</h3>
    <dl>
