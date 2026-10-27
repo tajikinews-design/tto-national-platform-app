@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import unittest
 from phase4g_confidential_review import (
-  ROOT,OLD,PATH,ROLES,EDGES,NOW,Denied,contract,fixture,verify,move,view,audit
+  ROOT,OLD,PATH,ROLES,EDGES,NOW,Denied,contract,fixture,verify,move,view,audit,expire
 )
 def assigned(case,role):return case["actors"][role]["id"]
 def step(case,to,role):
@@ -133,6 +133,12 @@ class Phase4GConfidentialIntake(unittest.TestCase):
         rejected=step(case,"REJECTED","INDEPENDENT_LEGAL_REVIEWER")
         self.assertEqual(rejected["state"],"REJECTED")
         with self.assertRaises(Denied):step(rejected,"QUARANTINED","TECHNICAL_OPERATOR")
+    def test_13_audited_expiry(self):
+        late=datetime(2026,12,3,10,tzinfo=timezone.utc)
+        result=expire(fixture(),late)
+        self.assertEqual(result["state"],"EXPIRED")
+        self.assertTrue(audit(result))
+
     def test_12_no_live_authority_from_audit_success(self):
         case=complete("CHILD07_HOLDINGS")
         self.assertEqual(case["decision"]["externalApproval"],False)
