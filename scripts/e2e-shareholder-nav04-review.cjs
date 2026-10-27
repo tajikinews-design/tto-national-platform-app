@@ -52,6 +52,14 @@ async function verify(width,height,interact){
   ok(await page.locator(".w1a-action").count()===4,"APPROVED_FOUR_ACTION_TILES_"+width);
   ok(await page.locator(".w1a-sidebar .w1a-side-link").count()===11,"CANONICAL_ELEVEN_NAV_ROOTS_"+width);
   ok(await page.locator(".w1a-global-header").count()===1,"SHARED_HEADER_PRESENT_"+width);
+  ok(await page.locator(".w1a-panel-line").count()>=12,"APPROVED_DENSE_INFORMATION_ROWS_"+width);
+  ok(await page.locator(".w1a-cooperative-switch").count()===1,"APPROVED_COOPERATIVE_SELECTOR_"+width);
+  ok(await page.locator(".w1a-attendance-state").count()===1,"LEGAL_SAFE_ATTENDANCE_STATUS_"+width);
+  const photo=await page.locator(".w1a-meeting-tile img").evaluate((img)=>({
+    complete:img.complete,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight
+  }));
+  ok(photo.complete&&photo.naturalWidth>=200&&photo.naturalHeight>=140,"APPROVED_MEETING_PHOTO_LOADED_"+width);
+  ok(await page.locator(".w1a-meeting-buttons button").isDisabled(),"UNVERIFIED_ATTENDANCE_CANNOT_SUBMIT_"+width);
   const screen=await page.evaluate(()=>{
     const sidebar=document.querySelector(".w1a-sidebar");
     const kpi=document.querySelector(".w1a-kpi");
@@ -97,7 +105,7 @@ async function verify(width,height,interact){
    innerWidth:innerWidth
   }));
   ok(geom.scrollWidth<=width+2,"NO_HORIZONTAL_OVERFLOW_"+width);
-  const screenshot=await page.screenshot({type:"png",animations:"disabled",path:join("/workspace/.qa-artifacts",SHA,"nav04-"+width+".png")});
+  const screenshot=await page.screenshot({type:"png",animations:"disabled",path:join("/workspace/.qa-artifacts",SHA,"nav04-"+width+".png"),fullPage:width===1536});
   ok(screenshot.byteLength>6000,"RENDERED_PIXELS_"+width);
   viewports.push({width,height,scrollWidth:geom.scrollWidth,pngSha256:createHash("sha256").update(screenshot).digest("hex")});
   if(interact){
@@ -134,10 +142,11 @@ async function run(){
  mkdirSync(join("/workspace/.qa-artifacts",SHA),{recursive:true});
  browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
  await verify(1440,900,true);
+ await verify(1536,1024,false);
  await verify(768,1024,false);
  await verify(390,844,true);
  await verify(320,740,false);
- console.log("TTO_NAV04_CHROMIUM_INTERACTIVE_VIEWPORTS=4/4");
+ console.log("TTO_NAV04_CHROMIUM_INTERACTIVE_VIEWPORTS=5/5");
  console.log("TTO_NAV04_CHROMIUM_INTERACTIVE_CHECKS="+checks.length);
  console.log("TTO_NAV04_CHROMIUM_INTERACTIVE_REPORT="+JSON.stringify({
   SHA,fixtureOnly:true,realVoting:false,realPublication:false,viewports,pngHashesOnly:true
