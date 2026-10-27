@@ -14,6 +14,8 @@ DASH=(ROOT/"apps/shareholder/app/review/interactive/synthetic-dashboard.tsx").re
 AST=(ROOT/"scripts/ci/verify-shareholder-tsx.cjs").read_text("utf-8")
 SMOKE=(ROOT/"scripts/smoke-next-otp.mjs").read_text("utf-8")
 PROTECTED=(ROOT/"packages/ui/src/shareholder-section-config.ts").read_text("utf-8")
+BROWSER=(ROOT/"scripts/e2e-shareholder-nav04-review.cjs").read_text("utf-8")
+RUN=(ROOT/"scripts/ci/run-local-docker.ps1").read_text("utf-8")
 
 class Nav04SyntheticAssemblies(unittest.TestCase):
  def test_01_source_denied_by_default(self):
@@ -86,6 +88,18 @@ class Nav04SyntheticAssemblies(unittest.TestCase):
   self.assertIn('مرجع رسمی هنوز تأیید نشده',UI)
   self.assertIn('هیچ حق رأی',UI)
   self.assertNotIn('approvedSourceId=',UI)
+ def test_12_real_browser_and_local_screenshot_archive(self):
+  for marker in ('verify(1440,900','verify(768,1024','verify(390,844',
+                 'verify(320,740','page.keyboard.press("Enter")',
+                 'NO_HORIZONTAL_OVERFLOW_','VOTING_PUBLISHING_DISABLED_',
+                 'ZERO_EXTERNAL_NETWORK_REQUESTS_',
+                 'path:join("/workspace/.qa-artifacts",SHA,'):
+   self.assertIn(marker,BROWSER)
+  self.assertIn('node scripts/e2e-shareholder-nav04-review.cjs',RUN)
+  self.assertIn('TTO_LOCAL_VISUAL_QA_PATH=',RUN)
+  self.assertIn('"CI=true", "-e", "TTO_LOOPBACK_E2E=1"',RUN)
+  self.assertIn('TTO_NAV04_CHROMIUM_INTERACTIVE_PASS_SHA=',BROWSER)
+
  def test_11_no_real_election_person_or_party(self):
   for forbidden in ('nationalId','mobileNumber','partyId','tenantId','phoneNumber',
     'candidateFullName','ballotId','voteCount','quorumNumber'):
