@@ -101,8 +101,8 @@ foreach($File in @($DockerRelease,$VisualRunner,
 }
 if(-not(Test-Path -LiteralPath $ReportsRoot)){ New-Item -ItemType Directory -Force -Path $ReportsRoot | Out-Null }
 $ReportsRoot=(Resolve-Path -LiteralPath $ReportsRoot).Path
-$NormalizedRepository=$Repository.TrimEnd([char[]]@('\\','/'))
-$NormalizedReports=$ReportsRoot.TrimEnd([char[]]@('\\','/'))
+$NormalizedRepository=$Repository.TrimEnd([char[]]@([char]92,[char]47))
+$NormalizedReports=$ReportsRoot.TrimEnd([char[]]@([char]92,[char]47))
 $RepoPrefix=$NormalizedRepository+[IO.Path]::DirectorySeparatorChar
 if($NormalizedReports -ieq $NormalizedRepository -or
    $NormalizedReports.StartsWith($RepoPrefix,[StringComparison]::OrdinalIgnoreCase)) {
