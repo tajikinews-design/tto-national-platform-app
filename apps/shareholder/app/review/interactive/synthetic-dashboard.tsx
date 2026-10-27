@@ -56,6 +56,10 @@ export function SyntheticDashboard(){
     <strong>DEMO</strong><span>داده کاملاً مصنوعی</span>
    </div>
   </section>
+  <p className="w1-navigation-next">
+   <a href="/review/interactive/nav-02">مشاهده صفحه تعاملی «سهام و عضویت من» با دو منبع مستقل ←</a>
+   <span>فقط اطلاعات ساختگی · بدون اتصال دفتر رسمی سهام</span>
+  </p>
   <section className="w1-controls" aria-label="انتخاب حالت آزمایش">
    <h2>حالت صفحه را انتخاب کنید</h2>
    <p>دکمه‌ها فقط وضعیت نمایش را در حافظه موقت همین صفحه تغییر می‌دهند.</p>
