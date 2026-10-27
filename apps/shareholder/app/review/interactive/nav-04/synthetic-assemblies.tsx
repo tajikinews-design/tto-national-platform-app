@@ -19,6 +19,148 @@ const MODES:readonly {id:DemoSourceState;label:string;message:string}[]=[
  {id:"DEMO_CONTENT",label:"نمونه کاملاً ساختگی",
   message:"همه شناسه‌ها، تاریخ‌ها، اسناد و وضعیت‌ها فرضی‌اند. این صفحه هیچ رأی یا تصمیمی را ثبت نمی‌کند."}
 ];
+
+const SIDE_MENU=[
+ ["⌂","داشبورد","/review/interactive"],
+ ["♙","سهام و عضویت من","/review/interactive/nav-02"],
+ ["▥","خرید و فروش سهام","/review/interactive/nav-03"],
+ ["♜","مجامع و انتخابات","/review/interactive/nav-04"],
+ ["▢","اخبار و ارتباط با شرکت",""],
+ ["⚙","خدمات من",""],
+ ["▣","فروشگاه و فرصت‌ها",""],
+ ["▤","پروژه‌های شرکت",""],
+ ["◇","شفافیت و اسناد شرکت",""],
+ ["▥","گزارش‌های من",""],
+ ["⚙","تنظیمات حساب",""]
+] as const;
+function ReviewSidebar(){
+ return <aside className="w1a-sidebar" aria-label="منوی پنل سهامدار">
+  <div className="w1a-brand"><span className="w1a-brand-mark" aria-hidden="true">✦</span>
+   <div><strong>پلتفرم ملی تعاونی توسعه و عمران</strong><small>شبکه هوشمند خدمات و راهبری تعاونی‌ها</small></div>
+  </div>
+  <nav className="w1a-side-links" aria-label="یازده بخش مصوب پنل">
+   {SIDE_MENU.map(([icon,label,href],i)=>
+    href?<a key={label} className={"w1a-side-link"+(i===3?" w1a-active":"")} aria-current={i===3?"page":undefined} href={href}>
+      <span aria-hidden="true" className="w1a-side-icon">{icon}</span><span>{label}</span></a>
+     :<span key={label} className="w1a-side-link w1a-not-linked" aria-disabled="true">
+      <span aria-hidden="true" className="w1a-side-icon">{icon}</span><span>{label}</span></span>)}
+  </nav>
+  <div className="w1a-sidebar-foot">پنل بازبینی · خروج از حساب عملیاتی در این نمونه وجود ندارد</div>
+ </aside>;
+}
+function ReviewTopbar(){
+ return <div className="w1a-global-header">
+   <div className="w1a-cooperative-switch" aria-label="تعاونی انتخاب‌شده ـ صرفاً نمایشی" aria-disabled="true">
+    <span aria-hidden="true" className="w1a-coop-icon">▦</span>
+    <span>تعاونی توسعه و عمران شهرستان نمونه</span>
+    <span aria-hidden="true">⌄</span>
+   </div>
+   <div className="w1a-global-user">
+    <span className="w1a-header-icon" aria-label="پیام‌ها ـ غیرفعال">✉</span>
+    <span className="w1a-header-icon w1a-bell" aria-label="اعلان‌ها ـ غیرفعال">♧</span>
+    <span className="w1a-avatar" aria-hidden="true">س</span>
+    <div><strong>سهامدار نمونه</strong><small>پنل بازبینی · داده غیرعملیاتی</small></div>
+   </div>
+ </div>;
+}
+const PREVIEW_DOC_ROWS=[
+ {title:"صورت‌جلسه مجمع سال نمونه",date:"۱۴۰۵/۰۷/۲۰ ـ فرضی"},
+ {title:"مصوبات مجمع عمومی فوق‌العاده",date:"۱۴۰۵/۰۸/۰۱ ـ فرضی"},
+ {title:"گزارش هیئت‌مدیره (نمونه)",date:"۱۴۰۵/۰۷/۲۰ ـ فرضی"},
+ {title:"گزارش بازرس قانونی (نمونه)",date:"۱۴۰۵/۰۸/۰۱ ـ فرضی"}
+] as const;
+const PREVIEW_NOTICE_ROWS=[
+ {title:"دعوت به مجمع عمومی عادی سالیانه (نمونه)",date:"۱۴۰۵/۰۹/۱۵ ـ فرضی"},
+ {title:"دستور جلسه مجمع (نمونه)",date:"۱۴۰۵/۰۹/۱۵ ـ فرضی"},
+ {title:"فهرست مشروط واجدان شرایط (نمونه)",date:"تأیید نشده"},
+ {title:"راهنمای ثبت حضور در مجمع (نمونه)",date:"انتشار رسمی نشده"}
+] as const;
+
+function ApprovedVisualOverview(){
+ const inv=ASSEMBLY_FIXTURES.filter(item=>item.recordType==="INVITATION");
+ const minute=ASSEMBLY_FIXTURES.filter(item=>item.recordType==="MINUTES");
+ const elections=ASSEMBLY_FIXTURES.filter(item=>item.recordType==="ELECTION_INFO");
+ const outcomes=ASSEMBLY_FIXTURES.filter(item=>item.recordType==="RESULT");
+ const showcase=inv[0];
+ return <section className="w1a-approved-overview" aria-label="نمای مصوب مجامع ـ تمام اطلاعات مصنوعی">
+  <div className="w1a-next-meeting">
+   <div className="w1a-meeting-tile">
+    <img src="/nav04-approved-meeting-demo.webp" alt="تصویر سالن مجمع برگرفته از پیش‌نمایش مصوب؛ نمایشی و فاقد سندیت رویداد" width="309" height="220" />
+   </div>
+   <div className="w1a-meeting-info">
+    <div className="w1a-meeting-topline">
+      <span className="w1a-next-label">▦ مجمع بعدی من</span>
+      <span className="w1a-mock-ribbon">DEMO · نمونه غیررسمی</span>
+    </div>
+    <div className="w1a-meeting-titleline"><span className="w1a-badge-blue">{showcase.assemblyKind}</span><h2>مجمع عمومی عادی سالیانه (نمونه)</h2><span className="w1a-badge-green">دعوت‌نامه تأیید نشده</span></div>
+    <div className="w1a-meeting-meta">
+     <span>▦ {showcase.scheduledAt}</span><span>◷ ساعت: اعلام نشده</span><span>⌖ {showcase.location}</span>
+    </div>
+    <div className="w1a-meeting-controls">
+     <div className="w1a-attendance-state">◉ وضعیت من: حضور احراز نشده</div>
+     <div className="w1a-meeting-buttons">
+      <button type="button" disabled aria-disabled="true" className="w1a-outline-button">اعلام حضور (غیرفعال)</button>
+      <a className="w1a-primary-link" href="#w1a-records">مشاهده جزئیات نمونه ←</a>
+     </div>
+    </div>
+   </div>
+   <div className="w1a-countdown"><strong>—</strong><span>روز باقی‌مانده</span><small>زمان رسمی تأیید نشده</small></div>
+  </div>
+
+  <div className="w1a-kpi-row">
+   <article className="w1a-kpi w1a-kpi-sky"><span className="w1a-kpi-icon">▤</span><div><h3>اسناد و مصوبات جدید</h3><strong>{(minute.length+outcomes.length).toLocaleString("fa-IR")}</strong><small>نمونه صرفاً نمایشی</small></div></article>
+   <article className="w1a-kpi w1a-kpi-mint"><span className="w1a-kpi-icon">▣</span><div><h3>انتخابات فعال</h3><strong>{elections.length.toLocaleString("fa-IR")}</strong><small>فقط کارت نمونه؛ فعالیت واقعی نامعلوم</small></div></article>
+   <article className="w1a-kpi w1a-kpi-apricot"><span className="w1a-kpi-icon">✓</span><div><h3>اقدامات موردنیاز من</h3><strong>—</strong><small>حق اقدام یا وظیفه احراز نشده</small></div></article>
+   <article className="w1a-kpi w1a-kpi-lilac"><span className="w1a-kpi-icon">▣</span><div><h3>مجامع پیش‌رو</h3><strong>{inv.length.toLocaleString("fa-IR")}</strong><small>دعوت‌نامه‌های ساختگی</small></div></article>
+  </div>
+  <div className="w1a-four-panels">
+   <section className="w1a-summary-panel">
+    <div className="w1a-panel-heading"><h3>جدیدترین اسناد و مصوبات</h3><span>همه اسناد ←</span></div>
+    {PREVIEW_DOC_ROWS.map(rec=><div className="w1a-panel-line" key={rec.title}>
+      <span className="w1a-file-icon" aria-hidden="true">▤</span>
+      <div><strong>{rec.title}</strong><small>{rec.date}</small></div>
+      <span className="w1a-pill w1a-pill-pdf">PDF · نمونه</span>
+    </div>)}
+   </section>
+   <section className="w1a-summary-panel">
+    <div className="w1a-panel-heading"><h3>آخرین اطلاعیه‌ها</h3><span>همه اطلاعیه‌ها ←</span></div>
+    {PREVIEW_NOTICE_ROWS.map(rec=><div className="w1a-panel-line" key={rec.title}>
+     <span className="w1a-file-icon" aria-hidden="true">▤</span>
+     <div><strong>{rec.title}</strong><small>{rec.date}</small></div>
+     <span className="w1a-pill w1a-pill-pdf">نمونه</span>
+    </div>)}
+   </section>
+   <section className="w1a-summary-panel">
+    <div className="w1a-panel-heading"><h3>انتخابات فعال</h3><span>همه انتخابات ←</span></div>
+    {[
+      {name:"انتخابات هیئت‌مدیره (نمونه)",state:"ثبت‌نام غیرعملیاتی"},
+      {name:"انتخابات بازرس اصلی و علی‌البدل (نمونه)",state:"زمان قانونی تأیید نشده"}
+    ].map(rec=><div className="w1a-panel-line w1a-election-row" key={rec.name}>
+      <div><span className="w1a-pill w1a-pill-violet">انتخابات فرضی</span>
+       <strong>{rec.name}</strong><small>{rec.state}</small></div>
+      <span className="w1a-pill w1a-pill-green">فقط پیش‌نمایش</span>
+    </div>)}
+   </section>
+   <section className="w1a-summary-panel">
+    <div className="w1a-panel-heading"><h3>مجامع پیش‌رو</h3><span>همه مجامع ←</span></div>
+    {inv.map(rec=><div className="w1a-panel-line w1a-assembly-row" key={rec.id}>
+     <div><span className="w1a-pill w1a-pill-blue">{rec.assemblyKind}</span>
+      <strong>{rec.title}</strong><small>▦ {rec.scheduledAt}</small>
+      <small>⌖ {rec.location}</small></div>
+     <span className="w1a-pill w1a-pill-green">نمونه غیررسمی</span>
+    </div>)}
+   </section>
+  </div>
+
+  <div className="w1a-actions-row" aria-label="مسیرهای این ماژول در نسخه طراحی">
+   <a href="#w1a-records" className="w1a-action w1a-action-blue"><span>▤</span><div><strong>مشاهده مجامع</strong><small>اطلاعات، دستور جلسه و ثبت حضور (نمایشی)</small></div>←</a>
+   <span className="w1a-action w1a-action-green w1a-action-disabled" aria-disabled="true"><span>♙</span><div><strong>مدیریت وکالت</strong><small>واگذاری و پیگیری وکالت‌ها · غیرفعال</small></div>—</span>
+   <span className="w1a-action w1a-action-orange w1a-action-disabled" aria-disabled="true"><span>♧</span><div><strong>ثبت نامزدی در انتخابات</strong><small>مدارک و پیگیری وضعیت · غیرفعال</small></div>—</span>
+   <a href="#w1a-records" className="w1a-action w1a-action-purple"><span>▤</span><div><strong>نتایج و مصوبات</strong><small>صورت‌جلسات، مصوبات و نتایج · نمونه</small></div>←</a>
+  </div>
+ </section>;
+}
+
 export function SyntheticAssemblies(){
  const [mode,setMode]=useState<DemoSourceState>("UNVERIFIED");
  const [filter,setFilter]=useState<Filter>("ALL");
@@ -32,13 +174,15 @@ export function SyntheticAssemblies(){
    ??ASSEMBLY_FIXTURES[0]).id);
  }
  return <main className="w1a-shell" dir="rtl">
+  <ReviewSidebar/><div className="w1a-frame"><ReviewTopbar/>
+  <div className="w1a-page-heading"><div><h1>مجامع و انتخابات</h1><p>اطلاع‌رسانی، مشارکت و پیگیری مجامع عمومی، انتخابات و مصوبات تعاونی</p></div><span>نمایش آزمایشی · بدون اتصال عملیاتی</span></div>
   <header className="w1a-top">
    <a href="/review/interactive">بازگشت به داشبورد آزمایشی ←</a>
    <span>W1 / NAV-04 · نمایش اطلاع‌رسانی، نه سامانه رأی‌گیری</span>
   </header>
   <section className="w1a-hero">
    <div><span className="w1a-eyebrow">مرجع انتشار رسمی مستقل · وضعیت فعلی: مسدود</span>
-    <h1>مجامع عمومی و انتخابات تعاونی</h1>
+    <h2>مجامع عمومی و انتخابات تعاونی</h2>
     <p>دعوت‌نامه‌ها، سوابق مجامع، صورت‌جلسات و اطلاعات انتخابات در یک محیط نمونه بررسی می‌شوند؛ هیچ حق رأی، نصاب، رأی‌دهنده یا نتیجه رسمی تعیین نمی‌شود.</p>
    </div>
    <div className="w1a-demo"><strong>DEMO</strong><span>داده کاملاً مصنوعی؛ فاقد اسناد و اشخاص واقعی</span></div>
@@ -58,8 +202,9 @@ export function SyntheticAssemblies(){
     {MODES.find(x=>x.id===mode)?.message}
    </p>
   </section>
+  {fake?<ApprovedVisualOverview/>:<section className="w1a-preview-placeholder" aria-label="نمای اصلی بدون منبع معتبر"><strong>مجمع بعدی من</strong><p>اطلاعات مجمع، شمارنده‌ها، اطلاعیه‌ها و اسناد تا تأیید منبع معتبر نمایش داده نمی‌شوند.</p></section>}
   {fake?<div className="w1a-content">
-   <section className="w1a-records" aria-label="فهرست اسناد آزمایشی">
+   <section id="w1a-records" className="w1a-records" aria-label="فهرست اسناد آزمایشی">
     <div className="w1a-section-head"><h2>فهرست سوابق و اطلاعیه‌های ساختگی</h2>
      <span>۶ نمونه · هیچ انتشار رسمی انجام نشده</span>
     </div>
@@ -123,5 +268,5 @@ export function SyntheticAssemblies(){
   <footer className="w1a-footer">
    این صفحه فقط‌خواندنی و کاملاً ساختگی است. ثبت نامزد، رأی‌گیری، محاسبه حق رأی یا نصاب، حضور و غیاب، ارسال دعوت، بارگذاری یا دانلود اسناد، انتشار رسمی و اعلام نتیجه انجام نمی‌شود.
   </footer>
- </main>;
+ </div></main>;
 }

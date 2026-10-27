@@ -36,6 +36,7 @@ async function verify(width,height,interact){
   ok(await page.locator("main.w1a-shell[dir=rtl]").count()===1,"RTL_"+width);
   ok(await page.locator(".w1a-list .w1a-record").count()===0,"DEFAULT_SOURCE_BLOCKED_"+width);
   ok(await page.locator(".w1a-empty").count()===1,"NO_MOCK_BEFORE_OPTIN_"+width);
+  ok(await page.locator(".w1a-approved-overview").count()===0,"NO_APPROVED_FIXTURE_OVERVIEW_BEFORE_OPTIN_"+width);
   ok(await page.getByRole("button",{name:"ثبت رأی (غیرفعال)"}).count()===0,
     "NO_VOTE_WHEN_BLOCKED_"+width);
   // Opt into sample only: no public/legal/source record becomes valid.
@@ -43,6 +44,56 @@ async function verify(width,height,interact){
   await mock.click();
   ok(await mock.getAttribute("aria-pressed")==="true","DEMO_SWITCH_"+width);
   ok(await page.locator(".w1a-record").count()===6,"SIX_FIXTURES_"+width);
+  // The user-approved visual structure must render only after opting into DEMO.
+  ok(await page.locator(".w1a-approved-overview").count()===1,"APPROVED_OVERVIEW_VISIBLE_"+width);
+  ok(await page.locator(".w1a-next-meeting").count()===1,"APPROVED_NEXT_MEETING_"+width);
+  ok(await page.locator(".w1a-kpi").count()===4,"APPROVED_FOUR_STATUS_CARDS_"+width);
+  ok(await page.locator(".w1a-summary-panel").count()===4,"APPROVED_FOUR_INFORMATION_PANELS_"+width);
+  ok(await page.locator(".w1a-action").count()===4,"APPROVED_FOUR_ACTION_TILES_"+width);
+  ok(await page.locator(".w1a-sidebar .w1a-side-link").count()===11,"CANONICAL_ELEVEN_NAV_ROOTS_"+width);
+  ok(await page.locator(".w1a-global-header").count()===1,"SHARED_HEADER_PRESENT_"+width);
+  ok(await page.locator(".w1a-panel-line").count()>=12,"APPROVED_DENSE_INFORMATION_ROWS_"+width);
+  ok(await page.locator(".w1a-cooperative-switch").count()===1,"APPROVED_COOPERATIVE_SELECTOR_"+width);
+  ok(await page.locator(".w1a-attendance-state").count()===1,"LEGAL_SAFE_ATTENDANCE_STATUS_"+width);
+  const photo=await page.locator(".w1a-meeting-tile img").evaluate((img)=>({
+    complete:img.complete,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight
+  }));
+  ok(photo.complete&&photo.naturalWidth>=200&&photo.naturalHeight>=140,"APPROVED_MEETING_PHOTO_LOADED_"+width);
+  ok(await page.locator(".w1a-meeting-buttons button").isDisabled(),"UNVERIFIED_ATTENDANCE_CANNOT_SUBMIT_"+width);
+  const screen=await page.evaluate(()=>{
+    const sidebar=document.querySelector(".w1a-sidebar");
+    const kpi=document.querySelector(".w1a-kpi");
+    const panel=document.querySelector(".w1a-summary-panel");
+    const box=sidebar?.getBoundingClientRect();
+    return {sidebarRect:box&&{x:box.x,width:box.width},
+      kpi: kpi&&getComputedStyle(kpi).backgroundColor,
+      panel:panel&&getComputedStyle(panel).backgroundColor,
+      bodyDirection:getComputedStyle(document.body).direction};
+  });
+  ok(screen.sidebarRect?.width>0,"SIDEBAR_DIMENSIONS_"+width);
+  ok(screen.bodyDirection==="rtl","GLOBAL_RTL_DIRECTION_"+width);
+  const layout=await page.evaluate(()=>{
+    const rect=(selector)=>{
+      const el=document.querySelector(selector);
+      if(!el)return null;
+      const b=el.getBoundingClientRect();
+      return {left:b.left,right:b.right,top:b.top,width:b.width};
+    };
+    return {sidebar:rect(".w1a-sidebar"),content:rect(".w1a-frame"),
+      image:rect(".w1a-meeting-tile"),information:rect(".w1a-meeting-info"),
+      counter:rect(".w1a-countdown"),
+      results:rect(".w1a-action-purple"),assemblies:rect(".w1a-action-blue")};
+  });
+  if(width>=981){
+    ok(layout.sidebar.left>layout.content.left,"APPROVED_RIGHT_RAIL_"+width);
+    ok(layout.image.left<layout.information.left &&
+       layout.information.left<layout.counter.left,"APPROVED_MEETING_LTR_GEOMETRY_"+width);
+    ok(layout.results.left>layout.assemblies.left,"APPROVED_ACTION_ORDER_"+width);
+  }else if(width<=680){
+    ok(layout.image.top<layout.information.top,"APPROVED_MOBILE_IMAGE_ABOVE_DETAILS_"+width);
+  }else{
+    ok(layout.image.left<layout.information.left,"APPROVED_TABLET_MEETING_LAYOUT_"+width);
+  }
   const buttons=page.locator(".w1a-vote button");
   ok(await buttons.count()===3,"THREE_ACTIONS_PRESENT_"+width);
   for(let i=0;i<3;i++)ok(await buttons.nth(i).isDisabled(),"VOTING_PUBLISHING_DISABLED_"+width+"_"+i);
@@ -54,7 +105,7 @@ async function verify(width,height,interact){
    innerWidth:innerWidth
   }));
   ok(geom.scrollWidth<=width+2,"NO_HORIZONTAL_OVERFLOW_"+width);
-  const screenshot=await page.screenshot({type:"png",animations:"disabled",path:join("/workspace/.qa-artifacts",SHA,"nav04-"+width+".png")});
+  const screenshot=await page.screenshot({type:"png",animations:"disabled",path:join("/workspace/.qa-artifacts",SHA,"nav04-"+width+".png"),fullPage:width===1536});
   ok(screenshot.byteLength>6000,"RENDERED_PIXELS_"+width);
   viewports.push({width,height,scrollWidth:geom.scrollWidth,pngSha256:createHash("sha256").update(screenshot).digest("hex")});
   if(interact){
@@ -91,10 +142,11 @@ async function run(){
  mkdirSync(join("/workspace/.qa-artifacts",SHA),{recursive:true});
  browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
  await verify(1440,900,true);
+ await verify(1536,1024,false);
  await verify(768,1024,false);
  await verify(390,844,true);
  await verify(320,740,false);
- console.log("TTO_NAV04_CHROMIUM_INTERACTIVE_VIEWPORTS=4/4");
+ console.log("TTO_NAV04_CHROMIUM_INTERACTIVE_VIEWPORTS=5/5");
  console.log("TTO_NAV04_CHROMIUM_INTERACTIVE_CHECKS="+checks.length);
  console.log("TTO_NAV04_CHROMIUM_INTERACTIVE_REPORT="+JSON.stringify({
   SHA,fixtureOnly:true,realVoting:false,realPublication:false,viewports,pngHashesOnly:true
