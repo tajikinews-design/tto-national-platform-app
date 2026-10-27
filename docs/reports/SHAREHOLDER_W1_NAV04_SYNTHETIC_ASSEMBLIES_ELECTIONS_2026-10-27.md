@@ -62,6 +62,16 @@ NAV04 در `packages/ui/src/shareholder-section-config.ts` بر پایه **«م�
 - Real Chromium برای هر دو NAV03/NAV04؛ گزارش ۱۸+۱۰ تصویر با SHA مشخص، صفر درخواست خارج از localhost و صفر رویداد قابل ثبت.
 - بررسی انسانی خوانایی موبایل/دسکتاپ، تب‌ها، صورت‌جلسه‌های نمایش‌داده‌شده، محتواهای فرضی و صفحه‌کلید.
 
+**اجرای یکپارچه پیشنهادی به‌جای سه دستور جدا:** `scripts/ci/run-shareholder-w1-nav04-acceptance.ps1`. این Runner هنگام اجرا SHA دقیق HEAD، origin رسمی، پاکیزگی Worktree، Python discovery، Full Docker Release، Phase3B baseline و آزمون واقعی NAV03 و NAV04 را کنترل می‌کند. خروجی ۱۸+۱۰ PNG، JSONهای Chromium، `phase3b-report.json`، متن transcript و `acceptance-summary.json` در یک فولدرِ بیرون از مخزن و بر اساس ۱۲ کاراکتر ابتدایی SHA ذخیره می‌شوند. فایل‌های PNG واقعاً از نظر وجود و اندازه بررسی می‌شوند و تا حد امکان کانتینر و Volume آزمایشی فقط **پس از تأیید برچسب مالکیت SHA** پاک می‌شوند. `-SkipFullRelease` فقط برای بازبینی بصری است و **هیچ‌گاه پذیرش کامل اعلام نمی‌کند**. `-KeepVisualContainers` برای بازبینی دستی مرورگر، منابع محلی را حفظ می‌کند.
+
+نمونه اجرای داخل Worktree پاکیزه با HEAD مطابق SHA موردنظر:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\ci\run-shareholder-w1-nav04-acceptance.ps1 -Repository (Get-Location).Path -ExpectedCommit '<EXACT_COMMIT_SHA>'
+```
+
+کنترل نهایی صدور `TTO_W1_NAV03_NAV04_LOCAL_QA_PASS_SHA=<EXACT_COMMIT_SHA>` فقط **پس از** Python، Release و مرورگر صادر می‌شود؛ علامت موجود در سند صرفاً مشخصات خروجی مورد انتظار است و **به معنی موفقیت این اجرا در زمان نگارش نیست**.
+
 **نبود تغییر در PRهای پذیرفته‌شده** شرط است. هیچ merge یا Deploy قبل از تصویب مستقل انجام نمی‌شود.
 
 ## ۶. مرحله بعد از پذیرش
