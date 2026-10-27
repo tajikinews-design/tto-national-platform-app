@@ -45,3 +45,17 @@ Source of authority remains NAV Architecture, Child08 Governance & Assemblies an
 - Read-only browser tried to navigate to that deployed preview's `/review/interactive/nav-04`, but Vercel Deployment Protection redirected to **Log in to Vercel**. No authenticated app DOM, screenshot or interaction result could be obtained. Do not disable or bypass security to fake success.
 - Added in-repository exact-source local QA helper `scripts/ci/run-nav04-approved-visual-release.ps1`, fetching remote branch head, isolating Git worktree, enforcing exact-SHA Docker Release and disallowing auto-merge/deploy. A separate v2 helper with screenshot integrity requirements was also delivered alongside the conversation.
 - Current status remains **BUILD FIXED ON CHECKED PREVIEW COMMIT; BROWSER VISUAL / EXACT HEAD RELEASE / HUMAN ACCEPTANCE PENDING**.
+
+## Reference-specific layout correction and final browser-acceptance blockers — 2026-10-27
+
+- Compared source composition against the user-approved 1536×1024 NAV04 screenshot (a_wide_high_resolution_ui_ux_mockup_dashboard_scr.png). This **NAV04-specific** reference takes precedence over general dashboard proportions for that screen.
+- Fixed screenshot-inconsistent composition on the draft: right navigation track roughly 12.25% at 1536 viewport, feature-card media at left, information at center and countdown at right in desktop RTL. Responsive tablet/mobile layouts explicitly reset grid positions.
+- Fixed visual quick-action order: results → candidacy → proxy → assemblies, right to left. Fixed secondary H1 duplication and put the approved summary overview before reviewer/legal diagnostic panels.
+- Extended the real Playwright contract to assert rail position, meeting media/info/counter geometry and action sequence on desktop, tablet and mobile.
+- Verified source readback: 16/16 focused static requirements passed. **Do not report as executed Chromium or pixel parity.**
+- Remaining visible difference: the present feature tile is a CSS-rendered meeting-room illustration rather than the approved screenshot's actual photographic meeting room. Full pixel-accurate result must keep status UNAPPROVED until that asset/design discrepancy is resolved and human-reviewed.
+- Current PR47 head has GitHub CI FAILURE; no successful exact-SHA Docker Release or screenshot artifacts. Preview READY at an **older** SHA is not head acceptance.
+- Vercel preview login protection was confirmed read-only; do not disable protection or create public bypass links to force browser execution.
+- The executable exact-SHA isolated local runner lives in scripts/ci/run-nav04-approved-visual-release.ps1; it does not automatically approve, merge or deploy. Once run in the authorized local worktree, confirm TTO_LOCAL_RELEASE_PASS_SHA equals the tested commit and inspect SHA-tagged screenshots visually.
+
+**STATUS: REVIEW IMPLEMENTED / LOCAL RELEASE NOT ACCEPTED / PIXEL MATCH NOT VERIFIED / LIVE RIGHTS AND SOURCES BLOCKED.**
