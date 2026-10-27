@@ -83,7 +83,7 @@ class W1SyntheticCaseDetails(unittest.TestCase):
   self.assertIn('exception:"CANCELLED"',FIX)
   self.assertIn('بعد از Reservation لغو مستقیم ممنوع است',FIX)
   self.assertIn('بعد از تکمیل: فقط Correction Case مستقل',FIX)
-  self.assertIn('بعد از COMPLETED فقط Correction Case مستقل',FIX)
+  self.assertIn('پس از COMPLETED فقط Correction Case مستقل',FIX)
   self.assertIn('پایان مهلت تأیید خودکار ایجاد نمی‌کند',CLIENT)
 
  def test_09_audit_metadata_is_fictional_and_structured(self):
