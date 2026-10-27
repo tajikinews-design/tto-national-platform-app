@@ -115,6 +115,10 @@ export function SyntheticMembershipHoldings(){
     fields={HOLDING_FIELDS} sourceLabel="TEST-ONLY-CHILD07"
     versionLabel="نسخه ۵ — ساختگی" asOfLabel="۱۴۰۵/۰۷/۰۱ — نمونه"/>
   </div>
+  <p className="w1n-next-preview">
+   <a href="/review/interactive/nav-03">مشاهده گردش‌کارهای آزمایشی خرید و فروش سهام ←</a>
+   <span>منطبق با Specification v3.0 · بدون ثبت سفارش واقعی</span>
+  </p>
   <section className="w1n-safeguards">
    <h2>مرز دسترسی و مسئولیت اطلاعات</h2>
    <p>صدور نشست، وجود نقش سهامدار یا وضعیت عضویت، هیچ‌کدام به‌تنهایی موجودی سهام را اثبات نمی‌کنند. تأیید واقعی عضویت مستلزم تکمیل ۹ کنترل Child06 و تأیید دفتر سهام مستلزم تکمیل ۱۰ کنترل مستقل Child07 است.</p>
