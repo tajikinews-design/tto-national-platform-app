@@ -4,7 +4,8 @@
  */
 const assert=require("node:assert/strict");
 const {spawn}=require("node:child_process");
-const {resolve}=require("node:path");
+const {resolve,join}=require("node:path");
+const {mkdirSync}=require("node:fs");
 const {createHash}=require("node:crypto");
 const {chromium}=require("playwright");
 const ROOT=resolve(__dirname,".."),PORT=32974,BASE="http://127.0.0.1:"+PORT;
@@ -53,7 +54,7 @@ async function verify(width,height,interact){
    innerWidth:innerWidth
   }));
   ok(geom.scrollWidth<=width+2,"NO_HORIZONTAL_OVERFLOW_"+width);
-  const screenshot=await page.screenshot({type:"png",animations:"disabled"});
+  const screenshot=await page.screenshot({type:"png",animations:"disabled",path:join("/workspace/.qa-artifacts",SHA,"nav04-"+width+".png")});
   ok(screenshot.byteLength>6000,"RENDERED_PIXELS_"+width);
   viewports.push({width,height,scrollWidth:geom.scrollWidth,pngSha256:createHash("sha256").update(screenshot).digest("hex")});
   if(interact){
@@ -87,6 +88,7 @@ async function run(){
  server=spawn(process.execPath,[entry,"start","-p",String(PORT),"--hostname","127.0.0.1"],{
   cwd,env:{...process.env,PORT:String(PORT),TTO_API_BASE_URL:"",NEXT_TELEMETRY_DISABLED:"1"},stdio:"ignore"});
  await waitReady();
+ mkdirSync(join("/workspace/.qa-artifacts",SHA),{recursive:true});
  browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
  await verify(1440,900,true);
  await verify(768,1024,false);
