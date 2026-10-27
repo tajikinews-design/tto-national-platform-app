@@ -1,0 +1,321 @@
+{
+  "schemaVersion": "1.0",
+  "project": "TTO_NATIONAL_PLATFORM",
+  "phase": "SHAREHOLDER_PHASE4G",
+  "kind": "CONFIDENTIAL_LEGAL_SOURCE_REVIEW_PROCESS_DESIGN_NOT_LIVE_UPLOAD",
+  "baseAcceptedLocalSha": "4da14db409504185a075d7f834b48619440656f5",
+  "inheritLegalChain": "docs/contracts/shareholder-legal-source-chain-phase4f-v1.json",
+  "inheritBlockedReadiness": "docs/contracts/shareholder-source-readiness-phase4d-v1.json",
+  "authoritySourceOfTruth": "INDEPENDENT_CURRENT_TENANT_LAW_AND_VERIFIED_DELEGATION_NOT_GITHUB_CONFIG",
+  "operationalAuthorityApproval": "BLOCKED_UNTIL_SEPARATE_EXTERNAL_LEGAL_DECISION",
+  "realEvidenceIngressEnabled": false,
+  "realSourceConnectionEnabled": false,
+  "realApprovalMutationEnabled": false,
+  "realSharesTradingEnabled": false,
+  "uploadedDocumentsPresent": false,
+  "liveStorageProvisioned": false,
+  "policyMaximumDays": 90,
+  "policyMaximumDaysMeaning": "PROPOSED_TECHNICAL_CEILING_ONLY_NOT_A_LEGAL_TERM",
+  "separationOfDuties": [
+    "SOURCE_SUBMITTER",
+    "AUTHORIZED_SOURCE_CUSTODIAN",
+    "INDEPENDENT_LEGAL_REVIEWER",
+    "TECHNICAL_OPERATOR"
+  ],
+  "authorityRegister": {
+    "model": "TENANT_AND_SOURCE_DOMAIN_SCOPED_AUTHORITIES_VERIFY_OFF_GITHUB",
+    "requiredFields": [
+      "tenantId",
+      "sourceDomain",
+      "sourceRef",
+      "decisionAuthorityRole",
+      "sourceCustodianAppointmentRef",
+      "legalMandateRef",
+      "ruleVersionRef",
+      "independentReviewerEligibilityRef",
+      "effectiveFrom",
+      "effectiveUntil",
+      "revocationRef",
+      "auditRef"
+    ],
+    "neverInferFrom": [
+      "login",
+      "otp",
+      "membershipProjection",
+      "role",
+      "sourceCI",
+      "otherTenant",
+      "otherDomain",
+      "successfulDocumentUpload"
+    ],
+    "changeRequiresNewReview": [
+      "TENANT",
+      "SOURCE_DOMAIN",
+      "SOURCE_REF",
+      "CUSTODIAN",
+      "BOARD_AUTHORITY",
+      "EFFECTIVE_DATES",
+      "REVOCATION"
+    ]
+  },
+  "domains": [
+    {
+      "sourceDomain": "CHILD06_MEMBERSHIP",
+      "proposedSelfReadRoute": "member-record",
+      "mandatoryControls": [
+        "TENANT_PARTY_NOT_USER_EQUIVALENCE",
+        "ACTIVE_MEMBERSHIP_NEEDS_AUTHORITATIVE_SOURCE",
+        "SOURCE_EVENT_ID_AND_VERSION_PROVENANCE",
+        "NO_ROLE_AS_MEMBERSHIP_EVIDENCE",
+        "SOURCE_BATCH_ATTESTATION_REPLAY_CONTROL",
+        "REVOKED_SESSION_AND_TENANT_RLS",
+        "INDEPENDENT_LAWFUL_BASIS_DATA_MINIMIZATION",
+        "INDEPENDENT_TENANT_SCOPED_APPROVAL_WITH_EXPIRY",
+        "RETENTION_AUDIT_AND_SOURCE_WITHDRAWAL"
+      ],
+      "evidenceClasses": [
+        "SOURCE_CUSTODIAN_APPOINTMENT",
+        "SOURCE_OWNER_MANDATE_OR_DELEGATION",
+        "PURPOSE_AND_LAWFUL_BASIS",
+        "TENANT_AND_SOURCE_SCOPE",
+        "EVIDENCE_PROVENANCE_AND_INTEGRITY",
+        "INDEPENDENT_REVIEW_ATTESTATION",
+        "RETENTION_WITHDRAWAL_POLICY"
+      ],
+      "currentLegalAuthorityStatus": "PENDING_INDEPENDENT_VERIFICATION"
+    },
+    {
+      "sourceDomain": "CHILD07_HOLDINGS",
+      "proposedSelfReadRoute": "shareholding",
+      "mandatoryControls": [
+        "OFFICIAL_LEDGER_OWNER_AND_LEGAL_BASIS",
+        "TENANT_PARTY_TO_SHAREHOLDER_ACCOUNT_BINDING",
+        "LEDGER_VERSION_ENTRY_REF_AND_AS_OF",
+        "EXACT_NONNEGATIVE_INTEGER_QUANTITY_EXPLICIT_ZERO_ONLY",
+        "PAYMENT_REQUEST_NOT_TRANSFER_OR_SETTLEMENT",
+        "SOURCE_BATCH_ATTESTATION_STALE_AND_REPLAY",
+        "MEMBERSHIP_APPROVAL_NOT_LEDGER_APPROVAL",
+        "SELF_ONLY_RLS_AND_SESSION_REVOCATION",
+        "INDEPENDENT_TIMEBOUND_TENANT_LEDGER_APPROVAL",
+        "AUDIT_RETENTION_AND_SOURCE_WITHDRAWAL"
+      ],
+      "evidenceClasses": [
+        "SOURCE_CUSTODIAN_APPOINTMENT",
+        "SOURCE_OWNER_MANDATE_OR_DELEGATION",
+        "PURPOSE_AND_LAWFUL_BASIS",
+        "TENANT_AND_SOURCE_SCOPE",
+        "EVIDENCE_PROVENANCE_AND_INTEGRITY",
+        "INDEPENDENT_REVIEW_ATTESTATION",
+        "RETENTION_WITHDRAWAL_POLICY"
+      ],
+      "currentLegalAuthorityStatus": "PENDING_INDEPENDENT_VERIFICATION"
+    }
+  ],
+  "confidentialIntake": {
+    "realEndpoint": null,
+    "tempUploadAdapter": "DISABLED",
+    "storage": "NO_BUCKET_CONFIGURED_NO_DOCUMENT_BYTES_ACCEPTED_IN_PHASE4G",
+    "futureRequirements": {
+      "encryptionAtRest": "PER_TENANT_OBJECT_KEYS_KMS_POLICY_TO_BE_APPROVED",
+      "transport": "TLS_AUTHENTICATED_SIGNED_SINGLE_USE_UPLOAD_ONLY",
+      "access": "TENANT_BOUND_CASE_ID_OBJECT_KEY_PRIVATE_BY_DEFAULT",
+      "uploadRestrictions": "SERVER_VERIFIED_MIME_MAGIC_SIZE_AND_EXTENSION_ALLOWLIST",
+      "scanning": "QUARANTINE_PENDING_MALWARE_SCAN_BEFORE_ANY_REVIEW",
+      "evidenceIntegrity": "SERVER_COMPUTED_SHA256_NOT_SIGNATURE_AUTHENTICITY",
+      "metadata": "OPAQUE_RANDOM_EVIDENCE_ID_AND_HASH_ONLY_NO_PII_IN_LOGS_OR_GITHUB",
+      "download": "SHORT_LIVED_SINGLE_CASE_SCOPED_AUTHENTICATED_REVIEW_TOKEN",
+      "retention": "LEGAL_HOLD_RETENTION_DELETION_REQUIRE_INDEPENDENT_POLICY",
+      "audit": "APPEND_ONLY_ACTOR_ACTION_TIMESTAMP_HASH_CHAIN_REQUIRES_EXTERNAL_TAMPER_EVIDENCE"
+    },
+    "fileTypesForLaterReview": [
+      "PDF",
+      "JPEG",
+      "PNG"
+    ],
+    "maximumFileSizeBytesForLaterReview": 10485760,
+    "acceptanceReceiptMetadataOnly": [
+      "tenantId",
+      "caseId",
+      "sourceDomain",
+      "sourceRef",
+      "evidenceRef",
+      "sha256",
+      "fileType",
+      "contentLength",
+      "quarantineState",
+      "receivedAt",
+      "retentionPolicyRef"
+    ],
+    "neverLog": [
+      "documentBytes",
+      "mobile",
+      "nationalId",
+      "boardMembersPersonalData",
+      "storageAccessToken",
+      "signedUrl",
+      "rawDocumentTitle"
+    ]
+  },
+  "workflow": {
+    "entry": "DRAFT",
+    "terminal": [
+      "EXTERNAL_SIGNOFF_REQUIRED",
+      "REJECTED",
+      "WITHDRAWN",
+      "EXPIRED"
+    ],
+    "states": [
+      "DRAFT",
+      "SUBMITTED",
+      "QUARANTINED",
+      "METADATA_VALIDATED",
+      "AUTHENTICITY_REVIEWED",
+      "INDEPENDENT_REVIEW_RECORDED",
+      "EXTERNAL_SIGNOFF_REQUIRED",
+      "REJECTED",
+      "WITHDRAWN",
+      "EXPIRED"
+    ],
+    "transitions": [
+      [
+        "DRAFT",
+        "SUBMITTED"
+      ],
+      [
+        "SUBMITTED",
+        "QUARANTINED"
+      ],
+      [
+        "QUARANTINED",
+        "METADATA_VALIDATED"
+      ],
+      [
+        "METADATA_VALIDATED",
+        "AUTHENTICITY_REVIEWED"
+      ],
+      [
+        "AUTHENTICITY_REVIEWED",
+        "INDEPENDENT_REVIEW_RECORDED"
+      ],
+      [
+        "INDEPENDENT_REVIEW_RECORDED",
+        "EXTERNAL_SIGNOFF_REQUIRED"
+      ],
+      [
+        "DRAFT",
+        "WITHDRAWN"
+      ],
+      [
+        "SUBMITTED",
+        "WITHDRAWN"
+      ],
+      [
+        "QUARANTINED",
+        "WITHDRAWN"
+      ],
+      [
+        "METADATA_VALIDATED",
+        "WITHDRAWN"
+      ],
+      [
+        "AUTHENTICITY_REVIEWED",
+        "WITHDRAWN"
+      ],
+      [
+        "INDEPENDENT_REVIEW_RECORDED",
+        "WITHDRAWN"
+      ],
+      [
+        "SUBMITTED",
+        "REJECTED"
+      ],
+      [
+        "QUARANTINED",
+        "REJECTED"
+      ],
+      [
+        "METADATA_VALIDATED",
+        "REJECTED"
+      ],
+      [
+        "AUTHENTICITY_REVIEWED",
+        "REJECTED"
+      ],
+      [
+        "INDEPENDENT_REVIEW_RECORDED",
+        "REJECTED"
+      ]
+    ],
+    "legalRecordRequiredOn": [
+      "AUTHENTICITY_REVIEWED",
+      "INDEPENDENT_REVIEW_RECORDED",
+      "EXTERNAL_SIGNOFF_REQUIRED",
+      "REJECTED"
+    ],
+    "denyAfterWithdrawOrExpiry": true,
+    "restartAfterDelegationOrMandateChange": true,
+    "separateSignoffOutsideThisArtifact": true,
+    "autoExpireFrom": [
+      "DRAFT",
+      "SUBMITTED",
+      "QUARANTINED",
+      "METADATA_VALIDATED",
+      "AUTHENTICITY_REVIEWED",
+      "INDEPENDENT_REVIEW_RECORDED"
+    ],
+    "autoExpireOnlyIf": [
+      "REVIEW_CASE_VALIDITY_ELAPSED",
+      "DELEGATION_VALIDITY_ELAPSED",
+      "MANDATE_REVOKED"
+    ]
+  },
+  "decisionRecord": {
+    "requiredFields": [
+      "caseId",
+      "tenantId",
+      "sourceDomain",
+      "sourceRef",
+      "decision",
+      "reviewerId",
+      "legalBasisRef",
+      "authorityRegisterVersion",
+      "mandateRef",
+      "evidenceIds",
+      "reviewedAt",
+      "validUntil",
+      "reasonCode",
+      "auditEventHash"
+    ],
+    "reviewDecisions": [
+      "NEEDS_MORE_EVIDENCE",
+      "REJECTED_FOR_EXTERNAL_REVIEW",
+      "FORWARD_TO_EXTERNAL_AUTHORITY"
+    ],
+    "mayNotReturn": [
+      "LEGAL_SOURCE_APPROVED",
+      "ACTIVATE_SOURCE",
+      "REAL_SHARES_CONFIRMED",
+      "TRADE_SETTLED"
+    ],
+    "externalSignoffEnforcedOutsideSimulation": true
+  },
+  "acceptedTechnicalProofOnly": [
+    "OFFLINE_POLICY_STATE_MACHINE_TESTS",
+    "DISPOSABLE_POSTGRES17_TEMP_SHADOW_AUDIT_TESTS",
+    "LOCAL_EXACT_SHA_DOCKER_RELEASE"
+  ],
+  "prohibitedActivities": [
+    "RECEIVE_REAL_DOCUMENTS",
+    "HOST_PRIVATE_FILES",
+    "SEND_REAL_SMS",
+    "APPROVE_ACTUAL_SOURCE",
+    "IMPORT_MEMBER_RECORDS",
+    "IMPORT_SHARE_REGISTER",
+    "ACTIVATE_CHILD07_TRADES",
+    "PUBLISH_CHILD09_NOTICES",
+    "GENERAL_ACCOUNTING",
+    "WALLET",
+    "DEPLOY_PRODUCTION",
+    "MERGE_MAIN"
+  ]
+}
