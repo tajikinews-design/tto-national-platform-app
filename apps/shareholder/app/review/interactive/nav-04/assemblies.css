@@ -224,3 +224,19 @@
 .w1a-action-green{background:#ecfaf3;order:3}
 .w1a-action-orange{background:#fff3e8;order:2}
 .w1a-action-purple{background:#eaf4ff;order:1}
+
+
+/* Keep approved screenshot hierarchy above supplemental demo QA/legal panels.
+   Source switch remains accessible in the default denied state below the placeholder. */
+.w1a-frame{display:flex;flex-direction:column}
+.w1a-global-header{order:0}
+.w1a-page-heading{order:1}
+.w1a-approved-overview,.w1a-preview-placeholder{order:2}
+.w1a-mode-section{order:3}
+.w1a-content,.w1a-empty{order:4}
+.w1a-gates{order:5}
+.w1a-guard{order:6}
+.w1a-hero{order:7}
+.w1a-top{order:8}
+.w1a-footer{order:9}
+.w1a-hero h2{font-size:14px;color:#124576;line-height:1.5;margin:1px 0}
