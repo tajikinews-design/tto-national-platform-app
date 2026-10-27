@@ -18,7 +18,9 @@ const files = [
   "apps/shareholder/app/review/review-portal.tsx",
   "apps/shareholder/app/review/layout.tsx",
   "apps/shareholder/app/review/page.tsx",
-  "apps/shareholder/app/review/[id]/page.tsx"
+  "apps/shareholder/app/review/[id]/page.tsx",
+  "apps/shareholder/app/review/interactive/page.tsx",
+  "apps/shareholder/app/review/interactive/synthetic-dashboard.tsx"
 ];
 for (const relative of files) {
   const file = path.join(root, relative);

@@ -144,6 +144,15 @@ for (let idx=0;idx<slugs.length;idx++){
      throw Error("shareholder review disclosure missing: "+route);
     checks++;
    }
+   // W1 synthetic-only interactive NAV01 preview is NOT an authenticated workspace.
+   const interactive=await fetch("http://127.0.0.1:"+port+"/review/interactive");
+   if(interactive.status!==200)throw Error("W1 review interactive missing");
+   const interactiveHtml=await interactive.text();
+   if(!interactiveHtml.includes("داده کاملاً مصنوعی")||
+      !interactiveHtml.includes("منبع تأیید نشده")||
+      !interactiveHtml.includes("داشبورد سهامدار"))
+      throw Error("W1 synthetic preview legal boundary missing");
+   checks++;
    const invalidReview=await fetch("http://127.0.0.1:"+port+"/review/not-a-nav");
    if(invalidReview.status!==404)throw Error("shareholder review invalid slug allowed");
    checks++;
