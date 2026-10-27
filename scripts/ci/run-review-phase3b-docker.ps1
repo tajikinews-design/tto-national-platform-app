@@ -5,7 +5,8 @@ param(
  [Parameter(Mandatory=$true)][string]$ExpectedCommit,
  [string]$ReportsDirectory="D:\TTO-Phase3B-Visual-Reports",
  [switch]$TestOnly,
- [switch]$Nav03Interactive
+ [switch]$Nav03Interactive,
+ [switch]$Nav04Interactive
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference="Stop"
@@ -171,4 +172,29 @@ if($Nav03Interactive) {
  }
  Write-Host "TTO_NAV03_BROWSER_VISUAL_INTERACTIVE_PASS_SHA=$ExpectedCommit" -ForegroundColor Green
  Write-Host "TTO_NAV03_BROWSER_REPORT=$Nav03Report"
+}
+
+if($Nav04Interactive) {
+ $Nav04Script=Join-Path $Repository "scripts/ci/nav04-interactive-browser.cjs"
+ if(-not(Test-Path -LiteralPath $Nav04Script -PathType Leaf)) { throw "NAV04_BROWSER_SCRIPT_MISSING" }
+ DockerCheck "NAV04 real Chromium read-only governance audit, 10 screenshots" @(
+  "run","--rm","--network",("container:"+$container),
+  "--security-opt","no-new-privileges",
+  "--mount",("type=volume,source="+$volume+",target=/workspace,readonly"),
+  "--mount",("type=bind,source="+$ReportsDirectory+",target=/results"),
+  "-e",("TTO_REVIEW_OUTPUT_DIR=/results"),
+  "-e",("TTO_REVIEW_EXPECTED_SOURCE_SHA="+$ExpectedCommit),
+  "mcr.microsoft.com/playwright:v1.56.1-noble","bash","-lc",
+  "set -euo pipefail; npm install --prefix /tmp/tto-browser --no-audit --no-fund --silent playwright@1.56.1; NODE_PATH=/tmp/tto-browser/node_modules node /workspace/scripts/ci/nav04-interactive-browser.cjs"
+ )
+ $Nav04Report=Join-Path $ReportsDirectory "nav04-browser-report.json"
+ if(-not(Test-Path -LiteralPath $Nav04Report -PathType Leaf)) { throw "NAV04_BROWSER_REPORT_MISSING" }
+ $Nav04=Get-Content -LiteralPath $Nav04Report -Raw -Encoding UTF8 | ConvertFrom-Json
+ if(-not $Nav04.pass -or $Nav04.expectedSha -cne $ExpectedCommit -or
+    $Nav04.expectedScreenshots -ne 10 -or
+    $Nav04.screenshots.Count -ne 10 -or $Nav04.issues.Count -gt 0) {
+  throw "NAV04_BROWSER_AUDIT_INCOMPLETE"
+ }
+ Write-Host "TTO_NAV04_BROWSER_VISUAL_INTERACTIVE_PASS_SHA=$ExpectedCommit" -ForegroundColor Green
+ Write-Host "TTO_NAV04_BROWSER_REPORT=$Nav04Report"
 }

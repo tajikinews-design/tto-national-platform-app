@@ -178,6 +178,15 @@ for (let idx=0;idx<slugs.length;idx++){
     }
     checks++;
    }
+   const nav04=await fetch("http://127.0.0.1:"+port+"/review/interactive/nav-04");
+   if(nav04.status!==200)throw Error("W1 NAV04 governance preview HTTP "+nav04.status);
+   const nav04html=await nav04.text();
+   for(const text of ["مجامع عمومی و انتخابات تعاونی","مجامع عمومی",
+                      "انتخابات تعاونی","منبع مسدود",
+                      "هیچ دعوت‌نامه، رأی یا صورت‌جلسه رسمی منتشر نشده"]){
+    if(!nav04html.includes(text))throw Error("W1 NAV04 legal boundary missing: "+text);
+   }
+   checks++;
    const invalidReview=await fetch("http://127.0.0.1:"+port+"/review/not-a-nav");
    if(invalidReview.status!==404)throw Error("shareholder review invalid slug allowed");
    checks++;
