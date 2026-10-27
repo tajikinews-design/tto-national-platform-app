@@ -254,7 +254,20 @@
     ],
     "denyAfterWithdrawOrExpiry": true,
     "restartAfterDelegationOrMandateChange": true,
-    "separateSignoffOutsideThisArtifact": true
+    "separateSignoffOutsideThisArtifact": true,
+    "autoExpireFrom": [
+      "DRAFT",
+      "SUBMITTED",
+      "QUARANTINED",
+      "METADATA_VALIDATED",
+      "AUTHENTICITY_REVIEWED",
+      "INDEPENDENT_REVIEW_RECORDED"
+    ],
+    "autoExpireOnlyIf": [
+      "REVIEW_CASE_VALIDITY_ELAPSED",
+      "DELEGATION_VALIDITY_ELAPSED",
+      "MANDATE_REVOKED"
+    ]
   },
   "decisionRecord": {
     "requiredFields": [
