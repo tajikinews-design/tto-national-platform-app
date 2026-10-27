@@ -40,7 +40,7 @@
 1. `scripts/ci/test_shareholder_w1_nav04.py`: ۱۱ آزمون قرارداد و منع رأی/نتیجه، امن بودن حالت پیش‌فرض، تفکیک منبع، metadata اسناد، کیبورد و مسیر.
 2. `scripts/ci/verify-shareholder-tsx.cjs`: اضافه‌شدن سه فایل TS/TSX به AST gate.
 3. `scripts/smoke-next-otp.mjs`: اجرای HTTP واقعی `GET /review/interactive/nav-04` و کنترل متن حالت منبع نامعتبر.
-4. `scripts/e2e-shareholder-nav04-review.cjs`: Chromium واقعی در چهار viewport `1440x900`, `768x1024`, `390x844`, `320x740`؛ تعامل دکمه‌ها/فیلترها و صفحه‌کلید، عدم رأی‌گیری و دانلود، وضعیت فقدان منبع، عدم overflow، و screenshot hash.
+4. `scripts/e2e-shareholder-nav04-review.cjs`: Chromium واقعی در چهار viewport `1440x900`, `768x1024`, `390x844`, `320x740`؛ تعامل دکمه‌ها/فیلترها و صفحه‌کلید، عدم رأی‌گیری و دانلود، وضعیت فقدان منبع، عدم overflow، screenshot hash و خروجی تصویرهای ساختگی در پوشه `Downloads\\TTO-Local-CI-Reports\\TTO-Visual-QA-<runId>` برای بازبینی انسانی.
 5. `scripts/ci/run-local-docker.ps1`: پس از اجرای Chromium 4C و NAV03، گیت NAV04 نیز با همان source/namespace خصوصی اجرا می‌شود. API یا منبع واقعی فعال نمی‌شود.
 
 **گیت‌های پذیرش:** اجرای Python + Next build/TypeScript + Chromium/HTTP + Docker Release چهار OCI روی exact SHA این PR و بازبینی انسانی تصاویر در UI. تا رسیدن شواهد، این PR `DRAFT` و `LOCAL_RELEASE_PENDING` می‌ماند.
