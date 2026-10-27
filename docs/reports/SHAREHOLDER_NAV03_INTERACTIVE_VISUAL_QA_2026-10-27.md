@@ -25,7 +25,7 @@
 | کیبورد | `focus + Enter` برای فیلتر فروش و انتخاب پرونده لغو |
 | معنا و امنیت | عدم انتقال از `REGISTER_RECORDED`، ۲۱ رویداد فرضی تکمیل معامله، غیرقابل‌کلیک ماندن اقدام |
 | React و حریم خصوصی | نبود خطای `pageerror` و نبود درخواست به origin خارجی |
-| خروجی تصویری | screenshot واقعی در حافظه گرفته می‌شود؛ فقط SHA256 آن در log ثبت می‌شود؛ تصویرهای پرونده به GitHub ارسال نمی‌شوند |
+| خروجی تصویری | screenshot واقعی و کاملاً مصنوعی در فضای موقت Docker گرفته و پیش از پاک‌سازی در مسیر محلی `Downloads\\TTO-Local-CI-Reports\\TTO-Visual-QA-<runId>` به ویندوز منتقل می‌شود؛ SHA256 نیز در log ثبت می‌گردد. هیچ تصویر یا اطلاعاتی به GitHub ارسال نمی‌شود. |
 
 سازوکار fail-closed، علاوه بر گیت‌های Python موجود، شرط `TTO_NAV03_CHROMIUM_VISUAL_VIEWPORTS=4/4` و `TTO_NAV03_CHROMIUM_VISUAL_PASS_SHA=<exact>` را به Release اضافه می‌کند. فایل `scripts/ci/test_shareholder_w1_nav03_browser_visual.py` دارای ۸ آزمون سیاست و اتصال به Runner است.
 
