@@ -136,7 +136,7 @@
 - PRs: #31 `2f195b...`, #32 `d78f2d...`, #33 `559ba83...`, #34 `7eb11f...`, #35 `4da14d...`, #36 `e9f588...` — همگی در تاریخ برش Draft/unmerged.
 - README و ADR: `docs/architecture/ADR-001-FINAL-STACK.md`, `docs/plan/ENVIRONMENT_AND_RELEASE_POLICY.md`.
 - UI: `packages/ui/src/shareholder-navigation.ts`, `shareholder-workspace.tsx`, `shareholder-read-models.tsx`, `shareholder-section-config.ts`, `apps/shareholder/app/review`, `apps/shareholder/app/modules/[id]`.
-- Runtime API/DB: `services/api/src/module.ts`, `apps/shareholder/lib/source-read-access.ts`, `apps/shareholder/app/api/**`, `database/migrations/0009_*,` `0010_*`.
+- Runtime API/DB: `services/api/src/module.ts`, `apps/shareholder/lib/source-read-access.ts`, `apps/shareholder/app/api/**`, `database/migrations/0009_*` و `database/migrations/0010_*`.
 - Legal contracts: `docs/contracts/shareholder-source-readiness-phase4d-v1.json`، `shareholder-source-authority-readiness-v1.json`، `shareholder-legal-source-chain-phase4f-v1.json`، `shareholder-confidential-intake-phase4g-v1.json`.
 - آخرین log کاربر: `C:\Users\Sadra\Downloads\TTO-Local-CI-Reports\TTO-Release-20261027-093748-62e7b84a9068.log`، پس از `TTO_LOCAL_RELEASE_PASS_SHA=e9f588...` بدون مدرک رسمی صاحب منبع.
 - GitHub commit status on Phase4G head: Vercel shareholder/cooperative/national preview **success**، API preview **failure** linked to `build-rate-limit`. وضعیت فعلی endpoint واقعی و حفاظت مشاهده‌شده در مرورگر هنوز مستقل اثبات نشده است.
