@@ -116,7 +116,7 @@ function ApprovedVisualOverview(){
   <div className="w1a-four-panels">
    <section className="w1a-summary-panel">
     <div className="w1a-panel-heading"><h3>جدیدترین اسناد و مصوبات</h3><span>همه اسناد ←</span></div>
-    {PREVIEW_DOC_ROWS.map((rec,i)=><div className="w1a-panel-line" key={rec.title}>
+    {PREVIEW_DOC_ROWS.map(rec=><div className="w1a-panel-line" key={rec.title}>
       <span className="w1a-file-icon" aria-hidden="true">▤</span>
       <div><strong>{rec.title}</strong><small>{rec.date}</small></div>
       <span className="w1a-pill w1a-pill-pdf">PDF · نمونه</span>
