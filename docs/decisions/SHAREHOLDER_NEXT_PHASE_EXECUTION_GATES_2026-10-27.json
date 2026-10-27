@@ -1,0 +1,278 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "SHAREHOLDER_ARCHITECTURE_EXECUTION_REVIEW_DECISIONS_ONLY",
+  "reviewedAt": "2026-10-27",
+  "baseRuntimeSha": "e9f588f7e37c4c2a18853a7feb70a7f27a57b500",
+  "source": "docs/reports/SHAREHOLDER_ARCHITECTURE_CONSOLIDATION_PHASE4C_4G_2026-10-27.md",
+  "scope": [
+    "PHASE4C",
+    "PHASE4D",
+    "PHASE4E",
+    "PHASE4F",
+    "PHASE4G"
+  ],
+  "project": "TTO_NATIONAL_PLATFORM",
+  "sourceControlGate": {
+    "membershipChild06Pending": 9,
+    "holdingsChild07Pending": 10,
+    "tradeHistoryChild07Pending": 7,
+    "noticesChild09Pending": 8,
+    "allLegalApprovals": "BLOCKED",
+    "externalEvidenceReceived": false,
+    "realDocumentsUploaded": false,
+    "realSmsEnabled": false,
+    "realDataConnected": false,
+    "realSharesTradingEnabled": false,
+    "automaticActivation": false
+  },
+  "technicalAcceptances": [
+    {
+      "phase": "PHASE4C",
+      "sha": "d78f2d6ca1ca15f99301776501aeadf163e5a0ad",
+      "kind": "USER_LOG_EXACT_SHA_LOCAL_RELEASE",
+      "caseResults": "5/5 Chromium, 156 checks"
+    },
+    {
+      "phase": "PHASE4D",
+      "sha": "559ba83e2b8c66d279bfaf3a01e27bc36ae1bac6",
+      "kind": "USER_LOG_EXACT_SHA_LOCAL_RELEASE",
+      "caseResults": "19 PENDING contract gates"
+    },
+    {
+      "phase": "PHASE4E",
+      "sha": "7eb11f91a00e67d1325fcb7531540e2aec8d8d5e",
+      "kind": "USER_LOG_EXACT_SHA_LOCAL_RELEASE",
+      "caseResults": "22/22 synthetic PG17 attacks, 65 checks"
+    },
+    {
+      "phase": "PHASE4F",
+      "sha": "4da14db409504185a075d7f834b48619440656f5",
+      "kind": "USER_LOG_EXACT_SHA_LOCAL_RELEASE",
+      "caseResults": "32/32 synthetic PG17 cases, 71 checks"
+    },
+    {
+      "phase": "PHASE4G",
+      "sha": "e9f588f7e37c4c2a18853a7feb70a7f27a57b500",
+      "kind": "USER_LOG_EXACT_SHA_LOCAL_RELEASE_TAIL_ONLY",
+      "caseResults": "final Release PASS; 20-case individual markers not visible in excerpt"
+    }
+  ],
+  "knownCrossGateGaps": [
+    {
+      "code": "STACKED_DRAFT_PRS",
+      "risk": "31-36 all draft/unmerged; local acceptance is not integrated main acceptance"
+    },
+    {
+      "code": "HOSTED_API_BUILD_RATE_LIMIT",
+      "risk": "last checked GitHub commit status Vercel API preview FAILURE; three UI previews SUCCESS"
+    },
+    {
+      "code": "STATUS_EVIDENCE_DRIFT",
+      "risk": "Phase4F and Phase4G source status file PENDING despite separately documented exact-SHA local Release acceptance"
+    },
+    {
+      "code": "NO_REAL_SOURCE_AUTHORITY",
+      "risk": "19 Child06/Child07 and 15 Child07-case/Child09 source gates pending"
+    },
+    {
+      "code": "NO_LIVE_CONFIDENTIAL_DOCUMENT_INGRESS",
+      "risk": "Phase4G simulates evidence and audit only; no approved storage/scanning/signature verification"
+    },
+    {
+      "code": "PARTIAL_OPERATIONAL_UI",
+      "risk": "NAV04 and NAV06-11 remain authorization-closed informational shells"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "DEC-01",
+      "question": "Approve next synthetic-only shareholder UI implementation across eleven NAV surfaces",
+      "accountableRole": "PROJECT_OWNER",
+      "state": "PENDING",
+      "blocks": "W1",
+      "notes": "no real identities; no live uploads, trades, ownership assertions, payment or publication",
+      "decisionDocumentRef": null,
+      "approvedBy": null,
+      "approvedAt": null
+    },
+    {
+      "id": "DEC-02",
+      "question": "Independently determine per-cooperative legal authority and appointment/delegation evidence",
+      "accountableRole": "COOPERATIVE_LEGAL_AUTHORITY_AND_DATA_OWNER",
+      "state": "PENDING",
+      "blocks": "W3",
+      "notes": "not inferred from manager role or GitHub",
+      "decisionDocumentRef": null,
+      "approvedBy": null,
+      "approvedAt": null
+    },
+    {
+      "id": "DEC-03",
+      "question": "Accept nine Child06 membership-source provenance/identity/retention controls",
+      "accountableRole": "CHILD06_SOURCE_OWNER_AND_DATA_GOVERNANCE",
+      "state": "PENDING",
+      "blocks": "W3",
+      "notes": "formal master mapping and tenant/Party rights",
+      "decisionDocumentRef": null,
+      "approvedBy": null,
+      "approvedAt": null
+    },
+    {
+      "id": "DEC-04",
+      "question": "Accept ten Child07 official share-ledger controls independently from membership",
+      "accountableRole": "CHILD07_OFFICIAL_LEDGER_OWNER_AND_LEGAL_REVIEWER",
+      "state": "PENDING",
+      "blocks": "W3",
+      "notes": "authoritative quantity/version/asOf and explicit source-certified zero",
+      "decisionDocumentRef": null,
+      "approvedBy": null,
+      "approvedAt": null
+    },
+    {
+      "id": "DEC-05",
+      "question": "Approve separate seven Child07 case-feed and eight Child09 publication/recipient gates",
+      "accountableRole": "CHILD07_CASE_OWNER_AND_CHILD09_PUBLISHER",
+      "state": "PENDING",
+      "blocks": "W4",
+      "notes": "neither payment nor notice delivery creates authorization",
+      "decisionDocumentRef": null,
+      "approvedBy": null,
+      "approvedAt": null
+    },
+    {
+      "id": "DEC-06",
+      "question": "Map formally approved trading Specification to runtime commands and external Board/superior-law decisions",
+      "accountableRole": "PROJECT_OWNER_AND_COOPERATIVE_LEGAL_COUNSEL",
+      "state": "PENDING",
+      "blocks": "W4",
+      "notes": "no wallet or company accounting; buyer to seller directly under approved workflow",
+      "decisionDocumentRef": null,
+      "approvedBy": null,
+      "approvedAt": null
+    },
+    {
+      "id": "DEC-07",
+      "question": "Approve confidential document upload/storage architecture and governance",
+      "accountableRole": "SECURITY_PRIVACY_AND_LEGAL_EVIDENCE_OWNER",
+      "state": "PENDING",
+      "blocks": "W3",
+      "notes": "encryption, scanning, KMS, tenant storage isolation, ACL, legal hold, retention, audit",
+      "decisionDocumentRef": null,
+      "approvedBy": null,
+      "approvedAt": null
+    },
+    {
+      "id": "DEC-08",
+      "question": "Approve production OTP delivery, identity recovery and consent/security measures",
+      "accountableRole": "SECURITY_AND_OPERATIONS",
+      "state": "PENDING",
+      "blocks": "W4",
+      "notes": "no real SMS until separate signoff",
+      "decisionDocumentRef": null,
+      "approvedBy": null,
+      "approvedAt": null
+    },
+    {
+      "id": "DEC-09",
+      "question": "Approve integration pipeline, Preview SSO and hosted CI, Arvan-only production rollout gates",
+      "accountableRole": "TECH_LEAD_DEVOPS_PROJECT_OWNER",
+      "state": "PENDING",
+      "blocks": "W0",
+      "notes": "API Preview build rate limit unresolved; no production promotion",
+      "decisionDocumentRef": null,
+      "approvedBy": null,
+      "approvedAt": null
+    },
+    {
+      "id": "DEC-10",
+      "question": "Authorize canonical exact-SHA test evidence index and orderly PR integration",
+      "accountableRole": "TECH_LEAD_QA_OWNER",
+      "state": "PENDING",
+      "blocks": "W0",
+      "notes": "do not rewrite accepted commits or infer legal approval from CI",
+      "decisionDocumentRef": null,
+      "approvedBy": null,
+      "approvedAt": null
+    }
+  ],
+  "milestones": [
+    {
+      "id": "W0",
+      "scope": "RELEASE_EVIDENCE_AND_STACKED_PR_REVIEW",
+      "priority": "P0",
+      "syntheticCanBeDesigned": false,
+      "decisions": [
+        "DEC-09",
+        "DEC-10"
+      ],
+      "status": "PROPOSED_NOT_AUTHORIZED",
+      "actualSourceEnabled": false,
+      "productionAllowed": false
+    },
+    {
+      "id": "W1",
+      "scope": "SYNTHETIC_INTERACTIVE_11_NAV_SHAREHOLDER_UI",
+      "priority": "P0",
+      "syntheticCanBeDesigned": true,
+      "decisions": [
+        "DEC-01"
+      ],
+      "status": "PROPOSED_NOT_AUTHORIZED",
+      "actualSourceEnabled": false,
+      "productionAllowed": false
+    },
+    {
+      "id": "W2",
+      "scope": "READ_ONLY_SOURCE_ADAPTER_CONTRACTS_WITH_PERMANENT_DENY_STUB",
+      "priority": "P1",
+      "syntheticCanBeDesigned": true,
+      "decisions": [
+        "DEC-01"
+      ],
+      "status": "PROPOSED_NOT_AUTHORIZED",
+      "actualSourceEnabled": false,
+      "productionAllowed": false
+    },
+    {
+      "id": "W3",
+      "scope": "EXTERNAL_LEGAL_SOURCE_EVIDENCE_AND_CONFIDENTIAL_STORAGE_DESIGN",
+      "priority": "P1",
+      "syntheticCanBeDesigned": false,
+      "decisions": [
+        "DEC-02",
+        "DEC-03",
+        "DEC-04",
+        "DEC-07"
+      ],
+      "status": "PROPOSED_NOT_AUTHORIZED",
+      "actualSourceEnabled": false,
+      "productionAllowed": false
+    },
+    {
+      "id": "W4",
+      "scope": "REAL_INTEGRATION_AND_OPERATIONAL_RELEASE_GATES",
+      "priority": "P2",
+      "syntheticCanBeDesigned": false,
+      "decisions": [
+        "DEC-02",
+        "DEC-03",
+        "DEC-04",
+        "DEC-05",
+        "DEC-06",
+        "DEC-07",
+        "DEC-08",
+        "DEC-09"
+      ],
+      "status": "PROPOSED_NOT_AUTHORIZED",
+      "actualSourceEnabled": false,
+      "productionAllowed": false
+    }
+  ],
+  "authorization": {
+    "documentMayAuthorizeLegalSource": false,
+    "documentMayTriggerGitHubMerge": false,
+    "documentMayAuthorizeDeployment": false,
+    "nextWorkIsProposedNotApproved": true,
+    "immutableBaseline": true
+  }
+}
