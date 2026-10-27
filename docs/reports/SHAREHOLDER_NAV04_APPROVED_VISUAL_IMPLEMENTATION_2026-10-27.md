@@ -37,3 +37,11 @@ Source of authority remains NAV Architecture, Child08 Governance & Assemblies an
 
 ## Final static source readback
 - After the 17.4vw sidebar adjustment, 37/37 current-branch static contract checks passed on the then-current source. This does not verify running Next or Chromium. Three approved reference images have pixel size 1672x941; approved NAV04 mockup 1536x1024. See local QA status report for acceptance caveats.
+
+## Follow-up build blocker remediation and protected-browser status (2026-10-27)
+- Identified a **real** Next.js/Turbopack CSS parsing failure in the stacked NAV03 case-demo stylesheet `apps/shareholder/app/review/interactive/nav-03/case-demo/case.css` from Vercel build log on deployment dpl_9NnkKXGrbY6yXBEZhYzydPWuxexG: literal backslash-n characters caused `Unexpected end of input`.
+- Replaced the five literal escaping sequences with actual line breaks on **this PR47 review branch only**; prior locally accepted NAV03 commit was not modified. Added a regression assertion `test_nav03_preview_css_has_no_literal_newline_escape`.
+- Follow-up shareholder Vercel **Preview** for commit `1a14fe04d40ec0fcc15ced36bfbaf3eead2da11e` is reported **READY** (deployment dpl_EkAksKfkKkrvpvo5akdF4CrggYzw). This validates the Build gate at that commit, not the latest PR head and not Release.
+- Read-only browser tried to navigate to that deployed preview's `/review/interactive/nav-04`, but Vercel Deployment Protection redirected to **Log in to Vercel**. No authenticated app DOM, screenshot or interaction result could be obtained. Do not disable or bypass security to fake success.
+- Added in-repository exact-source local QA helper `scripts/ci/run-nav04-approved-visual-release.ps1`, fetching remote branch head, isolating Git worktree, enforcing exact-SHA Docker Release and disallowing auto-merge/deploy. A separate v2 helper with screenshot integrity requirements was also delivered alongside the conversation.
+- Current status remains **BUILD FIXED ON CHECKED PREVIEW COMMIT; BROWSER VISUAL / EXACT HEAD RELEASE / HUMAN ACCEPTANCE PENDING**.
