@@ -104,7 +104,8 @@ function CaseDetails({item}:{item:PreviewCase}){
      <div>
       <strong>{event.title}</strong>
       <code dir="ltr">{event.step}</code>
-      <span>اقدام‌کننده مفروض: {OWNER_LABEL[event.actor]} · {event.at}</span>
+      <span>نقش اقدام‌کننده مفروض: {OWNER_LABEL[event.role]} · {event.timestamp}</span>
+      <span>شناسه اقدام‌کننده ساختگی: {event.actor}</span>
       <details><summary>جزئیات ممیزی ساختگی</summary>
        <dl>
         <div><dt>before</dt><dd>{event.before}</dd></div>
