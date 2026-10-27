@@ -57,6 +57,24 @@ class ApprovedNav04Visual(unittest.TestCase):
         self.assertNotIn(chr(92) + "n", css)
         self.assertEqual(css.count("{"), css.count("}"))
 
+    def test_approved_meeting_photo_and_full_size_browser_capture(self):
+        photo = ROOT / "apps/shareholder/public/nav04-approved-meeting-demo.webp"
+        self.assertTrue(photo.is_file())
+        self.assertGreater(photo.stat().st_size, 2000)
+        self.assertIn('/nav04-approved-meeting-demo.webp', UI)
+        for token in (
+            'w1a-cooperative-switch', 'w1a-meeting-controls',
+            'w1a-attendance-state', 'PREVIEW_DOC_ROWS',
+            'PREVIEW_NOTICE_ROWS', 'اعلام حضور (غیرفعال)',
+            'حضور احراز نشده', 'دعوت‌نامه تأیید نشده'
+        ):
+            self.assertIn(token, UI)
+        browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
+        self.assertIn('verify(1536,1024,false)', browser)
+        self.assertIn('fullPage:width===1536', browser)
+        self.assertIn('APPROVED_MEETING_PHOTO_LOADED_', browser)
+        self.assertIn('UNVERIFIED_ATTENDANCE_CANNOT_SUBMIT_', browser)
+
     def test_responsive_and_anchors(self):
         for token in (
             ".w1a-frame", ".w1a-sidebar", ".w1a-approved-overview",
