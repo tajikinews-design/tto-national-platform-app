@@ -193,6 +193,7 @@ try {
     # Phase4F is a TEMP/ROLLBACK-only PG17 legal-authority shadow model.
     # This does not populate tto.source_contract_approvals or grant real authority.
     Run-Node "Phase4F PG17 independent legal source-chain synthetic QA" "node scripts/e2e-phase4f-legal-authority-chain.cjs"
+    Run-Node "Phase4G PG17 confidential review shadow" "node scripts/e2e-phase4g-confidential-review-shadow.cjs"
     if ($Suite -eq "Release") {
         # Real end-to-end Chromium through live Nest/Next and this invocation's
         # disposable PG17. No request interception or synthetic HTTP responses.
