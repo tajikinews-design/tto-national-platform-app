@@ -135,3 +135,19 @@ def view(case):
     return {"state":case["state"],"events":len(case["events"]),
             "sourceDomain":case["sourceDomain"],"auditHead":case["events"][-1]["hash"],
             "realLegalApproval":False,"realFileIngress":False,"sourceActivated":False}
+
+def expire(case,now):
+    """Record expiry/revocation without reauthorizing an expired mandate."""
+    guard(type(case) is dict and audit(case) and case["state"] not in FINAL,"EXPIRY_STATE")
+    mandate=case["mandate"]
+    overdue=(now>=stamp(case["expiresAt"]) or
+             now>=stamp(mandate["until"]) or mandate["revoked"] is True)
+    guard(overdue,"NOT_EXPIRED")
+    result=copy.deepcopy(case)
+    event={"from":case["state"],"to":"EXPIRED","actor":"SYSTEM_SYNTHETIC_TEST",
+           "at":now.isoformat().replace("+00:00","Z")}
+    prev=case["events"][-1]["hash"]
+    result["events"].append({"event":event,"prev":prev,"hash":digest([prev,event])})
+    result["state"]="EXPIRED"
+    guard(audit(result),"EXPIRY_AUDIT")
+    return result
