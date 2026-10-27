@@ -6,7 +6,8 @@
 const assert=require("node:assert/strict");
 const {spawn}=require("node:child_process");
 const {createHash}=require("node:crypto");
-const {resolve}=require("node:path");
+const {resolve,join}=require("node:path");
+const {mkdirSync}=require("node:fs");
 const {chromium}=require("playwright");
 const ROOT=resolve(__dirname,"..");
 const PORT=32973, ORIGIN="http://127.0.0.1:"+PORT;
@@ -58,7 +59,7 @@ async function suite(viewport,doInteractions){
   check(geom.scrollWidth<=geom.innerWidth+2,"NO_HORIZONTAL_OVERFLOW_"+viewport.width+
    "_scroll_"+geom.scrollWidth+"_vp_"+geom.innerWidth);
   check(!geom.badCards,"CARD_MIN_WIDTH_"+viewport.width);
-  const shot=await page.screenshot({type:"png",fullPage:false,animations:"disabled"});
+  const shot=await page.screenshot({type:"png",fullPage:false,animations:"disabled",path:join("/workspace/.qa-artifacts",EXPECTED_SHA,"nav03-"+viewport.width+".png")});
   check(shot.byteLength>6000,"NONEMPTY_RENDER_"+viewport.width);
   observed.push({viewport,geom,shotSha256:createHash("sha256").update(shot).digest("hex")});
   if(doInteractions){
@@ -109,6 +110,7 @@ async function run(){
   cwd,env:{...process.env,PORT:String(PORT),TTO_API_BASE_URL:"",NEXT_TELEMETRY_DISABLED:"1"},
   stdio:"ignore"});
  await ready();
+ mkdirSync(join("/workspace/.qa-artifacts",EXPECTED_SHA),{recursive:true});
  browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
  await suite({width:1440,height:900},true);
  await suite({width:768,height:1024},false);
