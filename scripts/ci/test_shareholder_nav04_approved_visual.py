@@ -51,6 +51,12 @@ class ApprovedNav04Visual(unittest.TestCase):
         for blocked in ("ثبت رأی (غیرفعال)", "تأیید حضور (غیرفعال)", "انتشار نتیجه (غیرفعال)"):
             self.assertIn(blocked, UI)
 
+    def test_nav03_preview_css_has_no_literal_newline_escape(self):
+        # A literal backslash-n appended to a stylesheet breaks Turbopack/PostCSS.
+        css = (ROOT / "apps/shareholder/app/review/interactive/nav-03/case-demo/case.css").read_text(encoding="utf-8")
+        self.assertNotIn(chr(92) + "n", css)
+        self.assertEqual(css.count("{"), css.count("}"))
+
     def test_responsive_and_anchors(self):
         for token in (
             ".w1a-frame", ".w1a-sidebar", ".w1a-approved-overview",
