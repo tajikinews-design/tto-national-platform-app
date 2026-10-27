@@ -4,7 +4,8 @@ param(
  [Parameter(Mandatory=$true)][string]$Repository,
  [Parameter(Mandatory=$true)][string]$ExpectedCommit,
  [string]$ReportsDirectory="D:\TTO-Phase3B-Visual-Reports",
- [switch]$TestOnly
+ [switch]$TestOnly,
+ [switch]$Nav03Interactive
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference="Stop"
@@ -146,3 +147,28 @@ if(-not $result.pass -or $result.screenshotsCaptured -ne 62 -or $result.reviewed
 }
 Write-Host "TTO_PHASE3B_LOCAL_BROWSER_PASS_SHA=$ExpectedCommit" -ForegroundColor Green
 Write-Host "TTO_PHASE3B_REPORT=$report"
+
+if($Nav03Interactive) {
+ $Nav03Script=Join-Path $Repository "scripts/ci/nav03-interactive-browser.cjs"
+ if(-not(Test-Path -LiteralPath $Nav03Script -PathType Leaf)) { throw "NAV03_BROWSER_SCRIPT_MISSING" }
+ DockerCheck "NAV03 real Chromium desktop/mobile interactive audit, 18 screenshots" @(
+  "run","--rm","--network",("container:"+$container),
+  "--security-opt","no-new-privileges",
+  "--mount",("type=volume,source="+$volume+",target=/workspace,readonly"),
+  "--mount",("type=bind,source="+$ReportsDirectory+",target=/results"),
+  "-e",("TTO_REVIEW_OUTPUT_DIR=/results"),
+  "-e",("TTO_REVIEW_EXPECTED_SOURCE_SHA="+$ExpectedCommit),
+  "mcr.microsoft.com/playwright:v1.56.1-noble","bash","-lc",
+  "set -euo pipefail; npm install --prefix /tmp/tto-browser --no-audit --no-fund --silent playwright@1.56.1; NODE_PATH=/tmp/tto-browser/node_modules node /workspace/scripts/ci/nav03-interactive-browser.cjs"
+ )
+ $Nav03Report=Join-Path $ReportsDirectory "nav03-browser-report.json"
+ if(-not(Test-Path -LiteralPath $Nav03Report -PathType Leaf)) { throw "NAV03_BROWSER_REPORT_MISSING" }
+ $Nav03=Get-Content -LiteralPath $Nav03Report -Raw -Encoding UTF8 | ConvertFrom-Json
+ if(-not $Nav03.pass -or $Nav03.expectedSha -cne $ExpectedCommit -or
+    $Nav03.caseScreenshotsExpected -ne 18 -or
+    $Nav03.screenshots.Count -ne 18 -or $Nav03.issues.Count -gt 0) {
+  throw "NAV03_BROWSER_AUDIT_INCOMPLETE"
+ }
+ Write-Host "TTO_NAV03_BROWSER_VISUAL_INTERACTIVE_PASS_SHA=$ExpectedCommit" -ForegroundColor Green
+ Write-Host "TTO_NAV03_BROWSER_REPORT=$Nav03Report"
+}
