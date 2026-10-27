@@ -178,6 +178,17 @@ for (let idx=0;idx<slugs.length;idx++){
     }
     checks++;
    }
+   // NAV04 official assembly/election sources are NOT connected. SSR must fail closed.
+   if(slug==="shareholder"){
+    const asm=await fetch("http://127.0.0.1:"+port+"/review/interactive/nav-04");
+    if(asm.status!==200)throw Error("NAV04 synthetic review HTTP status "+asm.status);
+    const html=await asm.text();
+    for(const marker of ["مجامع عمومی و انتخابات تعاونی","منبع رسمی تأیید نشده",
+                          "هیچ حق رأی","مرجع رسمی هنوز تأیید نشده"]){
+     if(!html.includes(marker))throw Error("NAV04 fail-closed marker missing: "+marker);
+    }
+    checks++;
+   }
    const invalidReview=await fetch("http://127.0.0.1:"+port+"/review/not-a-nav");
    if(invalidReview.status!==404)throw Error("shareholder review invalid slug allowed");
    checks++;
