@@ -14,6 +14,7 @@ AST=(ROOT/"scripts/ci/verify-shareholder-tsx.cjs").read_text(encoding="utf-8")
 BROWSER=(ROOT/"scripts/e2e-shareholder-nav05-review.cjs").read_text(encoding="utf-8")
 RUNNER=(ROOT/"scripts/ci/run-local-docker.ps1").read_text(encoding="utf-8")
 SMOKE=(ROOT/"scripts/smoke-next-otp.mjs").read_text(encoding="utf-8")
+RELEASE=(ROOT/"scripts/ci/run-nav05-approved-visual-release.ps1").read_text(encoding="utf-8")
 
 class NAV05Architecture(unittest.TestCase):
  def test_01_preserves_navigation_taxonomy(self):
@@ -96,5 +97,14 @@ class NAV05Architecture(unittest.TestCase):
    self.assertIn(marker,BROWSER)
   self.assertIn("TTO_LOOPBACK_E2E",BROWSER)
   self.assertIn("TTO_PHASE4C_EXPECTED_SOURCE_SHA",BROWSER)
+
+ def test_10_powershell_51_manifest_array_and_hash_guard(self):
+  self.assertIn("ConvertFrom-Json -InputObject", RELEASE)
+  self.assertIn("foreach ($entry in $decoded)", RELEASE)
+  self.assertNotIn("@($reportMatches[0].Groups[1].Value | ConvertFrom-Json)", RELEASE)
+  self.assertIn("$report.Count -ne 5", RELEASE)
+  self.assertIn("Compare-Object", RELEASE)
+  self.assertIn("$v.sha256", RELEASE)
+  self.assertIn("TTO_NAV05_SCREENSHOTS_VERIFIED=5/5", RELEASE)
 
 if __name__=="__main__":unittest.main()
