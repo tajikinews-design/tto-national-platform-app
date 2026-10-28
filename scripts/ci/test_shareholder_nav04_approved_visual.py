@@ -92,6 +92,16 @@ class ApprovedNav04Visual(unittest.TestCase):
         ):
             self.assertIn(token, browser)
 
+    def test_attendance_and_readonly_details_have_distinct_selectors(self):
+        # One disabled statutory attendance action and one enabled demo detail action.
+        self.assertIn('className="w1a-outline-button"', UI)
+        self.assertIn('className="w1a-primary-link" onClick={()=>openDetails("ASSEMBLIES")}', UI)
+        browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
+        self.assertNotIn('locator(".w1a-meeting-buttons button").isDisabled()', browser)
+        self.assertIn('meetingActions.locator("button.w1a-outline-button").isDisabled()', browser)
+        self.assertIn('meetingActions.locator("button.w1a-primary-link").isEnabled()', browser)
+        self.assertIn('MEETING_TWO_DISTINCT_ACTIONS_', browser)
+
     def test_reviewer_toggle_locator_remains_stable_after_label_change(self):
         browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
         self.assertIn('const reviewerToggle=page.locator("button.w1a-review-tools-toggle");', browser)
