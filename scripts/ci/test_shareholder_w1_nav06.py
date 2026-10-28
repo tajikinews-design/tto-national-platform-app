@@ -48,7 +48,7 @@ class Nav06ApprovedServices(unittest.TestCase):
   self.assertIn("@media(max-width:680px)",CSS)
   self.assertIn(":focus-visible",CSS)
  def test_06_all_sidebar_roots_and_services_route(self):
-  self.assertEqual(UI.count('"/review/interactive/nav-0'),5)
+  self.assertEqual(UI.count('"/review/interactive/nav-0'),6)
   self.assertIn('index===5?" w1a-active"',UI)
   self.assertIn('["⚙","خدمات من","/review/interactive/nav-06"]',UI)
  def test_07_academy_event_benefit_legal_limits(self):
