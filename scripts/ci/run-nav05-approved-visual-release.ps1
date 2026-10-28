@@ -34,7 +34,7 @@ if ($LASTEXITCODE -ne 0 -or $origin -notmatch "tajikinews-design/tto-national-pl
 if ($LASTEXITCODE -ne 0) { throw "GIT_FETCH_NAV05_FAILED" }
 $head = (& git -C $SourceRepo rev-parse FETCH_HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $head -ne $ExpectedSha) {
-  throw ("REMOTE_PR48_HEAD_MISMATCH: " + $head)
+  throw ("REMOTE_NAV05_HEAD_MISMATCH: " + $head)
 }
 $root = Join-Path $env:LOCALAPPDATA "TTO\NAV05-Exact-SHA"
 New-Item -ItemType Directory -Path $root -Force | Out-Null
@@ -77,9 +77,19 @@ $folder = $pathMatches[$pathMatches.Count-1].Groups[1].Value.Trim()
 if (-not (Test-Path -LiteralPath $folder -PathType Container)) {
   throw "NAV05_SCREENSHOT_FOLDER_NOT_FOUND"
 }
-$report = @($reportMatches[0].Groups[1].Value | ConvertFrom-Json)
-if ($report.Count -ne 5) {
-  throw "NAV05_VIEWPORT_MANIFEST_MISMATCH"
+# Windows PowerShell 5.1 may pass a JSON array through the pipeline as
+# ONE array-valued object. Do not count pipeline output wrappers as viewports.
+$decoded = ConvertFrom-Json -InputObject $reportMatches[0].Groups[1].Value
+$report = @()
+foreach ($entry in $decoded) {
+  $report += $entry
+}
+$expectedWidths = @(1440, 1536, 768, 390, 320)
+$actualWidths = @($report | ForEach-Object { [int]$_.width })
+if ($report.Count -ne 5 -or
+    @(Compare-Object -ReferenceObject $expectedWidths -DifferenceObject $actualWidths).Count -ne 0) {
+  throw ("NAV05_VIEWPORT_MANIFEST_MISMATCH: entries=" + $report.Count +
+         "; widths=" + ($actualWidths -join ","))
 }
 $files = @()
 foreach ($v in $report) {
