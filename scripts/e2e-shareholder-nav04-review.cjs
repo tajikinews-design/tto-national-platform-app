@@ -39,10 +39,19 @@ async function verify(width,height,interact){
   ok(await page.locator(".w1a-approved-overview").count()===0,"NO_APPROVED_FIXTURE_OVERVIEW_BEFORE_OPTIN_"+width);
   ok(await page.getByRole("button",{name:"ثبت رأی (غیرفعال)"}).count()===0,
     "NO_VOTE_WHEN_BLOCKED_"+width);
-  // Opt into sample only: no public/legal/source record becomes valid.
+  // Source controls are reviewer-only: expand explicitly before opt-in.
+  const reviewerDetails=page.locator("#w1a-review-detail-panels");
+  const reviewerToggle=page.locator("button.w1a-review-tools-toggle");
+  ok(await reviewerDetails.isHidden(),"REVIEW_DIAGNOSTICS_HIDDEN_BY_DEFAULT_"+width);
+  ok(await reviewerToggle.getAttribute("aria-expanded")==="false","REVIEW_DIAGNOSTICS_COLLAPSED_"+width);
+  await reviewerToggle.click();
+  ok(await reviewerDetails.isVisible(),"REVIEW_SOURCE_MODE_ACCESSIBLE_"+width);
   const mock=page.getByRole("button",{name:"نمونه کاملاً ساختگی",exact:true});
   await mock.click();
   ok(await mock.getAttribute("aria-pressed")==="true","DEMO_SWITCH_"+width);
+  await reviewerToggle.click();
+  ok(await reviewerDetails.isHidden(),"REVIEW_SOURCE_MODE_REHIDDEN_AFTER_OPTIN_"+width);
+  ok(await page.locator(".w1a-mode-section").isHidden(),"NO_SOURCE_MODE_BAR_IN_APPROVED_OVERVIEW_"+width);
   ok(await page.locator(".w1a-record").count()===6,"SIX_FIXTURES_"+width);
   // The user-approved visual structure must render only after opting into DEMO.
   ok(await page.locator(".w1a-approved-overview").count()===1,"APPROVED_OVERVIEW_VISIBLE_"+width);
@@ -60,10 +69,7 @@ async function verify(width,height,interact){
   }));
   ok(photo.complete&&photo.naturalWidth>=300&&photo.naturalHeight>=220,"APPROVED_MEETING_PHOTO_LOADED_"+width);
   ok(await page.locator(".w1a-meeting-buttons button").isDisabled(),"UNVERIFIED_ATTENDANCE_CANNOT_SUBMIT_"+width);
-  const reviewerDetails=page.locator("#w1a-review-detail-panels");
-  const reviewerToggle=page.locator("button.w1a-review-tools-toggle");
-  ok(await reviewerDetails.isHidden(),"REVIEW_DIAGNOSTICS_HIDDEN_BY_DEFAULT_"+width);
-  ok(await reviewerToggle.getAttribute("aria-expanded")==="false","REVIEW_DIAGNOSTICS_COLLAPSED_"+width);
+  ok(await reviewerDetails.isHidden(),"REVIEW_DIAGNOSTICS_STAY_HIDDEN_IN_OVERVIEW_"+width);
   const screen=await page.evaluate(()=>{
     const sidebar=document.querySelector(".w1a-sidebar");
     const kpi=document.querySelector(".w1a-kpi");
@@ -128,13 +134,36 @@ async function verify(width,height,interact){
   if(width===1536){
     const screenshotRect=await page.evaluate(()=>({
       diagnosticsCollapsed:document.querySelector("#w1a-review-detail-panels")?.hidden===true,
+      sourceModeNotVisible:document.querySelector(".w1a-mode-section")?.getClientRects().length===0,
+      publicDetailHidden:document.querySelector("#w1a-public-details")?.hidden===true,
       visibleHeight:document.querySelector("main.w1a-shell")?.getBoundingClientRect().height??0
     }));
     ok(screenshotRect.diagnosticsCollapsed,"APPROVED_SCREENSHOT_NO_DEBUG_PANELS");
+    ok(screenshotRect.sourceModeNotVisible,"APPROVED_SCREENSHOT_NO_SOURCE_MODE_BAR");
+    ok(screenshotRect.publicDetailHidden,"APPROVED_SCREENSHOT_DETAILS_COLLAPSED");
     ok(screenshotRect.visibleHeight<1600,"APPROVED_OVERVIEW_COMPACT_HEIGHT");
   }
   viewports.push({width,height,scrollWidth:geom.scrollWidth,pngSha256:createHash("sha256").update(screenshot).digest("hex")});
   if(interact){
+   const publicDetails=page.locator("#w1a-public-details");
+   ok(await publicDetails.isHidden(),"PUBLIC_DETAILS_COLLAPSED_BY_DEFAULT_"+width);
+   const heroDetails=page.getByRole("button",{name:/مشاهده جزئیات نمونه/});
+   await heroDetails.click();
+   ok(await publicDetails.isVisible(),"HERO_DETAILS_REACH_VISIBLE_CONTENT_"+width);
+   await page.waitForFunction(()=>document.activeElement?.id==="w1a-public-details");
+   ok(await publicDetails.evaluate(el=>el===document.activeElement),"HERO_DETAILS_FOCUSED_"+width);
+   ok(await publicDetails.getByText("جزئیات مجامع نمونه").isVisible(),"HERO_DETAILS_CORRECT_CONTENT_"+width);
+   await page.getByRole("button",{name:/بستن جزئیات/}).click();
+   ok(await publicDetails.isHidden(),"HERO_DETAILS_CLOSE_"+width);
+   await page.locator("button.w1a-action-purple").click();
+   ok(await publicDetails.getByText("نتایج و مصوبات نمونه").isVisible(),"RESULTS_ACTION_OPENS_READONLY_DETAILS_"+width);
+   await page.getByRole("button",{name:/بستن جزئیات/}).click();
+   const assembliesQuick=page.locator("button.w1a-action-blue");
+   await assembliesQuick.focus();
+   await page.keyboard.press("Enter");
+   ok(await publicDetails.getByText("جزئیات مجامع نمونه").isVisible(),"KEYBOARD_ASSEMBLY_ACTION_REACHES_CONTENT_"+width);
+   await page.getByRole("button",{name:/بستن جزئیات/}).click();
+   ok(await publicDetails.isHidden(),"ALL_OVERVIEW_DETAILS_COLLAPSED_AFTER_CLOSE_"+width);
    await reviewerToggle.click();
    ok(await reviewerDetails.isVisible(),"REVIEW_DIAGNOSTICS_OPEN_ON_REQUEST_"+width);
    ok(await reviewerToggle.getAttribute("aria-expanded")==="true","REVIEW_DIAGNOSTICS_TOGGLE_ACCESSIBLE_"+width);
