@@ -213,6 +213,16 @@ for (let idx=0;idx<slugs.length;idx++){
    }
    if(svcHtml.includes("DEMO-SVC-01"))throw Error("NAV06 synthetic source leaked into default SSR");
    checks++;
+   // NAV07 review-only synthetic marketplace route: never activate product or payment.
+   const nav07=await fetch("http://127.0.0.1:"+port+"/review/interactive/nav-07");
+   if(nav07.status!==200)throw Error("NAV07 review HTTP status "+nav07.status);
+   const nav07Html=await nav07.text();
+   for(const m of ["فروشگاه و فرصت‌ها","محصولات شرکت","بازار ملی سهامداران",
+     "محصولات سایر تعاونی‌ها","سفارش‌های من","پرداخت سفارش","وضعیت تحویل",
+     "معرفی محصول من","فرصت‌های کسب‌وکار","مجوز انتشار و اهلیت تأیید نشده"]){
+     if(!nav07Html.includes(m))throw Error("NAV07 fail-closed SSR marker missing: "+m);
+   }
+   checks++;
    const invalidReview=await fetch("http://127.0.0.1:"+port+"/review/not-a-nav");
    if(invalidReview.status!==404)throw Error("shareholder review invalid slug allowed");
    checks++;

@@ -1,0 +1,14 @@
+/* Approved NAV04 -> NAV05 -> NAV06 shell inherited; NAV07 local skin only. */
+.nav07-shell .nav07-hero{background:linear-gradient(115deg,#e8f8f5,#effaf8 62%,#e6f4fc);border-color:#cfebdf}
+.nav07-shell .nav07-hero .nav06-hero-eyebrow{color:#196f71}
+.nav07-shell .nav07-hero h2{color:#194a62}
+.nav07-shell .nav07-hero .nav06-primary{background:#086d83;border-color:#086d83}
+.nav07-shell .nav07-hero .nav06-primary:hover{background:#07596c}
+.nav07-shell .nav07-hero .nav06-hero-badge{background:#edac3c}
+.nav07-shell .nav06-tag{background:#e9f5ec;color:#216c51}
+.nav07-shell .nav06-section-button.nav06-selected{background:#087a83;border-color:#087a83}
+.nav07-shell .nav06-search input:focus-visible{outline:3px solid #e49d2f;outline-offset:2px}
+.nav07-shell .nav06-tile p,.nav07-shell .nav06-preview-item small{color:#58738a}
+@media(max-width:680px){.nav07-shell .nav06-hero p{font-size:12px;line-height:1.95}
+ .nav07-shell .nav06-tile p{font-size:12px;line-height:1.95}}
+@media(prefers-reduced-motion:reduce){.nav07-shell *{scroll-behavior:auto;transition:none}}
