@@ -223,6 +223,18 @@ for (let idx=0;idx<slugs.length;idx++){
      if(!nav07Html.includes(m))throw Error("NAV07 fail-closed SSR marker missing: "+m);
    }
    checks++;
+   // NAV08 static projects review: never expose unapproved asset/permit records.
+   const nav08=await fetch("http://127.0.0.1:"+port+"/review/interactive/nav-08");
+   if(nav08.status!==200)throw Error("NAV08 review HTTP status "+nav08.status);
+   const nav08Html=await nav08.text();
+   for(const label of ["پروژه‌های شرکت","پیشرفت پروژه‌ها","دارایی‌های قابل افشا",
+     "سرمایه‌گذاری‌های شرکت","پروژه‌های جدید","فرصت‌های همکاری",
+     "فرصت‌های شغلی","برنامه‌های مسئولیت اجتماعی","اثرگذاری محلی",
+     "منبع و مجوز افشا تأیید نشده"]){
+     if(!nav08Html.includes(label))throw Error("NAV08 fail-closed SSR marker missing: "+label);
+   }
+   if(nav08Html.includes("DEMO-PRJ-001"))throw Error("NAV08 fixture leaked into default SSR");
+   checks++;
    const invalidReview=await fetch("http://127.0.0.1:"+port+"/review/not-a-nav");
    if(invalidReview.status!==404)throw Error("shareholder review invalid slug allowed");
    checks++;
