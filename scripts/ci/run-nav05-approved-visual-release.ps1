@@ -12,7 +12,7 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
-$branch = "fix/nav05-mobile-refinement-20261028"
+$branch = "feat/shareholder-nav05-approved-architecture-synthetic-20261028"
 $repository = "tajikinews-design/tto-national-platform-app"
 foreach ($command in @("git","docker","powershell.exe")) {
   if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
