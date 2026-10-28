@@ -20,15 +20,15 @@ async function verify(width,height,deep){
   ok((await page.goto(BASE+URL,{waitUntil:"networkidle"})).status()===200,"HTTP_"+width);
   ok(await page.locator('main.nav07-shell[dir="rtl"][data-source-mode="UNVERIFIED"]').count()===1,"DENY_"+width);
   ok(await page.locator(".w1a-side-link").count()===11,"ROOTS_"+width);
-  ok(await page.locator(".nav07-section-button").count()===11,"SECTIONS_"+width);
-  ok(await page.locator(".nav07-tile").count()===0,"EMPTY_DEFAULT_"+width);
+  ok(await page.locator(".nav06-section-button").count()===10,"SECTIONS_"+width);
+  ok(await page.locator(".nav06-tile").count()===0,"EMPTY_DEFAULT_"+width);
   ok(await page.locator(".w1a-kpi").count()===4,"KPI_"+width);
   ok(await page.locator(".w1a-summary-panel").count()===4,"PANELS_"+width);
   await page.getByRole("button",{name:"ابزار بررسی توسعه‌دهنده"}).click();
   await page.getByRole("button",{name:"نمونه کاملاً ساختگی",exact:true}).click();
   await page.getByRole("button",{name:"بستن ابزارهای بررسی"}).click();
-  ok(await page.locator(".nav07-tile").count()===2,"DEMO_OPTIN_"+width);
-  for(const b of await page.locator(".nav07-submit-guard button").all())ok(await b.isDisabled(),"NO_REQUEST_"+width);
+  ok(await page.locator(".nav06-tile").count()===2,"DEMO_OPTIN_"+width);
+  for(const b of await page.locator(".nav06-submit-guard button").all())ok(await b.isDisabled(),"NO_REQUEST_"+width);
   if(width<=980){const b=page.locator(".w1a-mobile-menu-toggle");await b.click();ok(await b.getAttribute("aria-expanded")==="true","MOBILE_OPEN_"+width);await b.focus();await page.keyboard.press("Escape");ok(await b.getAttribute("aria-expanded")==="false","MOBILE_CLOSE_"+width);}
   ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"NO_OVERFLOW_"+width);
   await page.evaluate(()=>{if(document.activeElement instanceof HTMLElement)document.activeElement.blur();scrollTo(0,0);});
@@ -38,10 +38,10 @@ async function verify(width,height,deep){
   screens.push({width,height,file,sha256:createHash("sha256").update(bytes).digest("hex"),length:bytes.length});
   ok(bytes.length>15000,"SCREENSHOT_"+width);
   if(deep){
-   for(let i=0;i<11;i++){const b=page.locator(".nav07-section-button").nth(i);await b.click();ok(await b.getAttribute("aria-pressed")==="true","CATEGORY_"+i+"_"+width);ok(await page.locator(".nav07-tile").count()>0,"ITEMS_"+i+"_"+width);await page.getByRole("button",{name:"مشاهده جزئیات نمونه ←"}).first().click();ok(await page.locator("#nav07-details").isVisible(),"DETAIL_"+i+"_"+width);for(const x of await page.locator(".nav07-disabled button").all())ok(await x.isDisabled(),"NO_WRITE_"+i+"_"+width);await page.getByRole("button",{name:"بستن جزئیات"}).click();}
+   for(let i=0;i<10;i++){const b=page.locator(".nav06-section-button").nth(i);await b.click();ok(await b.getAttribute("aria-pressed")==="true","CATEGORY_"+i+"_"+width);ok(await page.locator(".nav06-tile").count()>0,"ITEMS_"+i+"_"+width);await page.getByRole("button",{name:"مشاهده جزئیات نمونه ←"}).first().click();ok(await page.locator("#nav07-details").isVisible(),"DETAIL_"+i+"_"+width);for(const x of await page.locator(".nav06-disabled button").all())ok(await x.isDisabled(),"NO_WRITE_"+i+"_"+width);await page.getByRole("button",{name:"بستن جزئیات"}).click();}
    await page.getByRole("button",{name:"ابزار بررسی توسعه‌دهنده"}).click();
    await page.getByRole("button",{name:"منبع بازار در دسترس نیست",exact:true}).click();
-   ok(await page.locator(".nav07-tile").count()===0,"SOURCE_LOSS_DENY_"+width);
+   ok(await page.locator(".nav06-tile").count()===0,"SOURCE_LOSS_DENY_"+width);
   }
   ok(errors.length===0,"ZERO_JS_ERRORS_"+width);ok(external.length===0,"ZERO_EXTERNAL_"+width);ok(writes.length===0,"ZERO_WRITES_"+width);
  }finally{await ctx.close();}
