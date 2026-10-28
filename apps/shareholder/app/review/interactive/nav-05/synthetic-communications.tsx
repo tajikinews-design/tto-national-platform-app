@@ -11,7 +11,7 @@ const ROOTS=[
  ["▥","خرید و فروش سهام","/review/interactive/nav-03"],
  ["♜","مجامع و انتخابات","/review/interactive/nav-04"],
  ["▣","اخبار و ارتباط با شرکت","/review/interactive/nav-05"],
- ["⚙","خدمات من","/review/nav-06"],
+ ["⚙","خدمات من","/review/interactive/nav-06"],
  ["▣","فروشگاه و فرصت‌ها","/review/nav-07"],
  ["▤","پروژه‌های شرکت","/review/nav-08"],
  ["◇","شفافیت و اسناد شرکت","/review/nav-09"],
