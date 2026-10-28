@@ -34,11 +34,13 @@ const SIDE_MENU=[
  ["⚙","تنظیمات حساب",""]
 ] as const;
 function ReviewSidebar(){
- return <aside className="w1a-sidebar" aria-label="منوی پنل سهامدار">
+ const [menuOpen,setMenuOpen]=useState(false);
+ return <aside className={"w1a-sidebar"+(menuOpen?" w1a-mobile-menu-open":"")} aria-label="منوی پنل سهامدار" onKeyDown={event=>{if(event.key==="Escape")setMenuOpen(false);}}>
   <div className="w1a-brand"><span className="w1a-brand-mark" aria-hidden="true">✦</span>
    <div><strong>پلتفرم ملی تعاونی توسعه و عمران</strong><small>شبکه هوشمند خدمات و راهبری تعاونی‌ها</small></div>
   </div>
-  <nav className="w1a-side-links" aria-label="یازده بخش مصوب پنل">
+  <button type="button" className="w1a-mobile-menu-toggle" aria-controls="w1a-side-nav" aria-expanded={menuOpen} onClick={()=>setMenuOpen(!menuOpen)}><span aria-hidden="true">☰</span>بخش‌های پنل</button>
+  <nav id="w1a-side-nav" className="w1a-side-links" aria-label="یازده بخش مصوب پنل">
    {SIDE_MENU.map(([icon,label,href],i)=>
     href?<a key={label} className={"w1a-side-link"+(i===3?" w1a-active":"")} aria-current={i===3?"page":undefined} href={href}>
       <span aria-hidden="true" className="w1a-side-icon">{icon}</span><span>{label}</span></a>
