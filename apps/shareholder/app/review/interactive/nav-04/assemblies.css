@@ -341,3 +341,47 @@
  .w1a-summary-panel{min-height:0}
  .w1a-actions-row{grid-template-columns:1fr}
 }
+
+/* NAV-04 mobile-only UX fixes. Canonical 11 links unchanged. */
+.w1a-mobile-menu-toggle{display:none}
+@media(max-width:980px){
+.w1a-sidebar{position:relative;z-index:20;min-height:0;padding:7px 12px}
+.w1a-brand{min-height:48px;padding:0;padding-inline-end:112px;margin:0;border:0}
+.w1a-brand-mark{min-width:41px;width:41px;height:41px}
+.w1a-brand strong{font-size:12px;line-height:1.45}
+.w1a-mobile-menu-toggle{display:inline-flex;align-items:center;gap:8px;position:absolute;inset-inline-end:12px;top:9px;min-height:44px;border:1px solid #b9cfe8;border-radius:9px;background:#f6faff;color:#173c75;font:700 12px/1.5 var(--tto-font),Vazirmatn,Tahoma,Arial,sans-serif;padding:7px 12px;cursor:pointer}
+.w1a-mobile-menu-toggle:focus-visible{outline:3px solid #edaa27;outline-offset:2px}
+.w1a-mobile-menu-toggle span{font-size:19px;line-height:1}
+.w1a-sidebar.w1a-mobile-menu-open .w1a-side-links{display:flex;position:absolute;top:calc(100% - 1px);inset-inline-end:12px;width:min(315px,calc(100vw - 24px));max-height:calc(100dvh - 80px);overflow:auto;padding:10px;background:#fff;border:1px solid #d5e2f1;border-radius:12px;box-shadow:0 12px 27px #102b4c2b;z-index:30}
+.w1a-side-link{min-height:48px;font-size:13px}
+.w1a-global-header{min-height:50px;padding-block:5px;margin-bottom:10px}
+.w1a-cooperative-switch{min-width:0;max-width:58%;min-height:40px;gap:6px;padding:5px 8px;font-size:11px}
+.w1a-cooperative-switch>span:nth-child(2){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.w1a-page-heading{margin:2px 0 10px}
+}
+@media(max-width:680px){
+.w1a-global-header{min-height:48px;margin-bottom:8px;gap:7px}
+.w1a-page-heading h1{font-size:21px}
+.w1a-page-heading p{font-size:12px;line-height:1.6}
+.w1a-next-meeting{min-height:0;padding:10px;gap:9px}
+.w1a-meeting-tile{height:150px}
+.w1a-meeting-info{gap:7px}
+.w1a-meeting-titleline h2{font-size:15px;line-height:1.6}
+.w1a-meeting-meta{font-size:12px}
+.w1a-meeting-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}
+.w1a-meeting-buttons .w1a-primary-link,.w1a-outline-button{min-height:48px;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1.5}
+.w1a-record strong,.w1a-panel-line strong{font-size:13px}
+.w1a-record span,.w1a-panel-line small{font-size:11px}
+.w1a-kpi small{font-size:11px}
+}
+@media(max-width:360px){
+.w1a-brand small,.w1a-global-user small{display:none}
+.w1a-brand strong{font-size:11px}
+.w1a-meeting-tile{height:128px}
+.w1a-next-meeting{padding:8px}
+.w1a-cooperative-switch{font-size:10px;max-width:60%}
+.w1a-avatar{width:30px;height:30px}
+.w1a-meeting-controls{padding:6px}
+.w1a-meeting-buttons{gap:6px}
+.w1a-meeting-buttons .w1a-primary-link,.w1a-outline-button{font-size:11px}
+}
