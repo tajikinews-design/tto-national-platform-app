@@ -105,6 +105,20 @@ async function verify(width,height,interact){
    innerWidth:innerWidth
   }));
   ok(geom.scrollWidth<=width+2,"NO_HORIZONTAL_OVERFLOW_"+width);
+  const navToggle=page.locator(".w1a-mobile-menu-toggle");
+  if(width<=980){
+    ok(await navToggle.isVisible(),"MOBILE_MENU_VISIBLE_"+width);
+    ok(await navToggle.getAttribute("aria-expanded")==="false","MOBILE_MENU_INIT_CLOSED_"+width);
+    await navToggle.click();
+    ok(await navToggle.getAttribute("aria-expanded")==="true","MOBILE_MENU_OPEN_"+width);
+    ok(await page.locator("#w1a-side-nav").isVisible(),"MOBILE_CANONICAL_LINKS_VISIBLE_"+width);
+    await navToggle.focus();
+    await page.keyboard.press("Escape");
+    ok(await navToggle.getAttribute("aria-expanded")==="false","MOBILE_MENU_ESCAPE_CLOSED_"+width);
+    ok(await page.locator("#w1a-side-nav").isHidden(),"MOBILE_NAV_HIDDEN_AFTER_ESCAPE_"+width);
+  }else{
+    ok(await navToggle.isHidden(),"DESKTOP_MENU_TOGGLE_HIDDEN_"+width);
+  }
   const screenshot=await page.screenshot({type:"png",animations:"disabled",path:join("/workspace/.qa-artifacts",SHA,"nav04-"+width+".png"),fullPage:width===1536});
   ok(screenshot.byteLength>6000,"RENDERED_PIXELS_"+width);
   viewports.push({width,height,scrollWidth:geom.scrollWidth,pngSha256:createHash("sha256").update(screenshot).digest("hex")});
