@@ -60,6 +60,10 @@ async function verify(width,height,interact){
   }));
   ok(photo.complete&&photo.naturalWidth>=200&&photo.naturalHeight>=140,"APPROVED_MEETING_PHOTO_LOADED_"+width);
   ok(await page.locator(".w1a-meeting-buttons button").isDisabled(),"UNVERIFIED_ATTENDANCE_CANNOT_SUBMIT_"+width);
+  const reviewerDetails=page.locator("#w1a-review-detail-panels");
+  const reviewerToggle=page.getByRole("button",{name:/ابزار بررسی توسعه‌دهنده/});
+  ok(await reviewerDetails.isHidden(),"REVIEW_DIAGNOSTICS_HIDDEN_BY_DEFAULT_"+width);
+  ok(await reviewerToggle.getAttribute("aria-expanded")==="false","REVIEW_DIAGNOSTICS_COLLAPSED_"+width);
   const screen=await page.evaluate(()=>{
     const sidebar=document.querySelector(".w1a-sidebar");
     const kpi=document.querySelector(".w1a-kpi");
@@ -121,8 +125,19 @@ async function verify(width,height,interact){
   }
   const screenshot=await page.screenshot({type:"png",animations:"disabled",path:join("/workspace/.qa-artifacts",SHA,"nav04-"+width+".png"),fullPage:width===1536});
   ok(screenshot.byteLength>6000,"RENDERED_PIXELS_"+width);
+  if(width===1536){
+    const screenshotRect=await page.evaluate(()=>({
+      diagnosticsCollapsed:document.querySelector("#w1a-review-detail-panels")?.hidden===true,
+      visibleHeight:document.querySelector("main.w1a-shell")?.getBoundingClientRect().height??0
+    }));
+    ok(screenshotRect.diagnosticsCollapsed,"APPROVED_SCREENSHOT_NO_DEBUG_PANELS");
+    ok(screenshotRect.visibleHeight<1600,"APPROVED_OVERVIEW_COMPACT_HEIGHT");
+  }
   viewports.push({width,height,scrollWidth:geom.scrollWidth,pngSha256:createHash("sha256").update(screenshot).digest("hex")});
   if(interact){
+   await reviewerToggle.click();
+   ok(await reviewerDetails.isVisible(),"REVIEW_DIAGNOSTICS_OPEN_ON_REQUEST_"+width);
+   ok(await reviewerToggle.getAttribute("aria-expanded")==="true","REVIEW_DIAGNOSTICS_TOGGLE_ACCESSIBLE_"+width);
    const invitation=page.getByRole("button",{name:"دعوت‌نامه‌ها",exact:true});
    await invitation.click();
    ok(await page.locator(".w1a-record").count()===2,"TWO_INVITATIONS");
