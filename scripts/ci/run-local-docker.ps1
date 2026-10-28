@@ -164,7 +164,7 @@ try {
     )
 
     Run-Node "Install pinned dependencies (once)" "npm config set fetch-retries 8; npm config set fetch-retry-mintimeout 20000; npm config set fetch-retry-maxtimeout 120000; npm install -g pnpm@10.18.0; pnpm install --frozen-lockfile --network-concurrency=3 || (sleep 15; pnpm install --frozen-lockfile --network-concurrency=3) || (sleep 30; pnpm install --frozen-lockfile --network-concurrency=3)"
-    Run-Node "Shareholder TSX AST and UI type preflight" "node scripts/ci/verify-shareholder-tsx.cjs; pnpm --filter @tto/ui typecheck"
+    Run-Node "Shareholder TSX AST and UI type preflight" "node scripts/ci/verify-shareholder-tsx.cjs; node --check scripts/e2e-phase4c-real-session-browser.cjs; node --check scripts/e2e-shareholder-nav06-review.cjs; pnpm --filter @tto/ui typecheck"
     Run-Node "Build all portals and API; typecheck" "pnpm build; pnpm check"
     Run-Node "SMS mock and scanner protocol tests" "node --test services/workers/test/apiir-smsotp.test.cjs services/workers/test/clamav.test.cjs"
     Run-Node "SMS send disabled and Vercel protection classifier" "node --test services/api/test/sms-delivery-opt-in.test.cjs; node --test scripts/verify-vercel-preview-protection.test.mjs"
