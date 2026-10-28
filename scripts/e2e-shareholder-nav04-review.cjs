@@ -58,7 +58,7 @@ async function verify(width,height,interact){
   const photo=await page.locator(".w1a-meeting-tile img").evaluate((img)=>({
     complete:img.complete,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight
   }));
-  ok(photo.complete&&photo.naturalWidth>=200&&photo.naturalHeight>=140,"APPROVED_MEETING_PHOTO_LOADED_"+width);
+  ok(photo.complete&&photo.naturalWidth>=300&&photo.naturalHeight>=220,"APPROVED_MEETING_PHOTO_LOADED_"+width);
   ok(await page.locator(".w1a-meeting-buttons button").isDisabled(),"UNVERIFIED_ATTENDANCE_CANNOT_SUBMIT_"+width);
   const reviewerDetails=page.locator("#w1a-review-detail-panels");
   const reviewerToggle=page.getByRole("button",{name:/ابزار بررسی توسعه‌دهنده/});
