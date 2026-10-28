@@ -165,6 +165,7 @@ function ApprovedVisualOverview(){
 
 export function SyntheticAssemblies(){
  const [mode,setMode]=useState<DemoSourceState>("UNVERIFIED");
+ const [showReviewDetails,setShowReviewDetails]=useState(false);
  const [filter,setFilter]=useState<Filter>("ALL");
  const [selectedId,setSelectedId]=useState(ASSEMBLY_FIXTURES[0].id);
  const fake=mode==="DEMO_CONTENT";
@@ -178,6 +179,25 @@ export function SyntheticAssemblies(){
  return <main className="w1a-shell" dir="rtl">
   <ReviewSidebar/><div className="w1a-frame"><ReviewTopbar/>
   <div className="w1a-page-heading"><div><h1>مجامع و انتخابات</h1><p>اطلاع‌رسانی، مشارکت و پیگیری مجامع عمومی، انتخابات و مصوبات تعاونی</p></div><span>نمایش آزمایشی · بدون اتصال عملیاتی</span></div>
+  <section className="w1a-mode-section" aria-label="وضعیت دسترسی به منبع رسمی">
+   <h2>وضعیت منبع را برای آزمایش انتخاب کنید</h2>
+   <div className="w1a-mode-controls" role="group" aria-label="وضعیت منبع">
+    {MODES.map(item=><button key={item.id} type="button"
+      className={mode===item.id?"w1a-choice w1a-choice-active":"w1a-choice"}
+      aria-pressed={mode===item.id} onClick={()=>setMode(item.id)}>
+      {item.label}</button>)}
+   </div>
+   <p className={"w1a-message"+(fake?" w1a-message-demo":"")} role="status" aria-live="polite">
+    {MODES.find(x=>x.id===mode)?.message}
+   </p>
+  </section>
+  {fake?<ApprovedVisualOverview/>:<section className="w1a-preview-placeholder" aria-label="نمای اصلی بدون منبع معتبر"><strong>مجمع بعدی من</strong><p>اطلاعات مجمع، شمارنده‌ها، اطلاعیه‌ها و اسناد تا تأیید منبع معتبر نمایش داده نمی‌شوند.</p></section>}
+  <section className="w1a-review-toolbox" aria-label="ابزار بررسی توسعه‌دهنده">
+   <button type="button" className="w1a-review-tools-toggle" aria-expanded={showReviewDetails}
+     aria-controls="w1a-review-detail-panels" onClick={()=>setShowReviewDetails(!showReviewDetails)}>
+    {showReviewDetails?"بستن ابزارهای بررسی":"ابزار بررسی توسعه‌دهنده"} <span aria-hidden="true">{showReviewDetails?"⌃":"⌄"}</span>
+   </button>
+   <div id="w1a-review-detail-panels" className="w1a-review-detail-panels" hidden={!showReviewDetails}>
   <header className="w1a-top">
    <a href="/review/interactive">بازگشت به داشبورد آزمایشی ←</a>
    <span>W1 / NAV-04 · نمایش اطلاع‌رسانی، نه سامانه رأی‌گیری</span>
@@ -192,19 +212,6 @@ export function SyntheticAssemblies(){
   <p className="w1a-guard" role="note">
    <strong>قید حقوقی:</strong> صلاحیت دعوت‌کننده، اهلیت شرکت‌کنندگان، میزان حق رأی، اعتبار دعوت، نصاب و نتایج باید برای هر تعاونی توسط مراجع معتبر مستقل تعیین شود. هیچ‌یک در این پیش‌نمایش فرض یا محاسبه نشده است.
   </p>
-  <section className="w1a-mode-section" aria-label="وضعیت دسترسی به منبع رسمی">
-   <h2>وضعیت منبع را برای آزمایش انتخاب کنید</h2>
-   <div className="w1a-mode-controls" role="group" aria-label="وضعیت منبع">
-    {MODES.map(item=><button key={item.id} type="button"
-      className={mode===item.id?"w1a-choice w1a-choice-active":"w1a-choice"}
-      aria-pressed={mode===item.id} onClick={()=>setMode(item.id)}>
-      {item.label}</button>)}
-   </div>
-   <p className={"w1a-message"+(fake?" w1a-message-demo":"")} role="status" aria-live="polite">
-    {MODES.find(x=>x.id===mode)?.message}
-   </p>
-  </section>
-  {fake?<ApprovedVisualOverview/>:<section className="w1a-preview-placeholder" aria-label="نمای اصلی بدون منبع معتبر"><strong>مجمع بعدی من</strong><p>اطلاعات مجمع، شمارنده‌ها، اطلاعیه‌ها و اسناد تا تأیید منبع معتبر نمایش داده نمی‌شوند.</p></section>}
   {fake?<div className="w1a-content">
    <section id="w1a-records" className="w1a-records" aria-label="فهرست اسناد آزمایشی">
     <div className="w1a-section-head"><h2>فهرست سوابق و اطلاعیه‌های ساختگی</h2>
@@ -270,5 +277,7 @@ export function SyntheticAssemblies(){
   <footer className="w1a-footer">
    این صفحه فقط‌خواندنی و کاملاً ساختگی است. ثبت نامزد، رأی‌گیری، محاسبه حق رأی یا نصاب، حضور و غیاب، ارسال دعوت، بارگذاری یا دانلود اسناد، انتشار رسمی و اعلام نتیجه انجام نمی‌شود.
   </footer>
+   </div>
+  </section>
  </div></main>;
 }
