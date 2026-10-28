@@ -72,7 +72,7 @@ if(-not (Test-Path -LiteralPath $Runner -PathType Leaf)){throw 'EXACT_SHA_RELEAS
 $Original=Get-Content -LiteralPath $Runner -Raw -Encoding UTF8
 $OldLine='$reportsFolder = Join-Path $env:USERPROFILE "Downloads\TTO-Local-CI-Reports"'
 $NewLine='$reportsFolder = Join-Path $env:TTO_NAV04_OUTPUT_ROOT "Reports"'
-if($Original.Split($OldLine).Count -ne 2){throw 'RELEASE_OUTPUT_ANCHOR_MISMATCH: STOP_WITHOUT_PATCH'}
+if($Original.IndexOf($OldLine,[StringComparison]::Ordinal) -lt 0 -or $Original.IndexOf($OldLine,[StringComparison]::Ordinal) -ne $Original.LastIndexOf($OldLine,[StringComparison]::Ordinal)){throw 'RELEASE_OUTPUT_ANCHOR_MISMATCH: STOP_WITHOUT_PATCH'}
 $Patched=$Original.Replace($OldLine,$NewLine)
 Set-Content -LiteralPath $RunnerD -Value $Patched -Encoding UTF8
 Write-Host "EXACT_TEST_COMMIT=$Sha" -ForegroundColor Cyan
