@@ -109,7 +109,33 @@ class ApprovedNav04Visual(unittest.TestCase):
         ):
             self.assertIn(token, CSS)
         self.assertIn('id="w1a-records"', UI)
-        self.assertIn('href="#w1a-records"', UI)
+        self.assertNotIn('href="#w1a-records"', UI)
+        self.assertIn('aria-controls="w1a-public-details"', UI)
+        self.assertIn('id="w1a-public-details"', UI)
+        self.assertIn('hidden={detailType===null}', UI)
+        self.assertIn('w1a-public-details[hidden]', CSS)
+
+    def test_approved_overview_actions_open_visible_readonly_details(self):
+        self.assertIn('type OverviewDetail="ASSEMBLIES"|"RESULTS"', UI)
+        self.assertEqual(UI.count('onClick={()=>openDetails('), 3)
+        self.assertIn('requestAnimationFrame', UI)
+        self.assertIn('detailRef.current?.focus()', UI)
+        self.assertIn('فقط اطلاعات ساختگی', UI)
+        self.assertIn('هیچ دعوت، حضور، سند یا نتیجه رسمی تأیید نشده است', UI)
+        browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
+        for token in (
+            'HERO_DETAILS_REACH_VISIBLE_CONTENT_',
+            'HERO_DETAILS_FOCUSED_',
+            'RESULTS_ACTION_OPENS_READONLY_DETAILS_',
+            'KEYBOARD_ASSEMBLY_ACTION_REACHES_CONTENT_',
+            'NO_SOURCE_MODE_BAR_IN_APPROVED_OVERVIEW_',
+            'APPROVED_SCREENSHOT_NO_SOURCE_MODE_BAR',
+        ):
+            self.assertIn(token, browser)
+        # Source selection belongs to collapsed reviewer-only details.
+        source_selector = UI.index('className="w1a-mode-section"')
+        reviewer_panel = UI.index('id="w1a-review-detail-panels"')
+        self.assertGreater(source_selector, reviewer_panel)
 
 if __name__ == "__main__":
     unittest.main()
