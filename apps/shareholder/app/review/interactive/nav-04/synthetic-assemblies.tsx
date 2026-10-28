@@ -36,7 +36,12 @@ const SIDE_MENU=[
 function ReviewSidebar(){
  const [menuOpen,setMenuOpen]=useState(false);
  return <aside className={"w1a-sidebar"+(menuOpen?" w1a-mobile-menu-open":"")} aria-label="منوی پنل سهامدار" onKeyDown={event=>{if(event.key==="Escape")setMenuOpen(false);}}>
-  <div className="w1a-brand"><span className="w1a-brand-mark" aria-hidden="true">✦</span>
+  <div className="w1a-brand"><span className="w1a-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" width="44" height="44" focusable="false">
+   <path d="M26 4C34 4 42 2 45 0v19c-7 3-12 9-17 14L26 4Z" fill="#204a81"/>
+   <path d="M22 4C13 4 6 7 2 12v12c7 0 13 4 20 10V4Z" fill="#19b6bc"/>
+   <path d="M2 27c8-2 14 2 20 9v12C13 44 7 42 2 36V27Z" fill="#22ad78"/>
+   <path d="M26 37c5-10 12-14 19-16v13c-4 8-10 12-19 14V37Z" fill="#0a69ab"/>
+  </svg></span>
    <div><strong>پلتفرم ملی تعاونی توسعه و عمران</strong><small>شبکه هوشمند خدمات و راهبری تعاونی‌ها</small></div>
   </div>
   <button type="button" className="w1a-mobile-menu-toggle" aria-controls="w1a-side-nav" aria-expanded={menuOpen} onClick={()=>setMenuOpen(!menuOpen)}><span aria-hidden="true">☰</span>بخش‌های پنل</button>
