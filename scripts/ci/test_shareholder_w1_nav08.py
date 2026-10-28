@@ -39,7 +39,7 @@ class Nav08SyntheticProjectReview(unittest.TestCase):
         for marker in ('useState<Nav08Mode>("UNVERIFIED")',
             'const demo=mode==="DEMO_CONTENT"','data-source-mode={mode}',
             'mode==="UNVERIFIED"','SOURCE_UNAVAILABLE',
-            'نمایش واقعی','وضعیت واقعی نامعلوم'):
+            'انتشار نیازمند','وضعیت واقعی نامعلوم'):
             self.assertIn(marker,UI+FIX)
         self.assertIn('demo?<div className="nav06-grid">',UI)
     def test_05_no_real_operations_data_io_or_doc_download(self):
@@ -90,7 +90,7 @@ class Nav08SyntheticProjectReview(unittest.TestCase):
             self.assertIn(marker,BROWSER)
     def test_10_no_accounting_or_unapproved_impact_authority(self):
         for marker in ('نه سیستم حسابداری','SROI','اطلاعات بهره‌مندان',
-            'درآمد','مبنای قانونی','افشای مصوب'):
+            'ارقام سرمایه‌گذاری','مبنای قانونی','افشای مصوب'):
             self.assertTrue(marker in FIX or marker in UI or marker in CSS,
                             "missing explicit boundary: "+marker)
         self.assertIn('هیچ کیف پول نقدی',FIX)
