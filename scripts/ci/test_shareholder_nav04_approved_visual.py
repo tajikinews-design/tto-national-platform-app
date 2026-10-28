@@ -102,6 +102,44 @@ class ApprovedNav04Visual(unittest.TestCase):
         self.assertIn('meetingActions.locator("button.w1a-primary-link").isEnabled()', browser)
         self.assertIn('MEETING_TWO_DISTINCT_ACTIONS_', browser)
 
+    def test_four_view_all_actions_are_real_readonly_buttons(self):
+        for key, label in (
+            ("DOCUMENTS", "همه اسناد ←"),
+            ("NOTICES", "همه اطلاعیه‌ها ←"),
+            ("ELECTIONS", "همه انتخابات ←"),
+            ("ASSEMBLIES", "همه مجامع ←"),
+        ):
+            with self.subTest(key=key):
+                self.assertIn('onClick={()=>openDetails("'+key+'")}', UI)
+                self.assertIn('>'+label+'</button>', UI)
+        for marker in ("PREVIEW_DOC_ROWS.map", "PREVIEW_NOTICE_ROWS.map",
+                       "PREVIEW_ELECTION_ROWS.map", "DETAIL_TITLES",
+                       "id=\"w1a-public-details\"", "aria-expanded={detailType"):
+            self.assertIn(marker, UI)
+        self.assertIn("هیچ فایل، امضا یا مصوبه رسمی", UI)
+        self.assertIn("فقط پیش‌نمایش؛ ثبت نامزدی", UI)
+        browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
+        self.assertIn('VIEW_ALL_ACTION_ENABLED_', browser)
+        self.assertIn('VIEW_ALL_VISIBLE_', browser)
+        self.assertIn('VIEW_ALL_CORRECT_COUNT_', browser)
+        self.assertIn('VIEW_ALL_CAN_CLOSE_', browser)
+
+    def test_neutral_top_screenshot_for_all_five_viewports(self):
+        browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
+        for marker in (
+            'window.scrollTo(0,0)',
+            'document.activeElement.blur()',
+            'SCREENSHOT_SCROLL_TOP_ZERO_',
+            'SCREENSHOT_NEUTRAL_FOCUS_',
+            'DESKTOP_1440_HEADING_IN_CAPTURE_',
+            'SCREENSHOT_MOBILE_NAV_COLLAPSED_',
+        ):
+            self.assertIn(marker, browser)
+        self.assertLess(browser.index('SCREENSHOT_SCROLL_TOP_ZERO_'),
+                        browser.index('const screenshot=await page.screenshot'))
+        self.assertIn(':focus-visible', CSS)
+        self.assertIn('w1a-panel-heading button:focus-visible', CSS)
+
     def test_reviewer_toggle_locator_remains_stable_after_label_change(self):
         browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
         self.assertIn('const reviewerToggle=page.locator("button.w1a-review-tools-toggle");', browser)
@@ -126,8 +164,8 @@ class ApprovedNav04Visual(unittest.TestCase):
         self.assertIn('w1a-public-details[hidden]', CSS)
 
     def test_approved_overview_actions_open_visible_readonly_details(self):
-        self.assertIn('type OverviewDetail="ASSEMBLIES"|"RESULTS"', UI)
-        self.assertEqual(UI.count('onClick={()=>openDetails('), 3)
+        self.assertIn('type OverviewDetail="ASSEMBLIES"|"RESULTS"|"DOCUMENTS"|"NOTICES"|"ELECTIONS"', UI)
+        self.assertEqual(UI.count('onClick={()=>openDetails('), 7)
         self.assertIn('requestAnimationFrame', UI)
         self.assertIn('detailRef.current?.focus()', UI)
         self.assertIn('فقط اطلاعات ساختگی', UI)
