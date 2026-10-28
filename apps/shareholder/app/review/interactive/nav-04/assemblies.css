@@ -385,3 +385,66 @@
 .w1a-meeting-buttons{gap:6px}
 .w1a-meeting-buttons .w1a-primary-link,.w1a-outline-button{font-size:11px}
 }
+
+
+/* NAV04 visual acceptance refinement: distinguish approved overview from
+   non-operational development-only evidence panels. */
+.w1a-frame{min-width:0}
+.w1a-review-toolbox{order:4;margin:0 0 14px;min-width:0;border:1px solid #d6e3f3;border-radius:11px;background:#fff;overflow:hidden}
+.w1a-review-tools-toggle{font:750 12px/1.6 var(--tto-font),Vazirmatn,Tahoma,Arial,sans-serif;background:#f7faff;color:#244878;border:0;display:flex;align-items:center;justify-content:space-between;width:100%;min-height:44px;padding:9px 16px;cursor:pointer;text-align:right}
+.w1a-review-tools-toggle>span{font-size:18px}
+.w1a-review-detail-panels{padding:15px;min-width:0}
+.w1a-review-detail-panels[hidden]{display:none!important}
+.w1a-review-detail-panels .w1a-content{margin-top:14px;order:initial}
+.w1a-review-detail-panels .w1a-guard,.w1a-review-detail-panels .w1a-gates,
+.w1a-review-detail-panels .w1a-hero,.w1a-review-detail-panels .w1a-top,
+.w1a-review-detail-panels .w1a-footer{order:initial;margin-block:12px}
+.w1a-mode-section{border:1px solid #dbe6f3;border-radius:11px;background:#f8fbff;padding:9px 13px;margin:0 0 10px;gap:7px}
+.w1a-mode-section h2{font-size:11px;white-space:normal;margin:0}
+.w1a-mode-controls{gap:6px}
+.w1a-choice{font-size:10px;min-height:32px;padding:5px 11px;border-radius:8px}
+.w1a-message{flex-basis:100%;margin:0;padding:3px 8px;font-size:10px;line-height:1.55}
+.w1a-approved-overview{margin-bottom:12px}
+.w1a-page-heading p{font-size:13px;color:#526e93}
+.w1a-sidebar .w1a-brand strong{font-size:12px;line-height:1.65}
+.w1a-sidebar .w1a-brand small{font-size:10px;line-height:1.6}
+.w1a-global-user strong,.w1a-cooperative-switch{font-size:12px}
+.w1a-global-user small{font-size:10px}
+.w1a-meeting-info h2,.w1a-meeting-titleline h2{font-size:16px}
+.w1a-meeting-meta{font-size:12px}
+.w1a-kpi h3,.w1a-panel-heading h3{font-size:13px}
+.w1a-kpi small,.w1a-action small{font-size:11px}
+.w1a-panel-line strong{font-size:12px}
+.w1a-panel-line small{font-size:10.5px}
+.w1a-assembly-row,.w1a-election-row{gap:8px}
+.w1a-header-icon{font-size:24px}
+.w1a-sidebar .w1a-side-link{font-size:13px}
+.w1a-global-header{border-color:#e5edf6}
+@media(max-width:980px){
+ .w1a-brand{padding-inline-end:113px}
+ .w1a-review-toolbox{margin-bottom:12px}
+ .w1a-review-detail-panels{padding:10px}
+ .w1a-mode-section{display:block;padding:8px}
+ .w1a-mode-controls{display:flex;flex-wrap:wrap;margin:7px 0}
+ .w1a-mode-controls .w1a-choice{flex:1;min-width:120px}
+ .w1a-global-user small{font-size:10px}
+}
+@media(max-width:680px){
+ .w1a-sidebar .w1a-brand strong{font-size:12px}
+ .w1a-sidebar .w1a-brand small{font-size:9px}
+ .w1a-cooperative-switch{min-width:0;max-width:52%;font-size:10px}
+ .w1a-cooperative-switch>span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .w1a-global-user strong{font-size:11px}
+ .w1a-kpi h3,.w1a-panel-heading h3{font-size:13px}
+ .w1a-panel-line strong{font-size:13px}
+ .w1a-panel-line small{font-size:11px}
+ .w1a-review-tools-toggle{min-height:48px}
+}
+@media(max-width:360px){
+ .w1a-sidebar .w1a-brand strong{font-size:10.5px;line-height:1.5}
+ .w1a-mobile-menu-toggle{padding:7px 9px;font-size:11px}
+ .w1a-cooperative-switch{max-width:53%;padding-inline:6px}
+ .w1a-coop-icon{font-size:16px}
+ .w1a-global-user strong{font-size:10px}
+ .w1a-mode-controls .w1a-choice{font-size:10px}
+}
