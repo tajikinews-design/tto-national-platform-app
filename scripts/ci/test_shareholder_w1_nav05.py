@@ -81,6 +81,11 @@ class NAV05Architecture(unittest.TestCase):
    self.assertIn(file,AST)
   self.assertIn('"/review/interactive/nav-05"',SMOKE)
   self.assertIn("NAV05 fail-closed SSR marker missing",SMOKE)
+  # Initial UNVERIFIED SSR must be checked against content rendered by default,
+  # not text inside a DEMO-only / selected-record conditional branch.
+  self.assertIn('"تیکت‌های من","انتشار خبر", "ثبت درخواست جدید"',SMOKE)
+  self.assertIn("انتشار خبر، ابلاغ قانونی",UI)
+  self.assertNotIn('"تیکت‌های من","انتشار رسمی"',SMOKE)
 
  def test_09_private_browser_release_gate(self):
   self.assertIn("e2e-shareholder-nav05-review.cjs",RUNNER)
