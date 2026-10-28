@@ -495,3 +495,8 @@
  .w1a-shell button.w1a-action{min-height:85px}
  .w1a-review-tools-toggle{font-size:10px}
 }
+
+/* NAV-04 final interaction acceptance: make the four "view all" affordances real buttons. */
+.w1a-panel-heading button{border:0;background:transparent;padding:2px 0;font:inherit;font-size:10px;font-weight:750;color:#1976de;white-space:nowrap;cursor:pointer}
+.w1a-panel-heading button:hover,.w1a-panel-heading button[aria-expanded="true"]{color:#075cbd;text-decoration:underline;text-underline-offset:3px}
+.w1a-panel-heading button:focus-visible{outline:3px solid #eda927;outline-offset:3px;border-radius:3px}
