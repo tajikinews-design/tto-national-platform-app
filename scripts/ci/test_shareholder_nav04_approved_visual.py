@@ -60,7 +60,7 @@ class ApprovedNav04Visual(unittest.TestCase):
     def test_approved_meeting_photo_and_full_size_browser_capture(self):
         photo = ROOT / "apps/shareholder/public/nav04-approved-meeting-demo.webp"
         self.assertTrue(photo.is_file())
-        self.assertGreater(photo.stat().st_size, 2000)
+        self.assertGreater(photo.stat().st_size, 6000)
         self.assertIn('/nav04-approved-meeting-demo.webp', UI)
         for token in (
             'w1a-cooperative-switch', 'w1a-meeting-controls',
@@ -75,6 +75,80 @@ class ApprovedNav04Visual(unittest.TestCase):
         self.assertIn('APPROVED_MEETING_PHOTO_LOADED_', browser)
         self.assertIn('UNVERIFIED_ATTENDANCE_CANNOT_SUBMIT_', browser)
 
+    def test_diagnostics_are_collapsed_without_dropping_legal_gates(self):
+        self.assertIn('useState(false)', UI)
+        self.assertIn('id="w1a-review-detail-panels"', UI)
+        self.assertIn('hidden={!showReviewDetails}', UI)
+        self.assertIn('aria-expanded={showReviewDetails}', UI)
+        self.assertIn('ابزار بررسی توسعه‌دهنده', UI)
+        self.assertIn('w1a-review-detail-panels[hidden]', CSS)
+        self.assertIn('REFERENCE_REVIEW_GATES.map', UI)
+        browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
+        for token in (
+            'REVIEW_DIAGNOSTICS_HIDDEN_BY_DEFAULT_',
+            'REVIEW_DIAGNOSTICS_OPEN_ON_REQUEST_',
+            'APPROVED_SCREENSHOT_NO_DEBUG_PANELS',
+            'APPROVED_OVERVIEW_COMPACT_HEIGHT',
+        ):
+            self.assertIn(token, browser)
+
+    def test_attendance_and_readonly_details_have_distinct_selectors(self):
+        # One disabled statutory attendance action and one enabled demo detail action.
+        self.assertIn('className="w1a-outline-button"', UI)
+        self.assertIn('className="w1a-primary-link" onClick={()=>openDetails("ASSEMBLIES")}', UI)
+        browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
+        self.assertNotIn('locator(".w1a-meeting-buttons button").isDisabled()', browser)
+        self.assertIn('meetingActions.locator("button.w1a-outline-button").isDisabled()', browser)
+        self.assertIn('meetingActions.locator("button.w1a-primary-link").isEnabled()', browser)
+        self.assertIn('MEETING_TWO_DISTINCT_ACTIONS_', browser)
+
+    def test_four_view_all_actions_are_real_readonly_buttons(self):
+        for key, label in (
+            ("DOCUMENTS", "همه اسناد ←"),
+            ("NOTICES", "همه اطلاعیه‌ها ←"),
+            ("ELECTIONS", "همه انتخابات ←"),
+            ("ASSEMBLIES", "همه مجامع ←"),
+        ):
+            with self.subTest(key=key):
+                self.assertIn('onClick={()=>openDetails("'+key+'")}', UI)
+                self.assertIn('>'+label+'</button>', UI)
+        for marker in ("PREVIEW_DOC_ROWS.map", "PREVIEW_NOTICE_ROWS.map",
+                       "PREVIEW_ELECTION_ROWS.map", "DETAIL_TITLES",
+                       "id=\"w1a-public-details\"", "aria-expanded={detailType"):
+            self.assertIn(marker, UI)
+        self.assertIn("هیچ فایل، امضا یا مصوبه رسمی", UI)
+        self.assertIn("فقط پیش‌نمایش؛ ثبت نامزدی", UI)
+        browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
+        self.assertIn('VIEW_ALL_ACTION_ENABLED_', browser)
+        self.assertIn('VIEW_ALL_VISIBLE_', browser)
+        self.assertIn('VIEW_ALL_CORRECT_COUNT_', browser)
+        self.assertIn('VIEW_ALL_CAN_CLOSE_', browser)
+
+    def test_neutral_top_screenshot_for_all_five_viewports(self):
+        browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
+        for marker in (
+            'window.scrollTo(0,0)',
+            'document.activeElement.blur()',
+            'SCREENSHOT_SCROLL_TOP_ZERO_',
+            'SCREENSHOT_NEUTRAL_FOCUS_',
+            'DESKTOP_1440_HEADING_IN_CAPTURE_',
+            'SCREENSHOT_MOBILE_NAV_COLLAPSED_',
+        ):
+            self.assertIn(marker, browser)
+        self.assertLess(browser.index('SCREENSHOT_SCROLL_TOP_ZERO_'),
+                        browser.index('const screenshot=await page.screenshot'))
+        self.assertIn(':focus-visible', CSS)
+        self.assertIn('w1a-panel-heading button:focus-visible', CSS)
+
+    def test_reviewer_toggle_locator_remains_stable_after_label_change(self):
+        browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
+        self.assertIn('const reviewerToggle=page.locator("button.w1a-review-tools-toggle");', browser)
+        self.assertNotIn('getByRole("button",{name:/ابزار بررسی توسعه‌دهنده/})', browser)
+        self.assertIn('await reviewerToggle.click()', browser)
+        self.assertIn('reviewerToggle.getAttribute("aria-expanded")', browser)
+        self.assertIn('بستن ابزارهای بررسی', UI)
+        self.assertIn('ابزار بررسی توسعه‌دهنده', UI)
+
     def test_responsive_and_anchors(self):
         for token in (
             ".w1a-frame", ".w1a-sidebar", ".w1a-approved-overview",
@@ -83,7 +157,33 @@ class ApprovedNav04Visual(unittest.TestCase):
         ):
             self.assertIn(token, CSS)
         self.assertIn('id="w1a-records"', UI)
-        self.assertIn('href="#w1a-records"', UI)
+        self.assertNotIn('href="#w1a-records"', UI)
+        self.assertIn('aria-controls="w1a-public-details"', UI)
+        self.assertIn('id="w1a-public-details"', UI)
+        self.assertIn('hidden={detailType===null}', UI)
+        self.assertIn('w1a-public-details[hidden]', CSS)
+
+    def test_approved_overview_actions_open_visible_readonly_details(self):
+        self.assertIn('type OverviewDetail="ASSEMBLIES"|"RESULTS"|"DOCUMENTS"|"NOTICES"|"ELECTIONS"', UI)
+        self.assertEqual(UI.count('onClick={()=>openDetails('), 7)
+        self.assertIn('requestAnimationFrame', UI)
+        self.assertIn('detailRef.current?.focus()', UI)
+        self.assertIn('فقط اطلاعات ساختگی', UI)
+        self.assertIn('هیچ دعوت، حضور، سند یا نتیجه رسمی تأیید نشده است', UI)
+        browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
+        for token in (
+            'HERO_DETAILS_REACH_VISIBLE_CONTENT_',
+            'HERO_DETAILS_FOCUSED_',
+            'RESULTS_ACTION_OPENS_READONLY_DETAILS_',
+            'KEYBOARD_ASSEMBLY_ACTION_REACHES_CONTENT_',
+            'NO_SOURCE_MODE_BAR_IN_APPROVED_OVERVIEW_',
+            'APPROVED_SCREENSHOT_NO_SOURCE_MODE_BAR',
+        ):
+            self.assertIn(token, browser)
+        # Source selection belongs to collapsed reviewer-only details.
+        source_selector = UI.index('className="w1a-mode-section"')
+        reviewer_panel = UI.index('id="w1a-review-detail-panels"')
+        self.assertGreater(source_selector, reviewer_panel)
 
 if __name__ == "__main__":
     unittest.main()

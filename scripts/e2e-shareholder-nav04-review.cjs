@@ -39,10 +39,19 @@ async function verify(width,height,interact){
   ok(await page.locator(".w1a-approved-overview").count()===0,"NO_APPROVED_FIXTURE_OVERVIEW_BEFORE_OPTIN_"+width);
   ok(await page.getByRole("button",{name:"ثبت رأی (غیرفعال)"}).count()===0,
     "NO_VOTE_WHEN_BLOCKED_"+width);
-  // Opt into sample only: no public/legal/source record becomes valid.
+  // Source controls are reviewer-only: expand explicitly before opt-in.
+  const reviewerDetails=page.locator("#w1a-review-detail-panels");
+  const reviewerToggle=page.locator("button.w1a-review-tools-toggle");
+  ok(await reviewerDetails.isHidden(),"REVIEW_DIAGNOSTICS_HIDDEN_BY_DEFAULT_"+width);
+  ok(await reviewerToggle.getAttribute("aria-expanded")==="false","REVIEW_DIAGNOSTICS_COLLAPSED_"+width);
+  await reviewerToggle.click();
+  ok(await reviewerDetails.isVisible(),"REVIEW_SOURCE_MODE_ACCESSIBLE_"+width);
   const mock=page.getByRole("button",{name:"نمونه کاملاً ساختگی",exact:true});
   await mock.click();
   ok(await mock.getAttribute("aria-pressed")==="true","DEMO_SWITCH_"+width);
+  await reviewerToggle.click();
+  ok(await reviewerDetails.isHidden(),"REVIEW_SOURCE_MODE_REHIDDEN_AFTER_OPTIN_"+width);
+  ok(await page.locator(".w1a-mode-section").isHidden(),"NO_SOURCE_MODE_BAR_IN_APPROVED_OVERVIEW_"+width);
   ok(await page.locator(".w1a-record").count()===6,"SIX_FIXTURES_"+width);
   // The user-approved visual structure must render only after opting into DEMO.
   ok(await page.locator(".w1a-approved-overview").count()===1,"APPROVED_OVERVIEW_VISIBLE_"+width);
@@ -58,8 +67,12 @@ async function verify(width,height,interact){
   const photo=await page.locator(".w1a-meeting-tile img").evaluate((img)=>({
     complete:img.complete,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight
   }));
-  ok(photo.complete&&photo.naturalWidth>=200&&photo.naturalHeight>=140,"APPROVED_MEETING_PHOTO_LOADED_"+width);
-  ok(await page.locator(".w1a-meeting-buttons button").isDisabled(),"UNVERIFIED_ATTENDANCE_CANNOT_SUBMIT_"+width);
+  ok(photo.complete&&photo.naturalWidth>=300&&photo.naturalHeight>=220,"APPROVED_MEETING_PHOTO_LOADED_"+width);
+  const meetingActions=page.locator(".w1a-meeting-buttons");
+  ok(await meetingActions.locator("button").count()===2,"MEETING_TWO_DISTINCT_ACTIONS_"+width);
+  ok(await meetingActions.locator("button.w1a-outline-button").isDisabled(),"UNVERIFIED_ATTENDANCE_CANNOT_SUBMIT_"+width);
+  ok(await meetingActions.locator("button.w1a-primary-link").isEnabled(),"SYNTHETIC_DETAILS_ENTRY_REMAINS_ENABLED_"+width);
+  ok(await reviewerDetails.isHidden(),"REVIEW_DIAGNOSTICS_STAY_HIDDEN_IN_OVERVIEW_"+width);
   const screen=await page.evaluate(()=>{
     const sidebar=document.querySelector(".w1a-sidebar");
     const kpi=document.querySelector(".w1a-kpi");
@@ -105,10 +118,89 @@ async function verify(width,height,interact){
    innerWidth:innerWidth
   }));
   ok(geom.scrollWidth<=width+2,"NO_HORIZONTAL_OVERFLOW_"+width);
+  const navToggle=page.locator(".w1a-mobile-menu-toggle");
+  if(width<=980){
+    ok(await navToggle.isVisible(),"MOBILE_MENU_VISIBLE_"+width);
+    ok(await navToggle.getAttribute("aria-expanded")==="false","MOBILE_MENU_INIT_CLOSED_"+width);
+    await navToggle.click();
+    ok(await navToggle.getAttribute("aria-expanded")==="true","MOBILE_MENU_OPEN_"+width);
+    ok(await page.locator("#w1a-side-nav").isVisible(),"MOBILE_CANONICAL_LINKS_VISIBLE_"+width);
+    await navToggle.focus();
+    await page.keyboard.press("Escape");
+    ok(await navToggle.getAttribute("aria-expanded")==="false","MOBILE_MENU_ESCAPE_CLOSED_"+width);
+    ok(await page.locator("#w1a-side-nav").isHidden(),"MOBILE_NAV_HIDDEN_AFTER_ESCAPE_"+width);
+  }else{
+    ok(await navToggle.isHidden(),"DESKTOP_MENU_TOGGLE_HIDDEN_"+width);
+  }
+  // UI interactions can scroll the viewport; normalize screenshots for visual QA.
+  // Blur after keyboard tests without removing accessible focus styles.
+  const captureState=await page.evaluate(()=>{
+    if(document.activeElement instanceof HTMLElement)document.activeElement.blur();
+    window.scrollTo(0,0);
+    return {focused:document.activeElement?.tagName??"",navExpanded:document.querySelector(".w1a-mobile-menu-toggle")?.getAttribute("aria-expanded")};
+  });
+  await page.waitForFunction(()=>window.scrollY===0);
+  ok(await page.evaluate(()=>window.scrollY===0),"SCREENSHOT_SCROLL_TOP_ZERO_"+width);
+  ok(["BODY","HTML"].includes(captureState.focused),"SCREENSHOT_NEUTRAL_FOCUS_"+width);
+  if(width<=980)ok(captureState.navExpanded==="false","SCREENSHOT_MOBILE_NAV_COLLAPSED_"+width);
+  if(width===1440)ok(await page.locator(".w1a-page-heading").evaluate(el=>{
+    const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<window.innerHeight;
+  }),"DESKTOP_1440_HEADING_IN_CAPTURE_"+width);
   const screenshot=await page.screenshot({type:"png",animations:"disabled",path:join("/workspace/.qa-artifacts",SHA,"nav04-"+width+".png"),fullPage:width===1536});
   ok(screenshot.byteLength>6000,"RENDERED_PIXELS_"+width);
+  if(width===1536){
+    const screenshotRect=await page.evaluate(()=>({
+      diagnosticsCollapsed:document.querySelector("#w1a-review-detail-panels")?.hidden===true,
+      sourceModeNotVisible:document.querySelector(".w1a-mode-section")?.getClientRects().length===0,
+      publicDetailHidden:document.querySelector("#w1a-public-details")?.hidden===true,
+      visibleHeight:document.querySelector("main.w1a-shell")?.getBoundingClientRect().height??0
+    }));
+    ok(screenshotRect.diagnosticsCollapsed,"APPROVED_SCREENSHOT_NO_DEBUG_PANELS");
+    ok(screenshotRect.sourceModeNotVisible,"APPROVED_SCREENSHOT_NO_SOURCE_MODE_BAR");
+    ok(screenshotRect.publicDetailHidden,"APPROVED_SCREENSHOT_DETAILS_COLLAPSED");
+    ok(screenshotRect.visibleHeight<1600,"APPROVED_OVERVIEW_COMPACT_HEIGHT");
+  }
   viewports.push({width,height,scrollWidth:geom.scrollWidth,pngSha256:createHash("sha256").update(screenshot).digest("hex")});
   if(interact){
+   const publicDetails=page.locator("#w1a-public-details");
+   ok(await publicDetails.isHidden(),"PUBLIC_DETAILS_COLLAPSED_BY_DEFAULT_"+width);
+   const heroDetails=page.getByRole("button",{name:/مشاهده جزئیات نمونه/});
+   await heroDetails.click();
+   ok(await publicDetails.isVisible(),"HERO_DETAILS_REACH_VISIBLE_CONTENT_"+width);
+   await page.waitForFunction(()=>document.activeElement?.id==="w1a-public-details");
+   ok(await publicDetails.evaluate(el=>el===document.activeElement),"HERO_DETAILS_FOCUSED_"+width);
+   ok(await publicDetails.getByText("جزئیات مجامع نمونه").isVisible(),"HERO_DETAILS_CORRECT_CONTENT_"+width);
+   await page.getByRole("button",{name:/بستن جزئیات/}).click();
+   ok(await publicDetails.isHidden(),"HERO_DETAILS_CLOSE_"+width);
+   await page.locator("button.w1a-action-purple").click();
+   ok(await publicDetails.getByText("نتایج و مصوبات نمونه").isVisible(),"RESULTS_ACTION_OPENS_READONLY_DETAILS_"+width);
+   await page.getByRole("button",{name:/بستن جزئیات/}).click();
+   const assembliesQuick=page.locator("button.w1a-action-blue");
+   await assembliesQuick.focus();
+   await page.keyboard.press("Enter");
+   ok(await publicDetails.getByText("جزئیات مجامع نمونه").isVisible(),"KEYBOARD_ASSEMBLY_ACTION_REACHES_CONTENT_"+width);
+   await page.getByRole("button",{name:/بستن جزئیات/}).click();
+   ok(await publicDetails.isHidden(),"ALL_OVERVIEW_DETAILS_COLLAPSED_AFTER_CLOSE_"+width);
+   const viewAllCases=[
+     {label:"همه اسناد ←",heading:"اسناد و مصوبات نمونه",count:4},
+     {label:"همه اطلاعیه‌ها ←",heading:"اطلاعیه‌های نمونه",count:4},
+     {label:"همه انتخابات ←",heading:"انتخابات نمونه",count:2},
+     {label:"همه مجامع ←",heading:"جزئیات مجامع نمونه",count:2}
+   ];
+   for(const item of viewAllCases){
+     const action=page.getByRole("button",{name:item.label,exact:true});
+     ok(await action.isEnabled(),"VIEW_ALL_ACTION_ENABLED_"+item.count+"_"+width);
+     await action.click();
+     ok(await action.getAttribute("aria-expanded")==="true","VIEW_ALL_EXPANDED_"+item.count+"_"+width);
+     ok(await publicDetails.getByRole("heading",{name:item.heading,exact:true}).isVisible(),"VIEW_ALL_VISIBLE_"+item.count+"_"+width);
+     ok(await publicDetails.locator(".w1a-public-detail-card").count()===item.count,"VIEW_ALL_CORRECT_COUNT_"+item.count+"_"+width);
+     ok(await publicDetails.getByText(/هیچ دعوت، حضور، سند یا نتیجه رسمی تأیید نشده است/).isVisible(),"VIEW_ALL_NO_OFFICIAL_APPROVAL_"+width);
+     await page.getByRole("button",{name:/بستن جزئیات/}).click();
+     ok(await publicDetails.isHidden(),"VIEW_ALL_CAN_CLOSE_"+width);
+   }
+   await reviewerToggle.click();
+   ok(await reviewerDetails.isVisible(),"REVIEW_DIAGNOSTICS_OPEN_ON_REQUEST_"+width);
+   ok(await reviewerToggle.getAttribute("aria-expanded")==="true","REVIEW_DIAGNOSTICS_TOGGLE_ACCESSIBLE_"+width);
    const invitation=page.getByRole("button",{name:"دعوت‌نامه‌ها",exact:true});
    await invitation.click();
    ok(await page.locator(".w1a-record").count()===2,"TWO_INVITATIONS");

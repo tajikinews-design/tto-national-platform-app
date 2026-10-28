@@ -1,9 +1,11 @@
 "use client";
-import {useState} from "react";
+import {useRef,useState} from "react";
 import {ASSEMBLY_FIXTURES,KIND_LABEL,REFERENCE_REVIEW_GATES,
  type RecordType,type DemoSourceState} from "./assembly-fixtures";
 
 type Filter="ALL"|RecordType;
+type OverviewDetail="ASSEMBLIES"|"RESULTS"|"DOCUMENTS"|"NOTICES"|"ELECTIONS";
+type ReadonlyDetailRow={title:string;subtitle:string;description:string};
 const FILTERS:readonly {value:Filter;label:string}[]=[
  {value:"ALL",label:"همه"},
  {value:"INVITATION",label:"دعوت‌نامه‌ها"},
@@ -34,11 +36,18 @@ const SIDE_MENU=[
  ["⚙","تنظیمات حساب",""]
 ] as const;
 function ReviewSidebar(){
- return <aside className="w1a-sidebar" aria-label="منوی پنل سهامدار">
-  <div className="w1a-brand"><span className="w1a-brand-mark" aria-hidden="true">✦</span>
+ const [menuOpen,setMenuOpen]=useState(false);
+ return <aside className={"w1a-sidebar"+(menuOpen?" w1a-mobile-menu-open":"")} aria-label="منوی پنل سهامدار" onKeyDown={event=>{if(event.key==="Escape")setMenuOpen(false);}}>
+  <div className="w1a-brand"><span className="w1a-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" width="44" height="44" focusable="false">
+   <path d="M26 4C34 4 42 2 45 0v19c-7 3-12 9-17 14L26 4Z" fill="#204a81"/>
+   <path d="M22 4C13 4 6 7 2 12v12c7 0 13 4 20 10V4Z" fill="#19b6bc"/>
+   <path d="M2 27c8-2 14 2 20 9v12C13 44 7 42 2 36V27Z" fill="#22ad78"/>
+   <path d="M26 37c5-10 12-14 19-16v13c-4 8-10 12-19 14V37Z" fill="#0a69ab"/>
+  </svg></span>
    <div><strong>پلتفرم ملی تعاونی توسعه و عمران</strong><small>شبکه هوشمند خدمات و راهبری تعاونی‌ها</small></div>
   </div>
-  <nav className="w1a-side-links" aria-label="یازده بخش مصوب پنل">
+  <button type="button" className="w1a-mobile-menu-toggle" aria-controls="w1a-side-nav" aria-expanded={menuOpen} onClick={()=>setMenuOpen(!menuOpen)}><span aria-hidden="true">☰</span>بخش‌های پنل</button>
+  <nav id="w1a-side-nav" className="w1a-side-links" aria-label="یازده بخش مصوب پنل">
    {SIDE_MENU.map(([icon,label,href],i)=>
     href?<a key={label} className={"w1a-side-link"+(i===3?" w1a-active":"")} aria-current={i===3?"page":undefined} href={href}>
       <span aria-hidden="true" className="w1a-side-icon">{icon}</span><span>{label}</span></a>
@@ -56,9 +65,9 @@ function ReviewTopbar(){
     <span aria-hidden="true">⌄</span>
    </div>
    <div className="w1a-global-user">
-    <span className="w1a-header-icon" aria-label="پیام‌ها ـ غیرفعال">✉</span>
-    <span className="w1a-header-icon w1a-bell" aria-label="اعلان‌ها ـ غیرفعال">♧</span>
-    <span className="w1a-avatar" aria-hidden="true">س</span>
+    <span className="w1a-header-icon" aria-label="پیام‌ها ـ غیرفعال"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg></span>
+    <span className="w1a-header-icon w1a-bell" aria-label="اعلان‌ها ـ غیرفعال"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span>
+    <span className="w1a-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="8" r="3"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg></span>
     <div><strong>سهامدار نمونه</strong><small>پنل بازبینی · داده غیرعملیاتی</small></div>
    </div>
  </div>;
@@ -76,12 +85,51 @@ const PREVIEW_NOTICE_ROWS=[
  {title:"راهنمای ثبت حضور در مجمع (نمونه)",date:"انتشار رسمی نشده"}
 ] as const;
 
+const PREVIEW_ELECTION_ROWS=[
+ {name:"انتخابات هیئت‌مدیره (نمونه)",state:"ثبت‌نام غیرعملیاتی"},
+ {name:"انتخابات بازرس اصلی و علی‌البدل (نمونه)",state:"زمان قانونی تأیید نشده"}
+] as const;
+const DETAIL_TITLES:Record<OverviewDetail,string>={
+ ASSEMBLIES:"جزئیات مجامع نمونه",
+ RESULTS:"نتایج و مصوبات نمونه",
+ DOCUMENTS:"اسناد و مصوبات نمونه",
+ NOTICES:"اطلاعیه‌های نمونه",
+ ELECTIONS:"انتخابات نمونه"
+};
+
 function ApprovedVisualOverview(){
+ const [detailType,setDetailType]=useState<OverviewDetail|null>(null);
+ const detailRef=useRef<HTMLElement>(null);
+ function openDetails(next:OverviewDetail){
+   setDetailType(next);
+   requestAnimationFrame(()=>{
+     detailRef.current?.focus();
+     detailRef.current?.scrollIntoView({block:"nearest"});
+   });
+ }
  const inv=ASSEMBLY_FIXTURES.filter(item=>item.recordType==="INVITATION");
  const minute=ASSEMBLY_FIXTURES.filter(item=>item.recordType==="MINUTES");
  const elections=ASSEMBLY_FIXTURES.filter(item=>item.recordType==="ELECTION_INFO");
  const outcomes=ASSEMBLY_FIXTURES.filter(item=>item.recordType==="RESULT");
  const showcase=inv[0];
+ const detailRows:Record<OverviewDetail,ReadonlyDetailRow[]>={
+  DOCUMENTS:PREVIEW_DOC_ROWS.map(row=>({
+   title:row.title,subtitle:row.date,
+   description:"عنوان سند صرفاً نمونه است؛ هیچ فایل، امضا یا مصوبه رسمی برای دریافت وجود ندارد."
+  })),
+  NOTICES:PREVIEW_NOTICE_ROWS.map(row=>({
+   title:row.title,subtitle:row.date,
+   description:"اطلاعیه تمرینی است؛ دعوت رسمی و اهلیت مخاطب تأیید نشده است."
+  })),
+  ELECTIONS:PREVIEW_ELECTION_ROWS.map(row=>({
+   title:row.name,subtitle:row.state,
+   description:"فقط پیش‌نمایش؛ ثبت نامزدی، احراز شرایط و رأی‌گیری غیرفعال است."
+  })),
+  ASSEMBLIES:inv.map(row=>({title:row.title,subtitle:row.scheduledAt,
+   description:row.summary+" · محل: "+row.location})),
+  RESULTS:[...minute,...outcomes].map(row=>({title:row.title,subtitle:row.scheduledAt,
+   description:row.summary+" · محل: "+row.location}))
+ };
  return <section className="w1a-approved-overview" aria-label="نمای مصوب مجامع ـ تمام اطلاعات مصنوعی">
   <div className="w1a-next-meeting">
    <div className="w1a-meeting-tile">
@@ -100,7 +148,8 @@ function ApprovedVisualOverview(){
      <div className="w1a-attendance-state">◉ وضعیت من: حضور احراز نشده</div>
      <div className="w1a-meeting-buttons">
       <button type="button" disabled aria-disabled="true" className="w1a-outline-button">اعلام حضور (غیرفعال)</button>
-      <a className="w1a-primary-link" href="#w1a-records">مشاهده جزئیات نمونه ←</a>
+      <button type="button" className="w1a-primary-link" onClick={()=>openDetails("ASSEMBLIES")}
+       aria-controls="w1a-public-details" aria-expanded={detailType==="ASSEMBLIES"}>مشاهده جزئیات نمونه ←</button>
      </div>
     </div>
    </div>
@@ -115,7 +164,7 @@ function ApprovedVisualOverview(){
   </div>
   <div className="w1a-four-panels">
    <section className="w1a-summary-panel">
-    <div className="w1a-panel-heading"><h3>جدیدترین اسناد و مصوبات</h3><span>همه اسناد ←</span></div>
+    <div className="w1a-panel-heading"><h3>جدیدترین اسناد و مصوبات</h3><button type="button" onClick={()=>openDetails("DOCUMENTS")} aria-controls="w1a-public-details" aria-expanded={detailType==="DOCUMENTS"}>همه اسناد ←</button></div>
     {PREVIEW_DOC_ROWS.map(rec=><div className="w1a-panel-line" key={rec.title}>
       <span className="w1a-file-icon" aria-hidden="true">▤</span>
       <div><strong>{rec.title}</strong><small>{rec.date}</small></div>
@@ -123,7 +172,7 @@ function ApprovedVisualOverview(){
     </div>)}
    </section>
    <section className="w1a-summary-panel">
-    <div className="w1a-panel-heading"><h3>آخرین اطلاعیه‌ها</h3><span>همه اطلاعیه‌ها ←</span></div>
+    <div className="w1a-panel-heading"><h3>آخرین اطلاعیه‌ها</h3><button type="button" onClick={()=>openDetails("NOTICES")} aria-controls="w1a-public-details" aria-expanded={detailType==="NOTICES"}>همه اطلاعیه‌ها ←</button></div>
     {PREVIEW_NOTICE_ROWS.map(rec=><div className="w1a-panel-line" key={rec.title}>
      <span className="w1a-file-icon" aria-hidden="true">▤</span>
      <div><strong>{rec.title}</strong><small>{rec.date}</small></div>
@@ -131,18 +180,15 @@ function ApprovedVisualOverview(){
     </div>)}
    </section>
    <section className="w1a-summary-panel">
-    <div className="w1a-panel-heading"><h3>انتخابات فعال</h3><span>همه انتخابات ←</span></div>
-    {[
-      {name:"انتخابات هیئت‌مدیره (نمونه)",state:"ثبت‌نام غیرعملیاتی"},
-      {name:"انتخابات بازرس اصلی و علی‌البدل (نمونه)",state:"زمان قانونی تأیید نشده"}
-    ].map(rec=><div className="w1a-panel-line w1a-election-row" key={rec.name}>
+    <div className="w1a-panel-heading"><h3>انتخابات فعال</h3><button type="button" onClick={()=>openDetails("ELECTIONS")} aria-controls="w1a-public-details" aria-expanded={detailType==="ELECTIONS"}>همه انتخابات ←</button></div>
+    {PREVIEW_ELECTION_ROWS.map(rec=><div className="w1a-panel-line w1a-election-row" key={rec.name}>
       <div><span className="w1a-pill w1a-pill-violet">انتخابات فرضی</span>
        <strong>{rec.name}</strong><small>{rec.state}</small></div>
       <span className="w1a-pill w1a-pill-green">فقط پیش‌نمایش</span>
     </div>)}
    </section>
    <section className="w1a-summary-panel">
-    <div className="w1a-panel-heading"><h3>مجامع پیش‌رو</h3><span>همه مجامع ←</span></div>
+    <div className="w1a-panel-heading"><h3>مجامع پیش‌رو</h3><button type="button" onClick={()=>openDetails("ASSEMBLIES")} aria-controls="w1a-public-details" aria-expanded={detailType==="ASSEMBLIES"}>همه مجامع ←</button></div>
     {inv.map(rec=><div className="w1a-panel-line w1a-assembly-row" key={rec.id}>
      <div><span className="w1a-pill w1a-pill-blue">{rec.assemblyKind}</span>
       <strong>{rec.title}</strong><small>▦ {rec.scheduledAt}</small>
@@ -153,16 +199,39 @@ function ApprovedVisualOverview(){
   </div>
 
   <div className="w1a-actions-row" aria-label="مسیرهای این ماژول در نسخه طراحی">
-   <a href="#w1a-records" className="w1a-action w1a-action-blue"><span>▤</span><div><strong>مشاهده مجامع</strong><small>اطلاعات، دستور جلسه و ثبت حضور (نمایشی)</small></div>←</a>
+   <button type="button" onClick={()=>openDetails("ASSEMBLIES")}
+     aria-controls="w1a-public-details" aria-expanded={detailType==="ASSEMBLIES"}
+     className="w1a-action w1a-action-blue"><span>▤</span><div><strong>مشاهده مجامع</strong><small>اطلاعات، دستور جلسه و ثبت حضور (نمایشی)</small></div>←</button>
    <span className="w1a-action w1a-action-green w1a-action-disabled" aria-disabled="true"><span>♙</span><div><strong>مدیریت وکالت</strong><small>واگذاری و پیگیری وکالت‌ها · غیرفعال</small></div>—</span>
    <span className="w1a-action w1a-action-orange w1a-action-disabled" aria-disabled="true"><span>♧</span><div><strong>ثبت نامزدی در انتخابات</strong><small>مدارک و پیگیری وضعیت · غیرفعال</small></div>—</span>
-   <a href="#w1a-records" className="w1a-action w1a-action-purple"><span>▤</span><div><strong>نتایج و مصوبات</strong><small>صورت‌جلسات، مصوبات و نتایج · نمونه</small></div>←</a>
+   <button type="button" onClick={()=>openDetails("RESULTS")}
+     aria-controls="w1a-public-details" aria-expanded={detailType==="RESULTS"}
+     className="w1a-action w1a-action-purple"><span>▤</span><div><strong>نتایج و مصوبات</strong><small>صورت‌جلسات، مصوبات و نتایج · نمونه</small></div>←</button>
   </div>
+  <section id="w1a-public-details" className="w1a-public-details" aria-label="جزئیات خواندنی نمونه مجامع و مصوبات"
+   tabIndex={-1} ref={detailRef} hidden={detailType===null}>
+   <div className="w1a-public-details-head">
+    <div><span className="w1a-pill w1a-pill-blue">فقط اطلاعات ساختگی</span>
+     <h2>{detailType?DETAIL_TITLES[detailType]:"جزئیات نمونه"}</h2>
+     <p>اطلاعات این بخش تمرینی است؛ هیچ دعوت، حضور، سند یا نتیجه رسمی تأیید نشده است.</p>
+    </div>
+    <button type="button" className="w1a-public-close" onClick={()=>setDetailType(null)}>بستن جزئیات ×</button>
+   </div>
+   <div className="w1a-public-detail-grid">
+    {(detailType?detailRows[detailType]:[]).map(rec=><article key={rec.title}
+     className="w1a-public-detail-card">
+      <strong>{rec.title}</strong><span>{rec.subtitle}</span>
+      <p>{rec.description}</p>
+      <small>وضعیت حقوقی و انتشار: تأیید نشده · فقط پیش‌نمایش</small>
+    </article>)}
+   </div>
+  </section>
  </section>;
 }
 
 export function SyntheticAssemblies(){
  const [mode,setMode]=useState<DemoSourceState>("UNVERIFIED");
+ const [showReviewDetails,setShowReviewDetails]=useState(false);
  const [filter,setFilter]=useState<Filter>("ALL");
  const [selectedId,setSelectedId]=useState(ASSEMBLY_FIXTURES[0].id);
  const fake=mode==="DEMO_CONTENT";
@@ -176,6 +245,26 @@ export function SyntheticAssemblies(){
  return <main className="w1a-shell" dir="rtl">
   <ReviewSidebar/><div className="w1a-frame"><ReviewTopbar/>
   <div className="w1a-page-heading"><div><h1>مجامع و انتخابات</h1><p>اطلاع‌رسانی، مشارکت و پیگیری مجامع عمومی، انتخابات و مصوبات تعاونی</p></div><span>نمایش آزمایشی · بدون اتصال عملیاتی</span></div>
+  {fake?<ApprovedVisualOverview/>:<section className="w1a-preview-placeholder" aria-label="نمای اصلی بدون منبع معتبر"><strong>مجمع بعدی من</strong><p>اطلاعات مجمع، شمارنده‌ها، اطلاعیه‌ها و اسناد تا تأیید منبع معتبر نمایش داده نمی‌شوند.</p></section>}
+  <section className="w1a-review-toolbox" aria-label="ابزار بررسی توسعه‌دهنده">
+   <button type="button" className="w1a-review-tools-toggle" aria-expanded={showReviewDetails}
+     aria-controls="w1a-review-detail-panels" onClick={()=>setShowReviewDetails(!showReviewDetails)}>
+    {showReviewDetails?"بستن ابزارهای بررسی":"ابزار بررسی توسعه‌دهنده"} <span aria-hidden="true">{showReviewDetails?"⌃":"⌄"}</span>
+   </button>
+   <div id="w1a-review-detail-panels" className="w1a-review-detail-panels" hidden={!showReviewDetails}>
+  <section className="w1a-mode-section" aria-label="وضعیت دسترسی به منبع رسمی">
+   <h2>وضعیت منبع را برای آزمایش انتخاب کنید</h2>
+   <div className="w1a-mode-controls" role="group" aria-label="وضعیت منبع">
+    {MODES.map(item=><button key={item.id} type="button"
+      className={mode===item.id?"w1a-choice w1a-choice-active":"w1a-choice"}
+      aria-pressed={mode===item.id} onClick={()=>setMode(item.id)}>
+      {item.label}</button>)}
+   </div>
+   <p className={"w1a-message"+(fake?" w1a-message-demo":"")} role="status" aria-live="polite">
+    {MODES.find(x=>x.id===mode)?.message}
+   </p>
+  </section>
+
   <header className="w1a-top">
    <a href="/review/interactive">بازگشت به داشبورد آزمایشی ←</a>
    <span>W1 / NAV-04 · نمایش اطلاع‌رسانی، نه سامانه رأی‌گیری</span>
@@ -190,19 +279,6 @@ export function SyntheticAssemblies(){
   <p className="w1a-guard" role="note">
    <strong>قید حقوقی:</strong> صلاحیت دعوت‌کننده، اهلیت شرکت‌کنندگان، میزان حق رأی، اعتبار دعوت، نصاب و نتایج باید برای هر تعاونی توسط مراجع معتبر مستقل تعیین شود. هیچ‌یک در این پیش‌نمایش فرض یا محاسبه نشده است.
   </p>
-  <section className="w1a-mode-section" aria-label="وضعیت دسترسی به منبع رسمی">
-   <h2>وضعیت منبع را برای آزمایش انتخاب کنید</h2>
-   <div className="w1a-mode-controls" role="group" aria-label="وضعیت منبع">
-    {MODES.map(item=><button key={item.id} type="button"
-      className={mode===item.id?"w1a-choice w1a-choice-active":"w1a-choice"}
-      aria-pressed={mode===item.id} onClick={()=>setMode(item.id)}>
-      {item.label}</button>)}
-   </div>
-   <p className={"w1a-message"+(fake?" w1a-message-demo":"")} role="status" aria-live="polite">
-    {MODES.find(x=>x.id===mode)?.message}
-   </p>
-  </section>
-  {fake?<ApprovedVisualOverview/>:<section className="w1a-preview-placeholder" aria-label="نمای اصلی بدون منبع معتبر"><strong>مجمع بعدی من</strong><p>اطلاعات مجمع، شمارنده‌ها، اطلاعیه‌ها و اسناد تا تأیید منبع معتبر نمایش داده نمی‌شوند.</p></section>}
   {fake?<div className="w1a-content">
    <section id="w1a-records" className="w1a-records" aria-label="فهرست اسناد آزمایشی">
     <div className="w1a-section-head"><h2>فهرست سوابق و اطلاعیه‌های ساختگی</h2>
@@ -268,5 +344,7 @@ export function SyntheticAssemblies(){
   <footer className="w1a-footer">
    این صفحه فقط‌خواندنی و کاملاً ساختگی است. ثبت نامزد، رأی‌گیری، محاسبه حق رأی یا نصاب، حضور و غیاب، ارسال دعوت، بارگذاری یا دانلود اسناد، انتشار رسمی و اعلام نتیجه انجام نمی‌شود.
   </footer>
+   </div>
+  </section>
  </div></main>;
 }
