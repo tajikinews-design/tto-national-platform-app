@@ -22,7 +22,7 @@ class NAV05Architecture(unittest.TestCase):
           "پیشنهادهای من","پاسخ مدیریت","تیکت‌های من","اعلان‌ها")
   self.assertEqual(FIX.count('label:"'),10)
   for label in labels:self.assertIn('label:"'+label+'"',FIX)
-  self.assertEqual(UI.count('"/review/interactive/nav-0'),5)
+  self.assertEqual(UI.count('"/review/interactive/nav-0'),4)
   self.assertIn('className="w1a-side-links"',UI)
 
  def test_02_canonical_owner_boundaries(self):
