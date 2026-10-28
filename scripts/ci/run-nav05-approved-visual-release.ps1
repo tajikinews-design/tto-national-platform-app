@@ -69,7 +69,7 @@ if (-not $releaseOutput.Contains("TTO_LOCAL_RELEASE_PASS_SHA=" + $ExpectedSha) -
 }
 $successLog = [pscustomobject]@{ Log=$capture; Text=$releaseOutput }
 $pathMatches = [regex]::Matches($successLog.Text,"TTO_LOCAL_VISUAL_QA_PATH=([^\r\n]+)")
-$reportMatches = [regex]::Matches($successLog.Text,"TTO_NAV05_SCREENSHOT_HASHES=(\\[[^\\r\\n]+\\])")
+$reportMatches = [regex]::Matches($successLog.Text,"TTO_NAV05_SCREENSHOT_HASHES=(\[[^\r\n]+\])")
 if ($pathMatches.Count -lt 1 -or $reportMatches.Count -ne 1) {
   throw "NAV05_VISUAL_EVIDENCE_NOT_FOUND"
 }
