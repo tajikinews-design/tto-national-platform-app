@@ -23,7 +23,14 @@ class NAV05Architecture(unittest.TestCase):
           "پیشنهادهای من","پاسخ مدیریت","تیکت‌های من","اعلان‌ها")
   self.assertEqual(FIX.count('label:"'),10)
   for label in labels:self.assertIn('label:"'+label+'"',FIX)
-  self.assertEqual(UI.count('"/review/interactive/nav-0'),4)
+  # NAV05 retains all eleven shareholder roots even when later menus gain
+  # independent reviewed routes; link extension is not a taxonomy regression.
+  root_block=UI.split('const ROOTS=[',1)[1].split('] as const;',1)[0]
+  self.assertEqual(sum(1 for line in root_block.splitlines()
+                       if line.strip().startswith('["')),11)
+  for route in ('nav-02','nav-03','nav-04','nav-05','nav-06'):
+   self.assertIn('"/review/interactive/'+route+'"',UI)
+  self.assertIn('["⚙","خدمات من","/review/interactive/nav-06"]',UI)
   self.assertIn('className="w1a-side-links"',UI)
 
  def test_02_canonical_owner_boundaries(self):

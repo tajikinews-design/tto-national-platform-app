@@ -123,6 +123,23 @@ class LiveSessionPhase4C(unittest.TestCase):
                         'https://api.supabase.com'):
             self.assertNotIn(invalid,self.r.lower())
 
+    def test_private_next_startup_diagnostics_keep_real_security_gate(self):
+        # The earlier Phase4C failure only said "Next shareholder BFF exited"
+        # because all process output was discarded. Report safe classifications,
+        # never raw logs, cookies, passwords or real-user information.
+        for marker in ('function startupStatus(child){',
+                       'const startupDiagnostics=new WeakMap()',
+                       'stdio:["ignore","pipe","pipe"]',
+                       'exitCode=', 'signal=', 'stderrDigest=',
+                       'NEXT_PRODUCTION_BUILD_MISSING', 'MEMORY_EXHAUSTED',
+                       'PORT_IN_USE', 'spawnError=', 'startupStatus(child)',
+                       'PHASE4C_INFRA_FAILURE='):
+            self.assertIn(marker,self.e)
+        self.assertNotIn('stdio:"ignore"',self.e)
+        self.assertNotIn('console.log(d.stderr)',self.e)
+        self.assertNotIn('console.error(d.stderr)',self.e)
+        self.assertIn('await ready(APP+"/",next,"Next shareholder BFF")',self.e)
+
     def test_document_requires_runtime_evidence(self):
         self.assertTrue(REPORT.exists())
         doc=REPORT.read_text(encoding="utf-8")

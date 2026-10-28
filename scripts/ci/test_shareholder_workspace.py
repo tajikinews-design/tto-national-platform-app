@@ -106,9 +106,26 @@ class ShareholderWorkspaceContractTests(unittest.TestCase):
             'packages/ui/src/shareholder-workspace.tsx',
         ):
             self.assertIn(expected,script)
-        gate='node scripts/ci/verify-shareholder-tsx.cjs; pnpm --filter @tto/ui typecheck'
-        self.assertIn(gate,runner)
-        self.assertLess(runner.index(gate),runner.index('Run-Node "Build all portals and API; typecheck"'))
+        # The preflight can grow extra syntax/security checks. Verify that
+        # every required gate is present and ordered, not one brittle literal.
+        preflight_label='Run-Node "Shareholder TSX AST and UI type preflight"'
+        build_label='Run-Node "Build all portals and API; typecheck"'
+        self.assertIn(preflight_label,runner)
+        self.assertIn(build_label,runner)
+        self.assertLess(runner.index(preflight_label),runner.index(build_label))
+        preflight_line=runner.split(preflight_label,1)[1].splitlines()[0]
+        ordered_checks=(
+            'node scripts/ci/verify-shareholder-tsx.cjs',
+            'node --check scripts/e2e-phase4c-real-session-browser.cjs',
+            'node --check scripts/e2e-shareholder-nav06-review.cjs',
+            'pnpm --filter @tto/ui typecheck',
+        )
+        positions=[]
+        for gate in ordered_checks:
+            self.assertIn(gate,preflight_line)
+            positions.append(preflight_line.index(gate))
+        self.assertEqual(positions,sorted(positions))
+        self.assertEqual(len(set(positions)),len(ordered_checks))
 
     def test_runtime_smoke_checks_protected_module_states_instead_of_old_placeholder(self):
         smoke=(ROOT/"scripts/smoke-next-otp.mjs").read_text(encoding="utf-8")

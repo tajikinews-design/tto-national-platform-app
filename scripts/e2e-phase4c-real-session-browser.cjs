@@ -25,21 +25,56 @@ const BROWSER_APP="http://localhost:32972"; // Chromium permits Secure loopback 
 const TENANT=randomUUID(),OTHER=randomUUID(),USER=randomUUID(),PARTY=randomUUID();
 const MOBILE="09123336666"; // synthetic registered test fixture; no actual SMS is sent
 const running=[],results=[],checks=[];
+const startupDiagnostics=new WeakMap();
 let browser=null;
 function ok(value,label){assert.ok(value,label);checks.push(label);}
 function eq(actual,expected,label){assert.deepEqual(actual,expected,label);checks.push(label);}
+function startupStatus(child){
+ const d=startupDiagnostics.get(child)??{stdout:"",stderr:"",spawnError:"NONE"};
+ const output=d.stdout+"\n"+d.stderr;
+ const hints=[];
+ for(const [pattern,tag] of [
+  [/EADDRINUSE/i,"PORT_IN_USE"],
+  [/EACCES/i,"ACCESS_DENIED"],
+  [/ENOMEM|heap out of memory|out of memory/i,"MEMORY_EXHAUSTED"],
+  [/MODULE_NOT_FOUND|Cannot find module/i,"NODE_MODULE_MISSING"],
+  [/Could not find a production build/i,"NEXT_PRODUCTION_BUILD_MISSING"],
+  [/output.*standalone|standalone.*next start/i,"NEXT_STANDALONE_MODE"],
+  [/SyntaxError|TypeError|ReferenceError/i,"RUNTIME_EXCEPTION"],
+  [/error.*listen|listen.*error/i,"LISTEN_ERROR"]
+ ])if(pattern.test(output))hints.push(tag);
+ const stderrHash=createHash("sha256").update(d.stderr).digest("hex").slice(0,12);
+ return "exitCode="+String(child.exitCode??"none")+
+  ";signal="+String(child.signalCode??"none")+
+  ";spawnError="+d.spawnError+
+  ";hints="+(hints.length?hints.join(","):"UNCLASSIFIED")+
+  ";stderrDigest="+stderrHash;
+}
 async function ready(url,child,label){
  for(let i=0;i<120;i++){
-  if(child.exitCode!==null)throw Error(label+" exited before ready");
+  const d=startupDiagnostics.get(child);
+  if(child.exitCode!==null||child.signalCode!==null||d?.spawnError!=="NONE")
+   throw Error(label+" exited before ready; "+startupStatus(child));
   try{const x=await fetch(url,{signal:AbortSignal.timeout(1300)});if(x.ok)return;}
   catch{}
   await new Promise(r=>setTimeout(r,250));
  }
- throw Error(label+" readiness deadline");
+ throw Error(label+" readiness deadline; "+startupStatus(child));
 }
 function spawnNode(args,cwd,env){
- const child=spawn(process.execPath,args,{cwd,env:{...process.env,...env},stdio:"ignore"});
- running.push(child);child.on("error",()=>{});
+ // The test intentionally captures only bounded process startup diagnostics.
+ // No raw child logs, fixture secrets, cookies or auth tokens are emitted.
+ const child=spawn(process.execPath,args,{cwd,env:{...process.env,...env},
+  stdio:["ignore","pipe","pipe"]});
+ const d={stdout:"",stderr:"",spawnError:"NONE"};
+ startupDiagnostics.set(child,d);
+ for(const channel of ["stdout","stderr"]){
+  child[channel]?.on("data",chunk=>{
+   d[channel]=(d[channel]+chunk.toString("utf8")).slice(-8192);
+  });
+ }
+ running.push(child);
+ child.on("error",err=>{d.spawnError=String(err.code??"SPAWN_ERROR").replace(/[^A-Z0-9_]/g,"").slice(0,32);});
  return child;
 }
 async function http(path,cookie,method="GET"){
