@@ -52,26 +52,22 @@ if (@(& git -C $tree status --porcelain).Count -gt 0) {
   throw "WORKTREE_IS_NOT_CLEAN"
 }
 $runner = Join-Path $tree "scripts\ci\run-local-docker.ps1"
-$started = Get-Date
+$capture = Join-Path $root ("TTO-NAV04-PR48-Release-" + $ExpectedSha.Substring(0,12) + ".log")
 Write-Host ("TTO_NAV04_PR48_SOURCE_SHA=" + $ExpectedSha) -ForegroundColor Cyan
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $runner -Repository $tree -ExpectedCommit $ExpectedSha -Suite Release
+# Tee captures the *actual nested PowerShell process output*; do not rely
+# on the separate Start-Transcript file's timestamp or native stdout support.
+$ErrorActionPreference = "Continue"
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $runner -Repository $tree -ExpectedCommit $ExpectedSha -Suite Release 2>&1 |
+  Tee-Object -FilePath $capture
 $releaseExit = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
 if ($releaseExit -ne 0) { throw ("EXACT_SHA_RELEASE_FAILED_EXIT=" + $releaseExit) }
-
-$logRoot = Join-Path $env:USERPROFILE "Downloads\TTO-Local-CI-Reports"
-$logs = @(Get-ChildItem -LiteralPath $logRoot -Filter "TTO-Release-*.log" -File |
-  Where-Object {$_.LastWriteTime -ge $started.AddMinutes(-1)} |
-  Sort-Object LastWriteTime -Descending)
-$valid = @()
-foreach ($log in $logs) {
-  $s = Get-Content -LiteralPath $log.FullName -Raw
-  if ($s.Contains("TTO_LOCAL_RELEASE_PASS_SHA=" + $ExpectedSha) -and
-      $s.Contains("TTO_NAV04_CHROMIUM_INTERACTIVE_PASS_SHA=" + $ExpectedSha)) {
-    $valid += [pscustomobject]@{Log=$log.FullName;Text=$s}
-  }
+$releaseOutput = Get-Content -LiteralPath $capture -Raw -Encoding UTF8
+if (-not $releaseOutput.Contains("TTO_LOCAL_RELEASE_PASS_SHA=" + $ExpectedSha) -or
+    -not $releaseOutput.Contains("TTO_NAV04_CHROMIUM_INTERACTIVE_PASS_SHA=" + $ExpectedSha)) {
+  throw "EXACT_SHA_RELEASE_PASS_EVIDENCE_MISSING_FROM_CAPTURE"
 }
-if ($valid.Count -ne 1) { throw ("EXACT_SHA_SUCCESS_LOG_COUNT=" + $valid.Count) }
-$successLog = $valid[0]
+$successLog = [pscustomobject]@{ Log=$capture; Text=$releaseOutput }
 $pathMatches = [regex]::Matches($successLog.Text,"TTO_LOCAL_VISUAL_QA_PATH=([^\r\n]+)")
 $reportMatches = [regex]::Matches($successLog.Text,"TTO_NAV04_CHROMIUM_INTERACTIVE_REPORT=({[^\r\n]+})")
 if ($pathMatches.Count -lt 1 -or $reportMatches.Count -ne 1) {
