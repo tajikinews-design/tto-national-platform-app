@@ -68,7 +68,10 @@ async function verify(width,height,interact){
     complete:img.complete,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight
   }));
   ok(photo.complete&&photo.naturalWidth>=300&&photo.naturalHeight>=220,"APPROVED_MEETING_PHOTO_LOADED_"+width);
-  ok(await page.locator(".w1a-meeting-buttons button").isDisabled(),"UNVERIFIED_ATTENDANCE_CANNOT_SUBMIT_"+width);
+  const meetingActions=page.locator(".w1a-meeting-buttons");
+  ok(await meetingActions.locator("button").count()===2,"MEETING_TWO_DISTINCT_ACTIONS_"+width);
+  ok(await meetingActions.locator("button.w1a-outline-button").isDisabled(),"UNVERIFIED_ATTENDANCE_CANNOT_SUBMIT_"+width);
+  ok(await meetingActions.locator("button.w1a-primary-link").isEnabled(),"SYNTHETIC_DETAILS_ENTRY_REMAINS_ENABLED_"+width);
   ok(await reviewerDetails.isHidden(),"REVIEW_DIAGNOSTICS_STAY_HIDDEN_IN_OVERVIEW_"+width);
   const screen=await page.evaluate(()=>{
     const sidebar=document.querySelector(".w1a-sidebar");
