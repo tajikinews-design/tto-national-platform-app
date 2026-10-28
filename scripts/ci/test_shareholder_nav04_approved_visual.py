@@ -75,6 +75,23 @@ class ApprovedNav04Visual(unittest.TestCase):
         self.assertIn('APPROVED_MEETING_PHOTO_LOADED_', browser)
         self.assertIn('UNVERIFIED_ATTENDANCE_CANNOT_SUBMIT_', browser)
 
+    def test_diagnostics_are_collapsed_without_dropping_legal_gates(self):
+        self.assertIn('useState(false)', UI)
+        self.assertIn('id="w1a-review-detail-panels"', UI)
+        self.assertIn('hidden={!showReviewDetails}', UI)
+        self.assertIn('aria-expanded={showReviewDetails}', UI)
+        self.assertIn('ابزار بررسی توسعه‌دهنده', UI)
+        self.assertIn('w1a-review-detail-panels[hidden]', CSS)
+        self.assertIn('REFERENCE_REVIEW_GATES.map', UI)
+        browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
+        for token in (
+            'REVIEW_DIAGNOSTICS_HIDDEN_BY_DEFAULT_',
+            'REVIEW_DIAGNOSTICS_OPEN_ON_REQUEST_',
+            'APPROVED_SCREENSHOT_NO_DEBUG_PANELS',
+            'APPROVED_OVERVIEW_COMPACT_HEIGHT',
+        ):
+            self.assertIn(token, browser)
+
     def test_responsive_and_anchors(self):
         for token in (
             ".w1a-frame", ".w1a-sidebar", ".w1a-approved-overview",
