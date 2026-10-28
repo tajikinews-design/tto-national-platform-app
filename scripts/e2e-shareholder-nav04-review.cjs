@@ -132,6 +132,20 @@ async function verify(width,height,interact){
   }else{
     ok(await navToggle.isHidden(),"DESKTOP_MENU_TOGGLE_HIDDEN_"+width);
   }
+  // UI interactions can scroll the viewport; normalize screenshots for visual QA.
+  // Blur after keyboard tests without removing accessible focus styles.
+  const captureState=await page.evaluate(()=>{
+    if(document.activeElement instanceof HTMLElement)document.activeElement.blur();
+    window.scrollTo(0,0);
+    return {focused:document.activeElement?.tagName??"",navExpanded:document.querySelector(".w1a-mobile-menu-toggle")?.getAttribute("aria-expanded")};
+  });
+  await page.waitForFunction(()=>window.scrollY===0);
+  ok(await page.evaluate(()=>window.scrollY===0),"SCREENSHOT_SCROLL_TOP_ZERO_"+width);
+  ok(["BODY","HTML"].includes(captureState.focused),"SCREENSHOT_NEUTRAL_FOCUS_"+width);
+  if(width<=980)ok(captureState.navExpanded==="false","SCREENSHOT_MOBILE_NAV_COLLAPSED_"+width);
+  if(width===1440)ok(await page.locator(".w1a-page-heading").evaluate(el=>{
+    const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<window.innerHeight;
+  }),"DESKTOP_1440_HEADING_IN_CAPTURE_"+width);
   const screenshot=await page.screenshot({type:"png",animations:"disabled",path:join("/workspace/.qa-artifacts",SHA,"nav04-"+width+".png"),fullPage:width===1536});
   ok(screenshot.byteLength>6000,"RENDERED_PIXELS_"+width);
   if(width===1536){
@@ -167,6 +181,23 @@ async function verify(width,height,interact){
    ok(await publicDetails.getByText("جزئیات مجامع نمونه").isVisible(),"KEYBOARD_ASSEMBLY_ACTION_REACHES_CONTENT_"+width);
    await page.getByRole("button",{name:/بستن جزئیات/}).click();
    ok(await publicDetails.isHidden(),"ALL_OVERVIEW_DETAILS_COLLAPSED_AFTER_CLOSE_"+width);
+   const viewAllCases=[
+     {label:"همه اسناد ←",heading:"اسناد و مصوبات نمونه",count:4},
+     {label:"همه اطلاعیه‌ها ←",heading:"اطلاعیه‌های نمونه",count:4},
+     {label:"همه انتخابات ←",heading:"انتخابات نمونه",count:2},
+     {label:"همه مجامع ←",heading:"جزئیات مجامع نمونه",count:2}
+   ];
+   for(const item of viewAllCases){
+     const action=page.getByRole("button",{name:item.label,exact:true});
+     ok(await action.isEnabled(),"VIEW_ALL_ACTION_ENABLED_"+item.count+"_"+width);
+     await action.click();
+     ok(await action.getAttribute("aria-expanded")==="true","VIEW_ALL_EXPANDED_"+item.count+"_"+width);
+     ok(await publicDetails.getByRole("heading",{name:item.heading,exact:true}).isVisible(),"VIEW_ALL_VISIBLE_"+item.count+"_"+width);
+     ok(await publicDetails.locator(".w1a-public-detail-card").count()===item.count,"VIEW_ALL_CORRECT_COUNT_"+item.count+"_"+width);
+     ok(await publicDetails.getByText(/هیچ دعوت، حضور، سند یا نتیجه رسمی تأیید نشده است/).isVisible(),"VIEW_ALL_NO_OFFICIAL_APPROVAL_"+width);
+     await page.getByRole("button",{name:/بستن جزئیات/}).click();
+     ok(await publicDetails.isHidden(),"VIEW_ALL_CAN_CLOSE_"+width);
+   }
    await reviewerToggle.click();
    ok(await reviewerDetails.isVisible(),"REVIEW_DIAGNOSTICS_OPEN_ON_REQUEST_"+width);
    ok(await reviewerToggle.getAttribute("aria-expanded")==="true","REVIEW_DIAGNOSTICS_TOGGLE_ACCESSIBLE_"+width);
