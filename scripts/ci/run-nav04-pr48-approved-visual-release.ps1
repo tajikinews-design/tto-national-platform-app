@@ -62,7 +62,7 @@ $ErrorActionPreference = "Continue"
 $releaseExit = $LASTEXITCODE
 $ErrorActionPreference = "Stop"
 if ($releaseExit -ne 0) { throw ("EXACT_SHA_RELEASE_FAILED_EXIT=" + $releaseExit) }
-$releaseOutput = Get-Content -LiteralPath $capture -Raw -Encoding UTF8
+$releaseOutput = Get-Content -LiteralPath $capture -Raw
 if (-not $releaseOutput.Contains("TTO_LOCAL_RELEASE_PASS_SHA=" + $ExpectedSha) -or
     -not $releaseOutput.Contains("TTO_NAV04_CHROMIUM_INTERACTIVE_PASS_SHA=" + $ExpectedSha)) {
   throw "EXACT_SHA_RELEASE_PASS_EVIDENCE_MISSING_FROM_CAPTURE"
