@@ -1,0 +1,13 @@
+/* NAV08 reuses approved NAV04-07 shell; only scoped accent, never parent geometry. */
+.nav08-shell .nav08-hero{background:linear-gradient(115deg,#eaf4fc,#f5f9fe 60%,#edf2ff);border-color:#d8e4f8}
+.nav08-shell .nav08-hero .nav06-hero-eyebrow{color:#385fa2}
+.nav08-shell .nav08-hero h2{color:#234276}
+.nav08-shell .nav08-hero .nav06-primary{background:#315ba3;border-color:#315ba3}
+.nav08-shell .nav08-hero .nav06-primary:hover{background:#24487e}
+.nav08-shell .nav08-hero .nav06-hero-badge{background:#9c77d1}
+.nav08-shell .nav06-tag{background:#eaeefa;color:#364d88}
+.nav08-shell .nav06-section-button.nav06-selected{background:#315ba3;border-color:#315ba3}
+.nav08-shell .nav06-tile p,.nav08-shell .nav06-preview-item small{color:#536c82}
+.nav08-shell .nav06-search input:focus-visible{outline:3px solid #8069d7;outline-offset:2px}
+@media(max-width:680px){.nav08-shell .nav06-hero p,.nav08-shell .nav06-tile p{font-size:12px;line-height:1.95}}
+@media(prefers-reduced-motion:reduce){.nav08-shell *{scroll-behavior:auto;transition:none}}

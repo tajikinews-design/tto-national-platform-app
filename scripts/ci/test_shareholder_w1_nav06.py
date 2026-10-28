@@ -48,7 +48,13 @@ class Nav06ApprovedServices(unittest.TestCase):
   self.assertIn("@media(max-width:680px)",CSS)
   self.assertIn(":focus-visible",CSS)
  def test_06_all_sidebar_roots_and_services_route(self):
-  self.assertEqual(UI.count('"/review/interactive/nav-0'),6)
+  # Later NAVs may gain independent review routes. Check canonical roots
+  # and preserved approved paths instead of counting specialized previews.
+  root_block=UI.split('const ROOTS=[',1)[1].split('] as const;',1)[0]
+  self.assertEqual(sum(1 for line in root_block.splitlines()
+                       if line.strip().startswith('["')),11)
+  for route in ('nav-02','nav-03','nav-04','nav-05','nav-06','nav-07','nav-08'):
+   self.assertIn('"/review/interactive/'+route+'"',UI)
   self.assertIn('index===5?" w1a-active"',UI)
   self.assertIn('["⚙","خدمات من","/review/interactive/nav-06"]',UI)
  def test_07_academy_event_benefit_legal_limits(self):
