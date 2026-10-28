@@ -202,6 +202,17 @@ for (let idx=0;idx<slugs.length;idx++){
    }
    if(commHtml.includes("DEMO-NEWS-01"))throw Error("NAV05 synthetic source leaked into default SSR");
    checks++;
+   // NAV06 dedicated synthetic review: all eleven canonical sections, default deny.
+   const svc=await fetch("http://127.0.0.1:"+port+"/review/interactive/nav-06");
+   if(svc.status!==200)throw Error("NAV06 review HTTP status "+svc.status);
+   const svcHtml=await svc.text();
+   for(const marker of ["خدمات من","درخواست‌های من","آکادمی","دوره‌های من",
+      "رویدادها","رزروهای من","گواهی‌های آموزشی","مزایای من","Voucherها",
+      "خدمات شرکت","تقویم من","مرجع و مجوز تأیید نشده","ثبت خدمات"]){
+     if(!svcHtml.includes(marker))throw Error("NAV06 fail-closed SSR marker missing: "+marker);
+   }
+   if(svcHtml.includes("DEMO-SVC-01"))throw Error("NAV06 synthetic source leaked into default SSR");
+   checks++;
    const invalidReview=await fetch("http://127.0.0.1:"+port+"/review/not-a-nav");
    if(invalidReview.status!==404)throw Error("shareholder review invalid slug allowed");
    checks++;
