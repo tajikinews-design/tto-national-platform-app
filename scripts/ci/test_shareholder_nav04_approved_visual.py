@@ -92,6 +92,15 @@ class ApprovedNav04Visual(unittest.TestCase):
         ):
             self.assertIn(token, browser)
 
+    def test_reviewer_toggle_locator_remains_stable_after_label_change(self):
+        browser = (ROOT / "scripts/e2e-shareholder-nav04-review.cjs").read_text(encoding="utf-8")
+        self.assertIn('const reviewerToggle=page.locator("button.w1a-review-tools-toggle");', browser)
+        self.assertNotIn('getByRole("button",{name:/ابزار بررسی توسعه‌دهنده/})', browser)
+        self.assertIn('await reviewerToggle.click()', browser)
+        self.assertIn('reviewerToggle.getAttribute("aria-expanded")', browser)
+        self.assertIn('بستن ابزارهای بررسی', UI)
+        self.assertIn('ابزار بررسی توسعه‌دهنده', UI)
+
     def test_responsive_and_anchors(self):
         for token in (
             ".w1a-frame", ".w1a-sidebar", ".w1a-approved-overview",
