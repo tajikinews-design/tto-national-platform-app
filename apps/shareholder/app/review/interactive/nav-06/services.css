@@ -104,6 +104,7 @@
  .nav06-group-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
  .nav06-section-button{min-height:41px;font-size:10px}
  .nav06-search input{min-width:0;flex-basis:100%}
+ .nav06-preview-item small,.nav06-tile p,.nav06-empty p,.nav06-submit-guard p{font-size:11px;color:#58728f}
 }
 @media(max-width:360px){.nav06-kpi{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.nav06-shell *{transition:none;scroll-behavior:auto}}
