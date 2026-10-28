@@ -60,7 +60,7 @@ class ApprovedNav04Visual(unittest.TestCase):
     def test_approved_meeting_photo_and_full_size_browser_capture(self):
         photo = ROOT / "apps/shareholder/public/nav04-approved-meeting-demo.webp"
         self.assertTrue(photo.is_file())
-        self.assertGreater(photo.stat().st_size, 2000)
+        self.assertGreater(photo.stat().st_size, 6000)
         self.assertIn('/nav04-approved-meeting-demo.webp', UI)
         for token in (
             'w1a-cooperative-switch', 'w1a-meeting-controls',
