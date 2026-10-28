@@ -21,7 +21,7 @@ class Nav06ApprovedServices(unittest.TestCase):
   for owner in ("CHILD14_ACADEMY","CHILD14_EVENTS","CHILD15_BENEFITS",
                 "COOPERATIVE_SERVICE","SERVICE_REQUEST","ACTION_CALENDAR_PROJECTION"):
    self.assertIn(owner,FIX)
-  self.assertIn("حضور ≠ تکمیل دوره",UI) if False else self.assertIn("ثبت حضور ≠ تکمیل دوره",UI)
+  self.assertIn("ثبت حضور ≠ تکمیل دوره",UI)
  def test_03_demo_marked_and_default_deny(self):
   self.assertIn('useState<Nav06Mode>("UNVERIFIED")',UI)
   self.assertIn('const demo=mode==="DEMO_CONTENT"',UI)
@@ -52,7 +52,7 @@ class Nav06ApprovedServices(unittest.TestCase):
   self.assertIn('index===5?" w1a-active"',UI)
   self.assertIn('["⚙","خدمات من","/review/interactive/nav-06"]',UI)
  def test_07_academy_event_benefit_legal_limits(self):
-  for clause in ("Attendance", "گواهی","کیف پول نقدی","Voucher","فهرست انتظار","تقویم"):
+  for clause in ("حضور", "گواهی","کیف پول نقدی","Voucher","فهرست انتظار","تقویم"):
    self.assertIn(clause,FIX+UI)
   self.assertIn("NAV06_RELEASE_GATES",FIX)
  def test_08_existing_tsx_ast_and_http_smoke(self):
@@ -69,7 +69,7 @@ class Nav06ApprovedServices(unittest.TestCase):
  def test_10_mobile_non_cash_restrictions(self):
   self.assertIn("@media(max-width:360px)",CSS)
   self.assertIn("Reward",FIX)
-  self.assertIn("cash",FIX.lower())
+  self.assertIn("ممنوعیت کیف پول نقدی",FIX)
   self.assertIn("voucher",FIX.lower())
   self.assertIn("payment:false",FIX)
 if __name__=="__main__":unittest.main()
