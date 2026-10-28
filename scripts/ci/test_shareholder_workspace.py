@@ -119,6 +119,7 @@ class ShareholderWorkspaceContractTests(unittest.TestCase):
             'node --check scripts/e2e-phase4c-real-session-browser.cjs',
             'node --check scripts/e2e-shareholder-nav06-review.cjs',
             'node --check scripts/e2e-shareholder-nav07-review.cjs',
+            'node --check scripts/e2e-shareholder-nav08-review.cjs',
             'pnpm --filter @tto/ui typecheck',
         )
         positions=[]
