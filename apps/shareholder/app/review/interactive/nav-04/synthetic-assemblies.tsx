@@ -4,7 +4,8 @@ import {ASSEMBLY_FIXTURES,KIND_LABEL,REFERENCE_REVIEW_GATES,
  type RecordType,type DemoSourceState} from "./assembly-fixtures";
 
 type Filter="ALL"|RecordType;
-type OverviewDetail="ASSEMBLIES"|"RESULTS";
+type OverviewDetail="ASSEMBLIES"|"RESULTS"|"DOCUMENTS"|"NOTICES"|"ELECTIONS";
+type ReadonlyDetailRow={title:string;subtitle:string;description:string};
 const FILTERS:readonly {value:Filter;label:string}[]=[
  {value:"ALL",label:"همه"},
  {value:"INVITATION",label:"دعوت‌نامه‌ها"},
@@ -84,6 +85,18 @@ const PREVIEW_NOTICE_ROWS=[
  {title:"راهنمای ثبت حضور در مجمع (نمونه)",date:"انتشار رسمی نشده"}
 ] as const;
 
+const PREVIEW_ELECTION_ROWS=[
+ {name:"انتخابات هیئت‌مدیره (نمونه)",state:"ثبت‌نام غیرعملیاتی"},
+ {name:"انتخابات بازرس اصلی و علی‌البدل (نمونه)",state:"زمان قانونی تأیید نشده"}
+] as const;
+const DETAIL_TITLES:Record<OverviewDetail,string>={
+ ASSEMBLIES:"جزئیات مجامع نمونه",
+ RESULTS:"نتایج و مصوبات نمونه",
+ DOCUMENTS:"اسناد و مصوبات نمونه",
+ NOTICES:"اطلاعیه‌های نمونه",
+ ELECTIONS:"انتخابات نمونه"
+};
+
 function ApprovedVisualOverview(){
  const [detailType,setDetailType]=useState<OverviewDetail|null>(null);
  const detailRef=useRef<HTMLElement>(null);
@@ -99,6 +112,24 @@ function ApprovedVisualOverview(){
  const elections=ASSEMBLY_FIXTURES.filter(item=>item.recordType==="ELECTION_INFO");
  const outcomes=ASSEMBLY_FIXTURES.filter(item=>item.recordType==="RESULT");
  const showcase=inv[0];
+ const detailRows:Record<OverviewDetail,ReadonlyDetailRow[]>={
+  DOCUMENTS:PREVIEW_DOC_ROWS.map(row=>({
+   title:row.title,subtitle:row.date,
+   description:"عنوان سند صرفاً نمونه است؛ هیچ فایل، امضا یا مصوبه رسمی برای دریافت وجود ندارد."
+  })),
+  NOTICES:PREVIEW_NOTICE_ROWS.map(row=>({
+   title:row.title,subtitle:row.date,
+   description:"اطلاعیه تمرینی است؛ دعوت رسمی و اهلیت مخاطب تأیید نشده است."
+  })),
+  ELECTIONS:PREVIEW_ELECTION_ROWS.map(row=>({
+   title:row.name,subtitle:row.state,
+   description:"فقط پیش‌نمایش؛ ثبت نامزدی، احراز شرایط و رأی‌گیری غیرفعال است."
+  })),
+  ASSEMBLIES:inv.map(row=>({title:row.title,subtitle:row.scheduledAt,
+   description:row.summary+" · محل: "+row.location})),
+  RESULTS:[...minute,...outcomes].map(row=>({title:row.title,subtitle:row.scheduledAt,
+   description:row.summary+" · محل: "+row.location}))
+ };
  return <section className="w1a-approved-overview" aria-label="نمای مصوب مجامع ـ تمام اطلاعات مصنوعی">
   <div className="w1a-next-meeting">
    <div className="w1a-meeting-tile">
@@ -133,7 +164,7 @@ function ApprovedVisualOverview(){
   </div>
   <div className="w1a-four-panels">
    <section className="w1a-summary-panel">
-    <div className="w1a-panel-heading"><h3>جدیدترین اسناد و مصوبات</h3><span>همه اسناد ←</span></div>
+    <div className="w1a-panel-heading"><h3>جدیدترین اسناد و مصوبات</h3><button type="button" onClick={()=>openDetails("DOCUMENTS")} aria-controls="w1a-public-details" aria-expanded={detailType==="DOCUMENTS"}>همه اسناد ←</button></div>
     {PREVIEW_DOC_ROWS.map(rec=><div className="w1a-panel-line" key={rec.title}>
       <span className="w1a-file-icon" aria-hidden="true">▤</span>
       <div><strong>{rec.title}</strong><small>{rec.date}</small></div>
@@ -141,7 +172,7 @@ function ApprovedVisualOverview(){
     </div>)}
    </section>
    <section className="w1a-summary-panel">
-    <div className="w1a-panel-heading"><h3>آخرین اطلاعیه‌ها</h3><span>همه اطلاعیه‌ها ←</span></div>
+    <div className="w1a-panel-heading"><h3>آخرین اطلاعیه‌ها</h3><button type="button" onClick={()=>openDetails("NOTICES")} aria-controls="w1a-public-details" aria-expanded={detailType==="NOTICES"}>همه اطلاعیه‌ها ←</button></div>
     {PREVIEW_NOTICE_ROWS.map(rec=><div className="w1a-panel-line" key={rec.title}>
      <span className="w1a-file-icon" aria-hidden="true">▤</span>
      <div><strong>{rec.title}</strong><small>{rec.date}</small></div>
@@ -149,18 +180,15 @@ function ApprovedVisualOverview(){
     </div>)}
    </section>
    <section className="w1a-summary-panel">
-    <div className="w1a-panel-heading"><h3>انتخابات فعال</h3><span>همه انتخابات ←</span></div>
-    {[
-      {name:"انتخابات هیئت‌مدیره (نمونه)",state:"ثبت‌نام غیرعملیاتی"},
-      {name:"انتخابات بازرس اصلی و علی‌البدل (نمونه)",state:"زمان قانونی تأیید نشده"}
-    ].map(rec=><div className="w1a-panel-line w1a-election-row" key={rec.name}>
+    <div className="w1a-panel-heading"><h3>انتخابات فعال</h3><button type="button" onClick={()=>openDetails("ELECTIONS")} aria-controls="w1a-public-details" aria-expanded={detailType==="ELECTIONS"}>همه انتخابات ←</button></div>
+    {PREVIEW_ELECTION_ROWS.map(rec=><div className="w1a-panel-line w1a-election-row" key={rec.name}>
       <div><span className="w1a-pill w1a-pill-violet">انتخابات فرضی</span>
        <strong>{rec.name}</strong><small>{rec.state}</small></div>
       <span className="w1a-pill w1a-pill-green">فقط پیش‌نمایش</span>
     </div>)}
    </section>
    <section className="w1a-summary-panel">
-    <div className="w1a-panel-heading"><h3>مجامع پیش‌رو</h3><span>همه مجامع ←</span></div>
+    <div className="w1a-panel-heading"><h3>مجامع پیش‌رو</h3><button type="button" onClick={()=>openDetails("ASSEMBLIES")} aria-controls="w1a-public-details" aria-expanded={detailType==="ASSEMBLIES"}>همه مجامع ←</button></div>
     {inv.map(rec=><div className="w1a-panel-line w1a-assembly-row" key={rec.id}>
      <div><span className="w1a-pill w1a-pill-blue">{rec.assemblyKind}</span>
       <strong>{rec.title}</strong><small>▦ {rec.scheduledAt}</small>
@@ -184,16 +212,16 @@ function ApprovedVisualOverview(){
    tabIndex={-1} ref={detailRef} hidden={detailType===null}>
    <div className="w1a-public-details-head">
     <div><span className="w1a-pill w1a-pill-blue">فقط اطلاعات ساختگی</span>
-     <h2>{detailType==="ASSEMBLIES"?"جزئیات مجامع نمونه":"نتایج و مصوبات نمونه"}</h2>
+     <h2>{detailType?DETAIL_TITLES[detailType]:"جزئیات نمونه"}</h2>
      <p>اطلاعات این بخش تمرینی است؛ هیچ دعوت، حضور، سند یا نتیجه رسمی تأیید نشده است.</p>
     </div>
     <button type="button" className="w1a-public-close" onClick={()=>setDetailType(null)}>بستن جزئیات ×</button>
    </div>
    <div className="w1a-public-detail-grid">
-    {(detailType==="ASSEMBLIES"?inv:[...minute,...outcomes]).map(rec=><article key={rec.id}
+    {(detailType?detailRows[detailType]:[]).map(rec=><article key={rec.title}
      className="w1a-public-detail-card">
-      <strong>{rec.title}</strong><span>▦ {rec.scheduledAt}</span>
-      <span>⌖ {rec.location}</span><p>{rec.summary}</p>
+      <strong>{rec.title}</strong><span>{rec.subtitle}</span>
+      <p>{rec.description}</p>
       <small>وضعیت حقوقی و انتشار: تأیید نشده · فقط پیش‌نمایش</small>
     </article>)}
    </div>
