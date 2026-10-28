@@ -1,9 +1,10 @@
 "use client";
-import {useState} from "react";
+import {useRef,useState} from "react";
 import {ASSEMBLY_FIXTURES,KIND_LABEL,REFERENCE_REVIEW_GATES,
  type RecordType,type DemoSourceState} from "./assembly-fixtures";
 
 type Filter="ALL"|RecordType;
+type OverviewDetail="ASSEMBLIES"|"RESULTS";
 const FILTERS:readonly {value:Filter;label:string}[]=[
  {value:"ALL",label:"همه"},
  {value:"INVITATION",label:"دعوت‌نامه‌ها"},
@@ -84,6 +85,15 @@ const PREVIEW_NOTICE_ROWS=[
 ] as const;
 
 function ApprovedVisualOverview(){
+ const [detailType,setDetailType]=useState<OverviewDetail|null>(null);
+ const detailRef=useRef<HTMLElement>(null);
+ function openDetails(next:OverviewDetail){
+   setDetailType(next);
+   requestAnimationFrame(()=>{
+     detailRef.current?.focus();
+     detailRef.current?.scrollIntoView({block:"nearest"});
+   });
+ }
  const inv=ASSEMBLY_FIXTURES.filter(item=>item.recordType==="INVITATION");
  const minute=ASSEMBLY_FIXTURES.filter(item=>item.recordType==="MINUTES");
  const elections=ASSEMBLY_FIXTURES.filter(item=>item.recordType==="ELECTION_INFO");
@@ -107,7 +117,8 @@ function ApprovedVisualOverview(){
      <div className="w1a-attendance-state">◉ وضعیت من: حضور احراز نشده</div>
      <div className="w1a-meeting-buttons">
       <button type="button" disabled aria-disabled="true" className="w1a-outline-button">اعلام حضور (غیرفعال)</button>
-      <a className="w1a-primary-link" href="#w1a-records">مشاهده جزئیات نمونه ←</a>
+      <button type="button" className="w1a-primary-link" onClick={()=>openDetails("ASSEMBLIES")}
+       aria-controls="w1a-public-details" aria-expanded={detailType==="ASSEMBLIES"}>مشاهده جزئیات نمونه ←</button>
      </div>
     </div>
    </div>
@@ -160,11 +171,33 @@ function ApprovedVisualOverview(){
   </div>
 
   <div className="w1a-actions-row" aria-label="مسیرهای این ماژول در نسخه طراحی">
-   <a href="#w1a-records" className="w1a-action w1a-action-blue"><span>▤</span><div><strong>مشاهده مجامع</strong><small>اطلاعات، دستور جلسه و ثبت حضور (نمایشی)</small></div>←</a>
+   <button type="button" onClick={()=>openDetails("ASSEMBLIES")}
+     aria-controls="w1a-public-details" aria-expanded={detailType==="ASSEMBLIES"}
+     className="w1a-action w1a-action-blue"><span>▤</span><div><strong>مشاهده مجامع</strong><small>اطلاعات، دستور جلسه و ثبت حضور (نمایشی)</small></div>←</button>
    <span className="w1a-action w1a-action-green w1a-action-disabled" aria-disabled="true"><span>♙</span><div><strong>مدیریت وکالت</strong><small>واگذاری و پیگیری وکالت‌ها · غیرفعال</small></div>—</span>
    <span className="w1a-action w1a-action-orange w1a-action-disabled" aria-disabled="true"><span>♧</span><div><strong>ثبت نامزدی در انتخابات</strong><small>مدارک و پیگیری وضعیت · غیرفعال</small></div>—</span>
-   <a href="#w1a-records" className="w1a-action w1a-action-purple"><span>▤</span><div><strong>نتایج و مصوبات</strong><small>صورت‌جلسات، مصوبات و نتایج · نمونه</small></div>←</a>
+   <button type="button" onClick={()=>openDetails("RESULTS")}
+     aria-controls="w1a-public-details" aria-expanded={detailType==="RESULTS"}
+     className="w1a-action w1a-action-purple"><span>▤</span><div><strong>نتایج و مصوبات</strong><small>صورت‌جلسات، مصوبات و نتایج · نمونه</small></div>←</button>
   </div>
+  <section id="w1a-public-details" className="w1a-public-details" aria-label="جزئیات خواندنی نمونه مجامع و مصوبات"
+   tabIndex={-1} ref={detailRef} hidden={detailType===null}>
+   <div className="w1a-public-details-head">
+    <div><span className="w1a-pill w1a-pill-blue">فقط اطلاعات ساختگی</span>
+     <h2>{detailType==="ASSEMBLIES"?"جزئیات مجامع نمونه":"نتایج و مصوبات نمونه"}</h2>
+     <p>اطلاعات این بخش تمرینی است؛ هیچ دعوت، حضور، سند یا نتیجه رسمی تأیید نشده است.</p>
+    </div>
+    <button type="button" className="w1a-public-close" onClick={()=>setDetailType(null)}>بستن جزئیات ×</button>
+   </div>
+   <div className="w1a-public-detail-grid">
+    {(detailType==="ASSEMBLIES"?inv:[...minute,...outcomes]).map(rec=><article key={rec.id}
+     className="w1a-public-detail-card">
+      <strong>{rec.title}</strong><span>▦ {rec.scheduledAt}</span>
+      <span>⌖ {rec.location}</span><p>{rec.summary}</p>
+      <small>وضعیت حقوقی و انتشار: تأیید نشده · فقط پیش‌نمایش</small>
+    </article>)}
+   </div>
+  </section>
  </section>;
 }
 
@@ -184,6 +217,13 @@ export function SyntheticAssemblies(){
  return <main className="w1a-shell" dir="rtl">
   <ReviewSidebar/><div className="w1a-frame"><ReviewTopbar/>
   <div className="w1a-page-heading"><div><h1>مجامع و انتخابات</h1><p>اطلاع‌رسانی، مشارکت و پیگیری مجامع عمومی، انتخابات و مصوبات تعاونی</p></div><span>نمایش آزمایشی · بدون اتصال عملیاتی</span></div>
+  {fake?<ApprovedVisualOverview/>:<section className="w1a-preview-placeholder" aria-label="نمای اصلی بدون منبع معتبر"><strong>مجمع بعدی من</strong><p>اطلاعات مجمع، شمارنده‌ها، اطلاعیه‌ها و اسناد تا تأیید منبع معتبر نمایش داده نمی‌شوند.</p></section>}
+  <section className="w1a-review-toolbox" aria-label="ابزار بررسی توسعه‌دهنده">
+   <button type="button" className="w1a-review-tools-toggle" aria-expanded={showReviewDetails}
+     aria-controls="w1a-review-detail-panels" onClick={()=>setShowReviewDetails(!showReviewDetails)}>
+    {showReviewDetails?"بستن ابزارهای بررسی":"ابزار بررسی توسعه‌دهنده"} <span aria-hidden="true">{showReviewDetails?"⌃":"⌄"}</span>
+   </button>
+   <div id="w1a-review-detail-panels" className="w1a-review-detail-panels" hidden={!showReviewDetails}>
   <section className="w1a-mode-section" aria-label="وضعیت دسترسی به منبع رسمی">
    <h2>وضعیت منبع را برای آزمایش انتخاب کنید</h2>
    <div className="w1a-mode-controls" role="group" aria-label="وضعیت منبع">
@@ -196,13 +236,7 @@ export function SyntheticAssemblies(){
     {MODES.find(x=>x.id===mode)?.message}
    </p>
   </section>
-  {fake?<ApprovedVisualOverview/>:<section className="w1a-preview-placeholder" aria-label="نمای اصلی بدون منبع معتبر"><strong>مجمع بعدی من</strong><p>اطلاعات مجمع، شمارنده‌ها، اطلاعیه‌ها و اسناد تا تأیید منبع معتبر نمایش داده نمی‌شوند.</p></section>}
-  <section className="w1a-review-toolbox" aria-label="ابزار بررسی توسعه‌دهنده">
-   <button type="button" className="w1a-review-tools-toggle" aria-expanded={showReviewDetails}
-     aria-controls="w1a-review-detail-panels" onClick={()=>setShowReviewDetails(!showReviewDetails)}>
-    {showReviewDetails?"بستن ابزارهای بررسی":"ابزار بررسی توسعه‌دهنده"} <span aria-hidden="true">{showReviewDetails?"⌃":"⌄"}</span>
-   </button>
-   <div id="w1a-review-detail-panels" className="w1a-review-detail-panels" hidden={!showReviewDetails}>
+
   <header className="w1a-top">
    <a href="/review/interactive">بازگشت به داشبورد آزمایشی ←</a>
    <span>W1 / NAV-04 · نمایش اطلاع‌رسانی، نه سامانه رأی‌گیری</span>
