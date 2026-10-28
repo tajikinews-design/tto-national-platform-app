@@ -189,6 +189,19 @@ for (let idx=0;idx<slugs.length;idx++){
     }
     checks++;
    }
+   // NAV05 remains a review-only shell; Child09/10/13 data cannot be assumed.
+   const comm=await fetch("http://127.0.0.1:"+port+"/review/interactive/nav-05");
+   if(comm.status!==200)throw Error("NAV05 review HTTP status "+comm.status);
+   const commHtml=await comm.text();
+   // Inspect only the default UNVERIFIED SSR: conditional DEMO detail text is not rendered.
+   // A legal-publication disclaimer must appear unconditionally in the footer.
+   for(const marker of ["اخبار و ارتباط با شرکت","مرکز اطلاع‌رسانی",
+    "منبع رسمی تأیید نشده","ابلاغ‌های مهم","پیام‌های نیازمند تأیید",
+    "تیکت‌های من","انتشار خبر", "ثبت درخواست جدید"]){
+    if(!commHtml.includes(marker))throw Error("NAV05 fail-closed SSR marker missing: "+marker);
+   }
+   if(commHtml.includes("DEMO-NEWS-01"))throw Error("NAV05 synthetic source leaked into default SSR");
+   checks++;
    const invalidReview=await fetch("http://127.0.0.1:"+port+"/review/not-a-nav");
    if(invalidReview.status!==404)throw Error("shareholder review invalid slug allowed");
    checks++;

@@ -30,7 +30,10 @@ const files = [
   "apps/shareholder/app/review/interactive/nav-03/case-demo/case-fixtures.ts",
   "apps/shareholder/app/review/interactive/nav-04/page.tsx",
   "apps/shareholder/app/review/interactive/nav-04/synthetic-assemblies.tsx",
-  "apps/shareholder/app/review/interactive/nav-04/assembly-fixtures.ts"
+  "apps/shareholder/app/review/interactive/nav-04/assembly-fixtures.ts",
+  "apps/shareholder/app/review/interactive/nav-05/page.tsx",
+  "apps/shareholder/app/review/interactive/nav-05/synthetic-communications.tsx",
+  "apps/shareholder/app/review/interactive/nav-05/communications-fixtures.ts"
 ];
 for (const relative of files) {
   const file = path.join(root, relative);

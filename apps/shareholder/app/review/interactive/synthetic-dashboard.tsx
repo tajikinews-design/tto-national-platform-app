@@ -35,7 +35,7 @@ const SUMMARY:Record<PreviewState,string>={
 };
 
 function navPath(index:number){
- return index===0?"/review":index===3?"/review/interactive/nav-04":"/review/"+NAV_IDS[index].toLowerCase();
+ return index===0?"/review":index===3?"/review/interactive/nav-04":index===4?"/review/interactive/nav-05":"/review/"+NAV_IDS[index].toLowerCase();
 }
 
 export function SyntheticDashboard(){
