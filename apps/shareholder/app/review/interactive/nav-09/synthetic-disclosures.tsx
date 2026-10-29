@@ -119,30 +119,30 @@ export function SyntheticDisclosures(){
       <p className="w1a-panel-tip">انتشار نیازمند منبع معتبر، نسخه و مجوز افشا است.</p>
      </article>;})}
    </section>
-   <section className="w1a-actions-row nav06-shortcuts" aria-label="میانبرهای پروژه">
+   <section className="w1a-actions-row nav06-shortcuts" aria-label="میانبرهای شفافیت">
     {([
-      ["PROJECTS","پروژه‌های شرکت","مشاهده معرفی طرح‌ها","▣","w1a-action-blue"],
-      ["PROGRESS","پیشرفت پروژه‌ها","مراحل با شواهد نسخه‌دار","◷","w1a-action-green"],
-      ["ASSETS","دارایی‌های قابل افشا","مالکیت و مجوز جداگانه","▤","w1a-action-orange"],
-      ["IMPACT","اثرگذاری محلی","شاخص و شواهد مصوب","◇","w1a-action-purple"]
+      ["FINANCIAL","گزارش‌های مالی","بسته مالی با منبع رسمی","▤","w1a-action-blue"],
+      ["BOARD","گزارش هیئت‌مدیره","نسخه و تأیید انتشار","▣","w1a-action-green"],
+      ["LEGAL","اسناد قانونی","اسناد مجاز به افشا","♜","w1a-action-orange"],
+      ["WARNINGS","هشدارهای مهم شرکت","ابلاغ ≠ تأیید دریافت","◇","w1a-action-purple"]
     ] as const).map(([id,title,description,icon,color])=><button type="button" className={"w1a-action "+color} key={id} onClick={()=>navigate(id)}>
-     <span aria-hidden="true">{icon}</span><div><strong>{title}</strong><small>{description}</small></div><span aria-hidden="true">←</span>
+      <span aria-hidden="true">{icon}</span><div><strong>{title}</strong><small>{description}</small></div><span aria-hidden="true">←</span>
     </button>)}
    </section>
-   <section className="nav06-catalog" id="nav09-section-catalog" ref={catalogRef} aria-label="نه زیرمنوی رسمی پروژه‌های شرکت">
-    <div className="nav06-title-row"><div><span>Navigation v1.0 · فقط داده مجاز به افشا</span><h2>پروژه‌ها و توسعه شرکت</h2></div><small>۹ زیرمنوی رسمی</small></div>
+   <section className="nav06-catalog" id="nav09-section-catalog" ref={catalogRef} aria-label="هشت زیرمنوی رسمی شفافیت و اسناد">
+    <div className="nav06-title-row"><div><span>Navigation v1.0 · فقط داده مجاز به افشا</span><h2>شفافیت و اسناد شرکت</h2></div><small>۸ زیرمنوی رسمی</small></div>
     <div className="nav06-groups">{GROUPS.map(g=><div key={g.title} className="nav06-group"><h3>{g.title}</h3><div className="nav06-group-links">
      {g.ids.map(id=>{const x=NAV09_SECTIONS.find(s=>s.id===id)!;return <button key={id} type="button" aria-pressed={section===id}
        className={"nav06-section-button"+(section===id?" nav06-selected":"")} onClick={()=>navigate(id)}>{x.label}</button>;})}
     </div></div>)}</div>
-    <div className="nav06-title-row nav06-content-title"><div><span>مالک داده: {current.owner} · {current.type}</span><h2>{current.label}</h2></div>
+    <div className="nav06-title-row nav06-content-title"><div><span>مالک داده: {current.owner} · منبع و نسخه در انتظار تأیید</span><h2>{current.label}</h2></div>
      <span className="nav06-notice">{demo?"صرفاً داده فرضی":"منبع و مجوز افشا تأیید نشده"}</span></div>
-    {demo?<div className="nav06-search"><label htmlFor="nav09-search">جست‌وجو در پروژه‌های فرضی</label>
-     <input id="nav09-search" type="search" autoComplete="off" value={query} onChange={e=>setQuery(e.target.value)} placeholder="نام پروژه یا فرصت نمونه..." />
+    {demo?<div className="nav06-search"><label htmlFor="nav09-search">جست‌وجو در اسناد فرضی</label>
+     <input id="nav09-search" type="search" autoComplete="off" value={query} onChange={e=>setQuery(e.target.value)} placeholder="نام گزارش یا سند نمونه..." />
      <span>{items.length.toLocaleString("fa-IR")} مورد فرضی</span></div>:
      <div className="nav06-empty" role="status"><strong>—</strong><p>{mode==="UNVERIFIED"?
-      "اطلاعات پروژه، دارایی و پیشرفت دارای مجوز افشا هنوز تأیید نشده است.":
-      "منبع پروژه در دسترس نیست؛ وضعیت واقعی پروژه یا دارایی نامعلوم است."}</p></div>}
+      "اطلاعات و گزارش‌های دارای مجوز انتشار هنوز تأیید نشده‌اند.":
+      "منبع اسناد در دسترس نیست؛ اصالت، انتشار و ابلاغ واقعی نامعلوم است."}</p></div>}
     {demo?<div className="nav06-grid">{items.length?items.map(item=><article key={item.id} className="nav06-tile">
       <span className="nav06-tag">{item.label}</span><h3>{item.title}</h3><p>{item.summary}</p>
       <div className="nav06-tile-foot"><small>شناسه ساختگی: {item.id}</small><span>{item.status}</span></div>
