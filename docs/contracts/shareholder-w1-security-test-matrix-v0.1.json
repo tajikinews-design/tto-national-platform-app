@@ -1,0 +1,408 @@
+{
+  "schemaVersion": "0.1-DRAFT",
+  "type": "SHAREHOLDER_W1_POLICY_DECISION_TEST_CONTRACT",
+  "status": "SYNTHETIC_ONLY",
+  "engine": "STANDALONE_CONTRACT_SIMULATOR_NOT_RUNTIME",
+  "canGrantPermission": false,
+  "liveAuthorization": "FORBIDDEN",
+  "default": "DENY",
+  "approvedRoutes": null,
+  "approvedPolicy": null,
+  "operationFamilies": [
+    "read",
+    "download",
+    "export",
+    "write",
+    "trade",
+    "finalize"
+  ],
+  "requiredContext": [
+    "session",
+    "tenantMatch",
+    "partyBound",
+    "featureEnabled",
+    "permission",
+    "sourceApproved",
+    "sourceStatus",
+    "sourceFresh",
+    "sourceVersion",
+    "selfResource",
+    "classificationAllowed"
+  ],
+  "stateRules": [
+    "DENY_ON_MISSING",
+    "DENY_ON_CROSS_TENANT",
+    "DENY_ON_STALE_SOURCE",
+    "DENY_ON_REVOKED_SESSION",
+    "SEPARATE_READ_DOWNLOAD_EXPORT_WRITE",
+    "NO_PAYMENT_REPORTED_AS_TRANSFER",
+    "NO_REVIEW_AS_LIVE"
+  ],
+  "syntheticBaseline": {
+    "environment": "SIMULATION",
+    "session": "ACTIVE",
+    "tenantMatch": true,
+    "partyBound": true,
+    "featureEnabled": true,
+    "permission": true,
+    "membershipSourceApproved": true,
+    "sourceApproved": false,
+    "sourceStatus": "PENDING",
+    "sourceFresh": true,
+    "sourceVersion": "SYNTHETIC-v1",
+    "selfResource": true,
+    "classificationAllowed": true,
+    "downloadPermission": false,
+    "exportPermission": false,
+    "writePermission": false,
+    "reauth": false,
+    "csrf": false,
+    "idempotency": null,
+    "versionMatched": true,
+    "ruleSnapshot": null,
+    "paymentState": "NONE",
+    "ownershipFinalizationApproved": false
+  },
+  "cases": [
+    {
+      "id": "valid-read-needs-approval",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "LEGAL_SOURCE_NOT_APPROVED",
+      "override": {}
+    },
+    {
+      "id": "missing-session",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "SESSION_INVALID",
+      "override": {
+        "session": "MISSING"
+      }
+    },
+    {
+      "id": "expired-session",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "SESSION_INVALID",
+      "override": {
+        "session": "EXPIRED"
+      }
+    },
+    {
+      "id": "revoked-session",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "SESSION_INVALID",
+      "override": {
+        "session": "REVOKED"
+      }
+    },
+    {
+      "id": "cross-tenant",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "TENANT_MISMATCH",
+      "override": {
+        "tenantMatch": false
+      }
+    },
+    {
+      "id": "user-party-unbound",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "PARTY_BINDING_INVALID",
+      "override": {
+        "partyBound": false
+      }
+    },
+    {
+      "id": "role-only-no-membership",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "MEMBERSHIP_SOURCE_NOT_APPROVED",
+      "override": {
+        "membershipSourceApproved": false
+      }
+    },
+    {
+      "id": "feature-off",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "FEATURE_DISABLED",
+      "override": {
+        "featureEnabled": false
+      }
+    },
+    {
+      "id": "permission-absent",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "PERMISSION_MISSING",
+      "override": {
+        "permission": false
+      }
+    },
+    {
+      "id": "source-unknown",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "LEGAL_SOURCE_NOT_APPROVED",
+      "override": {
+        "sourceApproved": false
+      }
+    },
+    {
+      "id": "source-expired",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "LEGAL_SOURCE_NOT_APPROVED",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "EXPIRED"
+      }
+    },
+    {
+      "id": "source-revoked",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "LEGAL_SOURCE_NOT_APPROVED",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "REVOKED"
+      }
+    },
+    {
+      "id": "stale-ledger",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "SOURCE_FRESHNESS_INVALID",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "sourceFresh": false
+      }
+    },
+    {
+      "id": "source-version-missing",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "SOURCE_VERSION_MISSING",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "sourceVersion": null
+      }
+    },
+    {
+      "id": "requested-other-person",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "RESOURCE_OWNERSHIP_DENIED",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "selfResource": false
+      }
+    },
+    {
+      "id": "data-classification-denied",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "CLASSIFICATION_DENIED",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "classificationAllowed": false
+      }
+    },
+    {
+      "id": "download-only-list-right",
+      "operation": "download",
+      "expected": "DENY",
+      "reason": "PERMISSION_MISSING",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "downloadPermission": false
+      }
+    },
+    {
+      "id": "export-without-export-right",
+      "operation": "export",
+      "expected": "DENY",
+      "reason": "PERMISSION_MISSING",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "exportPermission": false
+      }
+    },
+    {
+      "id": "write-without-write-right",
+      "operation": "write",
+      "expected": "DENY",
+      "reason": "PERMISSION_MISSING",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": false
+      }
+    },
+    {
+      "id": "write-no-reauth",
+      "operation": "write",
+      "expected": "DENY",
+      "reason": "REAUTH_REQUIRED",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": true,
+        "reauth": false,
+        "csrf": true,
+        "idempotency": "TEST-KEY",
+        "versionMatched": true
+      }
+    },
+    {
+      "id": "write-no-csrf",
+      "operation": "write",
+      "expected": "DENY",
+      "reason": "CSRF_INVALID",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": true,
+        "reauth": true,
+        "csrf": false,
+        "idempotency": "TEST-KEY",
+        "versionMatched": true
+      }
+    },
+    {
+      "id": "write-no-idempotency",
+      "operation": "write",
+      "expected": "DENY",
+      "reason": "IDEMPOTENCY_MISSING",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": true,
+        "reauth": true,
+        "csrf": true,
+        "idempotency": null,
+        "versionMatched": true
+      }
+    },
+    {
+      "id": "write-stale-version",
+      "operation": "write",
+      "expected": "DENY",
+      "reason": "VERSION_CONFLICT",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": true,
+        "reauth": true,
+        "csrf": true,
+        "idempotency": "TEST-KEY",
+        "versionMatched": false
+      }
+    },
+    {
+      "id": "trade-without-rule-snapshot",
+      "operation": "trade",
+      "expected": "DENY",
+      "reason": "RULE_REGISTRY_MISSING",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": true,
+        "reauth": true,
+        "csrf": true,
+        "idempotency": "TEST-KEY",
+        "versionMatched": true,
+        "ruleSnapshot": null
+      }
+    },
+    {
+      "id": "trade-payment-reported-only",
+      "operation": "finalize",
+      "expected": "DENY",
+      "reason": "PAYMENT_NOT_VERIFIED",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": true,
+        "reauth": true,
+        "csrf": true,
+        "idempotency": "TEST-KEY",
+        "versionMatched": true,
+        "paymentState": "REPORTED",
+        "ruleSnapshot": "RULE-SYNTHETIC"
+      }
+    },
+    {
+      "id": "trade-payment-verified-no-transfer-authorization",
+      "operation": "finalize",
+      "expected": "DENY",
+      "reason": "OWNERSHIP_FINALIZATION_NOT_AUTHORIZED",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": true,
+        "reauth": true,
+        "csrf": true,
+        "idempotency": "TEST-KEY",
+        "versionMatched": true,
+        "paymentState": "VERIFIED",
+        "ownershipFinalizationApproved": false,
+        "ruleSnapshot": "RULE-SYNTHETIC"
+      }
+    },
+    {
+      "id": "review-shell-never-live",
+      "operation": "read",
+      "expected": "DENY",
+      "reason": "REVIEW_ONLY",
+      "override": {
+        "environment": "REVIEW"
+      }
+    },
+    {
+      "id": "simulation-ready-allowed-in-design-only",
+      "operation": "read",
+      "expected": "SIMULATED_ALLOW",
+      "reason": "SIMULATION_ONLY",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "sourceFresh": true,
+        "sourceVersion": "SYNTHETIC-v1",
+        "permission": true,
+        "featureEnabled": true,
+        "membershipSourceApproved": true
+      }
+    },
+    {
+      "id": "simulation-write-allow-not-authorization",
+      "operation": "write",
+      "expected": "SIMULATED_ALLOW",
+      "reason": "SIMULATION_ONLY",
+      "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "sourceFresh": true,
+        "sourceVersion": "SYNTHETIC-v1",
+        "permission": true,
+        "featureEnabled": true,
+        "membershipSourceApproved": true,
+        "writePermission": true,
+        "reauth": true,
+        "csrf": true,
+        "idempotency": "TEST-KEY",
+        "versionMatched": true
+      }
+    }
+  ]
+}
