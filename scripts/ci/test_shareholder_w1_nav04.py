@@ -71,7 +71,11 @@ class Nav04SyntheticAssemblies(unittest.TestCase):
  def test_08_review_only_route_and_navigation(self):
   self.assertIn('export const dynamic="force-static"',PAGE)
   self.assertIn('robots:{index:false,follow:false',LAYOUT)
-  self.assertIn('index===3?"/review/interactive/nav-04"',DASH)
+  # NAV01 now resolves all eleven canonical review routes through the versioned NAV_IDS list.
+  # Preserve NAV04 route coverage without pinning the superseded per-index ternary.
+  self.assertIn('return index===0?"/review/interactive":"/review/interactive/"+NAV_IDS[index].toLowerCase();',DASH)
+  self.assertIn('href={navPath(index)}',DASH)
+  self.assertIn('NAV_IDS,shareholderNavigation',DASH)
   for path in ('nav-04/page.tsx','nav-04/synthetic-assemblies.tsx','nav-04/assembly-fixtures.ts'):
    self.assertIn(path,AST)
   self.assertIn('"/review/interactive/nav-04"',SMOKE)
