@@ -158,6 +158,7 @@
       "expected": "DENY",
       "reason": "LEGAL_SOURCE_NOT_APPROVED",
       "override": {
+        "sourceApproved": true,
         "sourceStatus": "EXPIRED"
       }
     },
@@ -167,6 +168,7 @@
       "expected": "DENY",
       "reason": "LEGAL_SOURCE_NOT_APPROVED",
       "override": {
+        "sourceApproved": true,
         "sourceStatus": "REVOKED"
       }
     },
@@ -176,6 +178,8 @@
       "expected": "DENY",
       "reason": "SOURCE_FRESHNESS_INVALID",
       "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
         "sourceFresh": false
       }
     },
@@ -185,6 +189,8 @@
       "expected": "DENY",
       "reason": "SOURCE_VERSION_MISSING",
       "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
         "sourceVersion": null
       }
     },
@@ -194,6 +200,8 @@
       "expected": "DENY",
       "reason": "RESOURCE_OWNERSHIP_DENIED",
       "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
         "selfResource": false
       }
     },
@@ -203,6 +211,8 @@
       "expected": "DENY",
       "reason": "CLASSIFICATION_DENIED",
       "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
         "classificationAllowed": false
       }
     },
@@ -212,6 +222,8 @@
       "expected": "DENY",
       "reason": "PERMISSION_MISSING",
       "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
         "downloadPermission": false
       }
     },
@@ -221,6 +233,8 @@
       "expected": "DENY",
       "reason": "PERMISSION_MISSING",
       "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
         "exportPermission": false
       }
     },
@@ -230,6 +244,8 @@
       "expected": "DENY",
       "reason": "PERMISSION_MISSING",
       "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
         "writePermission": false
       }
     },
@@ -239,7 +255,13 @@
       "expected": "DENY",
       "reason": "REAUTH_REQUIRED",
       "override": {
-        "reauth": false
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": true,
+        "reauth": false,
+        "csrf": true,
+        "idempotency": "TEST-KEY",
+        "versionMatched": true
       }
     },
     {
@@ -248,7 +270,13 @@
       "expected": "DENY",
       "reason": "CSRF_INVALID",
       "override": {
-        "csrf": false
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": true,
+        "reauth": true,
+        "csrf": false,
+        "idempotency": "TEST-KEY",
+        "versionMatched": true
       }
     },
     {
@@ -257,7 +285,13 @@
       "expected": "DENY",
       "reason": "IDEMPOTENCY_MISSING",
       "override": {
-        "idempotency": null
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": true,
+        "reauth": true,
+        "csrf": true,
+        "idempotency": null,
+        "versionMatched": true
       }
     },
     {
@@ -266,6 +300,12 @@
       "expected": "DENY",
       "reason": "VERSION_CONFLICT",
       "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": true,
+        "reauth": true,
+        "csrf": true,
+        "idempotency": "TEST-KEY",
         "versionMatched": false
       }
     },
@@ -275,6 +315,13 @@
       "expected": "DENY",
       "reason": "RULE_REGISTRY_MISSING",
       "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": true,
+        "reauth": true,
+        "csrf": true,
+        "idempotency": "TEST-KEY",
+        "versionMatched": true,
         "ruleSnapshot": null
       }
     },
@@ -284,7 +331,15 @@
       "expected": "DENY",
       "reason": "PAYMENT_NOT_VERIFIED",
       "override": {
-        "paymentState": "REPORTED"
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": true,
+        "reauth": true,
+        "csrf": true,
+        "idempotency": "TEST-KEY",
+        "versionMatched": true,
+        "paymentState": "REPORTED",
+        "ruleSnapshot": "RULE-SYNTHETIC"
       }
     },
     {
@@ -293,8 +348,16 @@
       "expected": "DENY",
       "reason": "OWNERSHIP_FINALIZATION_NOT_AUTHORIZED",
       "override": {
+        "sourceApproved": true,
+        "sourceStatus": "APPROVED",
+        "writePermission": true,
+        "reauth": true,
+        "csrf": true,
+        "idempotency": "TEST-KEY",
+        "versionMatched": true,
         "paymentState": "VERIFIED",
-        "ownershipFinalizationApproved": false
+        "ownershipFinalizationApproved": false,
+        "ruleSnapshot": "RULE-SYNTHETIC"
       }
     },
     {
