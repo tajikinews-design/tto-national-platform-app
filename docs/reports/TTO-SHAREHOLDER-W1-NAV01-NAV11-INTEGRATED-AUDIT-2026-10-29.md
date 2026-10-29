@@ -51,3 +51,10 @@ Status: CODE REVIEW/REPAIR COMPLETE — NEW EXACT-SHA LOCAL RELEASE AND VISUAL Q
 No route in /review is authoritative or an operational permission grant.
 Never mark legal source, payment, ledger, personal data, download, user settings, or production deployment green via synthetic-only tests.
 No wallet/custody/general accounting; no test deletion to produce a false green.
+
+## NAV01/NAV02 direct visual archive completion — 2026-10-29
+- Previous accepted SHA `435e10d4ae66e6742c51694a8f51fb82db0bc267`: whole W1 technical QA PASS; bundle had 48 screenshots but **no independent NAV01/NAV02 screenshot**. This is an archival-evidence gap, not a technical failure.
+- The integrated private Chromium script now captures 8 additional direct PNGs: NAV01 and NAV02 at widths 1440, 768, 390, 320. Files: `w1-nav01-*.png` and `w1-nav02-*.png` in the existing isolated `.qa-artifacts/<SHA>` export (the Docker runner already exports the whole directory).
+- The static audit enforces capture coverage; existing 11-route, default-deny, no-external-requests and no-writes checks remain.
+- **New commit's exact-SHA Docker Release and visual human acceptance are PENDING.** Never carry prior SHA's PASS to this new SHA. Only after new `TTO_LOCAL_RELEASE_PASS_SHA`, `TTO_W1_NAV01_NAV02_ARCHIVAL_SCREENSHOTS=8/8` and inspected PNGs can NAV01/NAV02 be changed from VISUAL LIMITED to PASS.
+- No merge/deploy, real-person source, active permissions or operational feature is authorized.
