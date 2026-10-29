@@ -11,7 +11,7 @@ class TestW1SyntheticServerBoundary(unittest.TestCase):
     def test_bff_closed_read_never_grants_source(self):
         s=source("apps/shareholder/lib/source-read-access.ts")
         self.assertIn("return DENIED;",s)
-        self.assertIn("source remain unapproved",s)
+        self.assertIn("sources remain unapproved",s)
         self.assertIn('cache:"no-store"',s)
         self.assertIn('redirect:"error"',s)
         self.assertIn("trustedBackendHeaders(request)",s)
