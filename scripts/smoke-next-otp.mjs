@@ -235,6 +235,17 @@ for (let idx=0;idx<slugs.length;idx++){
    }
    if(nav08Html.includes("DEMO-PRJ-001"))throw Error("NAV08 fixture leaked into default SSR");
    checks++;
+   // NAV09 statutory disclosure preview must default-deny without authentic source.
+   const docReview=await fetch("http://127.0.0.1:"+port+"/review/interactive/nav-09");
+   if(docReview.status!==200)throw Error("NAV09 review HTTP status "+docReview.status);
+   const documentHtml=await docReview.text();
+   for(const label of ["شفافیت شرکت","گزارش‌های مالی","گزارش هیئت‌مدیره",
+     "گزارش بازرس","اسناد قانونی","حقوق و مقررات سهامدار",
+     "سیاست حریم خصوصی","هشدارهای مهم شرکت","منبع و مجوز افشا تأیید نشده"]){
+     if(!documentHtml.includes(label))throw Error("NAV09 fail-closed SSR marker missing: "+label);
+   }
+   if(documentHtml.includes("DEMO-DISC-001"))throw Error("NAV09 fixture leaked into default SSR");
+   checks++;
    const invalidReview=await fetch("http://127.0.0.1:"+port+"/review/not-a-nav");
    if(invalidReview.status!==404)throw Error("shareholder review invalid slug allowed");
    checks++;

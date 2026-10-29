@@ -1,0 +1,13 @@
+/* NAV09 inherits accepted NAV04-08 responsive shell; only own themed accents. */
+.nav09-shell .nav09-hero{background:linear-gradient(115deg,#eef5ff,#f8faff 65%,#f0f7ff);border-color:#cfdff2}
+.nav09-shell .nav09-hero .nav06-hero-eyebrow{color:#435c91}
+.nav09-shell .nav09-hero h2{color:#2a4669}
+.nav09-shell .nav09-hero .nav06-primary{background:#34568e;border-color:#34568e}
+.nav09-shell .nav09-hero .nav06-primary:hover{background:#284474}
+.nav09-shell .nav09-hero .nav06-hero-badge{background:#548ac3}
+.nav09-shell .nav06-tag{background:#e8efff;color:#345d8b}
+.nav09-shell .nav06-section-button.nav06-selected{background:#315a93;border-color:#315a93}
+.nav09-shell .nav06-tile p,.nav09-shell .nav06-preview-item small{color:#526b84}
+.nav09-shell .nav06-search input:focus-visible{outline:3px solid #698fca;outline-offset:2px}
+@media(max-width:680px){.nav09-shell .nav06-hero p,.nav09-shell .nav06-tile p{font-size:12px;line-height:1.95}}
+@media(prefers-reduced-motion:reduce){.nav09-shell *{scroll-behavior:auto;transition:none}}
