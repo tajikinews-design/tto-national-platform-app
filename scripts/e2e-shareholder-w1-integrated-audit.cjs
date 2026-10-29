@@ -42,6 +42,7 @@ async function test(width,height){
   if(width<=768)await page.locator(".w1a-mobile-menu-toggle").click();
   await page.locator('.w1a-side-link[href="/review/interactive/nav-10"]').click();
   ok(new URL(page.url()).pathname===PATHS[9],"NAV04_TO_NAV10_"+width);
+  if(width<=768)await page.locator(".w1a-mobile-menu-toggle").click();
   await page.locator('.w1a-side-link[href="/review/interactive/nav-11"]').click();
   ok(new URL(page.url()).pathname===PATHS[10],"NAV10_TO_NAV11_"+width);
   ok(await page.locator('main[data-source-mode="UNVERIFIED"]').count()===1,"ACCOUNT_DEFAULT_DENY_"+width);
