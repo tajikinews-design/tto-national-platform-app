@@ -92,7 +92,7 @@ export function SyntheticDisclosures(){
   <Sidebar/>
   <div className="w1a-frame nav06-frame">
    <Header/>
-   <header className="w1a-page-heading"><div><h1>شفافیت و اسناد شرکت</h1><p>گزارش‌های قانونی و مالی قابل انتشار، حقوق سهامدار و هشدارها</p></div><span>W1 / NAV-08 · نسخه بازبینی</span></header>
+   <header className="w1a-page-heading"><div><h1>شفافیت و اسناد شرکت</h1><p>گزارش‌های قانونی و مالی قابل انتشار، حقوق سهامدار و هشدارها</p></div><span>W1 / NAV-09 · نسخه بازبینی</span></header>
    <section className="nav06-hero nav09-hero" aria-label="معرفی مرکز شفافیت">
     <div className="nav06-hero-copy"><span className="nav06-hero-eyebrow">ریسک و شفافیت · نسخه کاملاً آزمایشی</span>
      <h2>گزارش‌ها و اسناد فقط با مجوز انتشار معتبر</h2>
