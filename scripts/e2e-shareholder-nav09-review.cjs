@@ -29,7 +29,7 @@ ok(await p.locator(".nav06-tile").count()===2,"DEMO");
 for(const b of await p.locator(".nav06-submit-guard button").all())ok(await b.isDisabled(),"DISABLED");
 if(width<=980){const b=p.locator(".w1a-mobile-menu-toggle");await b.click();ok(await b.getAttribute("aria-expanded")==="true","OPEN");await b.focus();await p.keyboard.press("Escape");ok(await b.getAttribute("aria-expanded")==="false","CLOSE");}
 ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"OVERFLOW");
-await p.evaluate(()=>scrollTo(0,0));await p.waitForFunction(()=>scrollY===0);
+await p.evaluate(()=>{if(document.activeElement instanceof HTMLElement)document.activeElement.blur();scrollTo(0,0);});await p.waitForFunction(()=>scrollY===0);
 const file=join("/workspace/.qa-artifacts",SHA,"nav09-"+width+".png");
 const bytes=await p.screenshot({path:file,type:"png",fullPage:width===1536,animations:"disabled"});
 screens.push({width,height,file,sha256:createHash("sha256").update(bytes).digest("hex"),length:bytes.length});ok(bytes.length>15000,"PNG");
