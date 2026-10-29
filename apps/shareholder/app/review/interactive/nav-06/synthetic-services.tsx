@@ -16,7 +16,7 @@ const ROOTS=[
  ["▤","پروژه‌های شرکت","/review/interactive/nav-08"],
  ["◇","شفافیت و اسناد شرکت","/review/interactive/nav-09"],
  ["▥","گزارش‌های من","/review/interactive/nav-10"],
- ["⚙","تنظیمات حساب","/review/nav-11"]
+ ["⚙","تنظیمات حساب","/review/interactive/nav-11"]
 ] as const;
 
 const MODES:{id:Nav06Mode;label:string;description:string}[]=[
