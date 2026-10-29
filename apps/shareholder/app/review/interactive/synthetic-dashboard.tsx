@@ -35,7 +35,7 @@ const SUMMARY:Record<PreviewState,string>={
 };
 
 function navPath(index:number){
- return index===0?"/review":index===3?"/review/interactive/nav-04":index===4?"/review/interactive/nav-05":index===5?"/review/interactive/nav-06":index===6?"/review/interactive/nav-07":index===7?"/review/interactive/nav-08":"/review/"+NAV_IDS[index].toLowerCase();
+ return index===0?"/review":index===3?"/review/interactive/nav-04":index===4?"/review/interactive/nav-05":index===5?"/review/interactive/nav-06":index===6?"/review/interactive/nav-07":index===7?"/review/interactive/nav-08":index===8?"/review/interactive/nav-09":"/review/"+NAV_IDS[index].toLowerCase();
 }
 
 export function SyntheticDashboard(){
