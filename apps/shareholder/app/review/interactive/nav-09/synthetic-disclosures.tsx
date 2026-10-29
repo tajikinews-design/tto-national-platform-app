@@ -149,28 +149,28 @@ export function SyntheticDisclosures(){
       <button type="button" onClick={()=>open(item.id)} aria-controls="nav09-details" aria-expanded={detailId===item.id}>مشاهده جزئیات نمونه ←</button>
      </article>):<p className="nav06-no-search">نمونه‌ای با این عبارت یافت نشد.</p>}</div>:null}
     <section id="nav09-details" className="w1a-public-details nav06-details" ref={detailRef} tabIndex={-1} hidden={!detail} aria-label="جزئیات فقط خواندنی">
-     {detail?<><div className="w1a-public-details-head"><div><span className="w1a-label">نمایشی و غیرقابل استناد به مالکیت/مجوز</span>
+     {detail?<><div className="w1a-public-details-head"><div><span className="w1a-label">نمایشی و فاقد اعتبار قانونی و مالی</span>
       <h2>{detail.title}</h2><p>{detail.status}</p></div>
       <button type="button" className="w1a-public-close" onClick={()=>setDetailId(null)}>بستن جزئیات</button></div>
       <p>{detail.summary}</p><dl className="nav06-fields">
        <div><dt>دامنه مالک</dt><dd>{detail.owner}</dd></div>
        <div><dt>شناسه نمونه</dt><dd dir="ltr">{detail.id}</dd></div>
        <div><dt>مجوز افشا</dt><dd>تأیید نشده</dd></div>
-       <div><dt>مالکیت یا مجوز</dt><dd>نامعلوم؛ اثبات نشده</dd></div>
-       <div><dt>پیشرفت واقعی</dt><dd>نامعلوم و غیرقابل استناد</dd></div>
+       <div><dt>منبع و اصالت سند</dt><dd>نامعلوم؛ اثبات نشده</dd></div>
+       <div><dt>دوره و نسخه گزارش</dt><dd>نامعلوم و غیرقابل استناد</dd></div>
        <div><dt>اثر حقوقی و مالی</dt><dd>هیچ عملیات واقعی انجام نمی‌شود</dd></div>
       </dl><div className="nav06-disabled">
-       <button type="button" disabled>درخواست سرمایه‌گذاری (غیرفعال)</button>
-       <button type="button" disabled>دریافت سند (غیرفعال)</button>
-       <button type="button" disabled>ابراز علاقه همکاری (غیرفعال)</button>
-       <button type="button" disabled>ثبت درخواست شغلی (غیرفعال)</button>
+       <button type="button" disabled>دریافت PDF (غیرفعال)</button>
+       <button type="button" disabled>تأیید دریافت ابلاغ (غیرفعال)</button>
+       <button type="button" disabled>ویرایش سند (غیرفعال)</button>
+       <button type="button" disabled>ثبت اعتراض (غیرفعال)</button>
       </div><p className="nav06-warning">رکورد پروژه ≠ مالکیت یا مجوز؛ پیشرفت پروژه ≠ اثرگذاری محلی؛ ابراز علاقه ≠ قرارداد.</p>
      </>:null}
     </section>
-    <section className="nav06-submit-guard"><h3>درخواست و دسترسی به پروژه‌ها</h3>
+    <section className="nav06-submit-guard"><h3>دریافت گزارش و تأیید ابلاغ</h3>
      <p>این صفحه فقط پیش‌نمایش است؛ اطلاعات مالی، اسناد مالکیت، اشتغال یا گزارش اثرگذاری واقعی ارسال یا تأیید نمی‌کند.</p>
-     <div><button type="button" disabled>درخواست همکاری (غیرفعال)</button>
-      <button type="button" disabled>دریافت اسناد (غیرفعال)</button>
+     <div><button type="button" disabled>درخواست سند (غیرفعال)</button>
+      <button type="button" disabled>دریافت PDF (غیرفعال)</button>
       <button type="button" disabled>درخواست سرمایه‌گذاری (غیرفعال)</button></div>
     </section>
    </section>
@@ -178,7 +178,7 @@ export function SyntheticDisclosures(){
     <button type="button" className="w1a-review-tools-toggle" aria-expanded={diagnostics} aria-controls="nav09-review-panels"
      onClick={()=>setDiagnostics(!diagnostics)}>{diagnostics?"بستن ابزارهای بررسی":"ابزار بررسی توسعه‌دهنده"}<span aria-hidden="true">{diagnostics?"⌃":"⌄"}</span></button>
     <div id="nav09-review-panels" className="w1a-review-detail-panels" hidden={!diagnostics}>
-     <section className="w1a-mode-section"><h2>وضعیت منبع پروژه و افشای سهامدار</h2>
+     <section className="w1a-mode-section"><h2>وضعیت منبع اسناد و افشای شرکت</h2>
       <div className="w1a-mode-controls" role="group" aria-label="انتخاب حالت منبع">
        {MODES.map(x=><button type="button" key={x.id} aria-pressed={mode===x.id} className={"w1a-choice"+(mode===x.id?" w1a-choice-active":"")} onClick={()=>switchMode(x.id)}>{x.label}</button>)}
       </div><p role="status" aria-live="polite" className={"w1a-message"+(demo?" w1a-message-demo":"")}>{MODES.find(x=>x.id===mode)?.description}</p>
@@ -187,7 +187,7 @@ export function SyntheticDisclosures(){
      <p className="w1a-guard"><strong>مرز حقوقی:</strong> ثبت پروژه ≠ مالکیت/مجوز؛ ارقام مالی به معنای حسابداری یا تضمین سود نیستند؛ فعالیت ≠ اثرگذاری؛ ابراز علاقه ≠ قرارداد.</p>
     </div>
    </section>
-   <footer className="w1a-footer nav06-footer">W1 · NAV-08 | نسخه ساختگی؛ افشا، درخواست سرمایه‌گذاری، استخدام و ادعای اثر واقعی غیرفعال است.</footer>
+   <footer className="w1a-footer nav06-footer">W1 · NAV-09 | نمایش ساختگی؛ دریافت سند و تأیید ابلاغ واقعی غیرفعال است.</footer>
   </div>
  </main>;
 }
