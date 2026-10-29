@@ -168,7 +168,7 @@ export function SyntheticDisclosures(){
      </>:null}
     </section>
     <section className="nav06-submit-guard"><h3>دریافت گزارش و تأیید ابلاغ</h3>
-     <p>این صفحه فقط پیش‌نمایش است؛ اطلاعات مالی، اسناد مالکیت، اشتغال یا گزارش اثرگذاری واقعی ارسال یا تأیید نمی‌کند.</p>
+     <p>این صفحه صرفاً پیش‌نمایش است و هیچ سند رسمی یا رسید دریافت واقعی ایجاد نمی‌کند.</p>
      <div><button type="button" disabled>درخواست سند (غیرفعال)</button>
       <button type="button" disabled>دریافت PDF (غیرفعال)</button>
       <button type="button" disabled>درخواست سرمایه‌گذاری (غیرفعال)</button></div>
