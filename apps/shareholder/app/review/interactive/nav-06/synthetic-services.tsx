@@ -14,7 +14,7 @@ const ROOTS=[
  ["⚙","خدمات من","/review/interactive/nav-06"],
  ["▣","فروشگاه و فرصت‌ها","/review/interactive/nav-07"],
  ["▤","پروژه‌های شرکت","/review/interactive/nav-08"],
- ["◇","شفافیت و اسناد شرکت","/review/nav-09"],
+ ["◇","شفافیت و اسناد شرکت","/review/interactive/nav-09"],
  ["▥","گزارش‌های من","/review/nav-10"],
  ["⚙","تنظیمات حساب","/review/nav-11"]
 ] as const;
