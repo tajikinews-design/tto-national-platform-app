@@ -109,3 +109,25 @@
 - سپس تنها PRهای توسعه synthetic/contract tests؛ هیچ live toggle تا تأییدهای G1–G4.
 
 **اصل جداسازی:** پذیرش فنی/بصری SHA مبنا ≠ صدور مجوز حقوقی، منبع رسمی یا عملیات واقعی.
+
+## ۹. قرارداد قابل آزمون: Security Contract Test Pack v0.1
+**وضعیت:** DESIGN_ONLY؛ صرفاً Python standard library و JSON؛ بدون endpoint، بدون RLS migration و بدون engine اجرایی.
+
+**فایل‌ها و نقش‌ها:**
+- `docs/contracts/shareholder-w1-security-test-matrix-v0.1.json`: ورودی‌های مصنوعی و ۲۹ سناریو؛ سنجش منشأ تصمیم `DENY` یا `SIMULATED_ALLOW` همراه با کد علت.
+- `docs/contracts/shareholder-w1-policy-decision-request-v0.1.schema.json`: ساختار داده تصمیم پیشنهادی (subject/session، tenant/party، resource ownership، policy/feature، legal source، امنیت write/پرداخت).
+- `scripts/ci/test_shareholder_w1_operational_gates.py`: آزمون مستقل به‌عنوان بخشی از `python3 -m unittest discover -s scripts/ci -p test_*.py -v` در Release موجود؛ بدون اتصال به داده واقعی.
+
+### سناریوهای منفی پوشش‌داده‌شده
+- نشست مفقود، منقضی یا revoke شده؛ تغییر tenant و قطع رابطه Party؛ نقش بدون تأیید source عضویت.
+- feature/permission خاموش، legal approval غایب/منقضی/باطل، نسخه منبع مفقود یا stale.
+- منبع شخص دیگر، طبقه‌بندی غیرمجاز، تفکیک list/view از download/export.
+- write بدون permission، re-auth، CSRF، idempotency یا تطبیق نسخه.
+- معامله بدون Rule Registry و finalization بدون `PAYMENT_VERIFIED` و اجازه مستقل انتقال.
+- تلاش استفاده از این شبیه‌ساز در `LIVE` / `STAGING` / `REVIEW` همیشه `DENY`.
+- موارد `SIMULATED_ALLOW` **فقط نشان‌دهنده رسیدن fixture کاملاً ساختگی به آخر زنجیره آزمون هستند**؛ هرگز `ALLOW` حقوقی یا عملیاتی نیستند.
+
+### وضعیت پذیرش
+- **کد تست، JSON و schema در PR موجود است.**
+- تطبیق منطقی اولیه ۲۹ fixture با evaluator بررسی شد، اما **Docker Release کامل و آزمون محلی SHA جدید هنوز انجام نشده است**.
+- اجازه ادعای `PASS` یا تغییر `permission_policy:null` و `authoritative_routes:null` تا دریافت log همان SHA وجود ندارد.
