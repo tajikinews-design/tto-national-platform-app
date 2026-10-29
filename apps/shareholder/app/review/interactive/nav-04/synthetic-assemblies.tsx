@@ -32,8 +32,8 @@ const SIDE_MENU=[
  ["▣","فروشگاه و فرصت‌ها","/review/interactive/nav-07"],
  ["▤","پروژه‌های شرکت","/review/interactive/nav-08"],
  ["◇","شفافیت و اسناد شرکت","/review/interactive/nav-09"],
- ["▥","گزارش‌های من",""],
- ["⚙","تنظیمات حساب",""]
+ ["▥","گزارش‌های من","/review/interactive/nav-10"],
+ ["⚙","تنظیمات حساب","/review/interactive/nav-11"]
 ] as const;
 function ReviewSidebar(){
  const [menuOpen,setMenuOpen]=useState(false);
