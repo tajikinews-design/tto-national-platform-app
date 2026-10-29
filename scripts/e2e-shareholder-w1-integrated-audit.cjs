@@ -24,6 +24,17 @@ async function test(width,height){
    ok(r!==null && r.status()===200,"ROUTE_HTTP_"+width+"_"+i);
    ok(await page.locator("h1").count()>=1,"TITLE_"+width+"_"+i);
    ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"OVERFLOW_"+width+"_"+i);
+   // Archival evidence for NAV01 and NAV02: capture the real rendered review-only pages
+   // at all four audited widths, before leaving each route. No live identities/data.
+   if(i<2){
+    const file=join("/workspace/.qa-artifacts",SHA,"w1-nav"+String(i+1).padStart(2,"0")+"-"+width+".png");
+    mkdirSync(join("/workspace/.qa-artifacts",SHA),{recursive:true});
+    await page.evaluate(()=>{if(document.activeElement instanceof HTMLElement)document.activeElement.blur();scrollTo(0,0)});
+    await page.waitForFunction(()=>scrollY===0);
+    const bytes=await page.screenshot({path:file,type:"png",fullPage:width===1440,animations:"disabled"});
+    shots.push({nav:"NAV-"+String(i+1).padStart(2,"0"),width,file,sha256:createHash("sha256").update(bytes).digest("hex"),length:bytes.length});
+    ok(bytes.length>10000,"NAV01_NAV02_ARCHIVE_PNG_"+width+"_"+i);
+   }
    if(i>=3){
     const links=page.locator(".w1a-side-link[href]");
     ok(await links.count()===11,"SIDEBAR_LINKS_"+width+"_"+i);
@@ -60,6 +71,7 @@ async function main(){
  server=spawn(process.execPath,[resolve(cwd,"node_modules/next/dist/bin/next"),"start","-p",String(PORT),"--hostname","127.0.0.1"],{cwd,env:{...process.env,PORT:String(PORT),TTO_API_BASE_URL:"",NEXT_TELEMETRY_DISABLED:"1"},stdio:"ignore"});
  await ready();browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
  await test(1440,900);await test(768,1024);await test(390,844);await test(320,740);
+ console.log("TTO_W1_NAV01_NAV02_ARCHIVAL_SCREENSHOTS=8/8");
  console.log("TTO_W1_ALL_11_ROUTES=PASS");
  console.log("TTO_W1_CROSS_NAV_MOBILE_VIEWPORTS=4/4");
  console.log("TTO_W1_INTEGRATED_CHROMIUM_CHECKS="+count);
