@@ -137,5 +137,31 @@ class TestOperationalGateContracts(unittest.TestCase):
         good = dict(self.matrix["syntheticBaseline"], sourceApproved=True, sourceStatus="APPROVED")
         self.assertEqual(decide("admin-delete", good), ("DENY", "UNKNOWN_OPERATION"))
 
+    def test_08_structured_policy_request_is_simulation_only(self):
+        schema = json.loads((ROOT / "docs/contracts/shareholder-w1-policy-decision-request-v0.1.schema.json").read_text(encoding="utf-8"))
+        self.assertEqual(schema["properties"]["environment"]["const"], "SIMULATION")
+        self.assertEqual(schema["properties"]["contractVersion"]["const"], "0.1-DRAFT")
+        self.assertEqual(schema["decisionOutput"]["properties"]["legalOperationalEffect"]["const"], "NONE")
+        self.assertEqual(schema["decisionOutput"]["properties"]["decision"]["enum"], ["DENY", "SIMULATED_ALLOW"])
+        self.assertEqual(set(schema["required"]), {"contractVersion", "environment", "operation", "subject", "resource", "policy", "source", "security"})
+        for field in ("subject", "resource", "policy", "source", "security"):
+            self.assertFalse(schema["properties"][field]["additionalProperties"])
+        self.assertIn("ownedBySubject", schema["properties"]["resource"]["required"])
+        self.assertIn("independentLegalApprovalRef", schema["properties"]["source"]["required"])
+
+    def test_09_candidate_permissions_are_separated_by_scope(self):
+        registry = {x["navId"]: set(x["permissionCandidates"]) for x in self.design["roots"]}
+        self.assertIn("membership.self.read", registry["NAV-02"])
+        self.assertIn("holdings.self.read", registry["NAV-02"])
+        self.assertNotEqual("membership.self.read", "holdings.self.read")
+        self.assertIn("trade.request.submit", registry["NAV-03"])
+        self.assertIn("document.download", registry["NAV-09"])
+        self.assertIn("disclosure.catalog.read", registry["NAV-09"])
+        self.assertIn("report.export", registry["NAV-10"])
+        self.assertIn("account.self.update", registry["NAV-11"])
+        self.assertIn("session.self.revoke", registry["NAV-11"])
+        self.assertIn("mfa.self.manage", registry["NAV-11"])
+        self.assertTrue(all(x["routeCandidatesAreNonAuthoritative"] for x in self.design["roots"]))
+
 if __name__ == "__main__":
     unittest.main()
