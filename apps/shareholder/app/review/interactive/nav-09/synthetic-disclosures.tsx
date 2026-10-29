@@ -184,7 +184,7 @@ export function SyntheticDisclosures(){
       </div><p role="status" aria-live="polite" className={"w1a-message"+(demo?" w1a-message-demo":"")}>{MODES.find(x=>x.id===mode)?.description}</p>
      </section>
      <section className="w1a-gates"><h2>شرایط مستقل راه‌اندازی واقعی</h2><ol>{NAV09_RELEASE_GATES.map(g=><li key={g}>{g}</li>)}</ol></section>
-     <p className="w1a-guard"><strong>مرز حقوقی:</strong> ثبت پروژه ≠ مالکیت/مجوز؛ ارقام مالی به معنای حسابداری یا تضمین سود نیستند؛ فعالیت ≠ اثرگذاری؛ ابراز علاقه ≠ قرارداد.</p>
+     <p className="w1a-guard"><strong>مرز حقوقی:</strong> اطلاعات مالی و حقوقی فقط با منبع معتبر، نسخه و مجوز انتشار ارائه می‌شوند؛ این سامانه حسابداری عمومی شرکت نیست.</p>
     </div>
    </section>
    <footer className="w1a-footer nav06-footer">W1 · NAV-09 | نمایش ساختگی؛ دریافت سند و تأیید ابلاغ واقعی غیرفعال است.</footer>
