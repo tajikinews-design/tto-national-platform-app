@@ -1,0 +1,23 @@
+/* NAV11 review inherits NAV09/NAV10 accepted shell. */
+.nav06-frame>.nav11-guardrails{order:8}
+.nav11-shell .nav11-hero{background:linear-gradient(115deg,#edf5ff,#fafcff 64%,#f1f5ff);border-color:#d5e1f3}
+.nav11-shell .nav11-hero h2{color:#294c78}
+.nav11-shell .nav11-hero .nav06-primary{background:#345a96;border-color:#345a96}
+.nav11-shell .nav11-hero .nav06-hero-badge{background:#6686bf}
+.nav11-shell .nav06-section-button.nav06-selected{background:#345a96;border-color:#345a96}
+.nav11-groups{grid-template-columns:repeat(3,minmax(0,1fr))}
+.nav11-groups .nav06-group:last-child{grid-column:auto}
+.nav11-mode-panel,.nav11-setting-card,.nav11-guardrails{padding:17px;background:#fff;border:1px solid #dae6f4;border-radius:13px;margin-bottom:17px}
+.nav11-mode-panel{background:#f7fbff}
+.nav11-mode-panel p,.nav11-setting-card p,.nav11-guardrails li{font-size:11px;line-height:2;color:#5a7690}
+.nav11-mode-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.nav11-mode-buttons button,.nav11-setting-card button{min-height:39px;border-radius:9px;padding:7px 12px;border:1px solid #cadbed;background:#fff;color:#315c88;cursor:pointer;font:700 11px/1.75 var(--tto-font),Vazirmatn,Tahoma,sans-serif}
+.nav11-mode-buttons button[aria-pressed="true"]{background:#345a96;color:#fff;border-color:#345a96}
+.nav11-mode-buttons button:focus-visible,.nav11-setting-card button:focus-visible{outline:3px solid #7397ce;outline-offset:2px}
+.nav11-setting-card h3,.nav11-guardrails h2{font-size:17px;color:#23517f;margin:12px 0}
+.nav11-locked{background:#eff5fd;border-radius:10px;padding:13px;margin:14px 0;font-size:12px;line-height:2;color:#3e6089}
+.nav11-details{margin-top:12px;padding:11px;background:#f9fbfd;border:1px dashed #cad9e8;border-radius:9px}
+.nav11-guardrails ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 20px;padding-right:18px}
+@media(max-width:900px){.nav11-groups{grid-template-columns:repeat(2,minmax(0,1fr))}.nav11-groups .nav06-group:last-child{grid-column:1/-1}}
+@media(max-width:680px){.nav11-groups,.nav11-guardrails ul{grid-template-columns:1fr}.nav11-groups .nav06-group:last-child{grid-column:auto}.nav11-mode-buttons button{flex:1 1 44%}}
+@media(prefers-reduced-motion:reduce){.nav11-shell *{transition:none;scroll-behavior:auto}}
