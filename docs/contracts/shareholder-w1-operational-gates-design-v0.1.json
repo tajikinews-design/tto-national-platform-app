@@ -1,0 +1,311 @@
+{
+  "schemaVersion": "0.1-DRAFT",
+  "project": "TTO_NATIONAL_PLATFORM",
+  "kind": "SHAREHOLDER_OPERATIONAL_GATES_DESIGN_ONLY",
+  "baselineAcceptedSyntheticSHA": "a443247be2e878162fde11f40f91d20fad7ab684",
+  "approvalStatus": "NOT_APPROVED",
+  "runtimeActivationRequested": false,
+  "realDataPresent": false,
+  "authorizedRoutes": null,
+  "permissionPolicy": null,
+  "canGrantPermission": false,
+  "requiresTenantScopedApproval": true,
+  "releaseAuthorization": false,
+  "entryGates": [
+    "IDENTITY_SESSION",
+    "TENANT_PARTY",
+    "PERMISSION_AND_FEATURE",
+    "LEGAL_SOURCE",
+    "OPERATION_SPECIFIC",
+    "PRIVACY_AUDIT",
+    "RELEASE_AUTHORIZATION"
+  ],
+  "defaultDecision": "DENY",
+  "roots": [
+    {
+      "navId": "NAV-01",
+      "displayLabel": "داشبورد",
+      "permissionCandidates": [
+        "shareholder.dashboard.read"
+      ],
+      "dependencyCandidates": [
+        "CF01",
+        "CF02",
+        "CHILD06",
+        "CHILD07",
+        "CHILD09"
+      ],
+      "routeCandidatesAreNonAuthoritative": true,
+      "routeApprovalRef": null,
+      "permissionApprovalRef": null,
+      "legalApprovalRef": null,
+      "sourceApprovalRef": null,
+      "independentReviewerRef": null,
+      "tenantId": null,
+      "policyVersion": null,
+      "status": "DESIGN_ONLY",
+      "runtimeEnabled": false
+    },
+    {
+      "navId": "NAV-02",
+      "displayLabel": "سهام و عضویت من",
+      "permissionCandidates": [
+        "membership.self.read",
+        "holdings.self.read"
+      ],
+      "dependencyCandidates": [
+        "CF01",
+        "CF02",
+        "CHILD06",
+        "CHILD07"
+      ],
+      "routeCandidatesAreNonAuthoritative": true,
+      "routeApprovalRef": null,
+      "permissionApprovalRef": null,
+      "legalApprovalRef": null,
+      "sourceApprovalRef": null,
+      "independentReviewerRef": null,
+      "tenantId": null,
+      "policyVersion": null,
+      "status": "DESIGN_ONLY",
+      "runtimeEnabled": false
+    },
+    {
+      "navId": "NAV-03",
+      "displayLabel": "خرید و فروش سهام",
+      "permissionCandidates": [
+        "trade.request.self.read",
+        "trade.request.submit"
+      ],
+      "dependencyCandidates": [
+        "CF01",
+        "CF02",
+        "CHILD07",
+        "LEGAL_RULE_REGISTRY"
+      ],
+      "routeCandidatesAreNonAuthoritative": true,
+      "routeApprovalRef": null,
+      "permissionApprovalRef": null,
+      "legalApprovalRef": null,
+      "sourceApprovalRef": null,
+      "independentReviewerRef": null,
+      "tenantId": null,
+      "policyVersion": null,
+      "status": "DESIGN_ONLY",
+      "runtimeEnabled": false
+    },
+    {
+      "navId": "NAV-04",
+      "displayLabel": "مجامع و انتخابات",
+      "permissionCandidates": [
+        "assembly.published.read",
+        "assembly.vote.cast"
+      ],
+      "dependencyCandidates": [
+        "CHILD08",
+        "CHILD09",
+        "CF03"
+      ],
+      "routeCandidatesAreNonAuthoritative": true,
+      "routeApprovalRef": null,
+      "permissionApprovalRef": null,
+      "legalApprovalRef": null,
+      "sourceApprovalRef": null,
+      "independentReviewerRef": null,
+      "tenantId": null,
+      "policyVersion": null,
+      "status": "DESIGN_ONLY",
+      "runtimeEnabled": false
+    },
+    {
+      "navId": "NAV-05",
+      "displayLabel": "اخبار و ارتباط با شرکت",
+      "permissionCandidates": [
+        "notice.published.read",
+        "message.self.create"
+      ],
+      "dependencyCandidates": [
+        "CHILD09",
+        "CF03"
+      ],
+      "routeCandidatesAreNonAuthoritative": true,
+      "routeApprovalRef": null,
+      "permissionApprovalRef": null,
+      "legalApprovalRef": null,
+      "sourceApprovalRef": null,
+      "independentReviewerRef": null,
+      "tenantId": null,
+      "policyVersion": null,
+      "status": "DESIGN_ONLY",
+      "runtimeEnabled": false
+    },
+    {
+      "navId": "NAV-06",
+      "displayLabel": "خدمات من",
+      "permissionCandidates": [
+        "service.catalog.read",
+        "service.request.self.create"
+      ],
+      "dependencyCandidates": [
+        "CHILD06",
+        "SERVICE_OWNER"
+      ],
+      "routeCandidatesAreNonAuthoritative": true,
+      "routeApprovalRef": null,
+      "permissionApprovalRef": null,
+      "legalApprovalRef": null,
+      "sourceApprovalRef": null,
+      "independentReviewerRef": null,
+      "tenantId": null,
+      "policyVersion": null,
+      "status": "DESIGN_ONLY",
+      "runtimeEnabled": false
+    },
+    {
+      "navId": "NAV-07",
+      "displayLabel": "فروشگاه و فرصت‌ها",
+      "permissionCandidates": [
+        "opportunity.published.read"
+      ],
+      "dependencyCandidates": [
+        "CHILD16",
+        "CHILD18"
+      ],
+      "routeCandidatesAreNonAuthoritative": true,
+      "routeApprovalRef": null,
+      "permissionApprovalRef": null,
+      "legalApprovalRef": null,
+      "sourceApprovalRef": null,
+      "independentReviewerRef": null,
+      "tenantId": null,
+      "policyVersion": null,
+      "status": "DESIGN_ONLY",
+      "runtimeEnabled": false
+    },
+    {
+      "navId": "NAV-08",
+      "displayLabel": "پروژه‌های شرکت",
+      "permissionCandidates": [
+        "project.published.read"
+      ],
+      "dependencyCandidates": [
+        "CHILD12",
+        "CF03"
+      ],
+      "routeCandidatesAreNonAuthoritative": true,
+      "routeApprovalRef": null,
+      "permissionApprovalRef": null,
+      "legalApprovalRef": null,
+      "sourceApprovalRef": null,
+      "independentReviewerRef": null,
+      "tenantId": null,
+      "policyVersion": null,
+      "status": "DESIGN_ONLY",
+      "runtimeEnabled": false
+    },
+    {
+      "navId": "NAV-09",
+      "displayLabel": "شفافیت و اسناد شرکت",
+      "permissionCandidates": [
+        "disclosure.catalog.read",
+        "document.download"
+      ],
+      "dependencyCandidates": [
+        "CHILD11",
+        "CF03",
+        "CHILD22"
+      ],
+      "routeCandidatesAreNonAuthoritative": true,
+      "routeApprovalRef": null,
+      "permissionApprovalRef": null,
+      "legalApprovalRef": null,
+      "sourceApprovalRef": null,
+      "independentReviewerRef": null,
+      "tenantId": null,
+      "policyVersion": null,
+      "status": "DESIGN_ONLY",
+      "runtimeEnabled": false
+    },
+    {
+      "navId": "NAV-10",
+      "displayLabel": "گزارش‌های من",
+      "permissionCandidates": [
+        "report.self.read",
+        "report.export"
+      ],
+      "dependencyCandidates": [
+        "CF03",
+        "CHILD06",
+        "CHILD07",
+        "CHILD22"
+      ],
+      "routeCandidatesAreNonAuthoritative": true,
+      "routeApprovalRef": null,
+      "permissionApprovalRef": null,
+      "legalApprovalRef": null,
+      "sourceApprovalRef": null,
+      "independentReviewerRef": null,
+      "tenantId": null,
+      "policyVersion": null,
+      "status": "DESIGN_ONLY",
+      "runtimeEnabled": false
+    },
+    {
+      "navId": "NAV-11",
+      "displayLabel": "تنظیمات حساب",
+      "permissionCandidates": [
+        "account.self.read",
+        "account.self.update",
+        "session.self.revoke",
+        "mfa.self.manage"
+      ],
+      "dependencyCandidates": [
+        "CF01",
+        "CF02",
+        "CF03",
+        "CHILD22"
+      ],
+      "routeCandidatesAreNonAuthoritative": true,
+      "routeApprovalRef": null,
+      "permissionApprovalRef": null,
+      "legalApprovalRef": null,
+      "sourceApprovalRef": null,
+      "independentReviewerRef": null,
+      "tenantId": null,
+      "policyVersion": null,
+      "status": "DESIGN_ONLY",
+      "runtimeEnabled": false
+    }
+  ],
+  "sourcePrerequisites": {
+    "CHILD06_MEMBERSHIP": {
+      "controlsRequired": 9,
+      "approved": 0,
+      "status": "PENDING"
+    },
+    "CHILD07_HOLDINGS": {
+      "controlsRequired": 10,
+      "approved": 0,
+      "status": "PENDING"
+    }
+  },
+  "forbiddenCapabilities": [
+    "WALLET",
+    "CUSTODY",
+    "GENERAL_COOPERATIVE_ACCOUNTING",
+    "LIVE_SHARE_TRANSFER",
+    "LIVE_PAYMENT_SETTLEMENT",
+    "REAL_ACCOUNT_MUTATION",
+    "PRODUCTION_DEPLOYMENT"
+  ],
+  "decisionsPending": [
+    "OP-DEC-01",
+    "OP-DEC-02",
+    "OP-DEC-03",
+    "OP-DEC-04",
+    "OP-DEC-05",
+    "OP-DEC-06",
+    "OP-DEC-07",
+    "OP-DEC-08"
+  ]
+}
