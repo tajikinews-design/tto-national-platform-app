@@ -164,7 +164,7 @@ export function SyntheticDisclosures(){
        <button type="button" disabled>تأیید دریافت ابلاغ (غیرفعال)</button>
        <button type="button" disabled>ویرایش سند (غیرفعال)</button>
        <button type="button" disabled>ثبت اعتراض (غیرفعال)</button>
-      </div><p className="nav06-warning">رکورد پروژه ≠ مالکیت یا مجوز؛ پیشرفت پروژه ≠ اثرگذاری محلی؛ ابراز علاقه ≠ قرارداد.</p>
+      </div><p className="nav06-warning">ارسال اعلان، مطالعه و تأیید دریافت سه رویداد متفاوت‌اند.</p>
      </>:null}
     </section>
     <section className="nav06-submit-guard"><h3>دریافت گزارش و تأیید ابلاغ</h3>
