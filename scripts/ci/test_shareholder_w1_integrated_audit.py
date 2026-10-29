@@ -49,6 +49,12 @@ assert 'useState<Nav11Mode>("UNVERIFIED")' in sources[11]
 runner=(ROOT/"scripts/ci/run-local-docker.ps1").read_text(encoding="utf-8")
 for n in range(3,12):
     assert f"node scripts/e2e-shareholder-nav{n:02d}-" in runner,(n,"missing viewport release")
+browser=(ROOT/"scripts/e2e-shareholder-w1-integrated-audit.cjs").read_text(encoding="utf-8")
+assert 'if(i<2)' in browser
+assert '"w1-nav"+String(i+1).padStart(2,"0")+"-"+width+".png"' in browser
+assert 'TTO_W1_NAV01_NAV02_ARCHIVAL_SCREENSHOTS=8/8' in browser
+assert 'fullPage:width===1440' in browser
+print("TTO_W1_NAV01_NAV02_ARCHIVAL_CAPTURE_CONTRACT_PASS")
 print("TTO_W1_NAV01_NAV11_ROUTES=PASS")
 print("TTO_W1_NAV01_NAV11_CANONICAL_LABELS=PASS")
 print("TTO_W1_NAV01_NAV11_REVIEW_ISOLATION=PASS")
