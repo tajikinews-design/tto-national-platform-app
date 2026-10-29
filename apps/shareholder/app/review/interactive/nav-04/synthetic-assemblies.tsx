@@ -31,7 +31,7 @@ const SIDE_MENU=[
  ["⚙","خدمات من","/review/interactive/nav-06"],
  ["▣","فروشگاه و فرصت‌ها","/review/interactive/nav-07"],
  ["▤","پروژه‌های شرکت","/review/interactive/nav-08"],
- ["◇","شفافیت و اسناد شرکت",""],
+ ["◇","شفافیت و اسناد شرکت","/review/interactive/nav-09"],
  ["▥","گزارش‌های من",""],
  ["⚙","تنظیمات حساب",""]
 ] as const;
