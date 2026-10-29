@@ -1,0 +1,254 @@
+{
+  "schemaVersion": "0.1-DRAFT",
+  "title": "TTO W1 Policy Decision Contract (NON-AUTHORITATIVE)",
+  "$comment": "Design-only. Validation is structural; no live permission, role, route, operation or source approval is conferred.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "environment",
+    "operation",
+    "subject",
+    "resource",
+    "policy",
+    "source",
+    "security"
+  ],
+  "properties": {
+    "contractVersion": {
+      "const": "0.1-DRAFT"
+    },
+    "environment": {
+      "const": "SIMULATION"
+    },
+    "operation": {
+      "enum": [
+        "read",
+        "download",
+        "export",
+        "write",
+        "trade",
+        "finalize"
+      ]
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subjectId",
+        "sessionState",
+        "tenantId",
+        "partyId",
+        "partyBindingVerified"
+      ],
+      "properties": {
+        "subjectId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sessionState": {
+          "enum": [
+            "ACTIVE",
+            "EXPIRED",
+            "REVOKED",
+            "MISSING"
+          ]
+        },
+        "tenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "partyId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "partyBindingVerified": {
+          "type": "boolean"
+        }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resourceType",
+        "resourceId",
+        "tenantId",
+        "ownedBySubject",
+        "classificationAllowed"
+      ],
+      "properties": {
+        "resourceType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resourceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tenantId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ownedBySubject": {
+          "type": "boolean"
+        },
+        "classificationAllowed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "featureEnabled",
+        "permissionCandidate",
+        "permissionGrantedInSimulation",
+        "policyVersion"
+      ],
+      "properties": {
+        "featureEnabled": {
+          "type": "boolean"
+        },
+        "permissionCandidate": {
+          "type": "string",
+          "minLength": 1
+        },
+        "permissionGrantedInSimulation": {
+          "type": "boolean"
+        },
+        "policyVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approvedInSimulation",
+        "sourceStatus",
+        "sourceVersion",
+        "sourceAsOf",
+        "independentLegalApprovalRef"
+      ],
+      "properties": {
+        "approvedInSimulation": {
+          "type": "boolean"
+        },
+        "sourceStatus": {
+          "enum": [
+            "PENDING",
+            "APPROVED",
+            "REVOKED",
+            "EXPIRED"
+          ]
+        },
+        "sourceVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sourceAsOf": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "independentLegalApprovalRef": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reauth",
+        "csrf",
+        "idempotencyKey",
+        "optimisticVersionMatched",
+        "paymentState",
+        "ruleSnapshotRef",
+        "finalizationAuthorizedInSimulation"
+      ],
+      "properties": {
+        "reauth": {
+          "type": "boolean"
+        },
+        "csrf": {
+          "type": "boolean"
+        },
+        "idempotencyKey": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "optimisticVersionMatched": {
+          "type": "boolean"
+        },
+        "paymentState": {
+          "enum": [
+            "NONE",
+            "REPORTED",
+            "VERIFIED"
+          ]
+        },
+        "ruleSnapshotRef": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "finalizationAuthorizedInSimulation": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "decisionOutput": {
+    "schemaVersion": "0.1-DRAFT",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "decision",
+      "reasonCode",
+      "auditReference",
+      "legalOperationalEffect"
+    ],
+    "properties": {
+      "decision": {
+        "enum": [
+          "DENY",
+          "SIMULATED_ALLOW"
+        ]
+      },
+      "reasonCode": {
+        "type": "string"
+      },
+      "auditReference": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "legalOperationalEffect": {
+        "const": "NONE"
+      }
+    }
+  },
+  "enforcementNotes": [
+    "All simulated allow results are test-only and have no operational effect.",
+    "A real authorization service must not import this matrix as policy.",
+    "Independent tenant/source/legal approvals and runtime security review are required."
+  ]
+}
