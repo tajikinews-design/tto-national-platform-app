@@ -1,4 +1,5 @@
 /* NAV10 inherits approved NAV09 visual primitives, with narrow, scoped additions only. */
+.nav06-frame>.nav10-guardrails{order:8}
 .nav10-shell .nav10-hero{background:linear-gradient(115deg,#ebf5ff,#f9fbff 65%,#ecf7f5);border-color:#ccdfed}
 .nav10-shell .nav10-hero .nav06-hero-eyebrow{color:#36678f}
 .nav10-shell .nav10-hero h2{color:#254b72}
