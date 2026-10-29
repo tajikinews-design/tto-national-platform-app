@@ -171,7 +171,7 @@ export function SyntheticDisclosures(){
      <p>این صفحه صرفاً پیش‌نمایش است و هیچ سند رسمی یا رسید دریافت واقعی ایجاد نمی‌کند.</p>
      <div><button type="button" disabled>درخواست سند (غیرفعال)</button>
       <button type="button" disabled>دریافت PDF (غیرفعال)</button>
-      <button type="button" disabled>درخواست سرمایه‌گذاری (غیرفعال)</button></div>
+      <button type="button" disabled>تأیید دریافت ابلاغ (غیرفعال)</button></div>
     </section>
    </section>
    <section className="w1a-review-toolbox nav06-tools" aria-label="ابزار بازبینی توسعه‌دهنده">
