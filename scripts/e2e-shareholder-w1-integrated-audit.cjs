@@ -21,7 +21,7 @@ async function test(width,height){
  try{
   for(let i=0;i<PATHS.length;i++){
    const path=PATHS[i],r=await page.goto(BASE+path,{waitUntil:"networkidle"});
-   ok(r.status===200,"ROUTE_HTTP_"+width+"_"+i);
+   ok(r!==null && r.status()===200,"ROUTE_HTTP_"+width+"_"+i);
    ok(await page.locator("h1").count()>=1,"TITLE_"+width+"_"+i);
    ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"OVERFLOW_"+width+"_"+i);
    if(i>=3){
