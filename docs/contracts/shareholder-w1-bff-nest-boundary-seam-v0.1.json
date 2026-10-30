@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "0.1-DRAFT",
+  "kind": "W1_REAL_BOUNDARY_SEAM_SYNTHETIC_ONLY",
+  "previousAcceptedSha": "8b36eabbeb9cfb89972cf387276c9524d354790b",
+  "runtimeActivation": false,
+  "legalOperationalEffect": "NONE",
+  "canGrantPermission": false,
+  "authorizationStatus": "NOT_APPROVED",
+  "liveSourcesEnabled": false,
+  "testedBoundaries": [
+    {
+      "component": "apps/shareholder/lib/w1-boundary-seam.ts",
+      "attachToLiveRoutes": false,
+      "syntheticProofOrigin": "IN_MEMORY_LAB_ONLY",
+      "trustedInputs": [
+        "lab cookie matched to synthetic session",
+        "route tenant key",
+        "route owner key",
+        "operation/method"
+      ],
+      "rejectedBrowserClaims": [
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Role",
+        "X-Party-ID",
+        "X-Source-Approved",
+        "X-W1-Lab-Channel"
+      ],
+      "forwardedFields": [
+        "contractVersion",
+        "environment",
+        "tenantKey",
+        "ownerKey",
+        "operation"
+      ]
+    },
+    {
+      "component": "services/api/src/w1-boundary-seam.ts",
+      "attachToLiveAppModule": false,
+      "syntheticProofOrigin": "IN_MEMORY_LAB_ONLY",
+      "checks": [
+        "contractVersion",
+        "SIMULATION",
+        "server-side session active",
+        "server-owned tenant",
+        "server-owned resource",
+        "Party binding",
+        "independent synthetic source status",
+        "fresh synthetic version",
+        "classification",
+        "feature"
+      ],
+      "pepInputOrigin": "SERVER_ONLY_SYNTHETIC_PROOF",
+      "liveSessionResolverNotInvoked": true,
+      "noDatabaseQueries": true
+    }
+  ],
+  "allowedEnvironment": "SIMULATION",
+  "operationCandidates": [
+    "read",
+    "download",
+    "export",
+    "write",
+    "trade",
+    "finalize"
+  ],
+  "transportResponseDecisions": [
+    "DENY",
+    "SIMULATED_ALLOW"
+  ],
+  "forbiddenDecisions": [
+    "ALLOW",
+    "APPROVE",
+    "AUTHORIZED"
+  ],
+  "denySourceTouchPolicy": "ZERO",
+  "sanitizedResponseFields": [
+    "decision",
+    "reasonCode",
+    "requestId",
+    "fixtureTouches",
+    "auditCount",
+    "legalOperationalEffect",
+    "canGrantPermission",
+    "hasActualRecord"
+  ],
+  "denyOn": [
+    "no session",
+    "wrong tenant",
+    "wrong resource owner",
+    "wrong method",
+    "wrong operation",
+    "direct Nest attempt without internal lab identity",
+    "candidate has extra fields",
+    "altered version",
+    "missing Party",
+    "source revoked",
+    "source stale",
+    "malformed PDP response",
+    "PDP output grants real permission",
+    "PDP output contains sensitive fields",
+    "failed audit"
+  ],
+  "testHarness": "scripts/ci/w1-bff-nest-pep-chain.test.cjs",
+  "controls": [
+    "CI=true",
+    "TTO_LOOPBACK_E2E=1",
+    "TTO_W1_CHAIN_LAB=1",
+    "TTO_W1_BOUNDARY_LAB=1",
+    "VERCEL must be absent",
+    "NODE_ENV must not be production",
+    "DATABASE_URL/TTO_API_BASE_URL/TTO_DB_POOLER_HOST/TTO_DB_APP_PASSWORD/APIIR_TOKEN must be absent"
+  ],
+  "prohibited": [
+    "real shareholder data",
+    "real source admission",
+    "live permission policy",
+    "live share trading",
+    "payment settlement",
+    "account mutation",
+    "Next production route attachment",
+    "Nest AppModule registration",
+    "database migration",
+    "RLS modification",
+    "merge",
+    "deployment"
+  ],
+  "ownerDecisionRequiredForFutureRuntimeAttachment": true,
+  "acceptanceCriteria": {
+    "exactShaRelease": true,
+    "dockerExitCode": 0,
+    "requiredMarkers": [
+      "TTO_W1_REAL_BOUNDARY_SEAM_CONTRACT=PASS",
+      "TTO_W1_SANITIZED_UPSTREAM_ONLY=PASS",
+      "TTO_W1_TEST_ONLY_RUNTIME_GUARD=PASS",
+      "TTO_W1_BFF_NEST_PEP_PDP_CHAIN=PASS",
+      "TTO_W1_DENIED_FIXTURE_TOUCHES=0",
+      "TTO_W1_NO_OPERATIONAL_ALLOW=PASS"
+    ]
+  }
+}
