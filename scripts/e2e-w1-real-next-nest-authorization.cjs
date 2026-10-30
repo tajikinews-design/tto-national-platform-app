@@ -289,10 +289,19 @@ async function run(){
  console.log("TTO_W1_REAL_TRADE_NOTICE_NO_SOURCE_ADAPTER=PASS");
  await one("mutating trade requests cannot reach real Nest from browser",async()=>{
   for(const domain of ["trade-requests","member-record","shareholding","notices"]){
+   for(const method of ["POST","PATCH","DELETE"]){
+    const before=requests.length;
+    const r=await jsonCall(APP,path(A,domain),TOKEN_A,{method});
+    eq(r.status,405,"Next method whitelist blocks "+method+" "+domain);
+    eq(requests.length,before,"no Nest forwarded "+method+" "+domain);
+   }
+  }
+  for(const suffix of ["shareholding/download","shareholding/export",
+                       "trade-requests/submit","trade-requests/finalize"]){
    const before=requests.length;
-   const r=await jsonCall(APP,path(A,domain),TOKEN_A,{method:"POST"});
-   eq(r.status,405,"Next method whitelist blocks POST "+domain);
-   eq(requests.length,before,"no Nest forwarded POST "+domain);
+   const r=await jsonCall(APP,"/api/tenants/"+A+"/me/"+suffix,TOKEN_A);
+   eq(r.status,404,"unregistered resource operation is not available "+suffix);
+   eq(requests.length,before,"unregistered operation never contacts Nest");
   }
  });
  console.log("TTO_W1_REAL_TRADE_MUTATION_DISABLED=PASS");
