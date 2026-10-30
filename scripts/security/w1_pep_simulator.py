@@ -57,7 +57,7 @@ def enforce(operation: str, context: dict[str, object],
     # Audit is only an in-memory synthetic demonstration, not a production audit.
     # An audit sink failure blocks the action, rather than allowing unaudited access.
     try:
-        audit.record(request_id, operation if operation in OPERATIONS else "unknown",
+        audit.record(request_id, operation if isinstance(operation, str) and operation in OPERATIONS else "unknown",
                      str(verdict["decision"]), str(verdict["reasonCode"]))
     except Exception:
         return {"requestId": request_id, "decision": "DENY",
