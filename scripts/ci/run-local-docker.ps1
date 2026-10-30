@@ -164,7 +164,7 @@ try {
     )
 
     Run-Node "Install pinned dependencies (once)" "npm config set fetch-retries 8; npm config set fetch-retry-mintimeout 20000; npm config set fetch-retry-maxtimeout 120000; npm install -g pnpm@10.18.0; pnpm install --frozen-lockfile --network-concurrency=3 || (sleep 15; pnpm install --frozen-lockfile --network-concurrency=3) || (sleep 30; pnpm install --frozen-lockfile --network-concurrency=3)"
-    Run-Node "Shareholder TSX AST and UI type preflight" "node scripts/ci/verify-shareholder-tsx.cjs; node --check scripts/e2e-phase4c-real-session-browser.cjs; node --check scripts/e2e-shareholder-nav06-review.cjs; node --check scripts/e2e-shareholder-nav07-review.cjs; node --check scripts/e2e-shareholder-nav08-review.cjs; node --check scripts/e2e-shareholder-nav09-review.cjs; node --check scripts/e2e-shareholder-nav10-review.cjs; node --check scripts/e2e-shareholder-nav11-review.cjs; node --check scripts/e2e-shareholder-w1-integrated-audit.cjs; pnpm --filter @tto/ui typecheck"
+    Run-Node "Shareholder TSX AST and UI type preflight" "node scripts/ci/verify-shareholder-tsx.cjs; node --check scripts/e2e-phase4c-real-session-browser.cjs; node --check scripts/e2e-w1-real-next-nest-authorization.cjs; node --check scripts/e2e-shareholder-nav06-review.cjs; node --check scripts/e2e-shareholder-nav07-review.cjs; node --check scripts/e2e-shareholder-nav08-review.cjs; node --check scripts/e2e-shareholder-nav09-review.cjs; node --check scripts/e2e-shareholder-nav10-review.cjs; node --check scripts/e2e-shareholder-nav11-review.cjs; node --check scripts/e2e-shareholder-w1-integrated-audit.cjs; pnpm --filter @tto/ui typecheck"
     Run-Node "W1 isolated Next BFF to Nest and PEP/PDP integration security test" "command -v python3 >/dev/null; CI=true TTO_LOOPBACK_E2E=1 TTO_W1_CHAIN_LAB=1 TTO_W1_BOUNDARY_LAB=1 APIIR_TOKEN= DATABASE_URL= TTO_API_BASE_URL= node --test scripts/ci/w1-bff-nest-pep-chain.test.cjs"
     Run-Node "Build all portals and API; typecheck" "pnpm build; pnpm check"
     Run-Node "SMS mock and scanner protocol tests" "node --test services/workers/test/apiir-smsotp.test.cjs services/workers/test/clamav.test.cjs"
@@ -195,6 +195,12 @@ try {
     # This does not populate tto.source_contract_approvals or grant real authority.
     Run-Node "Phase4F PG17 independent legal source-chain synthetic QA" "node scripts/e2e-phase4f-legal-authority-chain.cjs"
     Run-Node "Phase4G PG17 confidential review shadow" "node scripts/e2e-phase4g-confidential-review-shadow.cjs"
+    # REAL production-build Next BFF and REAL Nest AppModule HTTP handlers in
+    # disposable PG17 only. Transparent loopback relay counts request hops;
+    # independently accepted PDP/PEP execute in shadow, never authorize runtime.
+    # No route registrations, real shareholder source, external SMS or trade.
+    Run-Node "W1 real Next Nest PG17 synthetic authorization and shadow PDP/PEP" "command -v python3 >/dev/null; CI=true TTO_LOOPBACK_E2E=1 TTO_W1_REAL_ROUTE_LAB=1 APIIR_TOKEN= DATABASE_URL= TTO_API_BASE_URL= TEST_ADMIN_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/tto node scripts/e2e-w1-real-next-nest-authorization.cjs"
+
     if ($Suite -eq "Release") {
         # Real end-to-end Chromium through live Nest/Next and this invocation's
         # disposable PG17. No request interception or synthetic HTTP responses.
