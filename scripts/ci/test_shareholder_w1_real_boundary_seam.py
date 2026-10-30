@@ -108,11 +108,13 @@ class W1BoundarySeamContractTests(unittest.TestCase):
 
     def test_07_navigation_and_legal_gates_still_unapproved(self):
         nav=json.loads((ROOT / "docs/analysis/NAVIGATION_CONTRACT.json").read_text(encoding="utf-8"))
-        self.assertEqual(len(nav["roots"]),11)
+        self.assertEqual(nav["implementation_status"], "NOT_IMPLEMENTED")
+        self.assertEqual(nav["canonical_root_count"], 11)
+        self.assertEqual(len(nav["roots"]), 11)
         for root in nav["roots"]:
             self.assertIsNone(root["authoritative_routes"])
             self.assertIsNone(root["permission_policy"])
-            self.assertEqual(root["implementation_status"],"NOT_IMPLEMENTED")
+            self.assertEqual(root["ui_implementation"], "REVIEW_SHELL_ONLY")
         gates=json.loads((ROOT/"docs/contracts/shareholder-w1-operational-gates-design-v0.1.json").read_text(encoding="utf-8"))
         self.assertFalse(gates["runtimeActivationRequested"])
         self.assertFalse(gates["releaseAuthorization"])
