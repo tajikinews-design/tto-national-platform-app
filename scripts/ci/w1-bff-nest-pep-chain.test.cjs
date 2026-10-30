@@ -29,7 +29,7 @@ const state={sessionActive:true,partyBound:true,sourceApproved:true,readRight:tr
 let nestUrl,bffUrl;
 const trace=[];
 function pythonPEP(operation,ctx){
- const child=spawnSync("python3",["scripts/security/w1_isolated_http_bridge.py"],{
+ const child=spawnSync("python3",["-m","scripts.security.w1_isolated_http_bridge"],{
   cwd:ROOT,input:JSON.stringify({operation,context:ctx}),encoding:"utf8",timeout:3500,
   maxBuffer:8192,env:{PATH:process.env.PATH||"/usr/bin:/bin",PYTHONDONTWRITEBYTECODE:"1"}
  });
