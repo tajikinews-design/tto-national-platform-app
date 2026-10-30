@@ -8,11 +8,13 @@ const assert=require("node:assert/strict");
 const http=require("node:http");
 const {randomUUID}=require("node:crypto");
 const {spawnSync}=require("node:child_process");
-const {createRequire}=require("node:module");
+const {createRequire,Module}=require("node:module");
+const {readFileSync}=require("node:fs");
+const {dirname}=require("node:path");
 const {resolve}=require("node:path");
 const ROOT=resolve(__dirname,"../..");
 if(process.env.CI!=="true"||process.env.TTO_LOOPBACK_E2E!=="1"||
-   process.env.TTO_W1_CHAIN_LAB!=="1"||process.env.VERCEL||
+   process.env.TTO_W1_CHAIN_LAB!=="1"||process.env.TTO_W1_BOUNDARY_LAB!=="1"||process.env.VERCEL||
    process.env.APIIR_TOKEN||process.env.DATABASE_URL||process.env.TTO_API_BASE_URL)
  throw Error("TTO_W1_CHAIN_LAB_ONLY");
 const fromNext=createRequire(resolve(ROOT,"apps/shareholder/package.json"));
@@ -22,6 +24,23 @@ const {NextRequest,NextResponse}=fromNext("next/server");
 const {Controller,Post,Req,Module,HttpException}=fromApi("@nestjs/common");
 const {NestFactory}=fromApi("@nestjs/core");
 const {FastifyAdapter}=fromApi("@nestjs/platform-fastify");
+// Load the REAL colocated TypeScript seam modules in the isolated lab only.
+// Transpilation is memory-only; no generated file, app import or route activation.
+const ts=fromNext("typescript");
+function loadSeam(relativePath){
+ const filename=resolve(ROOT,relativePath);
+ const compiled=ts.transpileModule(readFileSync(filename,"utf8"),{
+  fileName:filename,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}
+ }).outputText;
+ const m=new Module(filename,module);
+ m.filename=filename;m.paths=Module._nodeModulePaths(dirname(filename));
+ m._compile(compiled,filename);
+ return m.exports;
+}
+const {prepareW1SyntheticBffCandidate,sanitizeW1SyntheticBffDecision}=
+ loadSeam("apps/shareholder/lib/w1-boundary-seam.ts");
+const {verifyW1SyntheticNestCandidate}=
+ loadSeam("services/api/src/w1-boundary-seam.ts");
 const MARKER="SYNTHETIC_ONLY";
 const tenantA="coop-test-A",tenantB="coop-test-B",ownerA="fixture-owner-A",ownerB="fixture-owner-B";
 const session=randomUUID(),internalToken=randomUUID();
@@ -58,10 +77,27 @@ class LabController {
   if(req.headers["x-w1-lab-channel"]!==internalToken)
    throw new HttpException({code:"INTERNAL_CHANNEL_REQUIRED"},403);
   const input=req.body;
-  if(!input||typeof input!=="object"||!["read","download","export","write"].includes(input.operation)||
-     typeof input.tenant!=="string"||typeof input.owner!=="string")
-   throw new HttpException({code:"INVALID_LAB_REQUEST"},400);
-  const result=pythonPEP(input.operation,decisionContext(input));
+  // Nest independently re-resolves all synthetic proof, never accepts any
+  // tenant/owner/source/permission from the BFF JSON or forged browser headers.
+  const proof={
+   sessionActive:state.sessionActive,tenantKey:tenantA,ownerKey:ownerA,
+   partyBound:state.partyBound,membershipSourceApproved:true,
+   featureEnabled:true,readPermission:state.readRight,
+   sourceApproved:state.sourceApproved,sourceFresh:true,sourceVersion:"SYNTHETIC-V1",
+   classificationAllowed:true,downloadPermission:false,exportPermission:false,
+   writePermission:false
+  };
+  const checked=verifyW1SyntheticNestCandidate(input,proof);
+  if(checked.kind!=="PEP_CANDIDATE"){
+   // Test-only audit metadata; never claims to be production durable audit.
+   const denied={decision:"DENY",reasonCode:checked.reasonCode,
+    requestId:randomUUID(),fixtureTouches:0,auditCount:1,
+    legalOperationalEffect:"NONE",canGrantPermission:false,hasActualRecord:false};
+   trace.push({decision:denied.decision,reasonCode:denied.reasonCode,
+    fixtureTouches:0,requestId:denied.requestId});
+   return denied;
+  }
+  const result=pythonPEP(checked.operation,checked.context);
   trace.push({decision:result.decision,reasonCode:result.reasonCode,
    fixtureTouches:result.fixtureTouches,requestId:result.requestId});
   return result;
@@ -89,22 +125,35 @@ async function handleBFF(nodeRequest,nodeResponse){
  if((m[3]==="write"&&req.method!=="POST")||(m[3]!=="write"&&req.method!=="GET")){
   await response(nodeResponse,fail(405,"METHOD_DENIED"));return;
  }
- if(!state.sessionActive||req.cookies.get("tto_lab_session")?.value!==session){
-  await response(nodeResponse,fail(401,"SESSION_REQUIRED"));return;
+ const preflight=prepareW1SyntheticBffCandidate(req,
+  {tenantKey:m[1],ownerKey:m[2],operation:m[3]},
+  {sessionActive:state.sessionActive,expectedCookie:session,
+   tenantKey:tenantA,ownerKey:ownerA});
+ if(preflight.kind!=="CANDIDATE"){
+  // No Nest request and no source access for BFF-level denial.
+  trace.push({decision:"DENY",reasonCode:preflight.reasonCode,
+   fixtureTouches:0,requestId:randomUUID()});
+  await response(nodeResponse,NextResponse.json({
+   decision:"DENY",reasonCode:preflight.reasonCode,fixtureTouches:0,
+   hasActualRecord:false,canGrantPermission:false
+  },{status:preflight.status,headers:{"Cache-Control":"private, no-store"}}));return;
  }
  try{
   // BFF drops ALL client-supplied identity/role/tenant/approval headers.
   const upstream=await fetch(nestUrl+"/w1-isolated-lab/evaluate",{
    method:"POST",redirect:"error",cache:"no-store",signal:AbortSignal.timeout(4000),
    headers:{"Content-Type":"application/json","x-w1-lab-channel":internalToken},
-   body:JSON.stringify({tenant:m[1],owner:m[2],operation:m[3]})
+   body:JSON.stringify(preflight.candidate)
   });
   if(!upstream.ok){await response(nodeResponse,fail(503,"API_UNAVAILABLE"));return}
-  const result=await upstream.json();
-  const ok=result.decision==="SIMULATED_ALLOW"&&result.canGrantPermission===false&&
-    result.legalOperationalEffect==="NONE"&&result.hasActualRecord===false;
-  await response(nodeResponse,NextResponse.json(result,{
-   status:ok?200:403,headers:{"Cache-Control":"private, no-store"}
+  const raw=await upstream.json();
+  const safe=sanitizeW1SyntheticBffDecision(raw);
+  if(safe.kind!=="VALID"){
+   await response(nodeResponse,fail(503,"UPSTREAM_CONTRACT_INVALID"));return;
+  }
+  await response(nodeResponse,NextResponse.json(safe.response,{
+   status:safe.response.decision==="SIMULATED_ALLOW"?200:403,
+   headers:{"Cache-Control":"private, no-store"}
   }));
  }catch{await response(nodeResponse,fail(503,"CHAIN_UNAVAILABLE"))}
 }
