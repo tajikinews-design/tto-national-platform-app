@@ -17,6 +17,7 @@ if(process.env.CI!=="true"||process.env.TTO_LOOPBACK_E2E!=="1"||
  throw Error("TTO_W1_CHAIN_LAB_ONLY");
 const fromNext=createRequire(resolve(ROOT,"apps/shareholder/package.json"));
 const fromApi=createRequire(resolve(ROOT,"services/api/package.json"));
+fromApi("reflect-metadata");
 const {NextRequest,NextResponse}=fromNext("next/server");
 const {Controller,Post,Req,Module,HttpException}=fromApi("@nestjs/common");
 const {NestFactory}=fromApi("@nestjs/core");
