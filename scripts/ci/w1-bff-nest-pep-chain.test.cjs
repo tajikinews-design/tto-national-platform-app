@@ -8,7 +8,7 @@ const assert=require("node:assert/strict");
 const http=require("node:http");
 const {randomUUID}=require("node:crypto");
 const {spawnSync}=require("node:child_process");
-const {createRequire,Module}=require("node:module");
+const {createRequire,Module:NodeModule}=require("node:module");
 const {readFileSync}=require("node:fs");
 const {dirname}=require("node:path");
 const {resolve}=require("node:path");
@@ -32,8 +32,8 @@ function loadSeam(relativePath){
  const compiled=ts.transpileModule(readFileSync(filename,"utf8"),{
   fileName:filename,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}
  }).outputText;
- const m=new Module(filename,module);
- m.filename=filename;m.paths=Module._nodeModulePaths(dirname(filename));
+ const m=new NodeModule(filename,module);
+ m.filename=filename;m.paths=NodeModule._nodeModulePaths(dirname(filename));
  m._compile(compiled,filename);
  return m.exports;
 }
