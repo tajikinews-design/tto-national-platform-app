@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "0.1-DRAFT",
+  "kind": "W1_REAL_NEXT_NEST_DISPOSABLE_PG_AUTHORIZATION_E2E",
+  "basedOnAcceptedSha": "077a979dd0e1623ef887ec280f126175e9dca28b",
+  "runtimeAuthorizationActivated": false,
+  "operatesOnLiveSources": false,
+  "consentOrLegalApprovalGranted": false,
+  "pepPdpIntegrationMode": "SHADOW_ONLY_NOT_INLINE",
+  "actualNextRouteHandlers": true,
+  "actualNestAppModule": true,
+  "actualPostgresRls": true,
+  "networkScope": "DOCKER_LOOPBACK_NO_PUBLISHED_PORTS",
+  "databaseScope": "DISPOSABLE_POSTGRES17_ONLY",
+  "syntheticTenants": 2,
+  "syntheticUsers": 2,
+  "sourceApprovalRowsForSyntheticTenants": 0,
+  "sourceImportRowsForSyntheticTenants": 0,
+  "testOnlyRuntimeFlag": "TTO_W1_REAL_ROUTE_LAB",
+  "realRouteOperations": {
+    "context": {
+      "method": "GET",
+      "expected": "own tenant returns verified scope, cross-tenant denied"
+    },
+    "memberRecord": {
+      "method": "GET",
+      "expected": "no real source approvals -> 403/no record"
+    },
+    "shareholding": {
+      "method": "GET",
+      "expected": "no real source approvals -> 403/no record"
+    },
+    "tradeRequests": {
+      "method": "GET",
+      "expected": "independent source denied, BFF only calls Nest tenant context"
+    },
+    "tradeSubmit": {
+      "method": "POST",
+      "expected": "HTTP 405 at BFF, no Nest contact"
+    },
+    "notices": {
+      "method": "GET",
+      "expected": "independent source denied, BFF only calls Nest tenant context"
+    }
+  },
+  "assertions": {
+    "anonymousBffNoNestContact": true,
+    "malformedTenantNoNestContact": true,
+    "forgedBrowserHeadersNoNestContact": true,
+    "crossTenantDenial": true,
+    "sourceCanariesNotDisclosed": true,
+    "opaqueSessionRevocation": true,
+    "directNestIndependentDenial": true,
+    "tradeMutationBlocked": true,
+    "pepPdpShadowZeroFixtureTouchesOnDeny": true,
+    "shadowSimulatedAllowHasNoOperationalEffect": true,
+    "noOfficialSourceApprovals": true,
+    "noTradeOrAccountMutations": true
+  },
+  "explicitLimits": [
+    "PEP/PDP not registered in production Next BFF routes or Nest AppModule",
+    "transparent HTTP relay counts BFF-to-Nest calls, not PostgreSQL table reads",
+    "member-record/shareholding Nest source-gated SQL functions may be evaluated before 403; no claim of universal zero SQL source lookup",
+    "test-only synthetic snapshots and in-memory shadow are not government/legal source authority",
+    "technical acceptance is not approval to merge, deploy, trade, mutate accounts or read real shareholder PII"
+  ],
+  "acceptance": {
+    "fullExactShaDockerRelease": true,
+    "exitCode": 0,
+    "expectedMarkers": [
+      "TTO_W1_REAL_NEXT_NEST_PG17_CASES=11/11",
+      "TTO_W1_REAL_NEXT_NEST_PG17_ROUTES=PASS",
+      "TTO_W1_REAL_BFF_ANONYMOUS_NO_NEST_CONTACT=PASS",
+      "TTO_W1_REAL_TRADE_NOTICE_NO_SOURCE_ADAPTER=PASS",
+      "TTO_W1_REAL_TRADE_MUTATION_DISABLED=PASS",
+      "TTO_W1_SHADOW_PEP_PDP_NO_OPERATIONAL_ALLOW=PASS",
+      "TTO_W1_REAL_SOURCE_DISCLOSURE=ZERO",
+      "TTO_W1_REAL_SOURCE_APPROVALS=ZERO",
+      "TTO_W1_REAL_LIVE_OPERATIONS=BLOCKED",
+      "TTO_LOCAL_RELEASE_OCI_FOUR_IMAGE_PASS"
+    ]
+  }
+}
