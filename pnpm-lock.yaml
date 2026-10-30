@@ -14,6 +14,9 @@ importers:
 
   apps/cooperative-management:
     dependencies:
+      '@fontsource-variable/vazirmatn':
+        specifier: 5.2.8
+        version: 5.2.8
       '@tto/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -42,6 +45,9 @@ importers:
 
   apps/national-admin:
     dependencies:
+      '@fontsource-variable/vazirmatn':
+        specifier: 5.2.8
+        version: 5.2.8
       '@tto/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -70,6 +76,9 @@ importers:
 
   apps/shareholder:
     dependencies:
+      '@fontsource-variable/vazirmatn':
+        specifier: 5.2.8
+        version: 5.2.8
       '@tto/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -147,6 +156,9 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@fontsource-variable/vazirmatn@5.2.8':
+    resolution: {integrity: sha512-2YzXfH4PNOeoZsBsgJgjbnm+IC2nonGyMLX3gXLm8FQrP+wpi1uGBIWYWlEzJ0lmntgdyAc3lRViHHfZWKvbog==}
 
   '@angular-devkit/core@19.2.24':
     resolution: {integrity: sha512-Kd49warf6U/EyWe5BszF/eebN3zQ3bk7tgfEljAw8q/rX95UUtriJubWvp6pgzHfzBA4jwq8f+QiNZB8eBEXPA==}
@@ -1707,6 +1719,8 @@ packages:
     engines: {node: '>=18'}
 
 snapshots:
+
+  '@fontsource-variable/vazirmatn@5.2.8': {}
 
   '@angular-devkit/core@19.2.24(chokidar@4.0.3)':
     dependencies:
