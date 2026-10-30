@@ -239,6 +239,83 @@ test("W1 actual Next request boundary -> Nest controller -> Python PEP/PDP, loop
     assert.equal(JSON.stringify(ev).includes(ownerA),false);
    }
   });
+  await t.test("BFF candidate whitelists fields, never user-controlled headers or session",()=>{
+   const req=new NextRequest("http://127.0.0.1/test/tenants/coop-test-A/owners/fixture-owner-A/read",{
+    method:"GET",headers:{
+     Cookie:"tto_lab_session="+session,
+     Authorization:"Bearer browser-forged",
+     "x-role":"PLATFORM_ADMIN","x-tenant-id":tenantB,"x-source-approved":"true",
+     "x-party-id":"person-sensitive","x-w1-lab-channel":internalToken
+    }
+   });
+   const result=prepareW1SyntheticBffCandidate(req,
+    {tenantKey:tenantA,ownerKey:ownerA,operation:"read"},
+    {sessionActive:true,expectedCookie:session,tenantKey:tenantA,ownerKey:ownerA});
+   assert.equal(result.kind,"CANDIDATE");
+   assert.deepEqual(Object.keys(result.candidate).sort(),
+    ["contractVersion","environment","operation","ownerKey","tenantKey"].sort());
+   assert.equal(result.candidate.environment,"SIMULATION");
+   assert.equal(JSON.stringify(result.candidate).includes("Bearer"),false);
+   assert.equal(JSON.stringify(result.candidate).includes(session),false);
+   assert.equal(JSON.stringify(result.candidate).includes("person-sensitive"),false);
+  });
+  await t.test("direct Nest rejects forged internal candidates before touching fixture",async()=>{
+   const valid={contractVersion:"W1_BFF_NEST_SEAM_V0_1",environment:"SIMULATION",
+    tenantKey:tenantA,ownerKey:ownerA,operation:"read"};
+   for(const forged of [
+    {...valid,tenantKey:tenantB},{...valid,ownerKey:ownerB},
+    {...valid,environment:"PRODUCTION"},{...valid,sourceApproved:true},
+    {...valid,contractVersion:"W1_BFF_NEST_SEAM_V9"}
+   ]){
+    const r=await fetch(nestUrl+"/w1-isolated-lab/evaluate",{
+     method:"POST",headers:{"Content-Type":"application/json",
+      "x-w1-lab-channel":internalToken},
+     body:JSON.stringify(forged)
+    });
+    assert.equal(r.status,201);
+    const body=await r.json();
+    assert.equal(body.decision,"DENY");
+    assert.equal(body.fixtureTouches,0);
+    assert.equal(body.hasActualRecord,false);
+   }
+  });
+  await t.test("BFF rejects fake ALLOW, source touch on DENY, leaked fields",()=>{
+   const good={decision:"SIMULATED_ALLOW",reasonCode:"SIMULATION_ONLY",
+    requestId:randomUUID(),fixtureTouches:1,auditCount:1,
+    legalOperationalEffect:"NONE",canGrantPermission:false,hasActualRecord:false};
+   assert.equal(sanitizeW1SyntheticBffDecision(good).kind,"VALID");
+   for(const bad of [
+    {...good,decision:"ALLOW"},{...good,canGrantPermission:true},
+    {...good,hasActualRecord:true},{...good,secret:"DO_NOT_LEAK"},
+    {...good,decision:"DENY",fixtureTouches:1},{...good,requestId:"bogus"},
+    {...good,auditCount:0}
+   ]){
+    assert.equal(sanitizeW1SyntheticBffDecision(bad).kind,"DENY");
+   }
+  });
+  await t.test("production environment bit disables both boundary seams",()=>{
+   const prev=process.env.VERCEL;
+   process.env.VERCEL="1";
+   try{
+    const req=new NextRequest("http://127.0.0.1/test",{
+     method:"GET",headers:{Cookie:"tto_lab_session="+session}
+    });
+    const bff=prepareW1SyntheticBffCandidate(req,
+     {tenantKey:tenantA,ownerKey:ownerA,operation:"read"},
+     {sessionActive:true,expectedCookie:session,tenantKey:tenantA,ownerKey:ownerA});
+    assert.equal(bff.kind,"DENY");assert.equal(bff.reasonCode,"LAB_DISABLED");
+    assert.equal(verifyW1SyntheticNestCandidate({
+     contractVersion:"W1_BFF_NEST_SEAM_V0_1",environment:"SIMULATION",
+     tenantKey:tenantA,ownerKey:ownerA,operation:"read"
+    },{}).kind,"DENY");
+   }finally{
+    if(prev===undefined)delete process.env.VERCEL;
+    else process.env.VERCEL=prev;
+   }
+  });
+  console.log("TTO_W1_REAL_BOUNDARY_SEAM_CONTRACT=PASS");
+  console.log("TTO_W1_SANITIZED_UPSTREAM_ONLY=PASS");
+  console.log("TTO_W1_TEST_ONLY_RUNTIME_GUARD=PASS");
   console.log("TTO_W1_BFF_NEST_PEP_PDP_CHAIN=PASS");
   console.log("TTO_W1_DENIED_FIXTURE_TOUCHES=0");
   console.log("TTO_W1_REAL_DATA_OR_MUTATIONS=NONE");
