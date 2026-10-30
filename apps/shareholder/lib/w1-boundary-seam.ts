@@ -122,6 +122,7 @@ export function sanitizeW1SyntheticBffDecision(raw: unknown): W1Sanitized {
       typeof r.requestId !== "string" || !UUID.test(r.requestId) ||
       r.canGrantPermission !== false ||
       r.legalOperationalEffect !== "NONE" || r.hasActualRecord !== false ||
+      typeof r.fixtureTouches !== "number" || typeof r.auditCount !== "number" ||
       !Number.isSafeInteger(r.fixtureTouches) || !Number.isSafeInteger(r.auditCount) ||
       r.auditCount !== 1 ||
       (r.decision === "DENY" && r.fixtureTouches !== 0) ||
