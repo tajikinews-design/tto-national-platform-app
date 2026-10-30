@@ -33,7 +33,7 @@ class TestFontBuildDeterminism(unittest.TestCase):
         lock=(ROOT/"pnpm-lock.yaml").read_text(encoding="utf-8")
         for app in APPS:
             with self.subTest(app=app):
-                segment=lock.split("  apps/"+app+":\\n",1)[1].split("\\n    devDependencies:",1)[0]
+                segment=lock.split("  apps/"+app+":\n",1)[1].split("\n    devDependencies:",1)[0]
                 self.assertIn("      '@fontsource-variable/vazirmatn':\n        specifier: 5.2.8\n        version: 5.2.8",segment)
         self.assertIn("  '@fontsource-variable/vazirmatn@5.2.8':\n    resolution: {integrity: "+INTEGRITY+"}",lock)
         self.assertIn("snapshots:\n\n  '@fontsource-variable/vazirmatn@5.2.8': {}",lock)
