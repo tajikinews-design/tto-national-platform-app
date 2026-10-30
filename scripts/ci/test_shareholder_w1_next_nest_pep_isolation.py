@@ -10,7 +10,7 @@ class TestW1NextNestPEPIsolation(unittest.TestCase):
         self.assertIn('fromApi("@nestjs/core")',integration)
         self.assertIn('fromApi("@nestjs/platform-fastify")',integration)
         self.assertIn('"127.0.0.1"',integration)
-        self.assertIn('"TTO_W1_CHAIN_LAB"',integration)
+        self.assertIn('process.env.TTO_W1_CHAIN_LAB',integration)
         self.assertIn('"TTO_W1_DENIED_FIXTURE_TOUCHES=0"',integration)
         self.assertNotIn('DATABASE_URL:',integration)
         self.assertNotIn('realShareholder',integration)
