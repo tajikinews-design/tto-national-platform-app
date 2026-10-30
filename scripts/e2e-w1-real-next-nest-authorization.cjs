@@ -258,6 +258,18 @@ async function run(){
     eq(r.body.available,false,"never grants other tenant resource");
    }
   }
+  // Valid cookie, but browser requests an unrelated owner via forged headers.
+  // The existing /me route has no owner selector: never trust X-Party/Owner.
+  for(const domain of ["member-record","shareholding"]){
+   const before=requests.length;
+   const r=await jsonCall(APP,path(A,domain),TOKEN_A,{headers:{
+    "X-Tenant-Id":B,"X-Party-Id":PARTY_B,"X-Owner-Id":USER_B,
+    "X-Role":"PLATFORM_ADMIN","X-Source-Approved":"true"
+   }});
+   denied(r,403,"valid session cannot select other owner via headers");
+   eq(r.body.available,false,"forged same-route ownership ignored");
+   ok(requests.length===before+1,"only actual scoped Nest resource call occurs");
+  }
  });
  await one("trade and notice routes cannot be unlocked by valid session or source claims",async()=>{
   for(const domain of ["trade-requests","notices"]){
