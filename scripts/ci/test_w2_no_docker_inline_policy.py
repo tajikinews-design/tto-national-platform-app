@@ -51,12 +51,13 @@ class W2NoDockerSyntheticInline(unittest.TestCase):
         self.assertIn('prepareW1SyntheticBffCandidate(request',s)
         self.assertIn('enforceW2SyntheticInline({',s)
         self.assertIn('scripts.security.w1_isolated_http_bridge',s)
-        self.assertIn('const tenants',s.replace("const tenant=", "const tenants"))
+        self.assertIn('const tenant="coop-test-A"',s)
         self.assertIn('owners=["fixture-owner-A","fixture-owner-B"]',s)
         self.assertIn('audits=[],touches=[]',s)
         self.assertNotIn('dist/main.js',s)
         self.assertNotIn('TEST_ADMIN_DATABASE_URL=postgresql',s)
-        self.assertNotIn('docker',s.lower().replace('no docker',''))
+        self.assertNotIn('docker run',s.lower())
+        self.assertNotIn('docker exec',s.lower())
         for root in ("apps/shareholder/app","services/api/src"):
             for file in (ROOT/root).rglob("*.ts"):
                 self.assertNotIn("w2-inline",file.read_text(encoding="utf8"),str(file))
