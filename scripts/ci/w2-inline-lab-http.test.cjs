@@ -52,7 +52,7 @@ const byHandle=new Map();
 const audits=[],touches=[];
 let nestRequests=0;
 const current={policyMode:"normal",auditFail:false,sourceApproved:true,
- resumePolicy:null};
+ resumePolicy:null,injectNestResponse:null};
 for(let i=0;i<2;i++){
  const proof={sessionActive:true,tenantKey:tenant,ownerKey:owners[i],
   partyBound:true,membershipSourceApproved:true,featureEnabled:true,
@@ -103,11 +103,18 @@ class W2Controller{
    throw new HttpException({code:"INTERNAL_CHANNEL_REQUIRED"},403);
   const handle=req.headers["x-w2-synthetic-handle"];
   const actor=byHandle.get(handle);
-  return enforceW2SyntheticInline({
+  const decision=await enforceW2SyntheticInline({
    candidate:req.body,
    proof:actor?.proof,
    policy,audit:{record:safeAudit},source,deadlineMs:30
   });
+  // Adversarial test-only upstream corruption: ensure the BFF never forwards
+  // an untrusted Nest response verbatim. This is NOT an application controller.
+  if(current.injectNestResponse==="extra")
+   return {...decision,privateAccount:"PRIVATE_SYNTHETIC_CANARY"};
+  if(current.injectNestResponse==="allow")
+   return {...decision,decision:"ALLOW",canGrantPermission:true};
+  return decision;
  }
 }
 Req()(W2Controller.prototype,"evaluate",0);
@@ -374,6 +381,25 @@ test("W2 real HTTP NextRequest -> Nest lab inline Python PDP/PEP -> fake source,
   }
  });
  console.log("TTO_W2_STRICT_RESPONSE_ALLOWLIST=PASS");
+
+ await t.test("BFF rejects corrupted actual Nest response without leaking fields",async()=>{
+  for(const corruption of ["extra","allow"]){
+   const before=touches.length;
+   current.injectNestResponse=corruption;
+   try{
+    const r=await call(relative(),{user:0});
+    assert.equal(r.status,503);
+    assert.equal(r.body.decision,"DENY");
+    assert.equal(r.body.reasonCode,"UPSTREAM_CONTRACT_INVALID");
+    assert.equal(r.body.sourceTouches,null,"BFF cannot assert zero touches after upstream error");
+    assert.equal(r.body.canGrantPermission,false);
+    assert.equal(r.body.hasActualRecord,false);
+    assert.equal(JSON.stringify(r.body).includes("PRIVATE_SYNTHETIC_CANARY"),false);
+    assert.equal(touches.length,before+1,"the fake upstream ran, but BFF leaked no body");
+   }finally{current.injectNestResponse=null}
+  }
+ });
+ console.log("TTO_W2_BFF_REJECTS_CORRUPT_NEST_PAYLOAD=PASS");
 
  await t.test("revocation DURING async policy rejects before fake source touch",async()=>{
   const actor=actors.get(cookies[0]);
