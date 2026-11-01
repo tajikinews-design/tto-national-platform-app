@@ -213,6 +213,50 @@ class W24SyntheticAuditJournal{
   }
   return Object.freeze({...state,valid:true});
  }
+ /**
+  * Reconstruct per-request causal traces from already hash-verified events.
+  * This flags missing/duplicated/out-of-order BFF/Nest/PDP stages. A file hash
+  * chain alone would not establish that the BFF actually recorded all stages.
+  * Call only after all synthetic HTTP requests have settled.
+  */
+ async verifyTraces(){
+  const checked=await this.verify();
+  const raw=await fs.readFile(join(this.dir,"events.ndjson"),"utf8");
+  const events=raw?raw.trimEnd().split("\n").map(x=>JSON.parse(x)):[];
+  const grouped=new Map();
+  for(const e of events){
+   const arr=grouped.get(e.requestId)||[];
+   arr.push(e);grouped.set(e.requestId,arr);
+  }
+  let completed=0,preflightDenials=0,simulatedOnly=0;
+  for(const [,rows] of grouped){
+   const phases=rows.map(e=>e.phase).join(">");
+   const a=rows[0];
+   if(!a||a.phase!=="BFF_PREFLIGHT"||
+      rows.at(-1)?.phase!=="BFF_RESPONSE"||
+      rows.at(-1)?.decision!=="DENY")
+    throw fail("AUDIT_TRACE_INCOMPLETE");
+   if(a.decision==="DENY"){
+    if(phases!=="BFF_PREFLIGHT>BFF_RESPONSE")
+     throw fail("AUDIT_TRACE_INVALID");
+    preflightDenials++;
+   }else{
+    const nest=rows[1];
+    if(!nest||nest.phase!=="NEST_SCOPE")
+     throw fail("AUDIT_TRACE_INCOMPLETE");
+    if(nest.decision==="DENY"){
+     if(phases!=="BFF_PREFLIGHT>NEST_SCOPE>BFF_RESPONSE")
+      throw fail("AUDIT_TRACE_INVALID");
+    }else if(phases!=="BFF_PREFLIGHT>NEST_SCOPE>PDP_RESULT>BFF_RESPONSE"){
+     throw fail("AUDIT_TRACE_INCOMPLETE");
+    }
+    if(rows.some(e=>e.decision==="SIMULATED_ONLY"))simulatedOnly++;
+   }
+   completed++;
+  }
+  return Object.freeze({valid:true,requestCount:completed,
+   preflightDenials,simulatedOnly,eventCount:checked.sequence});
+ }
  async close(){
   await this.queue;
   if(this.closed)return;
