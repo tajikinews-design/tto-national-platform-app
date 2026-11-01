@@ -96,3 +96,9 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - CI-only noncanonical migration 0011 applied only for disposable test, no real shares changed, no live Child06/Child07 approved. Manager Next page and shareholder Next authenticated screen NOT connected to this real endpoint yet.
 - WAVE-0 G3 owner signoff PENDING; WAVE-1 **PARTIAL IMPLEMENTATION — REAL SERVER/PG TEST PASS, UI + approved source gates blocked**. WAVE-2/3 NOT_STARTED.
 - NEXT: TTO-PCS-011 Next cooperative-management BFF uses the actual Nest authorization and response with a real PG test session, then guarded browser approval, audit status view; integrate shareholder only after separate source/Party approval. Avoid relabeling synthetic UI as official, no merge/deploy.
+
+## PCS-011 exact-head verified (2026-11-01)
+- App Draft PR #101, branch feat/tto-pcs-011-manager-real-pg-bff-20261101, exact SHA 34f9ad6dcf14f008e6e96684d292b74f1abb844c. GitHub Actions run 41310870892 job 124860764292 COMPLETED SUCCESS.
+- Cooperative manager Next route /review/pcs011/[tenantId] added with Persian RTL review count, approve and refresh actions; server BFF GET/POST forwards existing opaque session to Nest, never browser role headers. Nest GET role-gated synthetic PG audit count; POST existing role-gated fake fixture review and immutable record in PG.
+- Verified HTTP cross-app BFF Nest PostgreSQL with synthetic users and actual test sessions; no-session/member/cross-origin rejected; record count increases and persists within disposable database. Test not a Chromium screenshot or complete official shareholder workflow.
+- No merge/deploy. Wave-0 owner acceptance G3 pending. Wave-1 real official source Child06/Child07 not approved. Next: human review of manager page and optional Chromium with test sessions, design official source provenance and verified Party link. Preserve fixture-only boundaries.
