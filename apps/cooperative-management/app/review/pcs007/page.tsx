@@ -1,5 +1,5 @@
 export const dynamic="force-dynamic";
-const allowed=()=>process.env.CI==="true"&&process.env.TTO_PCS007_LAB==="1"&&process.env.NODE_ENV==="test"&&!process.env.VERCEL&&!process.env.DATABASE_URL&&!process.env.TTO_API_BASE_URL;
+const allowed=()=>process.env.CI==="true"&&process.env.TTO_PCS007_LAB==="1"&&!process.env.VERCEL&&!process.env.DATABASE_URL&&!process.env.TTO_API_BASE_URL;
 export default async function DemoManager(){
  if(!allowed())return <main dir="rtl"><h1>آزمایش تأیید عضویت غیرفعال است</h1></main>;
  let state="منبع آزمایشی در دسترس نیست";
