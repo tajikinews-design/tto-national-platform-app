@@ -1,4 +1,49 @@
-import type { W1PdpContext, W1ServerLabProof } from "./w1-boundary-seam";
+/**
+ * Independently declared synthetic-only proof and PDP context shapes.
+ * Avoid importing a security seam into other API source files: the accepted
+ * W1 static audit explicitly forbids such coupling, even as type-only imports.
+ */
+export type W23SyntheticServerProof = {
+  sessionActive: boolean;
+  tenantKey: string;
+  ownerKey: string;
+  partyBound: boolean;
+  membershipSourceApproved: boolean;
+  featureEnabled: boolean;
+  readPermission: boolean;
+  sourceApproved: boolean;
+  sourceFresh: boolean;
+  sourceVersion: string;
+  classificationAllowed: boolean;
+  downloadPermission: boolean;
+  exportPermission: boolean;
+  writePermission: boolean;
+};
+export type W23SyntheticPdpContext = {
+  environment: "SIMULATION";
+  session: "ACTIVE";
+  tenantMatch: true;
+  partyBound: true;
+  membershipSourceApproved: true;
+  featureEnabled: boolean;
+  permission: boolean;
+  sourceApproved: boolean;
+  sourceStatus: "APPROVED";
+  sourceFresh: boolean;
+  sourceVersion: string;
+  selfResource: true;
+  classificationAllowed: boolean;
+  downloadPermission: boolean;
+  exportPermission: boolean;
+  writePermission: boolean;
+  reauth: false;
+  csrf: false;
+  idempotency: null;
+  versionMatched: false;
+  ruleSnapshot: null;
+  paymentState: "NONE";
+  ownershipFinalizationApproved: false;
+};
 
 /**
  * W2.3 DORMANT Nest-side boundary contract. DO NOT import into AppModule,
@@ -25,7 +70,7 @@ export type W23NestDraftResult =
       kind: "SYNTHETIC_PDP_CANDIDATE";
       operation: "read";
       requestId: string;
-      context: W1PdpContext;
+      context: W23SyntheticPdpContext;
       signal: AbortSignal;
     };
 
@@ -74,7 +119,7 @@ function keysAreExact(value: Record<string, unknown>, keys: readonly string[]): 
  * database nor calls any source connector or returns an authorized principal.
  */
 export function verifyW23DormantNestEnvelope(
-  wire: unknown, serverProof: W1ServerLabProof, signal: AbortSignal
+  wire: unknown, serverProof: W23SyntheticServerProof, signal: AbortSignal
 ): W23NestDraftResult {
   const deny = (code: string): W23NestDraftResult =>
     ({ kind: "DENY", status: 403, code });
