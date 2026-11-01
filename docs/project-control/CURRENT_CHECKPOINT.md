@@ -46,3 +46,11 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - Earlier CI attempt 41302692961 failed due to mistyped path in new PCS test; fixed in exact accepted candidate SHA above. Preserve both run IDs as evidence; do not mark initial failed run green.
 - **NO real PostgreSQL 17 + Nest HTTP end-to-end on this new SHA**, no final Chromium browser acceptance, no pilot official Child06/Child07 source, no merge, no deploy. Wave-0 IN_PROGRESS, Wave-1 BLOCKED, Wave-2/3 NOT_STARTED.
 - NEXT: authorized isolated PostgreSQL/HTTP/Chromium full integration validation of a reviewed consolidating candidate; determine legal data owner/pilot before first operational shareholder flow. Require explicit approval prior to merge or deployment.
+
+## PCS-005 — isolated integration acceptance check 2026-11-01
+- App candidate Draft PR #90, branch integration/tto-pcs-005-full-validation-20261101, latest reviewed SHA 064ef8b27b280526468b540291299d49e08347d6. No merge/deploy.
+- Exact run 41303284573 succeeded: Next/Nest build and TypeScript, temporary Chromium shareholder/cooperative at widths 390/1440, ephemeral PG17 all migrations 0001..0010 and real Next/Nest tenant/identity/source E2E.
+- Release run 41303499601 failed only at OCI shell variable rendering \`label_PASS\` (prior SQL/OTP/browser/PG passed). Repair to shell string interpolation at app SHA 064ef8b27b280526468b540291299d49e08347d6.
+- Corrected full-release run 41303773442 currently PENDING final confirmation; do not mark green until job completes.
+- Separate gaps: browser is synthetic-only and does not authenticate a manager; pilot and Child06/Child07 source legal approvals missing; no final owner merger acceptance. Wave-0 IN_PROGRESS / G3 NOT ACCEPTED.
+- Next: review exact-head full release including OCI PASS and remediate if required, then seek user-approved consolidation and pilot data authority.
