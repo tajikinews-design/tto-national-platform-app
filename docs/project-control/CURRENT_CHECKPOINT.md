@@ -24,3 +24,10 @@ Review OPEN_PR_DEPENDENCY_INVENTORY.json and proposed safe consolidation of the 
 
 ## Resume
 Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR_DEPENDENCY_INVENTORY.json, DECISION_REGISTER.md, RISK_AND_BLOCKERS.md, ACCEPTANCE_REGISTER.json and WAVE_EXECUTION_CONTRACTS.md. Re-fetch live branch heads before changes and update this checkpoint after each mission. Never auto merge/deploy.
+
+## PCS-002 audit addendum — 2026-11-01
+- A new documentation-only integration audit was prepared in branch docs/tto-pcs-002-integration-audit-20261101, inherited from PCS PR #85 head 1debdbda2f828e6a716f82133f5ba8c408ab4693.
+- The #84 candidate app PR ancestry from #1 includes 76 of the 80 open app PRs; side PRs #43, #44, #64, #73 are **not** in the #84 base/head path. Compare them individually; do not assume their patches are missing or already included.
+- Reuse guidance, mandatory real-database tests and Wave-0 safe integration proposal recorded in TTO_PCS_002_INTEGRATION_AUDIT.md.
+- NO code or database changed; no CI run on consolidated app branch, no merge/deploy or legal source approval. Wave-0 remains IN_PROGRESS, G3 pending. Wave 1 remains BLOCKED.
+- Next action: exact-patch comparison of four off-path PRs against #84 tree and final safe candidate build/test plan, then owner review of consolidation. Never auto merge.
