@@ -27,11 +27,15 @@ function exact(obj,fields){
 function runSignedPdp({
  requestId,context,manifest,publisherPublicPem,signal,evaluatedAtMs,
  delayMs=0,timeoutMs=1200,
- tamperResponse=null,tamperManifest=null,expectedSignerKeyId=null
+ tamperResponse=null,tamperManifest=null,expectedSignerKeyId=null,
+ onSignerReady=null,checkSigner=null
 }={}){
  if(!labOnly()||!(signal instanceof AbortSignal)||
     signal.aborted||typeof requestId!=="string")
   return Promise.reject(Error("W26_PDP_INPUT_DENIED"));
+ if((onSignerReady!==null&&typeof onSignerReady!=="function")||
+    (checkSigner!==null&&typeof checkSigner!=="function"))
+  return Promise.reject(Error("W27_TRUST_CALLBACK_INVALID"));
  if(!Number.isSafeInteger(timeoutMs)||timeoutMs<1||timeoutMs>2000||
     !Number.isSafeInteger(delayMs)||delayMs<0||delayMs>500)
   return Promise.reject(Error("W26_TIME_INVALID"));
@@ -96,7 +100,19 @@ function runSignedPdp({
     }catch{return finish(Error("W26_SIGNER_NOT_PINNED"))}
     // This is a local, per-child ephemeral pinned public key, NOT production
     // externally authenticated public-key distribution.
-    verifiedKey={pem:m.publicPem,keyId:m.signerKeyId};
+    verifiedKey=Object.freeze({pem:m.publicPem,keyId:m.signerKeyId});
+    if(onSignerReady!==null){
+     // A separate root-signed trust authority must authorize the exact
+     // key returned by this trusted locally launched child before DECIDE.
+     let approved=false;
+     try{approved=onSignerReady(verifiedKey)===true}catch{}
+     if(!approved)return finish(Error("W27_SIGNER_ENROLLMENT_DENIED"));
+    }
+    if(checkSigner!==null){
+     let trusted=false;
+     try{trusted=checkSigner(verifiedKey)===true}catch{}
+     if(!trusted)return finish(Error("W27_SIGNER_UNTRUSTED_BEFORE_PDP"));
+    }
     ready=true;
     try{child.stdin.end(JSON.stringify(input)+"\n");}
     catch{return finish(Error("W26_PDP_INPUT_UNAVAILABLE"))}
@@ -118,6 +134,11 @@ function runSignedPdp({
    };
    if(!verifyDecision(signed,verifiedKey.pem,expected))
     return finish(Error("W26_SIGNATURE_OR_BINDING_INVALID"));
+   if(checkSigner!==null){
+    let stillTrusted=false;
+    try{stillTrusted=checkSigner(verifiedKey)===true}catch{}
+    if(!stillTrusted)return finish(Error("W27_SIGNER_REVOKED_AFTER_PDP"));
+   }
    finish(null,Object.freeze({
     signed:Object.freeze({...signed}),signerKeyId:verifiedKey.keyId,
     publicPem:verifiedKey.pem,nonce
