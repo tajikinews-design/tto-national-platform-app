@@ -231,7 +231,7 @@ jobs:
           node --check scripts/security/w26-signed-pdp-gateway.cjs
           node --check scripts/security/w26-signed-pdp-enforcer.cjs
           node --check scripts/ci/w26-signed-pdp-policy.test.cjs
-          node --test scripts/ci/w26-signed-pdp-policy.test.cjs
+          timeout --signal=TERM --kill-after=5s 90s node --test scripts/ci/w26-signed-pdp-policy.test.cjs
           echo "TTO_W26_GITHUB_ACTIONS_NO_DOCKER=PASS"
       - name: Offline SMS safety, scanner protocol, Preview classifier and Next smoke
         if: steps.scope.outputs.suite != 'lite'
