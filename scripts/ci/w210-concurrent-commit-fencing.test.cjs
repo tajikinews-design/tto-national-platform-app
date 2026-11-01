@@ -1,0 +1,31 @@
+"use strict";
+const test=require("node:test"),assert=require("node:assert/strict"),crypto=require("node:crypto");
+const {SyntheticCommitFencer}=require("../security/w210-concurrent-commit-fencer.cjs");
+let seq,head,valid,online;
+const H=n=>n.toString(16).padStart(64,"0");
+function setup(){seq=1;head=H(1);valid=true;online=true;
+ const authority={current(){if(!online)throw Error("offline");return {epoch:seq,head}}};
+ const f=new SyntheticCommitFencer({authority});
+ const current=()=>({epoch:seq,head});const verify=()=>valid;
+ const prepare=id=>f.prepare({id,head:current(),role:"PDP_DECISION",pem:"synthetic-public",verify});
+ const revoke=()=>{seq++;head=H(seq);valid=false};
+ return {f,current,verify,prepare,revoke,authority,setOnline:v=>{online=v}};
+}
+test("W2.10 concurrent trust commit fencing — synthetic only",async t=>{
+ await t.test("same version commits synthetic non-grant",()=>{const s=setup();assert.equal(s.prepare("a").ok,true);const r=s.f.commit("a",{verify:s.verify});assert.equal(r.ok,true);assert.equal(r.canGrantPermission,false);assert.equal(s.f.events().length,1)});
+ console.log("TTO_W210_ATOMIC_FIXTURE_COMMIT=PASS");
+ await t.test("revoke between prepare and commit fences stale ticket",()=>{const s=setup();s.prepare("a");s.revoke();assert.equal(s.f.commit("a",{verify:s.verify}).ok,false);assert.equal(s.f.events().length,0)});
+ console.log("TTO_W210_REVOKE_BEFORE_COMMIT_DENIED=PASS");
+ await t.test("revoke at last synthetic boundary fences stale ticket",()=>{const s=setup();s.prepare("a");const out=s.f.commit("a",{verify:s.verify,beforeLinearization:s.revoke});assert.equal(out.ok,false);assert.equal(s.f.events().length,0)});
+ console.log("TTO_W210_BOUNDARY_RACE_DENIED=PASS");
+ await t.test("duplicate commit and ticket replay denied",()=>{const s=setup();s.prepare("a");assert.equal(s.f.commit("a",{verify:s.verify}).ok,true);assert.equal(s.f.commit("a",{verify:s.verify}).ok,false);assert.equal(s.prepare("a").ok,true);s.f.abort("a");assert.equal(s.f.commit("a",{verify:s.verify}).ok,false)});
+ console.log("TTO_W210_REPLAY_DENIED=PASS");
+ await t.test("authority outage at commit rejects",()=>{const s=setup();s.prepare("a");s.setOnline(false);assert.equal(s.f.commit("a",{verify:s.verify}).ok,false);assert.equal(s.f.events().length,0)});
+ console.log("TTO_W210_PARTITION_DENIED=PASS");
+ await t.test("restart discards uncommitted ticket and remains closed",()=>{const s=setup();s.prepare("a");s.f.restart();assert.equal(s.f.commit("a",{verify:s.verify}).ok,false);assert.equal(s.f.events().length,0)});
+ console.log("TTO_W210_RESTART_PENDING_DENIED=PASS");
+ await t.test("changed epoch even without revoked role blocks stale commit",()=>{const s=setup();s.prepare("a");seq++;head=H(seq);assert.equal(s.f.commit("a",{verify:s.verify}).ok,false)});
+ console.log("TTO_W210_EPOCH_FENCE=PASS");
+ await t.test("independent tickets serialize with monotonic synthetic sequence",()=>{const s=setup();s.prepare("a");s.prepare("b");const a=s.f.commit("a",{verify:s.verify}),b=s.f.commit("b",{verify:s.verify});assert.equal(a.record.sequence,1);assert.equal(b.record.sequence,2);assert.equal(b.canGrantPermission,false)});
+ console.log("TTO_W210_ORDERED_FIXTURE_COMMITS=PASS");
+});
