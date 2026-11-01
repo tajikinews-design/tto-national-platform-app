@@ -89,3 +89,10 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - Owner Wave-0 G3 still PENDING, official Child06 and Child07 source approvals missing. Wave-1 remains IN_PROGRESS (synthetic slice only, no operational acceptance).
 - No Merge/Deploy, real persons, real shares, financial transactions.
 - NEXT: implement real Nest/PG-backed, tenant-scoped manager workflow only after approved role delegation and source contract; first design and test isolated validated fixtures against existing real session/tenant gates, then wire authorized shareholder read. Reference TTO_PCS_009_AUTH_AUDIT_GAPS.md.
+
+## PCS-010 verified bounded real Nest/PostgreSQL fixture review (2026-11-01)
+- App Draft PR #99 branch feat/tto-pcs-010-nest-pg-validated-fixtures-20261101 exact HEAD a073e9638f0414377afffc21eded1b10f6217250, descended from Draft PR #97. CI run 41309869200 job 124857797398 COMPLETE SUCCESS.
+- Real Nest opaque session resolved from PostgreSQL, real tenant COOPERATIVE_MANAGER role checked, fictional fixture approval appended to PostgreSQL audit. Negative scenarios missing session, MEMBER role, wrong tenant, duplicate or invalid reference denied.
+- CI-only noncanonical migration 0011 applied only for disposable test, no real shares changed, no live Child06/Child07 approved. Manager Next page and shareholder Next authenticated screen NOT connected to this real endpoint yet.
+- WAVE-0 G3 owner signoff PENDING; WAVE-1 **PARTIAL IMPLEMENTATION — REAL SERVER/PG TEST PASS, UI + approved source gates blocked**. WAVE-2/3 NOT_STARTED.
+- NEXT: TTO-PCS-011 Next cooperative-management BFF uses the actual Nest authorization and response with a real PG test session, then guarded browser approval, audit status view; integrate shareholder only after separate source/Party approval. Avoid relabeling synthetic UI as official, no merge/deploy.
