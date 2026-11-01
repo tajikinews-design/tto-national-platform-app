@@ -485,7 +485,7 @@ export class Pcs010FixtureController {
       "SELECT tto.has_tenant_role($1,'COOPERATIVE_MANAGER') AS allowed",[tenant]);
     if(allowed.rows[0]?.allowed!==true)throw new ForbiddenException("Manager role required");
     const history=await client.query<{id:string;fixture_ref:string;event_kind:string;recorded_at:string}>(
-      "SELECT review_id::text AS id,fixture_ref,event_kind,recorded_at FROM tto.pcs010_fixture_reviews WHERE tenant_id=$1 ORDER BY recorded_at DESC,review_id DESC LIMIT 30",[tenant]);
+      "SELECT id::text,fixture_ref,event_kind,recorded_at FROM tto.pcs012_fixture_review_history($1)",[tenant]);
     return {kind:"SYNTHETIC_ONLY",official:false,canTrade:false,items:Number(count.rows[0]?.n??"0"),
       events:history.rows.map(e=>({id:e.id,fixtureRef:e.fixture_ref,status:e.event_kind,recordedAt:e.recorded_at}))};
   });
