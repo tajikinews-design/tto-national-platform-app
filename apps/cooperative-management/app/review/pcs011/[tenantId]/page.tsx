@@ -18,7 +18,7 @@ export default function Pcs011ManagerReview(){
  useEffect(()=>{void refresh()},[tenantId]);
  async function approve(){
   setBusy(true);
-  try{const r=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json"},credentials:"same-origin",body:JSON.stringify({fixtureRef:"PCS010-FAKE-MANAGER-0001"})});
+  try{const r=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json"},credentials:"same-origin",body:JSON.stringify({fixtureRef:"PCS010-FAKE-MANAGER-0002"})});
    if(!r.ok){setMessage(r.status===409?"این تأیید قبلاً ثبت شده است":"تأیید مجاز نیست");return}
    setMessage("تأیید ساختگی در PostgreSQL ثبت شد");await refresh();
   }catch{setMessage("خطا در ثبت آزمایشی")}finally{setBusy(false)}
