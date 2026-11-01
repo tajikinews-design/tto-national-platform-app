@@ -53,3 +53,10 @@ Verify final PR SHA and full-release Actions run; correct any exact CI failure w
 | operational owner | approve any separate main Merge and production deployment | NO AUTHORITY GRANTED |
 
 **Recommendation:** technical eligibility for *G3 review* can be declared only after a successful complete Release on exact consolidated SHA. Administrative G3 ACCEPTED and live-data pilot authorization remain distinct, and neither is being issued by this memo.
+
+## Observed exact-head CI attempts (no PASS)
+- Candidate SHA f36bb5d8371f3ad6964c09d3c430d3fd366c366a (before this evidence update), PR #109.
+- Run 41322689067 first job 124896073774: CANCELLED during early full release flow (after install/build stage, before final integration/OCI conclusion).
+- Explicit rerun of same job succeeded as an API action, job 124896624370, but second attempt also CANCELLED. There is **no verified green full-release** on this integrated branch. Underlying cancellation cause is not established; do not infer test failure or success.
+- This addendum itself changes the candidate HEAD and would require a new exact-head run after cancellation cause is resolved.
+- Wave 0 G3 NOT ACCEPTED; do not merge, deploy, or activate official sources.
