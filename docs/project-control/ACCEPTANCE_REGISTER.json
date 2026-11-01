@@ -18,5 +18,21 @@
       "scope": "synthetic IPC+journal"
     }
   ],
-  "requirement": "Evidence of each gate G0-G3 and legal/data authority required for ACCEPTED; no production acceptance inferred"
+  "requirement": "Evidence of each gate G0-G3 and legal/data authority required for ACCEPTED; no production acceptance inferred",
+  "pcs010": {
+    "scope": "FICTIONAL_REVIEW_AUDIT_ONLY",
+    "status": "VERIFIED_LIMITED_REAL_NEST_PG",
+    "appPR": 99,
+    "sha": "a073e9638f0414377afffc21eded1b10f6217250",
+    "run": 41309869200,
+    "job": 124857797398,
+    "conclusion": "success",
+    "notAccepted": [
+      "manager Next BFF",
+      "authenticated shareholder own sourced holdings",
+      "legal source and Party link",
+      "Wave 0 G3 signoff",
+      "production merge/deploy"
+    ]
+  }
 }
