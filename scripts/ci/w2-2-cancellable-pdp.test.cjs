@@ -157,10 +157,10 @@ test("W2.2 async PDP child lifecycle and hard fail-closed rules",async t=>{
  console.log("TTO_W22_PREABORT_NO_CHILD=PASS");
 
  await t.test("PDP crash, malformed JSON and excessive output all fail closed",async()=>{
-  for(const mode of ["crash","invalid","oversize"]){
+  for(const mode of ["crash","invalid","schema","oversize"]){
    const {fixture,input}=apply(owners[0],mode,{deadlineMs:1500});
    const result=await enforceW2SyntheticInline(input);
-   denied(result,fixture,"PDP_UNAVAILABLE");
+   denied(result,fixture,mode==="schema"?"DECISION_INVALID":"PDP_UNAVAILABLE");
    await quiescent();
   }
  });
