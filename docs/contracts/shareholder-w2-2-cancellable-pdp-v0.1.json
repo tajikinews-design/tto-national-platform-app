@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "0.1-DRAFT",
+  "kind": "W2_2_CANCELLABLE_NONBLOCKING_SYNTHETIC_PDP",
+  "baselineAcceptedSha": "ac4a94c93d15c141844a95cab80a2223fcd9a548",
+  "approvedStatus": "NOT_APPROVED",
+  "ciScope": "EXACT_DRAFT_BRANCH_GITHUB_ACTIONS_NO_DOCKER",
+  "usesDockerOrDatabase": false,
+  "realRoutesModified": false,
+  "productionInlinePEP": false,
+  "canGrantPermission": false,
+  "legalOperationalEffect": "NONE",
+  "policyTransport": {
+    "runner": "Node child_process.spawn without shell",
+    "trustedProgram": "python3 -m scripts.security.w1_isolated_http_bridge",
+    "maliciousChildFixtures": [
+      "hang",
+      "late",
+      "crash",
+      "invalid",
+      "oversize"
+    ],
+    "inputCapBytes": 8192,
+    "outputCapBytes": 8192,
+    "environment": "MINIMAL_ALLOWLIST_NO_INHERITED_SECRETS",
+    "abortSignal": "required, propagates to SIGKILL of isolated child",
+    "childCleanup": "close event removes from active tracker",
+    "timeout": "monotonic time; default 150 ms, configured 1-2000 ms",
+    "responseAfterDeadline": "DENY, never permitted to reach synthetic source",
+    "requestDisconnect": "external AbortSignal; fake HTTP BFF and Nest socket close propagate abort",
+    "proofRecheck": [
+      "initial server snapshot",
+      "after PDP settlement",
+      "after synthetic audit before source"
+    ]
+  },
+  "expectedDecisions": [
+    "DENY",
+    "SIMULATED_ALLOW"
+  ],
+  "allowedOperations": [
+    "read"
+  ],
+  "forbiddenOperations": [
+    "download",
+    "export",
+    "write",
+    "trade",
+    "finalize"
+  ],
+  "checks": [
+    "actual W1 Python bridge async subprocess normal path",
+    "process remains nonblocking; signal abort kills hang",
+    "timeout kills child and denies without fake source touch",
+    "late simulated positive never revives expired authorization",
+    "pre-aborted request cannot launch child",
+    "client disconnect abort denies and kills child",
+    "crash, malformed JSON, oversized stdout denied",
+    "in-flight ownership change denies positive",
+    "non-cooperating provider late resolution ignored",
+    "independent concurrent owners, one abort cannot approve another",
+    "all child processes reaped after cases",
+    "no operational ALLOW / no real source"
+  ],
+  "limitations": [
+    "W1 Python bridge remains synthetic-only",
+    "No real Next App Router or Nest AppModule registration",
+    "No actual shareholder identifiers, legal source approvals or trades",
+    "No database and no physical SQL-touch evidence",
+    "Only ephemeral in-memory audit; no durable event chain",
+    "Child termination is explicitly tested on Linux GitHub runner, not all OS/process trees",
+    "Local Promise or external cancel prevents new source reads; cancellation cannot undo already completed fake source operations",
+    "Full Docker/OCI release deferred by user request",
+    "Automatic Vercel Preview statuses may occur separately via existing integration; no production release"
+  ],
+  "requiredMarkers": [
+    "TTO_W22_ASYNC_PYTHON_PDP_INLINE=PASS",
+    "TTO_W22_OS_CHILD_ABORT_AND_REAP=PASS",
+    "TTO_W22_HANG_DEADLINE_FAIL_CLOSED=PASS",
+    "TTO_W22_LATE_POSITIVE_DISCARDED=PASS",
+    "TTO_W22_REQUEST_DISCONNECT_ABORTS_PDP=PASS",
+    "TTO_W22_PREABORT_NO_CHILD=PASS",
+    "TTO_W22_BAD_TRANSPORT_RESPONSE_DENIED=PASS",
+    "TTO_W22_INFLIGHT_OWNER_REVOKED=PASS",
+    "TTO_W22_IGNORED_ABORT_LATE_RESULT_DENIED=PASS",
+    "TTO_W22_CONCURRENT_TENANT_OWNER_ISOLATION=PASS",
+    "TTO_W22_NO_ORPHAN_CHILD_PROCESSES=PASS",
+    "TTO_W22_NO_DB_NO_DOCKER_NO_OPERATIONAL_ALLOW=PASS",
+    "TTO_W22_GITHUB_ACTIONS_NO_DOCKER=PASS"
+  ]
+}
