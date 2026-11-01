@@ -45,3 +45,8 @@ Historical D-001–D-012 remain as issued; PCS015 supersedes their *candidate* S
 - Recommendation **Option A:** technically acknowledge frozen engineering candidate *only* and authorize planning for pilot/source permissions; Wave-0 G3 remains PENDING. Option B is a separate formal amendment of the Wave-0 exit criteria; Option C is return for review. **No option has been selected, signed or recorded by the owner.**
 - Observed blockers: zero submitted reviews on #109 and #111, no located CODEOWNERS, `main` reported unprotected, no human UX/keyboard acceptance and no pilot/official Child06 or independent Child07 legal approval.
 - Existing decisions D-014 (Wave-0 G3), D-015 (pilot), D-016 (Child06), D-017 (Child07) and D-018 (merge/deploy) remain PENDING or NOT_GRANTED. No review document or passing workflow supplies those permissions.
+
+## PCS-016 follow-up — conditional technical planning choice (2026-11-01)
+- The user selected Option A in the current project conversation: «گزینه ای تایید میشه».
+- Scope and exclusions are recorded separately at `docs/project-control/TTO_PCS_016_OWNER_OPTION_A_DECISION_2026-11-01.md`.
+- This is a technical-baseline *planning* instruction, not a signed statutory approval. Wave-0 G3 remains PENDING; codeowner/QA reviews, pilot authorization, official Child06 and Child07 source permissions remain outstanding. Merge and deployment remain prohibited.
