@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "1.0",
+  "project": "TTO Delivery 3.0",
+  "asOf": "2026-11-01",
+  "baseline": {
+    "main": "9eb48b7f06c25e66021adbe0b4386133cdcb3039",
+    "candidate": "a5e211ec9933055657055d2bf64712d558fe6c0e",
+    "candidatePR": 84
+  },
+  "waves": [
+    {
+      "id": "WAVE-0",
+      "name": "Repository recovery and approved delivery baseline",
+      "status": "IN_PROGRESS",
+      "gate": "G0",
+      "exit": [
+        "complete paginated open PR inventory and parent graph",
+        "confirm reusable code and exact tests across candidate",
+        "select and approve consolidation approach",
+        "approve pilot cooperative and source owners"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "WAVE-1",
+      "name": "Cooperative-to-shareholder membership and official holdings",
+      "status": "BLOCKED",
+      "gate": "G0",
+      "dependencies": [
+        "WAVE-0",
+        "approved membership source",
+        "approved official holdings ledger",
+        "authorized pilot cooperative"
+      ],
+      "exit": [
+        "authenticated scoped manager -> source -> own shareholder projection E2E",
+        "negative cross-tenant and stale-source tests",
+        "data and legal signoff"
+      ]
+    },
+    {
+      "id": "WAVE-2",
+      "name": "Notices, official disclosure and personal reports",
+      "status": "NOT_STARTED",
+      "gate": "G0",
+      "dependencies": [
+        "WAVE-1 authorized identities",
+        "authorized publisher and source",
+        "document storage security signoff"
+      ],
+      "exit": [
+        "approved scoped publication and recipient visibility",
+        "download independent authorization",
+        "user acceptance"
+      ]
+    },
+    {
+      "id": "WAVE-3",
+      "name": "Lawful share request tracking and national oversight",
+      "status": "NOT_STARTED",
+      "gate": "G0",
+      "dependencies": [
+        "WAVE-1 approved ledger",
+        "share-market legal approvals",
+        "case-source and board authority"
+      ],
+      "exit": [
+        "lawful request submission, review, traceability",
+        "no unauthorized share transfer or money custody",
+        "national admin tenant-bound scoped view",
+        "formal acceptance"
+      ]
+    }
+  ],
+  "workstreams": [
+    "PRODUCT",
+    "ENGINEERING",
+    "DATA",
+    "TRUST",
+    "GOVERNANCE"
+  ],
+  "statusPolicy": "No ACCEPTED without G3 evidence and authorized sign-off"
+}
