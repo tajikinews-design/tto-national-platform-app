@@ -122,6 +122,10 @@
     "requireAllCurrentW2W21W22Markers": true,
     "requireAllSixDockerStepsSkipped": true,
     "userMergeApproval": "NOT_GRANTED",
-    "fullRelease": "DEFERRED_AT_USER_REQUEST"
+    "fullRelease": "DEFERRED_AT_USER_REQUEST",
+    "requireW22CancellableSubprocessRegressionOnW23": true,
+    "require18W2HttpTests": true,
+    "require12W22ChildTests": true,
+    "require12W23HttpContractTests": true
   }
 }
