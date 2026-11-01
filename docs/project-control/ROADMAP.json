@@ -10,7 +10,18 @@
     "proposedAppPR": 90,
     "controlDocsPR": 91,
     "technicalReleaseRun": 41303773442,
-    "decisionStatus": "OWNER_SIGNOFF_PENDING"
+    "decisionStatus": "OWNER_SIGNOFF_PENDING",
+    "pcs015": {
+      "appParentPR": 107,
+      "appParentSHA": "cb533fd6f06dde8cdeccd8f0adf4665901e33b55",
+      "sourceDocsPR": 108,
+      "sourceDocsSHA": "37254e741357f36e6414d9172c60bdefc527d7ff",
+      "candidateBranch": "integration/tto-pcs-015-wave0-candidate-20261101",
+      "docIntegrity": "22/22 SOURCE DOCUMENTS PRESENT; 21 UNMODIFIED BLOBS; CHECKPOINT ONLY EXTENDED",
+      "releaseStatus": "PENDING_EXACT_SHA_CI",
+      "ownerDecision": "AWAITING_WAVE0_G3_SIGNOFF",
+      "mergeDeployment": "NOT_AUTHORIZED"
+    }
   },
   "waves": [
     {
@@ -25,7 +36,8 @@
         "approve pilot cooperative and source owners"
       ],
       "dependencies": [],
-      "technicalCI": "PASS exact candidate SHA 064ef8b27b280526468b540291299d49e08347d6; G3 owner approval pending"
+      "technicalCI": "PASS exact candidate SHA 064ef8b27b280526468b540291299d49e08347d6; G3 owner approval pending",
+      "pcs015Status": "TECHNICAL_CANDIDATE_ASSEMBLED / FULL_RELEASE_AND_OWNER_REVIEW_PENDING"
     },
     {
       "id": "WAVE-1",
@@ -43,7 +55,8 @@
         "negative cross-tenant and stale-source tests",
         "data and legal signoff"
       ],
-      "scopeContract": "docs/project-control/TTO_PCS_006_BASELINE_WAVE1_ACCEPTANCE.md"
+      "scopeContract": "docs/project-control/TTO_PCS_006_BASELINE_WAVE1_ACCEPTANCE.md",
+      "pcs015SourceGates": "Child06 membership + independent Child07 share register + pilot cooperative: NO OFFICIAL AUTHORITY"
     },
     {
       "id": "WAVE-2",
