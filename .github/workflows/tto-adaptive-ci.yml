@@ -23,6 +23,9 @@ jobs:
       CI: "true"
       NEXT_TELEMETRY_DISABLED: "1"
       APIIR_TOKEN: ""
+      # W2 DRAFT LAB ONLY: user requested no Docker. This exact branch is
+      # never a release gate; ready_for_review runs the original full checks.
+      TTO_W2_NO_DOCKER_BRANCH: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft && github.head_ref == 'test/w2-inline-pep-offline-20261101' }}
     steps:
       - name: Checkout exact reviewed code without write credentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -93,6 +96,25 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
           pnpm check
+      - name: W2 offline inline policy gate — NO DOCKER, NO DATABASE, NO DEPLOY
+        if: env.TTO_W2_NO_DOCKER_BRANCH == 'true'
+        env:
+          NODE_ENV: "test"
+          TTO_LOOPBACK_E2E: "1"
+          TTO_W1_BOUNDARY_LAB: "1"
+          TTO_W2_OFFLINE_LAB: "1"
+          DATABASE_URL: ""
+          TTO_API_BASE_URL: ""
+          TEST_ADMIN_DATABASE_URL: ""
+          TTO_DB_POOLER_HOST: ""
+          TTO_DB_APP_PASSWORD: ""
+          VERCEL: ""
+        run: |
+          set -euo pipefail
+          node --check scripts/security/w2-inline-synthetic-enforcer.cjs
+          node --check scripts/ci/w2-inline-lab-http.test.cjs
+          node --test scripts/ci/w2-inline-lab-http.test.cjs
+          echo "TTO_W2_GITHUB_ACTIONS_NO_DOCKER=PASS"
       - name: Offline SMS safety, scanner protocol, Preview classifier and Next smoke
         if: steps.scope.outputs.suite != 'lite'
         run: |
@@ -102,7 +124,7 @@ jobs:
           node --test scripts/verify-vercel-preview-protection.test.mjs
           node scripts/smoke-next-otp.mjs
       - name: Start a single disposable local PostgreSQL 17 container
-        if: steps.scope.outputs.suite != 'lite'
+        if: steps.scope.outputs.suite != 'lite' && env.TTO_W2_NO_DOCKER_BRANCH != 'true'
         run: |
           set -euo pipefail
           docker run -d --name tto-adaptive-postgres --rm -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto -p 127.0.0.1:5432:5432 postgres:17
@@ -112,7 +134,7 @@ jobs:
           done
           docker exec tto-adaptive-postgres pg_isready -U postgres -d tto
       - name: Apply migrations 0001-0010 to disposable PG17 only
-        if: steps.scope.outputs.suite != 'lite'
+        if: steps.scope.outputs.suite != 'lite' && env.TTO_W2_NO_DOCKER_BRANCH != 'true'
         run: |
           set -euo pipefail
           for migration in database/migrations/00{01,02,03,04,05,06,07,08,09,10}_*.sql; do
@@ -120,12 +142,12 @@ jobs:
             docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$migration"
           done
       - name: Real Next Nest PostgreSQL identity, tenant, source and share quarantine E2E
-        if: steps.scope.outputs.suite != 'lite'
+        if: steps.scope.outputs.suite != 'lite' && env.TTO_W2_NO_DOCKER_BRANCH != 'true'
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
         run: node scripts/e2e-cf02-identity-authority.cjs
       - name: Complete historical SQL, OTP, login/logout and authority regression
-        if: steps.scope.outputs.suite == 'release'
+        if: steps.scope.outputs.suite == 'release' && env.TTO_W2_NO_DOCKER_BRANCH != 'true'
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
         run: bash scripts/ci/release-regression.sh
@@ -135,8 +157,8 @@ jobs:
           set -euo pipefail
           node scripts/test_arvan_k8s_templates.cjs
       - name: Build and smoke all four OCI images without registry push
-        if: steps.scope.outputs.suite == 'release'
+        if: steps.scope.outputs.suite == 'release' && env.TTO_W2_NO_DOCKER_BRANCH != 'true'
         run: bash scripts/ci/release-oci-smoke.sh
       - name: Stop isolated PostgreSQL even on failure
-        if: always()
+        if: always() && env.TTO_W2_NO_DOCKER_BRANCH != 'true'
         run: docker stop tto-adaptive-postgres >/dev/null 2>&1 || true
