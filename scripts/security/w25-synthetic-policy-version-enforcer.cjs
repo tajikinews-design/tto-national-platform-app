@@ -172,4 +172,46 @@ async function enforceW25Revision(cfg){
  }
  return output(requestId,"SIMULATED_ALLOW","SIMULATION_ONLY",lease,1);
 }
-module.exports={SyntheticVersionTrace,bindW25SyntheticPDP,enforceW25Revision,safeTrace};
+/**
+ * Detached BFF output boundary. Even a valid synthetic policy reply is
+ * publicly DENIED: no 200, data, legal permission, or source disclosure.
+ */
+const BFF_KEYS=["requestId","decision","reasonCode","policyRevision",
+ "policyDigest","policyEpoch","sourceTouches","canGrantPermission",
+ "legalOperationalEffect","hasActualRecord","data"].sort();
+function closeW25DormantBffResult(raw,expectedRequestId){
+ const invalid=Object.freeze({available:false,status:503,code:"W25_UPSTREAM_INVALID"});
+ if(!enabled()||!UUID.test(expectedRequestId||"")||
+    !exact(raw,BFF_KEYS)||raw.requestId!==expectedRequestId||
+    typeof raw.reasonCode!=="string"||
+    !/^[A-Z][A-Z0-9_]{1,59}$/.test(raw.reasonCode)||
+    (raw.decision!=="DENY"&&raw.decision!=="SIMULATED_ALLOW")||
+    raw.canGrantPermission!==false||raw.hasActualRecord!==false||
+    raw.legalOperationalEffect!=="NONE"||raw.data!==null||
+    !Number.isSafeInteger(raw.sourceTouches)||raw.sourceTouches<0||
+    raw.sourceTouches>1||
+    (raw.decision==="SIMULATED_ALLOW"&&
+      (raw.reasonCode!=="SIMULATION_ONLY"||raw.sourceTouches!==1))||
+    (raw.decision==="DENY"&&raw.reasonCode==="SIMULATION_ONLY")||
+    (raw.policyRevision!==null&&
+      (!Number.isSafeInteger(raw.policyRevision)||raw.policyRevision<1))||
+    (raw.policyDigest!==null&&
+      (typeof raw.policyDigest!=="string"||
+       !/^[a-f0-9]{64}$/.test(raw.policyDigest)))||
+    (raw.policyEpoch!==null&&
+      (!Number.isSafeInteger(raw.policyEpoch)||raw.policyEpoch<1))||
+    ((raw.policyRevision===null)!==(raw.policyDigest===null))||
+    ((raw.policyRevision===null)!==(raw.policyEpoch===null)))
+  return invalid;
+ if(raw.decision==="DENY"&&raw.sourceTouches!==0)
+  return invalid; // Denied-after-source cannot assert untouched source.
+ return Object.freeze({
+  available:false,status:403,
+  code:raw.decision==="SIMULATED_ALLOW"?
+   "W25_OPERATIONAL_NOT_APPROVED":"W25_POLICY_DENIED"
+ });
+}
+module.exports={
+ SyntheticVersionTrace,bindW25SyntheticPDP,enforceW25Revision,
+ closeW25DormantBffResult,safeTrace
+};
