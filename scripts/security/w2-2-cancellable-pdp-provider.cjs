@@ -11,7 +11,7 @@ const {spawn}=require("node:child_process");
 const {resolve}=require("node:path");
 
 const ROOT=resolve(__dirname,"../..");
-const TEST_MODES=new Set(["hang","late","crash","invalid","oversize"]);
+const TEST_MODES=new Set(["hang","late","crash","invalid","schema","oversize"]);
 const MAX_INPUT=8192,MAX_OUTPUT=8192;
 const active=new Set();
 const counters={started:0,closed:0,aborted:0,oversize:0};
