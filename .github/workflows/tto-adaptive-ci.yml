@@ -127,6 +127,19 @@ jobs:
           set -euo pipefail
           timeout --signal=TERM --kill-after=5s 45s node --test scripts/ci/pcs007-synthetic-flow.test.cjs
           echo "TTO_PCS007_SYNTHETIC_NO_REAL_SHARES=PASS"
+      - name: PCS-008 two-portal fictional approval real Chromium acceptance
+        if: github.event_name == 'pull_request' && github.head_ref == 'feat/tto-pcs-008-browser-vertical-slice-20261101'
+        env:
+          DATABASE_URL: ""
+          TTO_API_BASE_URL: ""
+          APIIR_TOKEN: ""
+          VERCEL: ""
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/tto-pcs008-browser --no-audit --no-fund playwright@1.56.1
+          node /tmp/tto-pcs008-browser/node_modules/playwright/cli.js install --with-deps chromium
+          timeout --signal=TERM --kill-after=5s 180s node scripts/ci/pcs008-cross-portal-browser.cjs
+          echo "TTO_PCS008_TWO_PORTAL_SYNTHETIC_BROWSER_PASS"
       - name: W2 offline inline policy gate — NO DOCKER, NO DATABASE, NO DEPLOY
         if: env.TTO_W2_NO_DOCKER_BRANCH == 'true'
         env:
