@@ -154,6 +154,29 @@ async function main(){
  assert.deepEqual(await options(na,NATIONAL),[]);checks++;
  await status(await get("/v1/tenants/"+A+"/context",tokenMap.get(NATIONAL)),403,"expired national JIT fails closed");
  // Child06/07: never infer membership or share balance from successful login/Party link.
+ const browserEnabled=process.env.TTO_PCS014_BROWSER==="1";
+ const browser=browserEnabled?await require("/tmp/tto-pcs014-browser/node_modules/playwright").chromium.launch({headless:true}):null;
+ async function inspectOwnScreen(name, expectedMember, expectedShares) {
+  if(!browser)return;
+  for(const width of [390,1440]){
+   const context=await browser.newContext({viewport:{width,height:width===390?844:900},locale:"fa-IR",serviceWorkers:"block"});
+   await context.addCookies([{name:"tto_session",value:myToken,url:sh.origin,httpOnly:true,sameSite:"Lax"}]);
+   const page=await context.newPage();const errors=[];page.on("pageerror",e=>errors.push(e.message));
+   await page.goto(sh.origin+"/tenants/"+A+"/my-records",{waitUntil:"domcontentloaded",timeout:20000});
+   await page.getByRole("heading",{name:"پرونده اختصاصی عضویت و سهام"}).waitFor();
+   await page.getByRole("button",{name:"بررسی مجدد اطلاعات"}).waitFor();
+   if(expectedMember==="unavailable")await page.getByText("اطلاعات رسمی تأییدشده در دسترس نیست").first().waitFor();
+   if(expectedMember==="active")await page.getByText("عضویت: فعال").waitFor();
+   if(expectedShares==="unavailable")await page.getByText("اطلاعات رسمی تأییدشده در دسترس نیست").last().waitFor();
+   if(expectedShares==="37")await page.getByText("تعداد سهام ثبت‌شده: 37").waitFor();
+   if(expectedShares==="0")await page.getByText("تعداد سهام ثبت‌شده: 0").waitFor();
+   assert.equal(await page.locator("body").evaluate(e=>e.scrollWidth>e.clientWidth+3),false,name+" horizontal scroll "+width);
+   assert.equal(await page.locator("html").getAttribute("dir"),"rtl");
+   assert.equal(errors.length,0,name+" JS errors "+JSON.stringify(errors));
+   console.log("TTO_PCS014_BROWSER_"+name+"_"+width+"=PASS");
+   await context.close();
+  }
+ }
  const memberPath="/v1/tenants/"+A+"/me/member-record";
  const sharePath="/v1/tenants/"+A+"/me/shareholding";
  const memberBff=sh.origin+"/api/tenants/"+A+"/me/member-record";
@@ -166,6 +189,7 @@ async function main(){
  const unapprovedResponse=await fetch(memberBff,{headers:cookie});
  const unapprovedBody=await status(unapprovedResponse,403,"BFF member is initially blocked");
  assert.deepEqual(unapprovedBody,{available:false,code:"SOURCE_OR_PERMISSION_NOT_APPROVED"});checks++;
+ await inspectOwnScreen("BLOCKED_BOTH","unavailable","unavailable");
  // Only synthetic CI migration-owner fixture represents a future approved source adapter.
  const projection=(await db.query("SELECT source_event_id,source_version FROM tto.relationship_projections WHERE tenant_id=$1 AND party_id=$2",[A,PARTY])).rows[0];
  const memberRef="CI-APPROVED-CHILD06-V1",holdingRef="CI-APPROVED-CHILD07-V1";
@@ -185,6 +209,7 @@ async function main(){
  const memberPrivate=await status(await fetch(memberBff,{headers:cookie,cache:"no-store"}),200,"shareholder BFF approved member");
  assert.equal(memberPrivate.available,true);checks++;
  assert.equal(memberPrivate.record.membershipStatus,"ACTIVE");checks++;
+ await inspectOwnScreen("CHILD06_ONLY","active","unavailable");
  await status(await get(sharePath,myToken),403,"Child07 independent approval still required");
  await db.query("UPDATE tto.source_contract_approvals SET enabled=true WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
  await status(await get(sharePath,myToken),403,"absent ledger entry must not be zero shares");
@@ -198,6 +223,7 @@ async function main(){
  const privateShare=await fetch(shareBff,{headers:cookie,cache:"no-store"});
  const privateBody=await status(privateShare,200,"BFF exact sourced holdings");
  assert.equal(privateBody.record.shareQuantity,"37");checks++;
+ await inspectOwnScreen("BOTH_APPROVED","active","37");
  // Phase-2B: even a REAL valid CI session, approved Child06 membership,
  // approved Child07 holdings and tenant context do NOT authorize Child07
  // trade-request history or Child09 publication. These independent legal
@@ -235,6 +261,7 @@ async function main(){
  const zeroSource=await status(await get(sharePath,myToken),200,"explicit sourced zero remains zero");
  assert.equal(zeroSource.record.shareQuantity,"0");checks++;
  assert.equal(zeroSource.record.ledgerVersion,2);checks++;
+ await inspectOwnScreen("EXPLICIT_ZERO","active","0");
  await status(await get("/v1/tenants/"+B+"/me/member-record",myToken),403,"cross cooperative member read denied");
  await status(await get("/v1/tenants/"+B+"/me/shareholding",myToken),403,"cross cooperative holdings read denied");
  await status(await get(memberPath,tokenMap.get(MANAGER)),403,"manager cannot read other private member");
@@ -343,6 +370,7 @@ async function main(){
  }
  const audit=await db.query("SELECT count(*)::integer AS n FROM tto.audit_events WHERE event_name LIKE 'IDENTITY_LINK_%'");
  ok(audit.rows[0].n===4,"identity case audit events recorded transactionally");
+ if(browser)await browser.close();
  console.log("TTO_CF02_IDENTITY_MANAGER_NATIONAL_E2E_PASS_CHECKS="+checks);
  console.log("TTO_CF02_NO_REAL_IDENTITIES_NO_SHARE_LEDGER_NO_HOSTED_MIGRATION");
 }

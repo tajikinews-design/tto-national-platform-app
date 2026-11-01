@@ -485,7 +485,14 @@ jobs:
         if: steps.scope.outputs.suite != 'lite' && env.TTO_W2_NO_DOCKER_BRANCH != 'true'
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
-        run: node scripts/e2e-cf02-identity-authority.cjs
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_HEAD_REF" = "feat/tto-pcs-014-shareholder-browser-sources-20261101" ]; then
+            npm install --prefix /tmp/tto-pcs014-browser --no-audit --no-fund playwright@1.56.1
+            node /tmp/tto-pcs014-browser/node_modules/playwright/cli.js install --with-deps chromium
+            export TTO_PCS014_BROWSER=1
+          fi
+          timeout --signal=TERM --kill-after=5s 220s node scripts/e2e-cf02-identity-authority.cjs
       - name: Complete historical SQL, OTP, login/logout and authority regression
         if: steps.scope.outputs.suite == 'release' && env.TTO_W2_NO_DOCKER_BRANCH != 'true'
         env:
