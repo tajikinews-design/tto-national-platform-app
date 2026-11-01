@@ -1,0 +1,342 @@
+"use strict";
+/**
+ * W2 test-only inline PEP over REAL NextRequest/NextResponse and a REAL Nest
+ * lab-only Fastify controller. NO app routes, DB, Docker, deploy or sources.
+ * The accepted Python PEP/PDP is IN the decision path, before fake source.read.
+ */
+const test=require("node:test");
+const assert=require("node:assert/strict");
+const http=require("node:http");
+const {randomUUID}=require("node:crypto");
+const {spawnSync}=require("node:child_process");
+const {createRequire,Module:NodeModule}=require("node:module");
+const {resolve,dirname}=require("node:path");
+const {readFileSync}=require("node:fs");
+const ROOT=resolve(__dirname,"../..");
+if(process.env.CI!=="true"||process.env.NODE_ENV!=="test"||
+   process.env.TTO_LOOPBACK_E2E!=="1"||
+   process.env.TTO_W1_BOUNDARY_LAB!=="1"||
+   process.env.TTO_W2_OFFLINE_LAB!=="1"||
+   process.env.VERCEL||process.env.DATABASE_URL||
+   process.env.TTO_API_BASE_URL||process.env.APIIR_TOKEN||
+   process.env.TEST_ADMIN_DATABASE_URL||process.env.TTO_DB_POOLER_HOST||
+   process.env.TTO_DB_APP_PASSWORD)
+ throw Error("W2_INLINE_OFFLINE_ONLY");
+const fromNext=createRequire(resolve(ROOT,"apps/shareholder/package.json"));
+const fromApi=createRequire(resolve(ROOT,"services/api/package.json"));
+fromApi("reflect-metadata");
+const ts=fromNext("typescript");
+const {NextRequest,NextResponse}=fromNext("next/server");
+const {Controller,Post,Req,Module,HttpException}=fromApi("@nestjs/common");
+const {NestFactory}=fromApi("@nestjs/core");
+const {FastifyAdapter}=fromApi("@nestjs/platform-fastify");
+const {enforceW2SyntheticInline}=require("../security/w2-inline-synthetic-enforcer.cjs");
+function loadW1Bff(){
+ const file=resolve(ROOT,"apps/shareholder/lib/w1-boundary-seam.ts");
+ const code=ts.transpileModule(readFileSync(file,"utf8"),{
+  fileName:file,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}
+ }).outputText;
+ const m=new NodeModule(file,module);
+ m.filename=file;m.paths=NodeModule._nodeModulePaths(dirname(file));
+ m._compile(code,file);return m.exports;
+}
+const {prepareW1SyntheticBffCandidate}=loadW1Bff();
+const tenant="coop-test-A",otherTenant="coop-test-B";
+const owners=["fixture-owner-A","fixture-owner-B"];
+const cookies=[randomUUID(),randomUUID()];
+const handles=[randomUUID(),randomUUID()],channel=randomUUID();
+const actors=new Map();
+const byHandle=new Map();
+const audits=[],touches=[];
+let nestRequests=0;
+const current={policyMode:"normal",auditFail:false,sourceApproved:true};
+for(let i=0;i<2;i++){
+ const proof={sessionActive:true,tenantKey:tenant,ownerKey:owners[i],
+  partyBound:true,membershipSourceApproved:true,featureEnabled:true,
+  readPermission:true,sourceApproved:true,sourceFresh:true,
+  sourceVersion:"SYNTHETIC-V1",classificationAllowed:true};
+ const info={cookie:cookies[i],handle:handles[i],proof};
+ actors.set(cookies[i],info);byHandle.set(handles[i],info);
+}
+function safeAudit(event){
+ if(current.auditFail)throw Error("SYNTHETIC_AUDIT_UNAVAILABLE");
+ assert.deepEqual(Object.keys(event).sort(),
+  ["decision","operation","reasonCode","requestId"].sort());
+ audits.push(event);
+}
+const source={
+ read(key){
+  touches.push({...key});
+  if(!owners.includes(key.ownerKey)||key.tenantKey!==tenant)throw Error("FAKE_SCOPE_DENIED");
+  return {synthetic:true,record:null,persisted:false};
+ }
+};
+function policy(operation,ctx){
+ if(current.policyMode==="throw")throw Error("SYNTHETIC_PDP_ERROR");
+ if(current.policyMode==="timeout")return new Promise(()=>{});
+ if(current.policyMode==="invalid")return {decision:"ALLOW",canGrantPermission:true,pii:"NEVER"};
+ const task=spawnSync("python3",["-m","scripts.security.w1_isolated_http_bridge"],{
+  cwd:ROOT,input:JSON.stringify({operation,context:ctx}),encoding:"utf8",
+  timeout:3500,maxBuffer:8192,
+  env:{PATH:process.env.PATH??"/usr/bin:/bin",PYTHONDONTWRITEBYTECODE:"1"}
+ });
+ if(task.error||task.status!==0)throw Error("PEP_BRIDGE_UNAVAILABLE");
+ return JSON.parse(task.stdout);
+}
+class W2Controller{
+ async evaluate(req){
+  nestRequests++;
+  if(req.headers["x-w2-internal-channel"]!==channel)
+   throw new HttpException({code:"INTERNAL_CHANNEL_REQUIRED"},403);
+  const handle=req.headers["x-w2-synthetic-handle"];
+  const actor=byHandle.get(handle);
+  return enforceW2SyntheticInline({
+   candidate:req.body,
+   proof:actor?.proof,
+   policy,audit:{record:safeAudit},source,deadlineMs:30
+  });
+ }
+}
+Req()(W2Controller.prototype,"evaluate",0);
+Post("evaluate")(W2Controller.prototype,"evaluate",Object.getOwnPropertyDescriptor(W2Controller.prototype,"evaluate"));
+Controller("w2-offline-only")(W2Controller);
+class W2LabModule{}
+Module({controllers:[W2Controller]})(W2LabModule);
+let nest,bff,nestUrl,bffUrl;
+function nextReply(res,nextResponse){
+ res.writeHead(nextResponse.status,Object.fromEntries(nextResponse.headers));
+ return nextResponse.text().then(text=>res.end(text));
+}
+async function handleBFF(nodeReq,nodeRes){
+ const url="http://127.0.0.1"+nodeReq.url;
+ const request=new NextRequest(url,{method:nodeReq.method,headers:nodeReq.headers});
+ const fail=(status,code)=>NextResponse.json({
+  decision:"DENY",reasonCode:code,sourceTouches:0,
+  data:null,hasActualRecord:false,canGrantPermission:false,
+  legalOperationalEffect:"NONE"
+ },{status,headers:{"Cache-Control":"private, no-store"}});
+ const match=/^\/test\/tenants\/(coop-test-[AB])\/owners\/(fixture-owner-[AB])\/(read|download|export|write|trade|finalize)$/.exec(new URL(url).pathname);
+ if(!match){await nextReply(nodeRes,fail(404,"UNKNOWN_ROUTE"));return}
+ const actor=actors.get(request.cookies.get("tto_lab_session")?.value);
+ const preflight=prepareW1SyntheticBffCandidate(request,{
+  tenantKey:match[1],ownerKey:match[2],operation:match[3]
+ },{sessionActive:actor?.proof.sessionActive===true,
+   expectedCookie:actor?.cookie??"",
+   tenantKey:actor?.proof.tenantKey??"",
+   ownerKey:actor?.proof.ownerKey??""});
+ if(preflight.kind!=="CANDIDATE"){
+  await nextReply(nodeRes,fail(preflight.status,preflight.reasonCode));return;
+ }
+ try{
+  // Identity headers from browser deliberately excluded: no x-role,
+  // x-party, authorization, source approval or browser-chosen session handle.
+  const upstream=await fetch(nestUrl+"/w2-offline-only/evaluate",{
+   method:"POST",cache:"no-store",redirect:"error",
+   signal:AbortSignal.timeout(3000),
+   headers:{"Content-Type":"application/json",
+    "x-w2-internal-channel":channel,
+    "x-w2-synthetic-handle":actor.handle},
+   body:JSON.stringify(preflight.candidate)
+  });
+  if(!upstream.ok){await nextReply(nodeRes,fail(503,"NEST_UNAVAILABLE"));return}
+  const body=await upstream.json();
+  if(!body||body.canGrantPermission!==false||
+     body.hasActualRecord!==false||body.legalOperationalEffect!=="NONE"||
+     !["DENY","SIMULATED_ALLOW"].includes(body.decision)||
+     body.data!==null||!Number.isSafeInteger(body.sourceTouches)||
+     (body.decision==="DENY"&&body.sourceTouches!==0)||
+     (body.decision==="SIMULATED_ALLOW"&&body.sourceTouches!==1)){
+    await nextReply(nodeRes,fail(503,"UPSTREAM_CONTRACT_INVALID"));return;
+  }
+  await nextReply(nodeRes,NextResponse.json(body,{
+   status:body.decision==="SIMULATED_ALLOW"?200:403,
+   headers:{"Cache-Control":"private, no-store"}
+  }));
+ }catch{await nextReply(nodeRes,fail(503,"CHAIN_UNAVAILABLE"))}
+}
+async function listen(srv){return new Promise((yes,no)=>{
+ srv.once("error",no);
+ srv.listen(0,"127.0.0.1",()=>yes("http://127.0.0.1:"+srv.address().port));
+})}
+function relative(owner=owners[0],tn=tenant,op="read"){
+ return "/test/tenants/"+tn+"/owners/"+owner+"/"+op;
+}
+async function call(p,{method="GET",user=0,headers={}}={}){
+ const requestHeaders={...headers};
+ if(user!==null)requestHeaders.Cookie="tto_lab_session="+cookies[user];
+ const r=await fetch(bffUrl+p,{method,headers:requestHeaders,signal:AbortSignal.timeout(5000)});
+ return {status:r.status,body:await r.json(),headers:r.headers};
+}
+test("W2 real HTTP NextRequest -> Nest lab inline Python PDP/PEP -> fake source, NO Docker",async t=>{
+ nest=await NestFactory.create(W2LabModule,new FastifyAdapter({logger:false}),{logger:false});
+ await nest.listen(0,"127.0.0.1");nestUrl=await nest.getUrl();
+ bff=http.createServer((req,res)=>{handleBFF(req,res).catch(()=>{
+  if(!res.headersSent)res.writeHead(503);res.end();
+ })});
+ bffUrl=await listen(bff);
+ t.after(async()=>{
+  await new Promise(done=>bff.close(done));
+  await nest.close();
+ });
+ await t.test("anonymous and forged browser headers never call Nest or source",async()=>{
+  const n=nestRequests,s=touches.length;
+  const result=await call(relative(),{user:null,headers:{
+   Authorization:"Bearer forged","x-role":"SUPERUSER",
+   "x-tenant-id":tenant,"x-w2-internal-channel":channel,
+   "x-w2-synthetic-handle":handles[0]
+  }});
+  assert.equal(result.status,401);assert.equal(nestRequests,n);assert.equal(touches.length,s);
+ });
+ console.log("TTO_W2_ANONYMOUS_ZERO_NEST_TOUCH=PASS");
+ await t.test("two distinct fake owners in SAME tenant can only read own marker",async()=>{
+  for(let i=0;i<2;i++){
+   const before=touches.length;
+   const result=await call(relative(owners[i]),{user:i});
+   assert.equal(result.status,200);
+   assert.equal(result.body.decision,"SIMULATED_ALLOW");
+   assert.equal(result.body.canGrantPermission,false);
+   assert.equal(result.body.hasActualRecord,false);
+   assert.equal(result.body.legalOperationalEffect,"NONE");
+   assert.equal(result.body.data,null);
+   assert.equal(result.body.sourceTouches,1);
+   assert.equal(touches.length,before+1);
+   assert.deepEqual(touches.at(-1),{tenantKey:tenant,ownerKey:owners[i]});
+   assert.match(result.headers.get("cache-control"),/no-store/);
+  }
+ });
+ console.log("TTO_W2_SAME_TENANT_TWO_OWNERS_ISOLATED=PASS");
+ await t.test("cross-owner and cross-tenant denied before Nest and fixture",async()=>{
+  for(const [user,p] of [
+   [0,relative(owners[1])],[1,relative(owners[0])],
+   [0,relative(owners[0],otherTenant)],[1,relative(owners[1],otherTenant)]
+  ]){
+   const n=nestRequests,s=touches.length;
+   const r=await call(p,{user});
+   assert.equal(r.status,403);assert.equal(r.body.sourceTouches,0);
+   assert.equal(nestRequests,n);assert.equal(touches.length,s);
+  }
+ });
+ await t.test("forged user headers cannot select other owner with valid cookie",async()=>{
+  const before=touches.length;
+  const r=await call(relative(owners[1]),{user:0,headers:{
+   "x-tenant-id":tenant,"x-role":"PLATFORM_ADMIN",
+   "x-party-id":owners[1],"x-source-approved":"true",
+   "x-w2-synthetic-handle":handles[1],
+   Authorization:"Bearer spoofed"
+  }});
+  assert.equal(r.status,403);
+  assert.equal(touches.length,before);
+ });
+ await t.test("direct Nest forged candidate cannot override trusted handle",async()=>{
+  const before=touches.length;
+  for(const data of [
+   {contractVersion:"W1_BFF_NEST_SEAM_V0_1",environment:"SIMULATION",
+    tenantKey:tenant,ownerKey:owners[1],operation:"read"},
+   {contractVersion:"W1_BFF_NEST_SEAM_V0_1",environment:"PRODUCTION",
+    tenantKey:tenant,ownerKey:owners[0],operation:"read"},
+   {contractVersion:"W1_BFF_NEST_SEAM_V0_1",environment:"SIMULATION",
+    tenantKey:tenant,ownerKey:owners[0],operation:"read",sourceApproved:true}
+  ]){
+   const r=await fetch(nestUrl+"/w2-offline-only/evaluate",{
+    method:"POST",headers:{"Content-Type":"application/json",
+     "x-w2-internal-channel":channel,"x-w2-synthetic-handle":handles[0]},
+    body:JSON.stringify(data)
+   });
+   assert.equal(r.status,201);
+   const body=await r.json();assert.equal(body.decision,"DENY");
+   assert.equal(body.sourceTouches,0);
+   assert.equal(touches.length,before);
+  }
+  const withoutChannel=await fetch(nestUrl+"/w2-offline-only/evaluate",{
+   method:"POST",headers:{"Content-Type":"application/json",
+    "x-w2-synthetic-handle":handles[0]},
+   body:JSON.stringify({tenantKey:tenant,ownerKey:owners[0],operation:"read"})
+  });
+  assert.equal(withoutChannel.status,403);
+ });
+ await t.test("unapproved source or Party denied INSIDE Nest BEFORE resource",async()=>{
+  const actor=actors.get(cookies[0]);
+  for(const [field,val] of [["sourceApproved",false],
+   ["partyBound",false],["sessionActive",false],
+   ["membershipSourceApproved",false],["sourceFresh",false]]){
+   const old=actor.proof[field],before=touches.length;
+   actor.proof[field]=val;
+   try{
+    const r=await fetch(nestUrl+"/w2-offline-only/evaluate",{
+     method:"POST",headers:{"Content-Type":"application/json",
+      "x-w2-internal-channel":channel,"x-w2-synthetic-handle":handles[0]},
+     body:JSON.stringify({contractVersion:"W1_BFF_NEST_SEAM_V0_1",
+      environment:"SIMULATION",tenantKey:tenant,ownerKey:owners[0],operation:"read"})
+    });
+    assert.equal(r.status,201);
+    assert.equal((await r.json()).decision,"DENY");
+    assert.equal(touches.length,before);
+   }finally{actor.proof[field]=old}
+  }
+ });
+ console.log("TTO_W2_INLINE_DENIED_SOURCE_TOUCHES=0");
+ await t.test("policy exception, timeout, malformed response all fail closed",async()=>{
+  for(const mode of ["throw","timeout","invalid"]){
+   const before=touches.length;current.policyMode=mode;
+   try{
+    const r=await call(relative(),{user:0});
+    assert.equal(r.status,403);
+    assert.equal(r.body.decision,"DENY");
+    assert.equal(r.body.sourceTouches,0);
+    assert.equal(touches.length,before);
+   }finally{current.policyMode="normal"}
+  }
+ });
+ console.log("TTO_W2_PDP_FAILURE_AND_TIMEOUT_DENY=PASS");
+ await t.test("audit sink outage blocks resource even on valid read",async()=>{
+  const before=touches.length;current.auditFail=true;
+  try{
+   const r=await call(relative(),{user:0});
+   assert.equal(r.status,403);
+   assert.equal(r.body.reasonCode,"AUDIT_UNAVAILABLE");
+   assert.equal(r.body.sourceTouches,0);
+   assert.equal(touches.length,before);
+  }finally{current.auditFail=false}
+ });
+ console.log("TTO_W2_AUDIT_FAILURE_FAIL_CLOSED=PASS");
+ await t.test("download export write trade finalize are never eligible inline",async()=>{
+  for(const op of ["download","export","write","trade","finalize"]){
+   const method=["write","trade","finalize"].includes(op)?"POST":"GET";
+   const before=touches.length;
+   const r=await call(relative(owners[0],tenant,op),{user:0,method});
+   assert.equal(r.status,403);
+   assert.equal(r.body.sourceTouches,0);
+   assert.equal(touches.length,before);
+  }
+ });
+ console.log("TTO_W2_MUTATING_AND_EXPORT_OPERATIONS_CLOSED=PASS");
+ await t.test("production mode disables inline enforcer and source touches",async()=>{
+  const old=process.env.VERCEL, n=nestRequests, before=touches.length;
+  process.env.VERCEL="1";
+  try{
+   const r=await call(relative(),{user:0});
+   assert.equal(r.status,503);
+   assert.equal(r.body.decision,"DENY");
+   assert.equal(touches.length,before);
+   assert.equal(nestRequests,n);
+  }finally{
+   if(old===undefined)delete process.env.VERCEL;
+   else process.env.VERCEL=old;
+  }
+ });
+ console.log("TTO_W2_PRODUCTION_LAB_GATE_CLOSED=PASS");
+ await t.test("audits are allowlisted and never store any identity or secret",()=>{
+  assert.ok(audits.length>=6);
+  for(const event of audits){
+   assert.deepEqual(Object.keys(event).sort(),[
+    "decision","operation","reasonCode","requestId"].sort());
+   const serialized=JSON.stringify(event);
+   for(const secret of [...owners,tenant,...cookies,...handles,channel])
+    assert.equal(serialized.includes(secret),false);
+  }
+ });
+ console.log("TTO_W2_INMEMORY_AUDIT_ALLOWLIST=PASS");
+ console.log("TTO_W2_INLINE_POLICY_BEFORE_SOURCE=PASS");
+ console.log("TTO_W2_SYNTHETIC_ONLY_NO_OPERATIONAL_ALLOW=PASS");
+ console.log("TTO_W2_NO_DB_NO_DOCKER_NO_DEPLOY=PASS");
+});
