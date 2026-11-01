@@ -114,8 +114,13 @@ function policyDecision(c,ruleset){
  const deny=["downloadPermission","exportPermission","writePermission",
   "reauth","csrf","versionMatched","ownershipFinalizationApproved"]
   .every(k=>c[k]===false);
- const specific=ruleset==="SELF_READ_SYNTHETIC_V1"||
-   ruleset==="SELF_READ_SYNTHETIC_V2";
+ // Distinct fake policy versions MUST produce different outcomes for the
+ // same context. Otherwise a signed revision number alone cannot demonstrate
+ // that the child actually selected and executed the signed rule-set.
+ const specific=(ruleset==="SELF_READ_SYNTHETIC_V1"&&
+    c.sourceVersion==="SYNTHETIC-V1")||
+   (ruleset==="SELF_READ_SYNTHETIC_V2"&&
+    c.sourceVersion==="SYNTHETIC-V2");
  return allow&&deny&&specific?
   {decision:"SIMULATED_ALLOW",reasonCode:"SIMULATION_ONLY"}:
   {decision:"DENY",reasonCode:"POLICY_CONTEXT_DENIED"};
