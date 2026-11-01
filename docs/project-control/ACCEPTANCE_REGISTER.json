@@ -76,7 +76,7 @@
   },
   "pcs015": {
     "scope": "SINGLE_CUMULATIVE_APP_AND_22_PCS_DOCS_WAVE0_REVIEW_CANDIDATE",
-    "status": "ASSEMBLED_FULL_RELEASE_PENDING_G3_UNACCEPTED",
+    "status": "TECHNICAL_G2_FULL_RELEASE_VERIFIED_G3_OWNER_PENDING",
     "appAncestorPR": 107,
     "appAncestorSHA": "cb533fd6f06dde8cdeccd8f0adf4665901e33b55",
     "docsSourcePR": 108,
@@ -100,6 +100,22 @@
       "pilot": "NOT_SELECTED",
       "Child06": "NOT_AUTHORIZED",
       "Child07": "NOT_AUTHORIZED"
-    }
+    },
+    "testedCandidatePR": 109,
+    "testedExactSHA": "e87f2a874200f7694faa3959d03bdeeb0890ba6f",
+    "run": 41323031652,
+    "job": 124897099133,
+    "conclusion": "success",
+    "historicalCancelledRun": 41322689067,
+    "allSourceDocsAccountedFor": true,
+    "notAccepted": [
+      "Wave0 G3 owner/codeowner/product approval",
+      "Human keyboard/RTL/WCAG acceptance",
+      "Pilot cooperative nomination and legal agreement",
+      "Official Child06 source steward authority",
+      "Independent Child07 register custodian authority",
+      "Main merge",
+      "Production deployment"
+    ]
   }
 }
