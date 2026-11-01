@@ -101,6 +101,20 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
           pnpm check
+      - name: PCS-005 isolated Chromium shareholder/cooperative mobile and desktop
+        if: github.event_name == 'pull_request' && github.head_ref == 'integration/tto-pcs-005-full-validation-20261101'
+        env:
+          TTO_PCS005_BROWSER: "1"
+          DATABASE_URL: ""
+          TTO_API_BASE_URL: ""
+          APIIR_TOKEN: ""
+          VERCEL: ""
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/tto-pcs005-browser --no-audit --no-fund playwright@1.56.1
+          node /tmp/tto-pcs005-browser/node_modules/playwright/cli.js install --with-deps chromium
+          timeout --signal=TERM --kill-after=5s 180s node scripts/ci/pcs005-browser-review.cjs
+          echo "TTO_PCS005_PRIVATE_CHROMIUM=PASS"
       - name: W2 offline inline policy gate — NO DOCKER, NO DATABASE, NO DEPLOY
         if: env.TTO_W2_NO_DOCKER_BRANCH == 'true'
         env:
