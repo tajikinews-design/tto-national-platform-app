@@ -38,3 +38,11 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - PR #84 selected as PROVISIONAL integration candidate (not accepted baseline). Do not auto import alternate NAV04, lockfile or journal.
 - Pending: manual patch review of unique assertions, approved isolated integration branch, full Next/Nest/PG17/Chromium exact-SHA tests and source/legal signoffs. Wave-0 IN_PROGRESS. No merge/deploy/live share operations.
 - Next action: review missing test assertions #43/#44 and font behavior #64 against current candidate, then build approved full integration test candidate.
+
+## PCS-004 confirmed — 2026-11-01
+- Semantic comparison of #43/#44/#64/#73 documented in TTO_PCS_004_SEMANTIC_INTEGRATION.md. Keep current approved NAV04, local Vazirmatn and W2 audit implementation; selectively retain safety/browser assertions.
+- Integration candidate Draft PR #88: integration/tto-pcs-004-candidate-no-docker-20261101; exact HEAD dcb78b4c12db06b293c5a9628f2259bb2dde12f0, base PR #84.
+- GitHub Actions run 41302734260, job 124836862888: completed / SUCCESS on the exact SHA. Workspace install/build/check, five PCS static semantic tests, four font tests, previous W2.14 synthetic and offline regressions passed. Six Docker/PostgreSQL/SQL/OCI stages independently skipped.
+- Earlier CI attempt 41302692961 failed due to mistyped path in new PCS test; fixed in exact accepted candidate SHA above. Preserve both run IDs as evidence; do not mark initial failed run green.
+- **NO real PostgreSQL 17 + Nest HTTP end-to-end on this new SHA**, no final Chromium browser acceptance, no pilot official Child06/Child07 source, no merge, no deploy. Wave-0 IN_PROGRESS, Wave-1 BLOCKED, Wave-2/3 NOT_STARTED.
+- NEXT: authorized isolated PostgreSQL/HTTP/Chromium full integration validation of a reviewed consolidating candidate; determine legal data owner/pilot before first operational shareholder flow. Require explicit approval prior to merge or deployment.
