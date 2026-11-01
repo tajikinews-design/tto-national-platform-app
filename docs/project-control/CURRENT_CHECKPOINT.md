@@ -116,3 +116,9 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - Source contract: TTO_PCS_012_MANAGER_HISTORY_AND_SHAREHOLDER_CONTRACT.md. Official Child06 membership and independent Child07 share-ledger still pending issuer/legal/pilot authorization; no identity-to-Party official linkage accepted.
 - Wave-0 G3 owner signoff remains PENDING; Wave-1 fixture-only manager history verified, authenticated shareholder official read BLOCKED. No merge, deploy, real share transfer or payment.
 - Next: authorized product acceptance of manager UX and separate Child06/07 source governance; implement authenticated shareholder own-only BFF only after official sources and Party binding available, without fake zero holdings.
+
+## PCS-013 source-gated own-only shareholder screen verified (2026-11-01)
+- App Draft PR #105, branch feat/tto-pcs-013-shareholder-own-read-20261101, SHA f7c2fe7310cee4111d32b346a49d51c5c45939b0. Exact-head GitHub Actions run 41312820232 COMPLETED SUCCESS: Next/Nest build and TypeScript, PCS013 UI source-boundary test, existing PostgreSQL17 session/tenant/source quarantine E2E passed.
+- New shareholder route /tenants/[tenantId]/my-records consumes existing independent Child06 and Child07 owner-only BFF GET endpoints. Displays independent source versions and as-of dates only after source-approved records; otherwise session-required or unavailable, never invented zero. No source or official ownership issued by PCS007-012 fake manager reviewer.
+- LIMITATION: UI not independently Chromium-tested on this SHA; tests verify source boundary and existing real HTTP path only. No official Child06/07 steward authorization, approved pilot or owner G3 acceptance. No merge/deploy or real share operations.
+- NEXT: protected preview Chromium/keyboard test for new read-only screen with synthetic approved/unapproved PostgreSQL source cases; explicit owner decision on cumulative Draft PR baseline and lawful source/provenance.
