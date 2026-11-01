@@ -146,6 +146,12 @@ jobs:
           set -euo pipefail
           timeout --signal=TERM --kill-after=5s 50s node --test scripts/ci/pcs007-synthetic-flow.test.cjs scripts/ci/pcs009-role-audit.test.cjs
           echo "TTO_PCS009_FAKE_ACTOR_AUDIT_PASS"
+      - name: PCS-013 own-only source-gated shareholder UI contract
+        if: github.event_name == 'pull_request' && github.head_ref == 'feat/tto-pcs-013-shareholder-own-read-20261101'
+        run: |
+          set -euo pipefail
+          node --test scripts/ci/pcs013-shareholder-guard.test.cjs
+          echo "TTO_PCS013_SHAREHOLDER_SOURCE_GUARDS_PASS"
       - name: W2 offline inline policy gate — NO DOCKER, NO DATABASE, NO DEPLOY
         if: env.TTO_W2_NO_DOCKER_BRANCH == 'true'
         env:
