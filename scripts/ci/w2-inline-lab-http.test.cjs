@@ -171,7 +171,7 @@ async function handleBFF(nodeReq,nodeRes){
   nodeRes.once("close",onClientDisconnect);
   const upstream=await fetch(nestUrl+"/w2-offline-only/evaluate",{
    method:"POST",cache:"no-store",redirect:"error",
-   signal:upstreamAbort.signal,
+   signal:AbortSignal.any([upstreamAbort.signal,AbortSignal.timeout(3000)]),
    headers:{"Content-Type":"application/json",
     "x-w2-internal-channel":channel,
     "x-w2-synthetic-handle":actor.handle},
