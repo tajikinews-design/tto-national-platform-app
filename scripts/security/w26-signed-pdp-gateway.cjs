@@ -94,7 +94,7 @@ function runSignedPdp({
     // externally authenticated public-key distribution.
     verifiedKey={pem:m.publicPem,keyId:m.signerKeyId};
     ready=true;
-    try{child.stdin.write(JSON.stringify(input)+"\n");}
+    try{child.stdin.end(JSON.stringify(input)+"\n");}
     catch{return finish(Error("W26_PDP_INPUT_UNAVAILABLE"))}
     return;
    }
