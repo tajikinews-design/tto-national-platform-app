@@ -112,7 +112,7 @@ class W25PolicyRevisionSecurity(unittest.TestCase):
             'replacement of active revision WHILE PDP pending',
             'post-audit revocation prevents source after PDP simulated allow',
             'stale replay, wrong fingerprint and wrong epoch',
-            'missing active policy denied before calling any PDP',
+            'absent active policy denied before calling any PDP or source',
             'corrupt fake source may report attempted access',
             'TTO_W25_POLICY_VERSION_BOUND_TO_PDP_AND_AUDIT=PASS',
             'TTO_W25_NO_VERSION_ROLLBACK_OR_REUSE=PASS',
