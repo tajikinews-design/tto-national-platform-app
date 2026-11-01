@@ -50,3 +50,10 @@ Historical D-001–D-012 remain as issued; PCS015 supersedes their *candidate* S
 - The user selected Option A in the current project conversation: «گزینه ای تایید میشه».
 - Scope and exclusions are recorded separately at `docs/project-control/TTO_PCS_016_OWNER_OPTION_A_DECISION_2026-11-01.md`.
 - This is a technical-baseline *planning* instruction, not a signed statutory approval. Wave-0 G3 remains PENDING; codeowner/QA reviews, pilot authorization, official Child06 and Child07 source permissions remain outstanding. Merge and deployment remain prohibited.
+
+## PCS-017 — documents ready for review; no new authority granted (2026-11-01)
+- D-019: Pilot selection framework with provisional 100-point scoring and hard-gates **PREPARED, OWNER RUBRIC SIGNOFF PENDING**. No pilot selected; no invitations/contact actions.
+- D-020: Child06 official membership authorization packet **DRAFT / NOT_SUBMITTED / NOT_AUTHORIZED**.
+- D-021: Independent Child07 official share ledger authorization packet **DRAFT / NOT_SUBMITTED / NOT_AUTHORIZED**.
+- D-022: Codeowner source inspection findings and human QA/RTL/WCAG acceptance matrix **DOCUMENTED, FORMAL SIGNOFF PENDING**.
+- Evidence: `TTO_PCS_017_OPTION_A_PILOT_READINESS_HANDOFF.md` with four supporting review/authorization files. Option A only authorizes nonproduction planning. G3, main merge, deploy and real-data use remain blocked.
