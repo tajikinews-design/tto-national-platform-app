@@ -89,9 +89,10 @@ async function enforceW26Signed(cfg){
    tamperManifest:cfg.tamperManifest??null,
    expectedSignerKeyId:cfg.expectedSignerKeyId??null
   });
- }catch{
+ }catch(error){
   if(signal.aborted)return commit("DENY","REQUEST_ABORTED");
-  if(performance.now()>=deadlineAt)return commit("DENY","PDP_TIMEOUT");
+  if(error?.message==="W26_PDP_TIMEOUT"||performance.now()>=deadlineAt)
+   return commit("DENY","PDP_TIMEOUT");
   return commit("DENY","PDP_SIGNATURE_OR_TRANSPORT_INVALID");
  }
  if(signal.aborted)return commit("DENY","REQUEST_ABORTED");
