@@ -47,6 +47,13 @@ async function enforceW26Signed(cfg){
   return output(UUID.test(id||"")?id:null,"DENY","ENFORCEMENT_UNAVAILABLE");
  const signal=cfg.checked.signal;
  const registry=cfg.registry;
+ const trust=cfg.w27Trust??null;
+ if(trust!==null&&(
+    process.env.TTO_W27_TRUST_LAB!=="1"||
+    typeof trust.checkPublisher!=="function"||
+    typeof trust.onSignerReady!=="function"||
+    typeof trust.checkSigner!=="function"))
+  return output(id,"DENY","TRUST_CONFIG_INVALID");
  let lease=null;
  async function commit(decision,reasonCode,touches=0){
   try{
@@ -64,6 +71,8 @@ async function enforceW26Signed(cfg){
  try{issued=registry.issue()}catch{return commit("DENY","POLICY_REGISTRY_UNAVAILABLE")}
  if(!issued?.ok)return commit("DENY",issued?.reasonCode||"POLICY_UNAVAILABLE");
  lease=issued.lease;
+ if(trust!==null&&trust.checkPublisher(cfg.publisher.publicPem)!==true)
+  return commit("DENY","PUBLISHER_TRUST_INVALID");
  if(!registry.check(lease)?.ok)return commit("DENY","POLICY_STALE");
  let manifest;
  try{
@@ -87,7 +96,9 @@ async function enforceW26Signed(cfg){
    delayMs:cfg.delayMs??0,timeoutMs:deadlineMs,
    tamperResponse:cfg.tamperResponse??null,
    tamperManifest:cfg.tamperManifest??null,
-   expectedSignerKeyId:cfg.expectedSignerKeyId??null
+   expectedSignerKeyId:cfg.expectedSignerKeyId??null,
+   onSignerReady:trust?.onSignerReady??null,
+   checkSigner:trust?.checkSigner??null
   });
  }catch(error){
   if(signal.aborted)return commit("DENY","REQUEST_ABORTED");
@@ -98,6 +109,10 @@ async function enforceW26Signed(cfg){
  if(signal.aborted)return commit("DENY","REQUEST_ABORTED");
  if(performance.now()>=deadlineAt)return commit("DENY","PDP_TIMEOUT");
  const afterPdp=registry.check(lease);
+ if(trust!==null&&(
+    trust.checkPublisher(cfg.publisher.publicPem)!==true||
+    trust.checkSigner({pem:signed.publicPem,keyId:signed.signerKeyId})!==true))
+  return commit("DENY","TRUST_REVOKED_OR_EXPIRED");
  if(!afterPdp?.ok)return commit("DENY",afterPdp?.reasonCode||"POLICY_STALE");
  const decision=signed.signed;
  const ownEvaluation=policyDecision(cfg.checked.context,lease.ruleset);
@@ -112,6 +127,10 @@ async function enforceW26Signed(cfg){
  if(signal.aborted)return commit("DENY","REQUEST_ABORTED");
  if(performance.now()>=deadlineAt)return commit("DENY","PDP_TIMEOUT");
  const afterAudit=registry.check(lease);
+ if(trust!==null&&(
+    trust.checkPublisher(cfg.publisher.publicPem)!==true||
+    trust.checkSigner({pem:signed.publicPem,keyId:signed.signerKeyId})!==true))
+  return commit("DENY","TRUST_REVOKED_OR_EXPIRED");
  if(!afterAudit?.ok)
   return commit("DENY",afterAudit.reasonCode||"POLICY_STALE");
  let touches=0;
