@@ -463,5 +463,34 @@ export class FoundationCommandsController {
   }
 }
 
-@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController],providers:[ApiIrSmsOtpProvider]})
+/**
+ * PCS-010 — quarantined lab operation: real Nest/PG session, real tenant role,
+ * PostgreSQL append-only audit, but fictional evidence only. Not a source importer.
+ */
+@Controller("v1/pcs010-lab/tenants")
+export class Pcs010FixtureController {
+ constructor(private readonly db:Database) {}
+ @Post(":tenantId/fixture-reviews")
+ async approveFake(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>) {
+  if(process.env.CI!=="true"||process.env.TTO_PCS010_LAB!=="1"||
+      !!process.env.VERCEL||!!process.env.APIIR_TOKEN||
+      !/^postgresql:\/\/tto_app@127\.0\.0\.1:5432\/tto$/.test(process.env.DATABASE_URL??""))
+    throw new ForbiddenException("Lab operation disabled");
+  const fixtureRef=String(input?.fixtureRef??"");
+  if(!/^PCS010-FAKE-[A-Za-z0-9_-]{8,60}$/.test(fixtureRef))
+    throw new BadRequestException("Only fictional fixture references are accepted");
+  const actor=await this.db.sessionActor(auth);
+  const recorded=await this.db.inTenant(actor,tenant,async client=>{
+    await client.query("SELECT set_config('tto.pcs010_lab','1',true)");
+    const r=await client.query<{accepted:boolean}>(
+      "SELECT tto.pcs010_record_fixture_review($1,$2) AS accepted",[tenant,fixtureRef]);
+    return r.rows[0]?.accepted===true;
+  });
+  if(!recorded)throw new ForbiddenException("No manager authority, invalid fixture or duplicate");
+  return {recorded:true,kind:"SYNTHETIC_ONLY",official:false,canTransfer:false,canTrade:false};
+ }
+}
+
+@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController],providers:[ApiIrSmsOtpProvider]})
 export class AppModule {}
