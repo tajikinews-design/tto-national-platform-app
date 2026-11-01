@@ -1,0 +1,9 @@
+# W2.13 — IPC/journal integration, ambiguous acknowledgement and fail-closed replay
+
+Baseline: W2.12 exact HEAD `5fedf10d4f37432f33a4e39ecfc16807efdf2721`.
+
+This disposable test-only bridge binds W2.11's isolated worker IPC requests to W2.12's fsync-backed hash-linked local journal through **one** in-process authority owner. A simulated commit record is appended before the reply is delivered. If a response is lost after the durable append, the next owner reconstructs the ledger and refuses a duplicate ticket. Prepared-but-uncommitted tickets are volatile and invalidated on coordinator restart. Revocation and rotation epochs replay; corrupt/torn logs quarantine startup. Every positive outcome reports `canGrantPermission:false`.
+
+**Unsolved threats / no production authorization:** A single parent process is still the serialization point, with no exclusive multiprocess file lock, no quorum, no independently protected monotonic witness, no authenticating MAC/signature on journal or its final head, and no atomic handoff to an actual external effect. Two real coordinators opened on the same journal can race, so this scenario must be **blocked as unsafe**, not advertised as safe concurrent writing. Whole-file journal rollback and replacement are not resisted. The tests simulate the response loss by restarting after a completed durable append; they do not kill the broker precisely mid-fsync. The process is a synthetic fixture, not a true networked distributed database or financial share transaction.
+
+No Docker, PostgreSQL, OCI, Merge, Deploy, real trades or accounts. Draft-only exact HEAD CI acceptance must also show all six Docker/SQL/OCI stages skipped.
