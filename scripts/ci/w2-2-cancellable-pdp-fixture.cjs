@@ -31,6 +31,9 @@ switch(mode){
   process.exit(77);
   break;
  case "invalid":
+  process.stdout.write('{"incomplete":');
+  break;
+ case "schema":
   process.stdout.write('{"unexpected":true}\n');
   break;
  case "oversize":
