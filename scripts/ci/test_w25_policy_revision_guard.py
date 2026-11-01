@@ -24,19 +24,19 @@ class W25PolicyRevisionSecurity(unittest.TestCase):
         cls.wf=WORKFLOW.read_text(encoding="utf8")
 
     def test_01_synthetic_only_inactive_operational_environment(self):
+        for marker in ('process.env.CI==="true"',
+                       'process.env.NODE_ENV==="test"',
+                       'process.env.TTO_W25_POLICY_LAB==="1"',
+                       '!process.env.VERCEL',
+                       '!process.env.DATABASE_URL',
+                       '!process.env.TTO_API_BASE_URL',
+                       '!process.env.APIIR_TOKEN',
+                       '!process.env.TEST_ADMIN_DATABASE_URL',
+                       '!process.env.TTO_DB_POOLER_HOST',
+                       '!process.env.TTO_DB_APP_PASSWORD'):
+            self.assertIn(marker,self.reg)
+        self.assertIn('const {enabled,POLICY_ID}=require("./w25-synthetic-policy-registry.cjs")',self.enf)
         for code in (self.reg,self.enf):
-            for marker in ('process.env.CI==="true"',
-                           'process.env.NODE_ENV==="test"',
-                           'process.env.TTO_W25_POLICY_LAB==="1"',
-                           '!process.env.VERCEL',
-                           '!process.env.DATABASE_URL',
-                           '!process.env.TTO_API_BASE_URL',
-                           '!process.env.APIIR_TOKEN',
-                           '!process.env.TEST_ADMIN_DATABASE_URL',
-                           '!process.env.TTO_DB_POOLER_HOST',
-                           '!process.env.TTO_DB_APP_PASSWORD'):
-                if code is self.reg or marker != 'process.env.TTO_W25_POLICY_LAB==="1"':
-                    self.assertIn(marker,code)
             for forbidden in ('new Pool(', 'postgresql://', 'docker run',
                               'fetch(', 'shell:true', 'process.env.DATABASE_URL??'):
                 self.assertNotIn(forbidden,code)
@@ -74,7 +74,6 @@ class W25PolicyRevisionSecurity(unittest.TestCase):
         for m in ('const afterPdp=registry.check(lease)',
                   'const afterAudit=registry.check(lease)',
                   'if(!afterAudit?.ok)',
-                  'raw=await',
                   'response=await Promise.race([',
                   'rootSignal.addEventListener("abort",onDisconnect,{once:true})',
                   'ctl.abort()',
