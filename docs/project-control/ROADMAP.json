@@ -18,9 +18,13 @@
       "sourceDocsSHA": "37254e741357f36e6414d9172c60bdefc527d7ff",
       "candidateBranch": "integration/tto-pcs-015-wave0-candidate-20261101",
       "docIntegrity": "22/22 SOURCE DOCUMENTS PRESENT; 21 UNMODIFIED BLOBS; CHECKPOINT ONLY EXTENDED",
-      "releaseStatus": "PENDING_EXACT_SHA_CI",
-      "ownerDecision": "AWAITING_WAVE0_G3_SIGNOFF",
-      "mergeDeployment": "NOT_AUTHORIZED"
+      "releaseStatus": "VERIFIED_SUCCESS",
+      "ownerDecision": "G3_PENDING_NO_ACCEPTANCE",
+      "mergeDeployment": "NOT_AUTHORIZED",
+      "testedCandidatePR": 109,
+      "testedSHA": "e87f2a874200f7694faa3959d03bdeeb0890ba6f",
+      "fullReleaseRun": 41323031652,
+      "fullReleaseJob": 124897099133
     }
   },
   "waves": [
@@ -28,7 +32,7 @@
       "id": "WAVE-0",
       "name": "Repository recovery and approved delivery baseline",
       "status": "IN_PROGRESS",
-      "gate": "G0",
+      "gate": "G3_PENDING_NOT_ACCEPTED",
       "exit": [
         "complete paginated open PR inventory and parent graph",
         "confirm reusable code and exact tests across candidate",
@@ -37,7 +41,7 @@
       ],
       "dependencies": [],
       "technicalCI": "PASS exact candidate SHA 064ef8b27b280526468b540291299d49e08347d6; G3 owner approval pending",
-      "pcs015Status": "TECHNICAL_CANDIDATE_ASSEMBLED / FULL_RELEASE_AND_OWNER_REVIEW_PENDING"
+      "pcs015Status": "TECHNICAL_G2_FULL_RELEASE_PASS / G3_OWNER_CODEOWNER_QA_REVIEW_PENDING"
     },
     {
       "id": "WAVE-1",
