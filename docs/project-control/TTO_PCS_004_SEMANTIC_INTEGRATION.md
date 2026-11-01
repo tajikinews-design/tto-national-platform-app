@@ -29,3 +29,9 @@ Status: IN_PROGRESS until exact-HEAD CI and independent review.
 5. No merge/deploy, real user information, payment, share lock or transfer without separate authority.
 
 Outcome: PR #88 is only a provisional integration candidate. Wave 0 IN_PROGRESS; Wave 1 remains BLOCKED.
+
+## Verified result on final exact candidate SHA
+- Final application candidate SHA: dcb78b4c12db06b293c5a9628f2259bb2dde12f0, Draft PR #88.
+- GitHub Actions: run 41302734260, job 124836862888, **completed / SUCCESS**. New 5 static semantic tests and 4 offline font tests passed; Next/Nest workspace build/check and existing offline security regressions green.
+- Six Docker/PostgreSQL/SQL/OCI stages each individually **SKIPPED**; no valid claim for new-SHA real PG17 HTTP E2E, full browser acceptance, production readiness or Wave-0 G3.
+- First CI attempt 41302692961 failed due to an incorrect filename in new test; repaired in next commit and the final exact-head run is green.
