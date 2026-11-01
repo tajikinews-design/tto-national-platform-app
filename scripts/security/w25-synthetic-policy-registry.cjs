@@ -39,7 +39,7 @@ function digestOf(b){
 }
 function millis(v){return Number.isSafeInteger(v)&&v>=0}
 class SyntheticPolicyRegistry{
- #clock;#bundles=new Map();#active=null;#epoch=0;#maxRevision=0;#lastActivatedRevision=0;
+ #clock;#bundles=new Map();#issued=new WeakSet();#active=null;#epoch=0;#maxRevision=0;#lastActivatedRevision=0;
  constructor({clock}={}){
   if(!enabled())throw Error("W25_LAB_DISABLED");
   if(typeof clock!=="function")throw Error("TRUSTED_CLOCK_REQUIRED");
@@ -99,11 +99,13 @@ class SyntheticPolicyRegistry{
    return Object.freeze({ok:false,reasonCode:"POLICY_NOT_YET_VALID"});
   if(now>=bundle.expiresAtMs)
    return Object.freeze({ok:false,reasonCode:"POLICY_EXPIRED"});
-  return Object.freeze({ok:true,lease:Object.freeze({
+  const lease=Object.freeze({
    policyId:POLICY_ID,revision:bundle.revision,ruleset:bundle.ruleset,
    digest:bundle.digest,epoch:this.#epoch,
    issuedAtMs:now,expiresAtMs:bundle.expiresAtMs
-  })});
+  });
+  this.#issued.add(lease);
+  return Object.freeze({ok:true,lease});
  }
  check(lease){
   if(!enabled())return Object.freeze({ok:false,reasonCode:"LAB_DISABLED"});
@@ -114,6 +116,10 @@ class SyntheticPolicyRegistry{
      !RULES.has(lease.ruleset)||
      typeof lease.digest!=="string"||!DIGEST.test(lease.digest))
    return Object.freeze({ok:false,reasonCode:"POLICY_LEASE_INVALID"});
+  // Exact identity proves this frozen lease was minted by THIS trusted
+  // in-process registry, not copied or forged from browser/PDP metadata.
+  if(!this.#issued.has(lease))
+   return Object.freeze({ok:false,reasonCode:"POLICY_LEASE_UNTRUSTED"});
   let now;
   try{now=this.#now()}catch{return Object.freeze({ok:false,reasonCode:"CLOCK_UNAVAILABLE"})}
   if(now>=lease.expiresAtMs)
