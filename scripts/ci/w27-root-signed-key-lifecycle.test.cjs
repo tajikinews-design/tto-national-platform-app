@@ -271,7 +271,7 @@ test("W2.7 root-pinned trust publication / revocation / rotation lab",async t=>{
  });
  console.log("TTO_W27_SIGNED_KEYSET_ANTI_ROLLBACK=PASS");
 
- await t.test("publisher and PDP keys cannot cross roles",()=>{
+ await t.test("publisher and PDP keys cannot cross roles",async()=>{
   now=BASE;
   const st=state();
   assert.equal(st.ring.check("PDP_DECISION",PUBLISHER_PEM).ok,false);
