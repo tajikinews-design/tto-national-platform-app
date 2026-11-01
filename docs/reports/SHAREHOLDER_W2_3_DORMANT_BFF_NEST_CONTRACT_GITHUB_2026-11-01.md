@@ -71,7 +71,7 @@ BFF always-closed verdict (403 or 503)
 
 ## ۵. معیار پذیرش
 
-GitHub Actions باید بر **SHA دقیق PR** موفق شود و Build/TypeScript، Python static contract checks، آزمون Node با NextRequest و Nest Fastify، کنترل‌های W2.2 و سایر آزمون‌های موجود را بگذراند. هر شش مرحله Docker/PostgreSQL/OCI باید برای Draft این شاخه **Skipped** باشند. موفقیت Vercel Preview—even if any—جایگزین آزمون امنیتی نیست؛ اتصال خودکار Vercel ممکن است Preview را اجرا کند یا بر اثر سهمیه محدود شود.
+GitHub Actions باید بر **SHA دقیق PR** موفق شود و Build/TypeScript، Python static contract checks، آزمون Node با NextRequest و Nest Fastify، کنترل‌های W2.2 و سایر آزمون‌های موجود را بگذراند. مجموعه W2.2 باید در همین PR مجدداً با ۱۲ آزمون فرایند Python اجرا شود؛ صرفاً ارجاع به پذیرش تاریخی PR پیشین کافی نیست. هر شش مرحله Docker/PostgreSQL/OCI باید برای Draft این شاخه **Skipped** باشند. موفقیت Vercel Preview—even if any—جایگزین آزمون امنیتی نیست؛ اتصال خودکار Vercel ممکن است Preview را اجرا کند یا بر اثر سهمیه محدود شود.
 
 ## ۶. پیش‌نیازهای مرحله اتصال واقعی در آینده
 
