@@ -90,8 +90,6 @@ function runW22CancellablePDP(operation,context,options){
   }
   counters.started++;
   active.add(child);
-  signal.addEventListener("abort",onAbort,{once:true});
-  if(signal.aborted){onAbort();return}
   child.stdout.on("data",chunk=>{
    if(finished||tooLarge)return;
    stdoutSize+=chunk.length;
@@ -118,6 +116,10 @@ function runW22CancellablePDP(operation,context,options){
    }catch{settle(Error("PDP_RESPONSE_INVALID"))}
   });
   child.stdin.on("error",()=>{});
+  // Attach close/error handlers BEFORE observing abort: an already-cancelled
+  // child still needs its 'close' event to remove PID from the active set.
+  signal.addEventListener("abort",onAbort,{once:true});
+  if(signal.aborted){onAbort();return}
   child.stdin.end(isFixture?"":input);
  });
 }
