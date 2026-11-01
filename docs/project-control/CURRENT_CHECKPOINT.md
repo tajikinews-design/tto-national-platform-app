@@ -61,3 +61,11 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - Initial lite and failed OCI runs retained in PCS-005 report; OCI Bash bug repaired without weakening test steps.
 - G3 Wave-0 still IN_PROGRESS: require codeowner/owner review of candidate baseline, safe merge strategy and authorized reviewer acceptance. Wave-1 BLOCKED on approved pilot/Child06/Child07 official source contracts. No merge, deploy, real PII, share trading.
 - Next action: owner review of exact candidate PR #90 and Draft PCS docs PRs, consolidate after explicit approval; select lawful pilot and official membership/ledger data authority.
+
+## PCS-006 — frozen engineering candidate and first Wave-1 acceptance contract (2026-11-01)
+- Exact app baseline proposed: PR #90 Draft, SHA 064ef8b27b280526468b540291299d49e08347d6, technical run 41303773442 / job 124839904879 completed SUCCESS.
+- PCS documentation ancestor: PR #91 Draft, SHA 9017b06c710d6ff4754986a3921fb5f89330af51. PCS-006 record: TTO_PCS_006_BASELINE_WAVE1_ACCEPTANCE.md.
+- A proposed controlled integration method is documented; **NO merge, deploy or baseline owner signoff**. Do not infer main contains app.
+- First Wave-1 vertical slice CAP-003+004: independent official Child06 membership and Child07 shares -> scoped tenant/Party API -> authenticated shareholder. Existing BFF read boundaries remain fail-closed; cooperative manager page is still PortalModulePreview and source admission is missing.
+- Wave-0 = TECHNICAL_CI_GREEN_G3_OWNER_PENDING / IN_PROGRESS. Wave-1 = G0_SPECIFIED_SOURCE_BLOCKED. Wave-2/3 = NOT_STARTED.
+- Next action: authorized codeowner/owner decision on #90 plus separate docs integration plan, followed by controlled implementation of fictional source-admission fixtures and manager-to-shareholder end-to-end test on a reviewed integration branch. Real sources and pilot require independent Child06/Child07 approvals.
