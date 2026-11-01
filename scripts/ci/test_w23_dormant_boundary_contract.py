@@ -144,7 +144,14 @@ class W23DormantSecuritySeam(unittest.TestCase):
         self.assertIn('TTO_W23_CONTRACT_LAB: "1"',s)
         self.assertIn('node --test scripts/ci/w23-dormant-boundary-contract.test.cjs',s)
         self.assertIn('node --test scripts/ci/w2-2-cancellable-pdp.test.cjs',s)
-        self.assertIn("(github.head_ref == 'test/w2-2-cancellable-pdp-no-docker-20261101' || github.head_ref == 'spec/w2-3-dormant-boundary-contract-no-docker-20261101')",s)
+        # W2.4 extends the *same exact Draft-only step* without dropping any
+        # W2.2/W2.3 branch, production/default protections or no-Docker gates.
+        self.assertIn(
+            "(github.head_ref == 'test/w2-2-cancellable-pdp-no-docker-20261101' "
+            "|| github.head_ref == 'spec/w2-3-dormant-boundary-contract-no-docker-20261101' "
+            "|| github.head_ref == 'test/w2-4-durable-audit-no-docker-20261101')",
+            s
+        )
         self.assertIn('TTO_W23_GITHUB_ACTIONS_NO_DOCKER=PASS',s)
         for name in (
             "Start a single disposable local PostgreSQL 17 container",
