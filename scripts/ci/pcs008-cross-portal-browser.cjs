@@ -32,6 +32,9 @@ async function main(){
    assert.match(await manager.locator("body").innerText(),/در انتظار تأیید نمایشی|تأیید نمایشی انجام شده/);
    if(width===390)assert.match(await holder.locator("body").innerText(),/اطلاعات تأییدنشده/);
    await manager.getByRole("button",{name:"تأیید اطلاعات ساختگی"}).click();
+   const brokerResp=await fetch("http://127.0.0.1:32990/view",{headers:{"x-pcs007-lab-token":ENV.TTO_PCS007_TOKEN}});
+   const brokerData=await brokerResp.json();
+   assert.equal(brokerData.reviewStatus,"APPROVED_SYNTHETIC","manager submit failed: "+JSON.stringify({url:manager.url(),text:(await manager.locator("body").innerText()).slice(0,450),status:brokerResp.status,brokerData}));
    await holder.reload({waitUntil:"networkidle"});
    assert.match(await holder.locator("body").innerText(),/۱۲۵|125/);
    assert.match(await holder.locator("body").innerText(),/غیررسمی/);
