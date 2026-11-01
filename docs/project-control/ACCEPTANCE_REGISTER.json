@@ -73,5 +73,33 @@
       "Pilot cooperative nomination",
       "Production merge/deploy"
     ]
+  },
+  "pcs015": {
+    "scope": "SINGLE_CUMULATIVE_APP_AND_22_PCS_DOCS_WAVE0_REVIEW_CANDIDATE",
+    "status": "ASSEMBLED_FULL_RELEASE_PENDING_G3_UNACCEPTED",
+    "appAncestorPR": 107,
+    "appAncestorSHA": "cb533fd6f06dde8cdeccd8f0adf4665901e33b55",
+    "docsSourcePR": 108,
+    "docsSourceSHA": "37254e741357f36e6414d9172c60bdefc527d7ff",
+    "branch": "integration/tto-pcs-015-wave0-candidate-20261101",
+    "documents": {
+      "sourcePaths": 22,
+      "present": 22,
+      "unchangedBlobs": 21,
+      "checkpointExtended": true,
+      "knownMissing": 0
+    },
+    "noMergeOrDeploy": true,
+    "requiredForAcceptance": [
+      "exact-candidate full release PASS",
+      "cumulative codeowner review",
+      "manual accessibility/RTL/product review",
+      "project owner Wave0 G3 approval"
+    ],
+    "piloting": {
+      "pilot": "NOT_SELECTED",
+      "Child06": "NOT_AUTHORIZED",
+      "Child07": "NOT_AUTHORIZED"
+    }
   }
 }
