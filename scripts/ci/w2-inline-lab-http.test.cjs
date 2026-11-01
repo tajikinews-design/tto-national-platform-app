@@ -30,7 +30,9 @@ const {NextRequest,NextResponse}=fromNext("next/server");
 const {Controller,Post,Req,Module,HttpException}=fromApi("@nestjs/common");
 const {NestFactory}=fromApi("@nestjs/core");
 const {FastifyAdapter}=fromApi("@nestjs/platform-fastify");
-const {enforceW2SyntheticInline}=require("../security/w2-inline-synthetic-enforcer.cjs");
+const {
+ enforceW2SyntheticInline,sanitizeW2SyntheticPublicResponse
+}=require("../security/w2-inline-synthetic-enforcer.cjs");
 function loadW1Bff(){
  const file=resolve(ROOT,"apps/shareholder/lib/w1-boundary-seam.ts");
  const code=ts.transpileModule(readFileSync(file,"utf8"),{
@@ -49,7 +51,8 @@ const actors=new Map();
 const byHandle=new Map();
 const audits=[],touches=[];
 let nestRequests=0;
-const current={policyMode:"normal",auditFail:false,sourceApproved:true};
+const current={policyMode:"normal",auditFail:false,sourceApproved:true,
+ resumePolicy:null};
 for(let i=0;i<2;i++){
  const proof={sessionActive:true,tenantKey:tenant,ownerKey:owners[i],
   partyBound:true,membershipSourceApproved:true,featureEnabled:true,
@@ -75,6 +78,16 @@ function policy(operation,ctx){
  if(current.policyMode==="throw")throw Error("SYNTHETIC_PDP_ERROR");
  if(current.policyMode==="timeout")return new Promise(()=>{});
  if(current.policyMode==="invalid")return {decision:"ALLOW",canGrantPermission:true,pii:"NEVER"};
+ if(current.policyMode==="deferred"){
+  // Suspension controlled only by the synthetic test, enabling a deterministic
+  // revocation DURING the PDP await, before the fake source is accessed.
+  return new Promise(resolve=>{
+   current.resumePolicy=()=>{
+    current.policyMode="normal";
+    resolve(policy(operation,ctx));
+   };
+  });
+ }
  const task=spawnSync("python3",["-m","scripts.security.w1_isolated_http_bridge"],{
   cwd:ROOT,input:JSON.stringify({operation,context:ctx}),encoding:"utf8",
   timeout:3500,maxBuffer:8192,
@@ -139,17 +152,13 @@ async function handleBFF(nodeReq,nodeRes){
    body:JSON.stringify(preflight.candidate)
   });
   if(!upstream.ok){await nextReply(nodeRes,fail(503,"NEST_UNAVAILABLE"));return}
-  const body=await upstream.json();
-  if(!body||body.canGrantPermission!==false||
-     body.hasActualRecord!==false||body.legalOperationalEffect!=="NONE"||
-     !["DENY","SIMULATED_ALLOW"].includes(body.decision)||
-     body.data!==null||!Number.isSafeInteger(body.sourceTouches)||
-     (body.decision==="DENY"&&body.sourceTouches!==0)||
-     (body.decision==="SIMULATED_ALLOW"&&body.sourceTouches!==1)){
-    await nextReply(nodeRes,fail(503,"UPSTREAM_CONTRACT_INVALID"));return;
+  const raw=await upstream.json();
+  const safe=sanitizeW2SyntheticPublicResponse(raw);
+  if(!safe){
+   await nextReply(nodeRes,fail(503,"UPSTREAM_CONTRACT_INVALID"));return;
   }
-  await nextReply(nodeRes,NextResponse.json(body,{
-   status:body.decision==="SIMULATED_ALLOW"?200:403,
+  await nextReply(nodeRes,NextResponse.json(safe,{
+   status:safe.decision==="SIMULATED_ALLOW"?200:403,
    headers:{"Cache-Control":"private, no-store"}
   }));
  }catch{await nextReply(nodeRes,fail(503,"CHAIN_UNAVAILABLE"))}
@@ -336,6 +345,105 @@ test("W2 real HTTP NextRequest -> Nest lab inline Python PDP/PEP -> fake source,
   }
  });
  console.log("TTO_W2_INMEMORY_AUDIT_ALLOWLIST=PASS");
+
+ await t.test("strict public contract strips no data and rejects injected Nest fields",()=>{
+  const positive={decision:"SIMULATED_ALLOW",reasonCode:"SIMULATION_ONLY",
+   requestId:randomUUID(),sourceTouches:1,hasActualRecord:false,
+   canGrantPermission:false,legalOperationalEffect:"NONE",data:null};
+  const sanitized=sanitizeW2SyntheticPublicResponse(positive);
+  assert.deepEqual(sanitized,positive);
+  for(const [name,unsafe] of [
+   ["extra secret field",{...positive,secret:"DO_NOT_LEAK"}],
+   ["fake operational allow",{...positive,decision:"ALLOW"}],
+   ["marked authorized",{...positive,canGrantPermission:true}],
+   ["actual record",{...positive,hasActualRecord:true}],
+   ["sensitive data",{...positive,data:{shareholderId:"PRIVATE"}}],
+   ["invalid request ID",{...positive,requestId:"bad"}],
+   ["dishonest touch",{...positive,sourceTouches:0}],
+   ["fake reason",{...positive,reasonCode:"GRANTED"}],
+   ["missing field",(()=>{
+    const v={...positive};delete v.legalOperationalEffect;return v;
+   })()],
+   ["denied after source touched",{...positive,decision:"DENY",sourceTouches:1}],
+   ["negative sourceTouches",{...positive,decision:"DENY",sourceTouches:-1}]
+  ]){
+   assert.equal(sanitizeW2SyntheticPublicResponse(unsafe),null,name);
+  }
+ });
+ console.log("TTO_W2_STRICT_RESPONSE_ALLOWLIST=PASS");
+
+ await t.test("revocation DURING async policy rejects before fake source touch",async()=>{
+  const actor=actors.get(cookies[0]);
+  const before=touches.length,initialAudit=audits.length;
+  current.policyMode="deferred";
+  current.resumePolicy=null;
+  const pending=call(relative(),{user:0});
+  try{
+   for(let n=0;n<50&&!current.resumePolicy;n++)
+    await new Promise(resolve=>setTimeout(resolve,10));
+   assert.equal(typeof current.resumePolicy,"function","PDP must be in flight");
+   actor.proof.sourceApproved=false;
+   current.resumePolicy();
+   const r=await pending;
+   assert.equal(r.status,403);
+   assert.equal(r.body.reasonCode,"PROOF_CHANGED");
+   assert.equal(r.body.sourceTouches,0);
+   assert.equal(touches.length,before);
+   assert.equal(audits.length,initialAudit+1,"DENY must be audited");
+  }finally{
+   actor.proof.sourceApproved=true;
+   current.policyMode="normal";
+   current.resumePolicy=null;
+  }
+ });
+ console.log("TTO_W2_POLICY_INFLIGHT_REVOCATION_DENY=PASS");
+
+ await t.test("audit callback revocation also blocks source after policy success",async()=>{
+  const actor=actors.get(cookies[0]);
+  const before=touches.length;
+  const candidate={
+   contractVersion:"W1_BFF_NEST_SEAM_V0_1",environment:"SIMULATION",
+   tenantKey:tenant,ownerKey:owners[0],operation:"read"
+  };
+  try{
+   const r=await enforceW2SyntheticInline({
+    candidate,proof:actor.proof,policy,source,deadlineMs:500,
+    audit:{record(event){
+     safeAudit(event);
+     if(event.decision==="SIMULATED_ALLOW")actor.proof.partyBound=false;
+    }}
+   });
+   assert.equal(r.decision,"DENY");
+   assert.equal(r.reasonCode,"PROOF_CHANGED");
+   assert.equal(r.sourceTouches,0);
+   assert.equal(touches.length,before);
+  }finally{actor.proof.partyBound=true}
+ });
+ console.log("TTO_W2_POST_AUDIT_REVOCATION_DENY=PASS");
+
+ await t.test("invalid synthetic fixture response is denied and touch truth preserved",async()=>{
+  const candidate={
+   contractVersion:"W1_BFF_NEST_SEAM_V0_1",environment:"SIMULATION",
+   tenantKey:tenant,ownerKey:owners[0],operation:"read"
+  };
+  const before=touches.length;
+  const badSource={read(key){
+   touches.push({...key});
+   return {synthetic:true,record:null,persisted:false,secret:"DO_NOT_LEAK"};
+  }};
+  const response=await enforceW2SyntheticInline({
+   candidate,proof:actors.get(cookies[0]).proof,policy,
+   audit:{record:safeAudit},source:badSource,deadlineMs:500
+  });
+  assert.equal(response.decision,"DENY");
+  assert.equal(response.reasonCode,"FIXTURE_INVALID");
+  assert.equal(response.sourceTouches,1,"attempted source access must not be reported zero");
+  assert.equal(response.data,null);
+  assert.equal(touches.length,before+1);
+  assert.equal(sanitizeW2SyntheticPublicResponse(response),null,
+   "BFF must not forward a DENY that already touched fake source");
+ });
+ console.log("TTO_W2_POST_SOURCE_INVALID_RESPONSE_BLOCKED=PASS");
  console.log("TTO_W2_INLINE_POLICY_BEFORE_SOURCE=PASS");
  console.log("TTO_W2_SYNTHETIC_ONLY_NO_OPERATIONAL_ALLOW=PASS");
  console.log("TTO_W2_NO_DB_NO_DOCKER_NO_DEPLOY=PASS");
