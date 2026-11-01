@@ -46,6 +46,6 @@ class SyntheticCommitFencer{
  // Failed or lost attempt never gets automatically accepted on recovery.
  abort(id){gate();return this.#pending.delete(id)}
  restart(){gate();this.#pending.clear();this.#online=false}
- recover(){gate();this.#current();this.#online=true} // fail closed if unavailable
+ recover(){gate();this.#online=true;try{this.#current()}catch{this.#online=false;throw Error("W210_RECOVERY_UNAVAILABLE")}}
 }
 module.exports={SyntheticCommitFencer};
