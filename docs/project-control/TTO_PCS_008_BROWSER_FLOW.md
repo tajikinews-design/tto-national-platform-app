@@ -20,3 +20,11 @@ Date 2026-11-01. No real cooperative, user, official share ledger, SMS, payment,
 
 ## Next
 Confirm latest exact SHA GitHub Actions. Fix any identified browser test failure; update CHECKPOINT. If green, move to a narrowly scoped design and implementation plan for authorization-backed cooperative admission using test fixtures, independent official Child06 and Child07 source authority gates.
+
+## Final verified results (supersedes only earlier pending status)
+- Final app Draft PR #95 HEAD `f3d14eef7a449888b244c7b83a8c76e35431ce60`.
+- GitHub Actions run **41307901786**: **COMPLETED SUCCESS** on exact HEAD, including Chromium two-portal browser, Next build and TypeScript, disposable PG17 migrations 0001–0010 and real Next/Nest tenant/source quarantine E2E. No failed steps.
+- The browser ran with both 390 and 1440 widths, exercised manager form POST to synthetic localhost broker, and asserted shareholder display of 125 **fictional** shares and trade-disabled disclosures; browser network was limited to localhost or 127.0.0.1 on the two test ports.
+- Historical failures retained: 41306818429 fake broker readiness/Next build-mode gate; 41307019529 origin check denied local form; 41307233869 recognized local Next static files as outbound; 41307466023 transient PostgreSQL init socket false-ready after browser pass. Fixed sequentially; final status is not inferred from earlier failed runs.
+- PostgreSQL readiness check now waits for final TCP listener rather than temporary initialization Unix socket.
+- **Not accepted:** live user authentication across both pages, official Child06/07 source integration, durable audited manager workflow, source/legal signoff, Wave-0 owner acceptance, merge or deploy.
