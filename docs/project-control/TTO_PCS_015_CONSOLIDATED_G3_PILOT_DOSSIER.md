@@ -25,7 +25,7 @@ No official data imports, external finance, money custody, trade request activat
 |---|---|---|
 | cumulative app | PR #107 is the provisional engineering baseline | G2 technical candidate |
 | PCS history | all 22 source docs present, 21 byte-identical source blobs and checkpoint intentionally extended | DOCUMENT_RECONCILIATION_COMPLETE |
-| CI full release | exact-head workflow still to be observed | G2 pending |
+| CI full release | PR #109 SHA e87f2a874200f7694faa3959d03bdeeb0890ba6f, run 41323031652 SUCCESS | G2 VERIFIED |
 | manager/read-only shareholder | synthetic approvals and existing BFF/Nest/Postgres tested in prior PRs | legal owner signoff pending |
 | Human RTL/UX/WCAG | not verified for consolidated candidate | G3 pending |
 | Child06 | no official source owner authorization | blocked |
@@ -39,7 +39,7 @@ Verify final PR SHA and full-release Actions run; correct any exact CI failure w
 ## Technical integration file integrity — verified
 - App PR #107 exact parent SHA: cb533fd6f06dde8cdeccd8f0adf4665901e33b55; merged programmatically: NONE. At integration commit 09ef8e48b74c1da32ec9aa0c55b5b2b64e8ebfd2, **all 452 parent code/document blobs were unchanged except the adaptive CI workflow** (branch-specific full RELEASE enforcement). 23 additional project-control documents exist, including the PCS015 dossier; do not confuse an isolated validation candidate with mainline.
 - Source docs PR #108 SHA: 37254e741357f36e6414d9172c60bdefc527d7ff. All 22 source paths accounted for; 21 exact source blobs and CURRENT_CHECKPOINT.md extended with a clearly separate PCS015 section. No superseded history silently omitted.
-- Exact-head Release CI result: **PENDING** until this branch has a Draft PR and the GitHub Actions job completes. A previous PR #107 successful browser run does not substitute for Release on the combined candidate.
+- Exact-head Release CI result: **VERIFIED SUCCESS** on PR #109 SHA e87f2a874200f7694faa3959d03bdeeb0890ba6f, GitHub Actions run 41323031652, job 124897099133. Workspace builds/TypeScript, temporary PG17 migrations 0001–0010, identity/tenant/Party/source E2E, historical SQL/OTP, offline deployment manifest checks, all four OCI build/smoke without registry push, and teardown passed. No deployment, production data or formal owner acceptance.
 
 ## Wave-0 management acceptance package — decisions required
 | Decision owner | Requested decision | Current state |
@@ -60,3 +60,10 @@ Verify final PR SHA and full-release Actions run; correct any exact CI failure w
 - Explicit rerun of same job succeeded as an API action, job 124896624370, but second attempt also CANCELLED. There is **no verified green full-release** on this integrated branch. Underlying cancellation cause is not established; do not infer test failure or success.
 - This addendum itself changes the candidate HEAD and would require a new exact-head run after cancellation cause is resolved.
 - Wave 0 G3 NOT ACCEPTED; do not merge, deploy, or activate official sources.
+
+## Final PCS-015 review finding — technical G2 pass, legal/manager G3 pending
+- **Frozen candidate:** Draft PR #109 at `e87f2a874200f7694faa3959d03bdeeb0890ba6f`. The complete RELEASE workflow `41323031652` / job `124897099133` is **COMPLETED SUCCESS** on that exact commit, with no failed steps; the final docs-only evidence amendment must not be confused with a retested application commit.
+- Prior attempts under the earlier branch state (run `41322689067`, including a rerun) were **CANCELLED**, not successful. Their cancellation is historical evidence; final exact-commit PASS supersedes the *status*, not the history.
+- **All 22/22 source PCS documents are present:** old checkpoint note claiming PCS009 missing is OBSOLETE after commit `09ef8e48b74c1da32ec9aa0c55b5b2b64e8ebfd2`. 21 blobs matched source unchanged and the old checkpoint was deliberately extended. Existing application files remained unchanged except branch-scoped CI selection.
+- Decision owner: **Project owner and codeowner** must review cumulative PR code, side PR reconciliation, manually test Persian RTL/keyboard/accessibility and approve G3. No approval is granted by this dossier.
+- Official Child06 and Child07 data-source authorizations and legal choice of a pilot cooperative remain **BLOCKED** and independent of G2. No merger to main, deployment, real shareholders, payments or share trading occurred.
