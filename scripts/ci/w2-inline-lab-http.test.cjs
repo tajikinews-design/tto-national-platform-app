@@ -8,7 +8,8 @@ const test=require("node:test");
 const assert=require("node:assert/strict");
 const http=require("node:http");
 const {randomUUID}=require("node:crypto");
-const {spawnSync}=require("node:child_process");
+// W2.2: Python bridge is launched with cancellable spawn, never spawnSync.
+// Accepted Python endpoint remains scripts.security.w1_isolated_http_bridge.
 const {createRequire,Module:NodeModule}=require("node:module");
 const {resolve,dirname}=require("node:path");
 const {readFileSync}=require("node:fs");
@@ -17,6 +18,7 @@ if(process.env.CI!=="true"||process.env.NODE_ENV!=="test"||
    process.env.TTO_LOOPBACK_E2E!=="1"||
    process.env.TTO_W1_BOUNDARY_LAB!=="1"||
    process.env.TTO_W2_OFFLINE_LAB!=="1"||
+   process.env.TTO_W22_CANCELLABLE_LAB!=="1"||
    process.env.VERCEL||process.env.DATABASE_URL||
    process.env.TTO_API_BASE_URL||process.env.APIIR_TOKEN||
    process.env.TEST_ADMIN_DATABASE_URL||process.env.TTO_DB_POOLER_HOST||
@@ -33,6 +35,9 @@ const {FastifyAdapter}=fromApi("@nestjs/platform-fastify");
 const {
  enforceW2SyntheticInline,sanitizeW2SyntheticPublicResponse
 }=require("../security/w2-inline-synthetic-enforcer.cjs");
+const {
+ runW22CancellablePDP,stats:pdpStats
+}=require("../security/w2-2-cancellable-pdp-provider.cjs");
 function loadW1Bff(){
  const file=resolve(ROOT,"apps/shareholder/lib/w1-boundary-seam.ts");
  const code=ts.transpileModule(readFileSync(file,"utf8"),{
@@ -74,27 +79,25 @@ const source={
   return {synthetic:true,record:null,persisted:false};
  }
 };
-function policy(operation,ctx){
+function policy(operation,ctx,{signal}={}){
  if(current.policyMode==="throw")throw Error("SYNTHETIC_PDP_ERROR");
  if(current.policyMode==="timeout")return new Promise(()=>{});
  if(current.policyMode==="invalid")return {decision:"ALLOW",canGrantPermission:true,pii:"NEVER"};
  if(current.policyMode==="deferred"){
-  // Suspension controlled only by the synthetic test, enabling a deterministic
-  // revocation DURING the PDP await, before the fake source is accessed.
+  // Simulates a PDP ignoring cancellation. The enforcer must still discard
+  // a positive response after request abort/deadline/proof revocation.
   return new Promise(resolve=>{
    current.resumePolicy=()=>{
     current.policyMode="normal";
-    resolve(policy(operation,ctx));
+    resolve(policy(operation,ctx,{signal}));
    };
   });
  }
- const task=spawnSync("python3",["-m","scripts.security.w1_isolated_http_bridge"],{
-  cwd:ROOT,input:JSON.stringify({operation,context:ctx}),encoding:"utf8",
-  timeout:3500,maxBuffer:8192,
-  env:{PATH:process.env.PATH??"/usr/bin:/bin",PYTHONDONTWRITEBYTECODE:"1"}
- });
- if(task.error||task.status!==0)throw Error("PEP_BRIDGE_UNAVAILABLE");
- return JSON.parse(task.stdout);
+ // W1's accepted Python simulator runs via an async child process. AbortSignal
+ // kills that child at the real OS process boundary, not just a Promise.
+ const mode=["hang","late","crash","oversize"].includes(current.policyMode)?
+   current.policyMode:"bridge";
+ return runW22CancellablePDP(operation,ctx,{signal,mode});
 }
 class W2Controller{
  async evaluate(req){
@@ -103,11 +106,21 @@ class W2Controller{
    throw new HttpException({code:"INTERNAL_CHANNEL_REQUIRED"},403);
   const handle=req.headers["x-w2-synthetic-handle"];
   const actor=byHandle.get(handle);
-  const decision=await enforceW2SyntheticInline({
-   candidate:req.body,
-   proof:actor?.proof,
-   policy,audit:{record:safeAudit},source,deadlineMs:30
-  });
+  const aborter=new AbortController();
+  const connection=req.raw?.socket;
+  const onDisconnect=()=>aborter.abort();
+  connection?.once("close",onDisconnect);
+  let decision;
+  try{
+   decision=await enforceW2SyntheticInline({
+    candidate:req.body,proof:actor?.proof,policy,
+    requestSignal:aborter.signal,
+    audit:{record:safeAudit},source,
+    deadlineMs:current.policyMode==="timeout"?35:1200
+   });
+  }finally{
+   connection?.off("close",onDisconnect);
+  }
   // Adversarial test-only upstream corruption: ensure the BFF never forwards
   // an untrusted Nest response verbatim. This is NOT an application controller.
   if(current.injectNestResponse==="extra")
@@ -153,9 +166,12 @@ async function handleBFF(nodeReq,nodeRes){
  try{
   // Identity headers from browser deliberately excluded: no x-role,
   // x-party, authorization, source approval or browser-chosen session handle.
+  const upstreamAbort=new AbortController();
+  const onClientDisconnect=()=>upstreamAbort.abort();
+  nodeRes.once("close",onClientDisconnect);
   const upstream=await fetch(nestUrl+"/w2-offline-only/evaluate",{
    method:"POST",cache:"no-store",redirect:"error",
-   signal:AbortSignal.timeout(3000),
+   signal:upstreamAbort.signal,
    headers:{"Content-Type":"application/json",
     "x-w2-internal-channel":channel,
     "x-w2-synthetic-handle":actor.handle},
@@ -163,6 +179,7 @@ async function handleBFF(nodeReq,nodeRes){
   });
   if(!upstream.ok){await nextReply(nodeRes,fail(503,"NEST_UNAVAILABLE"));return}
   const raw=await upstream.json();
+  nodeRes.off("close",onClientDisconnect);
   const safe=sanitizeW2SyntheticPublicResponse(raw);
   if(!safe){
    await nextReply(nodeRes,fail(503,"UPSTREAM_CONTRACT_INVALID"));return;
@@ -171,7 +188,9 @@ async function handleBFF(nodeReq,nodeRes){
    status:safe.decision==="SIMULATED_ALLOW"?200:403,
    headers:{"Cache-Control":"private, no-store"}
   }));
- }catch{await nextReply(nodeRes,fail(503,"CHAIN_UNAVAILABLE"))}
+ }catch{
+  if(!nodeRes.destroyed)await nextReply(nodeRes,fail(503,"CHAIN_UNAVAILABLE"));
+ }
 }
 async function listen(srv){return new Promise((yes,no)=>{
  srv.once("error",no);
