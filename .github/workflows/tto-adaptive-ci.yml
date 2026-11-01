@@ -140,6 +140,12 @@ jobs:
           node /tmp/tto-pcs008-browser/node_modules/playwright/cli.js install --with-deps chromium
           timeout --signal=TERM --kill-after=5s 180s node scripts/ci/pcs008-cross-portal-browser.cjs
           echo "TTO_PCS008_TWO_PORTAL_SYNTHETIC_BROWSER_PASS"
+      - name: PCS-009 fictional actor isolation and audited admission
+        if: github.event_name == 'pull_request' && github.head_ref == 'feat/tto-pcs-009-audited-source-admission-20261101'
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=5s 50s node --test scripts/ci/pcs007-synthetic-flow.test.cjs scripts/ci/pcs009-role-audit.test.cjs
+          echo "TTO_PCS009_FAKE_ACTOR_AUDIT_PASS"
       - name: W2 offline inline policy gate — NO DOCKER, NO DATABASE, NO DEPLOY
         if: env.TTO_W2_NO_DOCKER_BRANCH == 'true'
         env:
