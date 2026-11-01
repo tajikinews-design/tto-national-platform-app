@@ -42,5 +42,18 @@ CREATE FUNCTION tto.pcs010_fixture_review_count(p_tenant uuid) RETURNS bigint
  $f$;
 REVOKE ALL ON FUNCTION tto.pcs010_fixture_review_count(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION tto.pcs010_fixture_review_count(uuid) TO tto_app;
+CREATE FUNCTION tto.pcs012_fixture_review_history(p_tenant uuid)
+RETURNS TABLE(id uuid,fixture_ref text,event_kind text,recorded_at timestamptz)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
+ SELECT r.review_id,r.fixture_ref,r.event_kind,r.recorded_at
+ FROM tto.pcs010_fixture_reviews r
+ WHERE current_setting('tto.pcs010_lab',true)='1'
+ AND p_tenant=tto.context_tenant_id()
+ AND tto.has_tenant_role(p_tenant,'COOPERATIVE_MANAGER')
+ AND r.tenant_id=p_tenant
+ ORDER BY r.recorded_at DESC,r.review_id DESC LIMIT 30
+$f$;
+REVOKE ALL ON FUNCTION tto.pcs012_fixture_review_history(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION tto.pcs012_fixture_review_history(uuid) TO tto_app;
 COMMENT ON TABLE tto.pcs010_fixture_reviews IS 'Non-authoritative disposable CI lab evidence. Never membership or share ownership.';
 COMMIT;
