@@ -108,7 +108,8 @@ export function closeW23DormantBffVerdict(
   if (!labOnly() || !UUID.test(expectedRequestId) ||
       !objectRecord(raw) || !exactKeys(raw, RESPONSE_KEYS))
     return invalid;
-  if (!UUID.test(String(raw.requestId)) || raw.requestId !== expectedRequestId ||
+  if (typeof raw.requestId !== "string" || !UUID.test(raw.requestId) ||
+      raw.requestId !== expectedRequestId ||
       (raw.decision !== "DENY" && raw.decision !== "SIMULATED_ALLOW") ||
       typeof raw.reasonCode !== "string" || !SAFE_REASON.test(raw.reasonCode) ||
       raw.canGrantPermission !== false || raw.hasActualRecord !== false ||
