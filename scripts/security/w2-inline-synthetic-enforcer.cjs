@@ -13,6 +13,12 @@ const CONTRACT="W1_BFF_NEST_SEAM_V0_1";
 const CANDIDATE_KEYS=["contractVersion","environment","operation","ownerKey","tenantKey"].sort();
 const DECISION_KEYS=["auditCount","canGrantPermission","decision","fixtureTouches",
   "hasActualRecord","legalOperationalEffect","reasonCode","requestId"].sort();
+const PUBLIC_KEYS=["canGrantPermission","data","decision","hasActualRecord",
+  "legalOperationalEffect","reasonCode","requestId","sourceTouches"].sort();
+const SOURCE_KEYS=["persisted","record","synthetic"].sort();
+const PROOF_KEYS=["sessionActive","tenantKey","ownerKey","partyBound",
+  "membershipSourceApproved","featureEnabled","readPermission","sourceApproved",
+  "sourceFresh","sourceVersion","classificationAllowed"];
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TOKENS=/^[A-Z][A-Z0-9_]{1,59}$/;
 const TEST_TENANT=/^coop-test-[A-Z]$/;
@@ -39,7 +45,31 @@ function validDecision(v){
  if(v.legalOperationalEffect!=="NONE"||v.canGrantPermission!==false||
     v.hasActualRecord!==false||v.auditCount!==1||
     typeof v.fixtureTouches!=="number"||!Number.isSafeInteger(v.fixtureTouches))return false;
+ if(v.decision==="SIMULATED_ALLOW"&&v.reasonCode!=="SIMULATION_ONLY")return false;
+ if(v.decision==="DENY"&&v.reasonCode==="SIMULATION_ONLY")return false;
  return v.decision==="DENY"?v.fixtureTouches===0:v.fixtureTouches===1;
+}
+/**
+ * Exact allowlist on every lab HTTP response. Never forward raw Nest objects;
+ * extra fields, missing tracking IDs and dishonest counters are rejected.
+ * This is a sanitized TEST marker, never an operational permission.
+ */
+function sanitizeW2SyntheticPublicResponse(raw){
+ if(!isRecord(raw)||!sameKeys(raw,PUBLIC_KEYS))return null;
+ if(raw.decision!=="DENY"&&raw.decision!=="SIMULATED_ALLOW")return null;
+ if(typeof raw.reasonCode!=="string"||!TOKENS.test(raw.reasonCode)||
+    typeof raw.requestId!=="string"||!UUID.test(raw.requestId)||
+    raw.hasActualRecord!==false||raw.canGrantPermission!==false||
+    raw.legalOperationalEffect!=="NONE"||raw.data!==null||
+    typeof raw.sourceTouches!=="number"||!Number.isSafeInteger(raw.sourceTouches)||
+    (raw.decision==="DENY"&&raw.sourceTouches!==0)||
+    (raw.decision==="SIMULATED_ALLOW"&&(raw.sourceTouches!==1||
+      raw.reasonCode!=="SIMULATION_ONLY")))return null;
+ return {
+  decision:raw.decision,reasonCode:raw.reasonCode,requestId:raw.requestId,
+  sourceTouches:raw.sourceTouches,hasActualRecord:false,
+  canGrantPermission:false,legalOperationalEffect:"NONE",data:null
+ };
 }
 const DENIED_REASON="DECISION_INVALID";
 function derivedContext(proof){
@@ -104,6 +134,13 @@ async function enforceW2SyntheticInline(cfg){
     p.classificationAllowed!==true)return deny("PERMISSION_MISSING");
  if(typeof cfg.policy!=="function"||!cfg.source||
     typeof cfg.source.read!=="function")return deny("ENFORCEMENT_UNAVAILABLE");
+ // Revalidate the complete independent server proof AFTER asynchronous PDP.
+ // An owner/session/source revoked while the policy is in flight must not
+ // reach the source, even if PDP replied to the old authorized snapshot.
+ const proofSnapshot=PROOF_KEYS.map(key=>p[key]);
+ function unchangedProof(){
+  return cfg.proof===p&&PROOF_KEYS.every((key,i)=>Object.is(p[key],proofSnapshot[i]));
+ }
  const timeout=Number.isSafeInteger(cfg.deadlineMs)&&
     cfg.deadlineMs>=1&&cfg.deadlineMs<=2000?cfg.deadlineMs:150;
  let timer;
@@ -117,6 +154,7 @@ async function enforceW2SyntheticInline(cfg){
   ]);
  }catch{return deny("PDP_UNAVAILABLE")}
  finally{clearTimeout(timer)}
+ if(!unchangedProof())return deny("PROOF_CHANGED");
  if(!validDecision(raw))return deny(DENIED_REASON);
  if(raw.decision==="DENY")return deny(raw.reasonCode);
  // The synthetic policy result is the only positive path. An audit is required
@@ -126,16 +164,21 @@ async function enforceW2SyntheticInline(cfg){
   audit.record({requestId:id,operation:"read",
    decision:"SIMULATED_ALLOW",reasonCode:"SIMULATION_ONLY"});
  }catch{return reply("DENY","AUDIT_UNAVAILABLE",id)}
+ // Audit callbacks are synchronous but may revoke a test grant. Check again
+ // after audit and before the first source touch. No async work occurs between.
+ if(!unchangedProof())return deny("PROOF_CHANGED");
  try{
   // This returns no record, only an integer counter; the fixture itself is
   // injected in the isolated Node lab and cannot call a real source connector.
   const result=cfg.source.read({
    tenantKey:cfg.candidate.tenantKey,ownerKey:cfg.candidate.ownerKey
   });
-  if(!isRecord(result)||result.synthetic!==true||
-     result.record!==null||result.persisted!==false)
+  if(!isRecord(result)||!sameKeys(result,SOURCE_KEYS)||
+     result.synthetic!==true||result.record!==null||result.persisted!==false)
     return reply("DENY","FIXTURE_INVALID",id,1);
  }catch{return reply("DENY","FIXTURE_UNAVAILABLE",id,1)}
  return reply("SIMULATED_ALLOW","SIMULATION_ONLY",id,1);
 }
-module.exports={enforceW2SyntheticInline,labOnly,validDecision};
+module.exports={
+ enforceW2SyntheticInline,labOnly,validDecision,sanitizeW2SyntheticPublicResponse
+};
