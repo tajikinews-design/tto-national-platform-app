@@ -178,8 +178,8 @@ class W24AuditContractSafety(unittest.TestCase):
         self.assertEqual(d["storage"]["retention"],"EPHEMERAL_TEST_CLEANUP")
         self.assertEqual(d["eventSchema"]["allowedIdentityFields"],[])
         self.assertFalse(d["failClosed"]["successMayProceedWithoutAudit"])
-        self.assertEqual(d["storage"]["exclusivity"][:21],
-                         "lock file created with")
+        self.assertTrue(d["storage"]["exclusivity"].startswith(
+            "lock file created with"))
         self.assertTrue(d["failClosed"]["hashChainMismatch"])
 
 if __name__=="__main__":
