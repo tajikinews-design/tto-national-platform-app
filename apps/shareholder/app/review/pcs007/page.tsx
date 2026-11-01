@@ -1,6 +1,6 @@
 export const dynamic="force-dynamic";
 export default async function DemoShareholder(){
- const enabled=process.env.CI==="true"&&process.env.TTO_PCS007_LAB==="1"&&process.env.NODE_ENV==="test"&&!process.env.VERCEL&&!process.env.DATABASE_URL&&!process.env.TTO_API_BASE_URL&&Boolean(process.env.TTO_PCS007_TOKEN);
+ const enabled=process.env.CI==="true"&&process.env.TTO_PCS007_LAB==="1"&&!process.env.VERCEL&&!process.env.DATABASE_URL&&!process.env.TTO_API_BASE_URL&&Boolean(process.env.TTO_PCS007_TOKEN);
  if(!enabled)return <main dir="rtl"><h1>نمایش آزمایشی سهامدار غیرفعال است</h1></main>;
  let x:{reviewStatus:string;member:null|{status:string};holdings:null|{quantity:string};official:boolean;canTrade:boolean;canTransfer:boolean}|null=null;
  try{const r=await fetch("http://127.0.0.1:32990/view",{headers:{"x-pcs007-lab-token":process.env.TTO_PCS007_TOKEN!},cache:"no-store",signal:AbortSignal.timeout(2000)});if(r.ok)x=await r.json()}catch{}
