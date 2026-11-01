@@ -19,6 +19,15 @@ if(!labOnly()||process.env.TTO_W26_CHILD!=="1"||
 const {privateKey,publicKey}=crypto.generateKeyPairSync("ed25519");
 const publicPem=publicKey.export({format:"pem",type:"spki"}).toString();
 const signerKeyId=keyId(publicPem);
+// Publisher's *public* trust root is pinned once at process launch, never
+// supplied by the untrusted DECIDE payload.
+let trustedPublisherPublicPem;
+try{
+ const encoded=process.env.TTO_W26_PUBLISHER_PUBLIC_B64;
+ if(typeof encoded!=="string"||encoded.length>1024)throw Error("MISSING_TRUST_ROOT");
+ trustedPublisherPublicPem=Buffer.from(encoded,"base64").toString("utf8");
+ keyId(trustedPublisherPublicPem);
+}catch{process.exit(93)}
 let state="READY";
 function emit(o){process.stdout.write(JSON.stringify(o)+"\n")}
 emit({type:"READY",publicPem,signerKeyId,protocol:"W26_CHILD_SIGNED_DECISION_V0_1"});
@@ -34,7 +43,7 @@ reader.on("line",async line=>{
   emit({type:"ERROR",code:"REQUEST_INVALID"});reader.close();return
  }
  const keys=["type","requestId","nonce","context","manifest",
-  "publisherPublicPem","evaluatedAtMs","delayMs"].sort();
+  "evaluatedAtMs","delayMs"].sort();
  if(!request||Array.isArray(request)||typeof request!=="object"||
     JSON.stringify(Object.keys(request).sort())!==JSON.stringify(keys)||
     request.type!=="DECIDE"||!Number.isSafeInteger(request.delayMs)||
@@ -43,8 +52,8 @@ reader.on("line",async line=>{
     request.evaluatedAtMs<0){
   emit({type:"ERROR",code:"REQUEST_INVALID"});reader.close();return
  }
- const {requestId,nonce,manifest,publisherPublicPem,evaluatedAtMs}=request;
- if(!verifySignedManifest(manifest,publisherPublicPem)){
+ const {requestId,nonce,manifest,evaluatedAtMs}=request;
+ if(!verifySignedManifest(manifest,trustedPublisherPublicPem)){
   emit({type:"ERROR",code:"POLICY_SIGNATURE_INVALID"});reader.close();return
  }
  if(evaluatedAtMs<manifest.notBeforeMs||evaluatedAtMs>=manifest.expiresAtMs){
