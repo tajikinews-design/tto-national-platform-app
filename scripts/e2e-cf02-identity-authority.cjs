@@ -162,7 +162,7 @@ async function main(){
    const context=await browser.newContext({viewport:{width,height:width===390?844:900},locale:"fa-IR",serviceWorkers:"block"});
    await context.addCookies([{name:"tto_session",value:myToken,url:sh.origin,httpOnly:true,sameSite:"Lax"}]);
    const page=await context.newPage();const errors=[];page.on("pageerror",e=>errors.push(e.message));
-   await page.goto(sh.origin+"/tenants/"+A+"/my-records",{waitUntil:"networkidle",timeout:45000});
+   await page.goto(sh.origin+"/tenants/"+A+"/my-records",{waitUntil:"domcontentloaded",timeout:20000});
    await page.getByRole("heading",{name:"پرونده اختصاصی عضویت و سهام"}).waitFor();
    await page.getByRole("button",{name:"بررسی مجدد اطلاعات"}).waitFor();
    if(expectedMember==="unavailable")await page.getByText("اطلاعات رسمی تأییدشده در دسترس نیست").first().waitFor();
