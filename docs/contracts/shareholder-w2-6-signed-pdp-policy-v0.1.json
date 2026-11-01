@@ -63,7 +63,8 @@
     "maxStdoutBytes": 12288,
     "deadlineMilliseconds": "1-2000",
     "abort": "AbortSignal kills child via SIGKILL, child close tracked",
-    "noPrivateKeyExport": true
+    "noPrivateKeyExport": true,
+    "versionSpecificRuleSemantics": "V1 allows only trusted fake sourceVersion SYNTHETIC-V1, V2 only SYNTHETIC-V2"
   },
   "verifier": {
     "validates": [
@@ -97,6 +98,7 @@
       "wrong publisher key",
       "child rejects correctly signed policy if launched with different publisher public root",
       "separate process actually executes fake rule and signs DENY",
+      "signed policy V2 rejects valid V1 synthetic source and accepts only V2 source in separate child",
       "response UUID/nonce/context digest mutation",
       "version/digest/epoch replay",
       "modified decision, signature or signing key",
