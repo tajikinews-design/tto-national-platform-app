@@ -1,0 +1,743 @@
+{
+  "asOf": "2026-11-01",
+  "source": "GitHub REST GET /pulls?state=open&per_page=100&page=1",
+  "count": 81,
+  "roots": [
+    85,
+    1
+  ],
+  "unresolvedParents": [],
+  "drafts": 81,
+  "other": 0,
+  "entries": [
+    {
+      "number": 85,
+      "draft": true,
+      "base": "main",
+      "head": "docs/tto-delivery-3-pcs-wave0-20261101",
+      "headSha": "8f084ddb556dcc77ce959ae88e529bef540d99ca",
+      "updated": "2026-11-01T11:17:15Z",
+      "title": "TTO-PCS-001: Delivery 3.0 control system and Wave 0 checkpoint (docs only)"
+    },
+    {
+      "number": 84,
+      "draft": true,
+      "base": "test/w2-13-integrated-recovery-no-docker-20261101",
+      "head": "test/w2-14-owner-fencing-no-docker-20261101",
+      "headSha": "a5e211ec9933055657055d2bf64712d558fe6c0e",
+      "updated": "2026-11-01T10:45:18Z",
+      "title": "W2.14: synthetic exclusive coordinator owner and stale-term fencing (NO Docker)"
+    },
+    {
+      "number": 83,
+      "draft": true,
+      "base": "test/w2-12-crash-recovery-coordinator-no-docker-20261101",
+      "head": "test/w2-13-integrated-recovery-no-docker-20261101",
+      "headSha": "c53885169e1336679209d51f32e7fb731952da42",
+      "updated": "2026-11-01T10:25:34Z",
+      "title": "W2.13: IPC broker + durable journal synthetic recovery (NO Docker)"
+    },
+    {
+      "number": 82,
+      "draft": true,
+      "base": "test/w2-11-multiprocess-fencing-no-docker-20261101",
+      "head": "test/w2-12-crash-recovery-coordinator-no-docker-20261101",
+      "headSha": "5fedf10d4f37432f33a4e39ecfc16807efdf2721",
+      "updated": "2026-11-01T10:01:09Z",
+      "title": "W2.12: synthetic crash-recoverable coordinator and replay controls (NO Docker)"
+    },
+    {
+      "number": 81,
+      "draft": true,
+      "base": "test/w2-10-concurrent-trust-fencing-no-docker-20261101",
+      "head": "test/w2-11-multiprocess-fencing-no-docker-20261101",
+      "headSha": "53a6046e90f94d026df1bc9ec528c6be5dad5d63",
+      "updated": "2026-11-01T09:46:42Z",
+      "title": "W2.11: independent OS-process synthetic transactional fencing (NO Docker)"
+    },
+    {
+      "number": 80,
+      "draft": true,
+      "base": "test/w2-9-durable-trust-recovery-no-docker-20261101",
+      "head": "test/w2-10-concurrent-trust-fencing-no-docker-20261101",
+      "headSha": "cc6c28c5f31f046828b4604c0e68e51618cf6132",
+      "updated": "2026-11-01T09:26:21Z",
+      "title": "W2.10: synthetic concurrent trust commit fencing (NO Docker)"
+    },
+    {
+      "number": 79,
+      "draft": true,
+      "base": "test/w2-8-multi-instance-trust-no-docker-20261101",
+      "head": "test/w2-9-durable-trust-recovery-no-docker-20261101",
+      "headSha": "3318c087c60cae8c8f02770d0fbcaf8e5cb5ca75",
+      "updated": "2026-11-01T09:13:48Z",
+      "title": "W2.9: synthetic durable trust recovery and rollback safety (NO Docker)"
+    },
+    {
+      "number": 78,
+      "draft": true,
+      "base": "test/w2-7-root-signed-trust-lifecycle-no-docker-20261101",
+      "head": "test/w2-8-multi-instance-trust-no-docker-20261101",
+      "headSha": "55547777d3851336a40a2b418a659978f0bb2971",
+      "updated": "2026-11-01T09:03:04Z",
+      "title": "W2.8: synthetic multi-instance trust synchronization and fail-closed revocation (NO Docker)"
+    },
+    {
+      "number": 77,
+      "draft": true,
+      "base": "test/w2-6-signed-pdp-policy-no-docker-20261101",
+      "head": "test/w2-7-root-signed-trust-lifecycle-no-docker-20261101",
+      "headSha": "b15c7ea980254f8cba7e9f10bea88187547f9e4e",
+      "updated": "2026-11-01T06:59:40Z",
+      "title": "W2.7: root-signed PDP key lifecycle and revocation chain (synthetic GitHub-only, NO Docker)"
+    },
+    {
+      "number": 76,
+      "draft": true,
+      "base": "test/w2-5-policy-revision-expiry-no-docker-20261101",
+      "head": "test/w2-6-signed-pdp-policy-no-docker-20261101",
+      "headSha": "0c9c08a5bc0de901d110eb33891ac6a16330783c",
+      "updated": "2026-11-01T06:18:21Z",
+      "title": "W2.6: independently signed Ed25519 policy artifacts and child PDP decisions (GitHub-only, NO Docker)"
+    },
+    {
+      "number": 75,
+      "draft": true,
+      "base": "test/w2-4-tamper-evident-audit-no-docker-20261101",
+      "head": "test/w2-5-policy-revision-expiry-no-docker-20261101",
+      "headSha": "570a01aa6c28bed7d6d1ed95ea006e78066ad9cd",
+      "updated": "2026-11-01T05:54:17Z",
+      "title": "W2.5: fail-closed policy revision, expiry, revocation & obsolete PDP decision rejection (GitHub, no Docker)"
+    },
+    {
+      "number": 74,
+      "draft": true,
+      "base": "spec/w2-3-dormant-boundary-contract-no-docker-20261101",
+      "head": "test/w2-4-tamper-evident-audit-no-docker-20261101",
+      "headSha": "c3ea5a92b7f0ea48bff986be66b4cac3916d96ad",
+      "updated": "2026-11-01T05:37:50Z",
+      "title": "W2.4: offline file-backed audit trace + tamper-evident hash chain, no Docker/DB/production routes"
+    },
+    {
+      "number": 73,
+      "draft": true,
+      "base": "spec/w2-3-dormant-boundary-contract-no-docker-20261101",
+      "head": "test/w2-4-durable-audit-no-docker-20261101",
+      "headSha": "78a590b2db9a2aab5a630a463affc11ba89d62c1",
+      "updated": "2026-11-01T05:37:11Z",
+      "title": "W2.4 draft: durable synthetic audit journal, BFF/Nest/PDP trace, fail-closed corruption, GitHub NO Docker"
+    },
+    {
+      "number": 72,
+      "draft": true,
+      "base": "test/w2-2-cancellable-pdp-no-docker-20261101",
+      "head": "spec/w2-3-dormant-boundary-contract-no-docker-20261101",
+      "headSha": "216f5a4bf99fe6ad1cd4ea42d05b24323b94fbdb",
+      "updated": "2026-11-01T05:21:04Z",
+      "title": "W2.3 dormant Next BFF/Nest policy interface contract: test-only, no Docker, no operational route registration"
+    },
+    {
+      "number": 71,
+      "draft": true,
+      "base": "test/w2-hardening-no-docker-20261101",
+      "head": "test/w2-2-cancellable-pdp-no-docker-20261101",
+      "headSha": "609a06e17e8b65262566b94e272e539e95423ca5",
+      "updated": "2026-11-01T04:52:50Z",
+      "title": "W2.2: asynchronous cancellable synthetic PDP child process and late-result denial (GitHub, no Docker)"
+    },
+    {
+      "number": 70,
+      "draft": true,
+      "base": "test/w2-inline-pep-offline-20261101",
+      "head": "test/w2-hardening-no-docker-20261101",
+      "headSha": "ac4a94c93d15c141844a95cab80a2223fcd9a548",
+      "updated": "2026-11-01T04:39:18Z",
+      "title": "W2.1 synthetic inline PEP hardening: strict BFF responses, revocation race, no Docker"
+    },
+    {
+      "number": 69,
+      "draft": true,
+      "base": "fix/w1-api-oci-failclosed-preflight-20261031",
+      "head": "test/w2-inline-pep-offline-20261101",
+      "headSha": "de6cf38cf5b2ec5bd4b4cd67289b2e54cab68fbf",
+      "updated": "2026-11-01T04:31:17Z",
+      "title": "W2 draft: offline inline PDP/PEP lab, same-tenant owner isolation, GitHub Actions NO Docker"
+    },
+    {
+      "number": 68,
+      "draft": true,
+      "base": "test/w1-real-next-nest-pg17-synthetic-auth-20261030",
+      "head": "fix/w1-api-oci-failclosed-preflight-20261031",
+      "headSha": "40c07a8a972647c3247cc30890f7237b209b7a98",
+      "updated": "2026-10-31T11:09:19Z",
+      "title": "W1 OCI API fail-closed: deterministic no-DB startup preflight and compiled regression"
+    },
+    {
+      "number": 67,
+      "draft": true,
+      "base": "spec/w1-real-boundary-seams-synthetic-20261030",
+      "head": "test/w1-real-next-nest-pg17-synthetic-auth-20261030",
+      "headSha": "c535fc43a3ab9ee8bc1be551cdcbd77e51ee9938",
+      "updated": "2026-10-31T11:09:30Z",
+      "title": "W1 real Next and Nest route authorization E2E on disposable synthetic PG17 (PEP/PDP shadow)"
+    },
+    {
+      "number": 66,
+      "draft": true,
+      "base": "fix/w1-offline-vazirmatn-build-20261030",
+      "head": "spec/w1-real-boundary-seams-synthetic-20261030",
+      "headSha": "077a979dd0e1623ef887ec280f126175e9dca28b",
+      "updated": "2026-10-30T17:04:17Z",
+      "title": "W1 test-only security attachment seams at actual Next BFF and Nest source boundaries"
+    },
+    {
+      "number": 65,
+      "draft": true,
+      "base": "test/w1-bff-nest-pep-e2e-isolated-20261030",
+      "head": "fix/w1-offline-vazirmatn-build-20261030",
+      "headSha": "8b36eabbeb9cfb89972cf387276c9524d354790b",
+      "updated": "2026-10-30T15:12:23Z",
+      "title": "W1 CI reliability: pin Vazirmatn locally for deterministic Next builds"
+    },
+    {
+      "number": 64,
+      "draft": true,
+      "base": "test/w1-bff-nest-pep-e2e-isolated-20261030",
+      "head": "fix/w1-selfhost-vazirmatn-build-20261030",
+      "headSha": "a69239c5767771422f1ed4eed06f40347f5b301b",
+      "updated": "2026-10-30T07:04:28Z",
+      "title": "Fix PR63 Docker build: self-host pinned Vazirmatn instead of Google Fonts fetch"
+    },
+    {
+      "number": 63,
+      "draft": true,
+      "base": "feat/w1-isolated-pep-simulator-20261030",
+      "head": "test/w1-bff-nest-pep-e2e-isolated-20261030",
+      "headSha": "2d889ffd8c6214bedaf0ad62880ecfb0b28f33bd",
+      "updated": "2026-10-30T15:12:33Z",
+      "title": "W1 isolated BFF→Nest→PEP/PDP transport contract and denial-before-source E2E"
+    },
+    {
+      "number": 62,
+      "draft": true,
+      "base": "feat/w1-isolated-pdp-simulator-20261029",
+      "head": "feat/w1-isolated-pep-simulator-20261030",
+      "headSha": "b96f051d0c4b93d9f323a0f33dcbcf5331c3189f",
+      "updated": "2026-10-30T06:35:17Z",
+      "title": "W1 isolated PEP simulator: deny-before-fixture, tenant/ownership and redacted audit tests"
+    },
+    {
+      "number": 61,
+      "draft": true,
+      "base": "feat/w1-synthetic-server-pep-lab-20261029",
+      "head": "feat/w1-isolated-pdp-simulator-20261029",
+      "headSha": "ca084742c760ceefb5205dcc8d31cda17bb24a05",
+      "updated": "2026-10-30T06:17:37Z",
+      "title": "W1 isolated fail-closed PDP simulator and contract security tests (synthetic-only)"
+    },
+    {
+      "number": 60,
+      "draft": true,
+      "base": "spec/shareholder-w1-operational-gates-design-20261029",
+      "head": "feat/w1-synthetic-server-pep-lab-20261029",
+      "headSha": "ddacf6807d3d8d4921f8e93ee1c686943a2db5c2",
+      "updated": "2026-10-29T16:10:46Z",
+      "title": "W1 security: fail-closed BFF/Nest enforcement seam review and offline regression tests"
+    },
+    {
+      "number": 59,
+      "draft": true,
+      "base": "audit/shareholder-nav01-nav11-integrated-20261029",
+      "head": "spec/shareholder-w1-operational-gates-design-20261029",
+      "headSha": "41b5655b4f6573cf499f03d8e8cfee20ddd11c42",
+      "updated": "2026-10-29T15:34:12Z",
+      "title": "Design-only: shareholder W1 NAV01–NAV11 permission, route, legal/source and release gates"
+    },
+    {
+      "number": 58,
+      "draft": true,
+      "base": "feat/shareholder-nav11-account-settings-synthetic-20261029",
+      "head": "audit/shareholder-nav01-nav11-integrated-20261029",
+      "headSha": "a443247be2e878162fde11f40f91d20fad7ab684",
+      "updated": "2026-10-29T14:33:20Z",
+      "title": "Audit W1 NAV-01–NAV-11: fix cross-navigation and enforce integrated tests"
+    },
+    {
+      "number": 57,
+      "draft": true,
+      "base": "feat/shareholder-nav10-canonical-eight-synthetic-20261029",
+      "head": "feat/shareholder-nav11-account-settings-synthetic-20261029",
+      "headSha": "93cef2172cb0f3c6a5086823c08ac73b58a2a127",
+      "updated": "2026-10-29T10:54:34Z",
+      "title": "NAV-11: canonical ten-setting synthetic account review (no real mutations)"
+    },
+    {
+      "number": 56,
+      "draft": true,
+      "base": "feat/shareholder-nav09-transparency-documents-synthetic-20261029",
+      "head": "feat/shareholder-nav10-canonical-eight-synthetic-20261029",
+      "headSha": "ee2789d905016bcd13e49841387e2f13811d996a",
+      "updated": "2026-10-29T09:26:16Z",
+      "title": "NAV-10: canonical eight-section synthetic shareholder reports (review only)"
+    },
+    {
+      "number": 55,
+      "draft": true,
+      "base": "feat/shareholder-nav08-company-projects-synthetic-20261028",
+      "head": "feat/shareholder-nav09-transparency-documents-synthetic-20261029",
+      "headSha": "b894495015b438ce8c72280d176fa50a3d951fbc",
+      "updated": "2026-10-29T07:51:51Z",
+      "title": "feat(shareholder): NAV-09 synthetic transparency and legal documents review"
+    },
+    {
+      "number": 54,
+      "draft": true,
+      "base": "feat/shareholder-nav07-marketplace-opportunities-synthetic-20261028",
+      "head": "feat/shareholder-nav08-company-projects-synthetic-20261028",
+      "headSha": "15127083fe5e734c1229d4ba33f83a35c8170158",
+      "updated": "2026-10-28T19:54:25Z",
+      "title": "feat(shareholder): NAV-08 projects and local impact synthetic review"
+    },
+    {
+      "number": 53,
+      "draft": true,
+      "base": "feat/shareholder-nav06-services-synthetic-review-20261028",
+      "head": "feat/shareholder-nav07-marketplace-opportunities-synthetic-20261028",
+      "headSha": "a719a7f317fa3084c90998005a7627490b5f28dd",
+      "updated": "2026-10-28T19:12:48Z",
+      "title": "feat(shareholder): NAV-07 synthetic marketplace and opportunities review"
+    },
+    {
+      "number": 52,
+      "draft": true,
+      "base": "feat/shareholder-nav05-approved-architecture-synthetic-20261028",
+      "head": "feat/shareholder-nav06-services-synthetic-review-20261028",
+      "headSha": "16f5a77713054bff66d79c0a789b67218e7baabe",
+      "updated": "2026-10-28T18:44:56Z",
+      "title": "feat(shareholder): NAV-06 synthetic services academy events benefits review"
+    },
+    {
+      "number": 49,
+      "draft": true,
+      "base": "fix/nav04-mobile-refinement-20261028",
+      "head": "feat/shareholder-nav05-approved-architecture-synthetic-20261028",
+      "headSha": "86185514de0dd800a423c0cf554e1db9108af4b2",
+      "updated": "2026-10-28T17:24:44Z",
+      "title": "feat(shareholder): NAV-05 10-section communications synthetic review using approved NAV04 UI"
+    },
+    {
+      "number": 48,
+      "draft": true,
+      "base": "feat/shareholder-nav04-approved-visual-20261027",
+      "head": "fix/nav04-mobile-refinement-20261028",
+      "headSha": "2b193b85b56cdfd95e1c8606cf7fdeffff16d954",
+      "updated": "2026-10-28T15:21:47Z",
+      "title": "[DRAFT] NAV-04 mobile UX refinement — canonical menu, header and meeting card"
+    },
+    {
+      "number": 47,
+      "draft": true,
+      "base": "feat/shareholder-w1-nav04-synthetic-assemblies-20261027",
+      "head": "feat/shareholder-nav04-approved-visual-20261027",
+      "headSha": "83d936c3a1f70f2f30541c9df6e3f4c9d17d10a6",
+      "updated": "2026-10-27T20:53:09Z",
+      "title": "[DRAFT] NAV-04 — approved shareholder assemblies visual shell (demo-only)"
+    },
+    {
+      "number": 46,
+      "draft": true,
+      "base": "test/shareholder-nav03-interactive-visual-review-20261027",
+      "head": "feat/shareholder-w1-nav04-synthetic-assemblies-20261027",
+      "headSha": "cc5b4f8c9c359c2463b47da053df893b821e69e7",
+      "updated": "2026-10-27T13:36:51Z",
+      "title": "[DRAFT] W1 NAV-04 — synthetic assembly invitations, minutes and elections without voting rights"
+    },
+    {
+      "number": 45,
+      "draft": true,
+      "base": "feat/shareholder-w1-nav03-case-tracking-synthetic-20261027",
+      "head": "test/shareholder-nav03-interactive-visual-review-20261027",
+      "headSha": "6f87c8fca6a2e76033a821ce1c9071341fc42440",
+      "updated": "2026-10-27T13:36:43Z",
+      "title": "[DRAFT] NAV03 — real Chromium visual/mobile/keyboard QA gate and safer fictitious-completion UX"
+    },
+    {
+      "number": 44,
+      "draft": true,
+      "base": "test/shareholder-nav03-real-browser-audit-20261027",
+      "head": "feat/shareholder-w1-nav04-synthetic-assemblies-elections-20261027",
+      "headSha": "fb5bf402400e6149a4d131bd7138e6186f9c9457",
+      "updated": "2026-10-27T13:17:49Z",
+      "title": "[DRAFT] W1 NAV04 — synthetic assemblies, minutes and elections + isolated visual tests"
+    },
+    {
+      "number": 43,
+      "draft": true,
+      "base": "feat/shareholder-w1-nav03-case-tracking-synthetic-20261027",
+      "head": "test/shareholder-nav03-real-browser-audit-20261027",
+      "headSha": "9bcdddfd653088c4ca98e7268e9642d93ed743c0",
+      "updated": "2026-10-27T12:44:10Z",
+      "title": "[DRAFT] NAV03 actual visual QA — 18 Chromium desktop/mobile case screenshots and keyboard tests"
+    },
+    {
+      "number": 42,
+      "draft": true,
+      "base": "feat/shareholder-w1-nav03-synthetic-market-workflows-20261027",
+      "head": "feat/shareholder-w1-nav03-case-tracking-synthetic-20261027",
+      "headSha": "e8f80b8aad77c157e35de3f103510a6bb69b05b4",
+      "updated": "2026-10-27T12:16:37Z",
+      "title": "[DRAFT] W1 NAV03 — synthetic trade dossier timeline, cancellation, disputes & ownership evidence"
+    },
+    {
+      "number": 41,
+      "draft": true,
+      "base": "feat/shareholder-w1-nav02-synthetic-membership-holdings-20261027",
+      "head": "feat/shareholder-w1-nav03-synthetic-market-workflows-20261027",
+      "headSha": "9e50422803a11050c70c723848ac3ecb8c61f753",
+      "updated": "2026-10-27T11:03:55Z",
+      "title": "[DRAFT] W1 NAV-03 — Spec v3.0 synthetic share sale & purchase workflow preview"
+    },
+    {
+      "number": 40,
+      "draft": true,
+      "base": "feat/shareholder-w1-synthetic-dashboard-pilot-20261027",
+      "head": "feat/shareholder-w1-nav02-synthetic-membership-holdings-20261027",
+      "headSha": "5f6871f98c07df0b77a54c4c0281a600eebdcc23",
+      "updated": "2026-10-27T08:37:55Z",
+      "title": "[DRAFT] W1 NAV-02 — independent synthetic Child06 membership and Child07 holdings UI"
+    },
+    {
+      "number": 39,
+      "draft": true,
+      "base": "docs/shareholder-w0-evidence-baseline-20261027",
+      "head": "feat/shareholder-w1-synthetic-dashboard-pilot-20261027",
+      "headSha": "8a24cc33bb89f8d076065eba4494986caf418e32",
+      "updated": "2026-10-27T07:52:29Z",
+      "title": "[DRAFT] W1 pilot — interactive RTL shareholder NAV01, synthetic fixtures only"
+    },
+    {
+      "number": 38,
+      "draft": true,
+      "base": "docs/shareholder-architecture-consolidation-phase4c-4g-20261027",
+      "head": "docs/shareholder-w0-evidence-baseline-20261027",
+      "headSha": "7be95c4a0efb28ba73b17cd61cdf7d7ef8f5cf41",
+      "updated": "2026-10-27T07:05:38Z",
+      "title": "[DRAFT] W0 — shareholder release evidence baseline and synthetic UI kickoff guard"
+    },
+    {
+      "number": 37,
+      "draft": true,
+      "base": "feat/shareholder-confidential-legal-intake-phase4g-20261027",
+      "head": "docs/shareholder-architecture-consolidation-phase4c-4g-20261027",
+      "headSha": "c4f9dc5ba523b401a0ea3c9e875c945509441144",
+      "updated": "2026-10-27T06:42:19Z",
+      "title": "[DRAFT] Architecture decision: shareholder Phase4C–4G readiness and safe 11-NAV UI execution roadmap"
+    },
+    {
+      "number": 36,
+      "draft": true,
+      "base": "feat/shareholder-legal-source-chain-phase4f-20261026",
+      "head": "feat/shareholder-confidential-legal-intake-phase4g-20261027",
+      "headSha": "e9f588f7e37c4c2a18853a7feb70a7f27a57b500",
+      "updated": "2026-10-27T06:30:09Z",
+      "title": "[DRAFT] Phase 4G — per-cooperative confidential evidence & legal source review process"
+    },
+    {
+      "number": 35,
+      "draft": true,
+      "base": "feat/shareholder-source-admission-security-phase4e-20261026",
+      "head": "feat/shareholder-legal-source-chain-phase4f-20261026",
+      "headSha": "4da14db409504185a075d7f834b48619440656f5",
+      "updated": "2026-10-26T19:17:22Z",
+      "title": "[DRAFT] Phase 4F — independent legal authority & evidence-chain synthetic QA"
+    },
+    {
+      "number": 34,
+      "draft": true,
+      "base": "feat/shareholder-source-readiness-phase4d-20261026",
+      "head": "feat/shareholder-source-admission-security-phase4e-20261026",
+      "headSha": "7eb11f91a00e67d1325fcb7531540e2aec8d8d5e",
+      "updated": "2026-10-26T17:34:44Z",
+      "title": "[DRAFT] Phase 4E — synthetic source admission QA"
+    },
+    {
+      "number": 33,
+      "draft": true,
+      "base": "feat/shareholder-live-session-e2e-phase4c-20261026",
+      "head": "feat/shareholder-source-readiness-phase4d-20261026",
+      "headSha": "559ba83e2b8c66d279bfaf3a01e27bc36ae1bac6",
+      "updated": "2026-10-26T15:56:54Z",
+      "title": "[DRAFT] Phase 4D — independent shareholder membership & share-ledger source readiness gates"
+    },
+    {
+      "number": 32,
+      "draft": true,
+      "base": "feat/shareholder-session-privacy-phase4b-20261025",
+      "head": "feat/shareholder-live-session-e2e-phase4c-20261026",
+      "headSha": "d78f2d6ca1ca15f99301776501aeadf163e5a0ad",
+      "updated": "2026-10-26T12:32:28Z",
+      "title": "test(shareholder): Phase 4C real Chromium–Next–Nest–PG17 session revocation gate"
+    },
+    {
+      "number": 31,
+      "draft": true,
+      "base": "feat/shareholder-protected-sections-phase4a-20261025",
+      "head": "feat/shareholder-session-privacy-phase4b-20261025",
+      "headSha": "2f195b1d97a11eef85ebaa4975e407885e920146",
+      "updated": "2026-10-25T20:07:16Z",
+      "title": "fix(shareholder): Phase 4B privacy lock on revoked or unavailable sessions"
+    },
+    {
+      "number": 30,
+      "draft": true,
+      "base": "feat/shareholder-review-visual-qa-phase3b",
+      "head": "feat/shareholder-protected-sections-phase4a-20261025",
+      "headSha": "429b66076e8a0df1ca1e1629e470a2181dd5b0d5",
+      "updated": "2026-10-25T17:10:53Z",
+      "title": "feat(shareholder): Phase 4A authenticated eleven-section foundation without source activation"
+    },
+    {
+      "number": 29,
+      "draft": true,
+      "base": "feat/shareholder-ux-review-preview-phase3",
+      "head": "feat/shareholder-review-visual-qa-phase3b",
+      "headSha": "8c3e5e6aadc6914f062d9f26caa8ac0c1aef4336",
+      "updated": "2026-10-25T12:36:57Z",
+      "title": "fix(shareholder): mobile RTL nav visibility, contrast and 62-screen visual QA (Phase 3b)"
+    },
+    {
+      "number": 28,
+      "draft": true,
+      "base": "feat/shareholder-read-bff-session-gate-phase2c",
+      "head": "feat/shareholder-ux-review-preview-phase3",
+      "headSha": "4385b468e10e0707071b131a537d1f2194e29ee5",
+      "updated": "2026-10-24T16:36:27Z",
+      "title": "feat(shareholder): 11 navigable review-only UX screens and preview entry (phase 3)"
+    },
+    {
+      "number": 27,
+      "draft": true,
+      "base": "feat/shareholder-source-acceptance-phase2b",
+      "head": "feat/shareholder-read-bff-session-gate-phase2c",
+      "headSha": "480bddabf8acb37d783a1592c57032ac424356c4",
+      "updated": "2026-10-23T17:05:17Z",
+      "title": "feat(shareholder): revocable Nest session gate for closed Child07/09 BFF reads (phase 2C)"
+    },
+    {
+      "number": 26,
+      "draft": true,
+      "base": "feat/shareholder-source-gated-readmodels-phase2",
+      "head": "feat/shareholder-source-acceptance-phase2b",
+      "headSha": "09c8ae59956b98e262b95b8d0658d1e5370e4241",
+      "updated": "2026-10-23T15:59:42Z",
+      "title": "test(governance): authenticated Child07/Child09 denial E2E and blocked source-acceptance dossier (phase 2B)"
+    },
+    {
+      "number": 25,
+      "draft": true,
+      "base": "feat/shareholder-workspace-phase1",
+      "head": "feat/shareholder-source-gated-readmodels-phase2",
+      "headSha": "707a45fc3de09e05c0e0ba2b3219d85f66a24981",
+      "updated": "2026-10-23T14:59:22Z",
+      "title": "feat(shareholder): source-gated trade-request and official notice read-model contracts (phase 2A)"
+    },
+    {
+      "number": 23,
+      "draft": true,
+      "base": "feat/local-docker-release-regressions",
+      "head": "feat/shareholder-workspace-phase1",
+      "headSha": "07b5efcc7cc0a6341f51fc7733ec4643fecff6d5",
+      "updated": "2026-10-23T14:21:45Z",
+      "title": "feat(shareholder): source-gated member/holdings dashboard, market states and notices UI"
+    },
+    {
+      "number": 22,
+      "draft": true,
+      "base": "feat/local-docker-isolated-ci",
+      "head": "feat/local-docker-release-regressions",
+      "headSha": "33a802254a4aac284047d4b17e14fceb707da774",
+      "updated": "2026-10-23T07:15:50Z",
+      "title": "ci(windows): isolated local Release security regressions and four OCI image smoke"
+    },
+    {
+      "number": 21,
+      "draft": true,
+      "base": "chore/adaptive-actions-free-tier",
+      "head": "feat/local-docker-isolated-ci",
+      "headSha": "0fbb7bfbe5acbf32dcc1e035945937bb40a10101",
+      "updated": "2026-10-23T07:16:34Z",
+      "title": "ci(windows): local isolated Docker Core security E2E while GitHub Free minutes reset"
+    },
+    {
+      "number": 20,
+      "draft": true,
+      "base": "feat/child06-07-source-import-quarantine",
+      "head": "chore/adaptive-actions-free-tier",
+      "headSha": "27c747dab18b01963be5ff53e20b5a3f952accd7",
+      "updated": "2026-10-23T07:16:29Z",
+      "title": "ci: consolidate 14 PR workflows into one adaptive free-tier security gate"
+    },
+    {
+      "number": 19,
+      "draft": true,
+      "base": "feat/child06-07-owner-sourced-read-gates",
+      "head": "feat/child06-07-source-import-quarantine",
+      "headSha": "14e9de92c00f0bd00b5088ead45509c84dfcd30f",
+      "updated": "2026-10-23T07:16:20Z",
+      "title": "feat(child06/07): quarantined source-import reconciliation and provenance gates"
+    },
+    {
+      "number": 18,
+      "draft": true,
+      "base": "feat/cf02-evidence-gated-identity-review",
+      "head": "feat/child06-07-owner-sourced-read-gates",
+      "headSha": "8409aad1842b85c074fe721fee2ac5f2b012a1c3",
+      "updated": "2026-10-22T20:55:14Z",
+      "title": "feat(child06/07): source-gated owner-only membership and holdings reads"
+    },
+    {
+      "number": 17,
+      "draft": true,
+      "base": "feat/cf02-verified-tenant-selection-preview",
+      "head": "feat/cf02-evidence-gated-identity-review",
+      "headSha": "0b03a0e7bad6ec78319a5d13cef9140a4e54272c",
+      "updated": "2026-10-22T20:35:58Z",
+      "title": "feat(cf02): evidence-gated identity linking and managerial/national permission E2E"
+    },
+    {
+      "number": 16,
+      "draft": true,
+      "base": "feat/cf02-tenant-context-bff-readonly",
+      "head": "feat/cf02-verified-tenant-selection-preview",
+      "headSha": "7c3f9de35eb59ed12cf99ff5da10beb5fe03f7dd",
+      "updated": "2026-10-22T20:16:30Z",
+      "title": "feat(cf02): read-only verified tenant selection in three portals"
+    },
+    {
+      "number": 15,
+      "draft": true,
+      "base": "feat/portal-navigation-role-safe-module-shells",
+      "head": "feat/cf02-tenant-context-bff-readonly",
+      "headSha": "5ee19e387debc12c5808d4b0cdbfdf6c89b0a747",
+      "updated": "2026-10-22T19:59:13Z",
+      "title": "feat(cf02): three-portal tenant-context BFF with fail-closed PG17 authorization tests"
+    },
+    {
+      "number": 14,
+      "draft": true,
+      "base": "chore/tto-preview-infrastructure-onboarding",
+      "head": "feat/portal-navigation-role-safe-module-shells",
+      "headSha": "e70b3eda30c7a8bfe62618ca6126883f005e7359",
+      "updated": "2026-10-22T19:48:24Z",
+      "title": "feat(ui): three portal NAV-01..11 pages and safe role-scoped module previews"
+    },
+    {
+      "number": 13,
+      "draft": true,
+      "base": "feat/cf01-session-recovery-cross-portal",
+      "head": "chore/tto-preview-infrastructure-onboarding",
+      "headSha": "ccf642806547f8b5ec77f0960ded81ae7337d280",
+      "updated": "2026-10-22T19:24:26Z",
+      "title": "TTO Preview infrastructure: protected Nest project and independent PostgreSQL release gates"
+    },
+    {
+      "number": 12,
+      "draft": true,
+      "base": "feat/cf01-anonymous-otp-abuse-guard-pg17",
+      "head": "feat/cf01-session-recovery-cross-portal",
+      "headSha": "26ac17259e7433b377d5ec9de15ba29c3846efe4",
+      "updated": "2026-10-22T14:58:53Z",
+      "title": "CF-01: restore and revoke backend-verified browser sessions across all three portals"
+    },
+    {
+      "number": 11,
+      "draft": true,
+      "base": "feat/cf01-three-portal-ephemeral-login-logout-e2e",
+      "head": "feat/cf01-anonymous-otp-abuse-guard-pg17",
+      "headSha": "3ed5530708dbb79477d962fd953e5fc9d26c9bfa",
+      "updated": "2026-10-22T14:38:14Z",
+      "title": "CF01: privacy-preserving fail-closed OTP abuse guard and real PG17 concurrency E2E"
+    },
+    {
+      "number": 10,
+      "draft": true,
+      "base": "test/vercel-preview-anonymous-protection-gate",
+      "head": "feat/cf01-three-portal-ephemeral-login-logout-e2e",
+      "headSha": "5cb67e4ddfc836b2e71aa9e7516bc36d97000fcd",
+      "updated": "2026-10-22T13:51:42Z",
+      "title": "CF01: three-portal BFF logout and ephemeral Next–Nest–PostgreSQL17 login/logout E2E"
+    },
+    {
+      "number": 9,
+      "draft": true,
+      "base": "feat/vazirmatn-next-preview-otp",
+      "head": "test/vercel-preview-anonymous-protection-gate",
+      "headSha": "7a715b9203c65d7ddf2938fd28e30acccd645f22",
+      "updated": "2026-10-22T13:26:47Z",
+      "title": "Security gate: independently verify anonymous denial on three protected Vercel previews"
+    },
+    {
+      "number": 8,
+      "draft": true,
+      "base": "feat/apiir-otp-adapter-preview-gates",
+      "head": "feat/vazirmatn-next-preview-otp",
+      "headSha": "d1d3f6f41ca00560bb56e5dcb2c42acae77b42e8",
+      "updated": "2026-10-22T13:01:58Z",
+      "title": "Standardize Vazirmatn in 3 Next previews and build server-side CF01 SMSOTP issuance"
+    },
+    {
+      "number": 7,
+      "draft": true,
+      "base": "infra/arvan-portability-and-readiness",
+      "head": "feat/apiir-otp-adapter-preview-gates",
+      "headSha": "7d1d3704422175d57f59f6bd006b3f14ea1cab40",
+      "updated": "2026-10-22T11:58:52Z",
+      "title": "Integrate API.ir SmsOTP provider adapter with offline contract tests (no SMS sent)"
+    },
+    {
+      "number": 6,
+      "draft": true,
+      "base": "feat/cf01-03-security-lifecycle-v2",
+      "head": "infra/arvan-portability-and-readiness",
+      "headSha": "fb6f5eb425229a5a84a260e04e8f68fc65eabd47",
+      "updated": "2026-10-22T11:17:23Z",
+      "title": "ArvanCloud OCI portability review templates and real PostgreSQL readiness (no deployment)"
+    },
+    {
+      "number": 4,
+      "draft": true,
+      "base": "feat/cf01-03-next-nest-postgres-foundation",
+      "head": "feat/cf01-03-security-lifecycle-v2",
+      "headSha": "05d5ae8a0e419fb82570ed4a169e1389c0aec654",
+      "updated": "2026-10-22T11:11:39Z",
+      "title": "CF01–03 follow-up: OTP/JIT/roles, tenant lifecycle, document/audit controls, frozen dependencies and OCI builds"
+    },
+    {
+      "number": 3,
+      "draft": true,
+      "base": "feat/phase01-contract-mapping-adr001",
+      "head": "feat/cf01-03-next-nest-postgres-foundation",
+      "headSha": "3ad48fb88e409e9866f81703eaa926c1c4b4fbc7",
+      "updated": "2026-10-22T10:27:26Z",
+      "title": "TTO foundation: three Next.js 16 apps, NestJS 11 API and PostgreSQL 17 tenant RLS"
+    },
+    {
+      "number": 2,
+      "draft": true,
+      "base": "feat/bootstrap-three-portals",
+      "head": "feat/phase01-contract-mapping-adr001",
+      "headSha": "d02cc160ab9c9c9ffdd51e28459aa3664d993120",
+      "updated": "2026-10-22T10:01:47Z",
+      "title": "TTO Phase 01/02: trace 23 contracts, finalize Framework+Database ADR-001"
+    },
+    {
+      "number": 1,
+      "draft": true,
+      "base": "main",
+      "head": "feat/bootstrap-three-portals",
+      "headSha": "a52c605d6437e3f5d1c1cd3f0e2e667d7a2e681e",
+      "updated": "2026-10-22T09:41:32Z",
+      "title": "TTO Phase 00–01: separate application bootstrap and reusable three-portal review shells"
+    }
+  ]
+}

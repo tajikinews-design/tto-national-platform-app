@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0",
+  "asOf": "2026-11-01",
+  "approvedCapabilities": [],
+  "syntheticEvidence": [
+    {
+      "stage": "W2.14",
+      "sha": "a5e211ec9933055657055d2bf64712d558fe6c0e",
+      "pr": 84,
+      "run": 41298703121,
+      "scope": "synthetic owner test; not distributed production safety"
+    },
+    {
+      "stage": "W2.13",
+      "sha": "c53885169e1336679209d51f32e7fb731952da42",
+      "pr": 83,
+      "run": 41297294328,
+      "scope": "synthetic IPC+journal"
+    }
+  ],
+  "requirement": "Evidence of each gate G0-G3 and legal/data authority required for ACCEPTED; no production acceptance inferred"
+}

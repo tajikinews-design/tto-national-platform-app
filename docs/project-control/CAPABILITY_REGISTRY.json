@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "1.0",
+  "asOf": "2026-11-01",
+  "statusMeaning": "IMPLEMENTED describes candidate code only; not verified end-to-end or approved in production",
+  "capabilities": [
+    {
+      "id": "CAP-001",
+      "name": "Three-portal OTP/session/tenant",
+      "wave": "WAVE-1",
+      "status": "IMPLEMENTED",
+      "evidence": "Previous ephemeral Next/Nest/PG17 E2E; no live persistent Preview",
+      "blocker": "approved preview/real OTP validation",
+      "gate": "G0",
+      "acceptanceSha": null,
+      "acceptedBy": null
+    },
+    {
+      "id": "CAP-002",
+      "name": "Cooperative management functional panel",
+      "wave": "WAVE-1",
+      "status": "DESIGNED",
+      "evidence": "PortalModulePreview only for module routes",
+      "blocker": "real manager workflows and source authorization",
+      "gate": "G0",
+      "acceptanceSha": null,
+      "acceptedBy": null
+    },
+    {
+      "id": "CAP-003",
+      "name": "Official membership record",
+      "wave": "WAVE-1",
+      "status": "BLOCKED",
+      "evidence": "NAV02 synthetic and candidate read model",
+      "blocker": "approved Child06 source and verified legal person link",
+      "gate": "G0",
+      "acceptanceSha": null,
+      "acceptedBy": null
+    },
+    {
+      "id": "CAP-004",
+      "name": "Official shareholdings",
+      "wave": "WAVE-1",
+      "status": "BLOCKED",
+      "evidence": "NAV02 synthetic and conditional BFF GET",
+      "blocker": "approved Child07 official ledger, asOf and sourceVersion",
+      "gate": "G0",
+      "acceptanceSha": null,
+      "acceptedBy": null
+    },
+    {
+      "id": "CAP-005",
+      "name": "Cooperative notices and shareholder communication",
+      "wave": "WAVE-2",
+      "status": "DESIGNED",
+      "evidence": "NAV05 synthetic; denied source routes",
+      "blocker": "approved Child09 publisher audience authority",
+      "gate": "G0",
+      "acceptanceSha": null,
+      "acceptedBy": null
+    },
+    {
+      "id": "CAP-006",
+      "name": "Statutory documents and disclosures",
+      "wave": "WAVE-2",
+      "status": "DESIGNED",
+      "evidence": "NAV09 synthetic; CF03 metadata subset",
+      "blocker": "approved publication, per-recipient download control",
+      "gate": "G0",
+      "acceptanceSha": null,
+      "acceptedBy": null
+    },
+    {
+      "id": "CAP-007",
+      "name": "Share buy/sell requests and case status",
+      "wave": "WAVE-3",
+      "status": "BLOCKED",
+      "evidence": "NAV03 sample 21 trade states; GET closed",
+      "blocker": "legal Rule Registry, Child07 case source, source-authorized write workflow",
+      "gate": "G0",
+      "acceptanceSha": null,
+      "acceptedBy": null
+    },
+    {
+      "id": "CAP-008",
+      "name": "National operations oversight",
+      "wave": "WAVE-3",
+      "status": "DESIGNED",
+      "evidence": "Next portal shell and generic module previews",
+      "blocker": "national-scoped access policy and aggregate sources",
+      "gate": "G0",
+      "acceptanceSha": null,
+      "acceptedBy": null
+    },
+    {
+      "id": "CAP-009",
+      "name": "Shareholder dashboard/personal reports",
+      "wave": "WAVE-2",
+      "status": "DESIGNED",
+      "evidence": "NAV01/NAV10 synthetic",
+      "blocker": "source-authorized projections and no-data behavior",
+      "gate": "G0",
+      "acceptanceSha": null,
+      "acceptedBy": null
+    },
+    {
+      "id": "CAP-010",
+      "name": "Assembly information, services, projects and marketplace",
+      "wave": "POST_MVP",
+      "status": "DESIGNED",
+      "evidence": "NAV04, NAV06-08 synthetic",
+      "blocker": "scope and source approvals",
+      "gate": "G0",
+      "acceptanceSha": null,
+      "acceptedBy": null
+    }
+  ]
+}
