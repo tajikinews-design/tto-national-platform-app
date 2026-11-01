@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "0.1-DRAFT",
+  "kind": "TTO_W2_1_INLINE_POLICY_ADVERSARIAL_HARDENING",
+  "baselineSha": "de6cf38cf5b2ec5bd4b4cd67289b2e54cab68fbf",
+  "ciScope": "DRAFT_GITHUB_ACTIONS_NO_DOCKER",
+  "productionRoutesModified": false,
+  "registeredInNestAppModule": false,
+  "dockerOrDatabaseUsed": false,
+  "operationalPermissionsGranted": false,
+  "legalOperationalEffect": "NONE",
+  "approvedRelease": false,
+  "actualRuntimePEPActivated": false,
+  "controls": {
+    "responseSanitization": {
+      "exactAllowlistedFields": [
+        "decision",
+        "reasonCode",
+        "requestId",
+        "sourceTouches",
+        "hasActualRecord",
+        "canGrantPermission",
+        "legalOperationalEffect",
+        "data"
+      ],
+      "allowOnlyDecisionValues": [
+        "DENY",
+        "SIMULATED_ALLOW"
+      ],
+      "allowRequiresReason": "SIMULATION_ONLY",
+      "rejectExtraField": true,
+      "rejectMissingField": true,
+      "rejectInvalidRequestId": true,
+      "rejectAnyActualRecord": true,
+      "rejectAnyOperationalGrant": true,
+      "rejectTaintedDenialAfterSourceTouch": true,
+      "noRawNestResponseToBrowser": true
+    },
+    "serverProofRecheck": {
+      "beforePolicy": true,
+      "afterAwaitedDecision": true,
+      "afterSynchronousAuditBeforeSource": true,
+      "sessionTenantOwnerPartySourcePermissionAndClassificationSnapshot": true,
+      "denyIfAnyFieldChanges": true,
+      "sourceTouchedOnRevokedProof": 0
+    },
+    "honestSourceAccounting": {
+      "syntheticSourceInvalidAfterAttempt": "DENY_INTERNAL_SOURCE_TOUCHES_1_REJECT_AT_BFF",
+      "genericUpstream503SourceTouches": "UNKNOWN_NULL_NOT_ZERO",
+      "missingOrInvalidAudit": "DENY_BEFORE_SOURCE",
+      "noRealDataOrSQL": true
+    },
+    "testOnlyConditions": [
+      "CI=true",
+      "NODE_ENV=test",
+      "TTO_LOOPBACK_E2E=1",
+      "TTO_W1_BOUNDARY_LAB=1",
+      "TTO_W2_OFFLINE_LAB=1"
+    ],
+    "production": "LAB_DISABLED"
+  },
+  "acceptanceMarkers": [
+    "TTO_W2_STRICT_RESPONSE_ALLOWLIST=PASS",
+    "TTO_W2_BFF_REJECTS_CORRUPT_NEST_PAYLOAD=PASS",
+    "TTO_W2_POLICY_INFLIGHT_REVOCATION_DENY=PASS",
+    "TTO_W2_POST_AUDIT_REVOCATION_DENY=PASS",
+    "TTO_W2_POST_SOURCE_INVALID_RESPONSE_BLOCKED=PASS",
+    "TTO_W2_HARDENING_GITHUB_ACTIONS_NO_DOCKER=PASS",
+    "TTO_W2_GITHUB_ACTIONS_NO_DOCKER=PASS"
+  ],
+  "neverApproved": [
+    "Real Next.js App Router wiring",
+    "Production Nest AppModule policy registration",
+    "Live PDP/PIP source admission",
+    "Real shareholder identities, holdings or sources",
+    "Persistent DB or durable audit",
+    "Purchase/sale of shares",
+    "Financial settlement or account mutation",
+    "Release Docker/OCI checks deferred per user",
+    "Merge or production deployment"
+  ],
+  "knownLimitations": [
+    "Only in-memory synthetic session/owner and a lab-only Nest controller",
+    "The Python PDP bridge is synchronously launched by spawnSync; the W2 Promise.race timeout bounds pending async promises but cannot interrupt blocking native code",
+    "No physically instrumented PostgreSQL RLS/source access",
+    "If a fake source was already touched and then returned a malformed record, an internal denial may report sourceTouches=1; public BFF rejects it and uses null/unknown on 503 rather than asserting zero",
+    "Simulation not legally enforceable; SIMULATED_ALLOW is not real permission",
+    "Successful GitHub Actions is an offline phase acceptance only, not a full release, source approval or security certification"
+  ]
+}
