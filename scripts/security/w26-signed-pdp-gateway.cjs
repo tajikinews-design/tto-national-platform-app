@@ -45,7 +45,7 @@ function runSignedPdp({
   tamperManifest(manifest):manifest;
  const input={
   type:"DECIDE",requestId,nonce,context,
-  manifest:selectedManifest,publisherPublicPem,evaluatedAtMs,delayMs
+  manifest:selectedManifest,evaluatedAtMs,delayMs
  };
  if(Buffer.byteLength(JSON.stringify(input),"utf8")>MAX_INPUT)
   return Promise.reject(Error("W26_INPUT_TOO_LARGE"));
@@ -53,7 +53,11 @@ function runSignedPdp({
   PATH:process.env.PATH||"/usr/bin:/bin",
   CI:"true",NODE_ENV:"test",TTO_LOOPBACK_E2E:"1",
   TTO_W2_OFFLINE_LAB:"1",TTO_W26_SIGNED_LAB:"1",
-  TTO_W26_CHILD:"1"
+  TTO_W26_CHILD:"1",
+  // Public test trust root, fixed before any untrusted request is processed.
+  TTO_W26_PUBLISHER_PUBLIC_B64:Buffer.from(
+    typeof publisherPublicPem==="string"?publisherPublicPem:"","utf8"
+  ).toString("base64")
  };
  return new Promise((resolveResult,rejectResult)=>{
   let child,done=false,ready=false,verifiedKey=null,buffer="",bytes=0;
