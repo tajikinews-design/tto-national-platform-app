@@ -20,3 +20,15 @@ No inferred legal approval. Distinguish conversation approval of a plan from sou
 | D-010 | Consolidate project-control docs #91 with app only on separately reviewed candidate | PROPOSED / NO_MERGE | Project owner and code owner |
 | D-011 | Start first Wave-1 scope via fictional Child06/Child07 source fixtures and manager-to-shareholder tests | SPECIFIED / NOT_IMPLEMENTED | Product and data owners |
 | D-012 | Permit official Child06/Child07 records and pilot cooperative | BLOCKED / NO_AUTHORITY | Cooperative official source owners and legal reviewer |
+
+## PCS-015 — integrated technical candidate, not authority (2026-11-01)
+| ID | Decision for responsible person | Status | Required sign-off |
+|---|---|---|---|
+| D-013 | Review integrated app PR #107 SHA cb533fd6f06dde8cdeccd8f0adf4665901e33b55 + all 22 historical PCS documents in the isolated PCS015 candidate | CANDIDATE_READY_FOR_RELEASE_TEST / NO_ACCEPTANCE | project owner + codeowner |
+| D-014 | Accept full cumulative Wave-0 G3 after successful exact-SHA RELEASE, human keyboard/RTL/UX and security review | PENDING / NOT ACCEPTED | project owner, codeowner, product/QA |
+| D-015 | Nominate named legally authorized pilot cooperative and data controller under written pilot scope | NOT_SELECTED / NO_AUTHORITY | project owner + cooperative legal representative |
+| D-016 | Activate independent official Child06 membership source | BLOCKED | authorized membership source steward + legal |
+| D-017 | Activate independent official Child07 share ledger (not inferred from Child06) | BLOCKED | ledger custodian + cooperative legal authority |
+| D-018 | Authorize main merge or production deploy | NOT_GRANTED | explicit separate project-owner decision |
+
+Historical D-001–D-012 remain as issued; PCS015 supersedes their *candidate* SHA only, not their recorded decisions. No legal data source, official share register or buyer/seller operation is activated by a passing CI.
