@@ -62,7 +62,8 @@ function serverProof(owner){
   sourceVersion:"SYNTHETIC-V1",classificationAllowed:true,
   downloadPermission:false,exportPermission:false,writePermission:false};
 }
-function candidate({owner=owners[0],actor=0,signal=new AbortController().signal}={}){
+function candidate({owner=owners[0],actor=0,
+ signal=new AbortController().signal,sourceVersion="SYNTHETIC-V1"}={}){
  const request=new NextRequest("http://127.0.0.1/test/tenants/"+tenant+
    "/owners/"+owner+"/read",{headers:{Cookie:"tto_lab_session="+cookies[actor]}});
  const w1=prepareW1SyntheticBffCandidate(request,
@@ -71,8 +72,9 @@ function candidate({owner=owners[0],actor=0,signal=new AbortController().signal}
    tenantKey:tenant,ownerKey:owners[actor]});
  const bff=prepareW23DormantBffEnvelope(w1,request);
  if(bff.kind!=="DRAFT_CANDIDATE")return bff;
- return verifyW23DormantNestEnvelope(bff.envelope,
-   serverProof(owners[actor]),signal);
+ const trustedProof=serverProof(owners[actor]);
+ trustedProof.sourceVersion=sourceVersion;
+ return verifyW23DormantNestEnvelope(bff.envelope,trustedProof,signal);
 }
 function setup({reg,policy,pub=publisher,checked,source,audit,trace,
  deadlineMs=1200,delayMs=0,tamperResponse,tamperManifest,
@@ -204,6 +206,27 @@ test("W2.6 independent child policy evaluation & Ed25519 attestations",async t=>
   await drained();
  });
  console.log("TTO_W26_CHILD_EVALUATES_POLICY_NOT_WRAPPER_ECHO=PASS");
+
+ await t.test("V1 and V2 signed bundles execute different actual child-side fake rules",async()=>{
+  clock=BASE;
+  const base=registryAndBundle();
+  const v2=bundle(2);
+  base.registry.publish(v2);base.registry.activate(2);
+  const staleContext=fx({reg:base,policy:v2,checked:candidate()});
+  denied(await enforceW26Signed(staleContext.cfg),staleContext,
+   "POLICY_CONTEXT_DENIED");
+  await drained();
+  const matchingContext=fx({reg:base,policy:v2,
+   checked:candidate({sourceVersion:"SYNTHETIC-V2"})});
+  const accepted=await enforceW26Signed(matchingContext.cfg);
+  assert.equal(accepted.decision,"SIMULATED_ALLOW");
+  assert.equal(accepted.policyRevision,2);
+  assert.equal(accepted.sourceTouches,1);
+  assert.equal(accepted.canGrantPermission,false);
+  assert.equal(bffClose(accepted).status,403);
+  await drained();
+ });
+ console.log("TTO_W26_POLICY_VERSION_CHANGES_RULE_EXECUTION=PASS");
 
  await t.test("tampering any signed decision binding or signature denies",async()=>{
   clock=BASE;
