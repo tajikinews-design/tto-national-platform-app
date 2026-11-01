@@ -25,7 +25,7 @@ jobs:
       APIIR_TOKEN: ""
       # W2 DRAFT LAB ONLY: user requested no Docker. This exact branch is
       # never a release gate; ready_for_review runs the original full checks.
-      TTO_W2_NO_DOCKER_BRANCH: ${{ github.event_name == 'pull_request' && (github.event.pull_request.draft && github.head_ref == 'test/w2-inline-pep-offline-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-hardening-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-2-cancellable-pdp-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'spec/w2-3-dormant-boundary-contract-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-4-tamper-evident-audit-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-5-policy-revision-expiry-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-6-signed-pdp-policy-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-7-root-signed-trust-lifecycle-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101') }}
+      TTO_W2_NO_DOCKER_BRANCH: ${{ github.event_name == 'pull_request' && (github.event.pull_request.draft && github.head_ref == 'test/w2-inline-pep-offline-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-hardening-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-2-cancellable-pdp-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'spec/w2-3-dormant-boundary-contract-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-4-tamper-evident-audit-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-5-policy-revision-expiry-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-6-signed-pdp-policy-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-7-root-signed-trust-lifecycle-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-9-durable-trust-recovery-no-docker-20261101') }}
     steps:
       - name: Checkout exact reviewed code without write credentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -118,7 +118,7 @@ jobs:
           echo "TTO_W2_HARDENING_GITHUB_ACTIONS_NO_DOCKER=PASS"
           echo "TTO_W2_GITHUB_ACTIONS_NO_DOCKER=PASS"
       - name: W2.2 real cancellable PDP process and delayed-response tests — NO DOCKER
-        if: github.event_name == 'pull_request' && github.event.pull_request.draft && (github.head_ref == 'test/w2-2-cancellable-pdp-no-docker-20261101' || (github.head_ref == 'spec/w2-3-dormant-boundary-contract-no-docker-20261101' || github.head_ref == 'test/w2-4-tamper-evident-audit-no-docker-20261101' || github.head_ref == 'test/w2-5-policy-revision-expiry-no-docker-20261101' || github.head_ref == 'test/w2-6-signed-pdp-policy-no-docker-20261101' || github.head_ref == 'test/w2-7-root-signed-trust-lifecycle-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101'))
+        if: github.event_name == 'pull_request' && github.event.pull_request.draft && (github.head_ref == 'test/w2-2-cancellable-pdp-no-docker-20261101' || (github.head_ref == 'spec/w2-3-dormant-boundary-contract-no-docker-20261101' || github.head_ref == 'test/w2-4-tamper-evident-audit-no-docker-20261101' || github.head_ref == 'test/w2-5-policy-revision-expiry-no-docker-20261101' || github.head_ref == 'test/w2-6-signed-pdp-policy-no-docker-20261101' || github.head_ref == 'test/w2-7-root-signed-trust-lifecycle-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-9-durable-trust-recovery-no-docker-20261101'))
         env:
           NODE_ENV: "test"
           TTO_LOOPBACK_E2E: "1"
@@ -139,7 +139,7 @@ jobs:
           node --test scripts/ci/w2-2-cancellable-pdp.test.cjs
           echo "TTO_W22_GITHUB_ACTIONS_NO_DOCKER=PASS"
       - name: W2.3 detached BFF Nest security interface contract — NO DOCKER
-        if: github.event_name == 'pull_request' && github.event.pull_request.draft && (github.head_ref == 'spec/w2-3-dormant-boundary-contract-no-docker-20261101' || github.head_ref == 'test/w2-4-tamper-evident-audit-no-docker-20261101' || github.head_ref == 'test/w2-5-policy-revision-expiry-no-docker-20261101' || github.head_ref == 'test/w2-6-signed-pdp-policy-no-docker-20261101' || github.head_ref == 'test/w2-7-root-signed-trust-lifecycle-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101')
+        if: github.event_name == 'pull_request' && github.event.pull_request.draft && (github.head_ref == 'spec/w2-3-dormant-boundary-contract-no-docker-20261101' || github.head_ref == 'test/w2-4-tamper-evident-audit-no-docker-20261101' || github.head_ref == 'test/w2-5-policy-revision-expiry-no-docker-20261101' || github.head_ref == 'test/w2-6-signed-pdp-policy-no-docker-20261101' || github.head_ref == 'test/w2-7-root-signed-trust-lifecycle-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-9-durable-trust-recovery-no-docker-20261101')
         env:
           NODE_ENV: "test"
           TTO_LOOPBACK_E2E: "1"
@@ -159,7 +159,7 @@ jobs:
           node --test scripts/ci/w23-dormant-boundary-contract.test.cjs
           echo "TTO_W23_GITHUB_ACTIONS_NO_DOCKER=PASS"
       - name: W2.4 file-backed synthetic audit integrity — NO DOCKER
-        if: github.event_name == 'pull_request' && github.event.pull_request.draft && (github.head_ref == 'test/w2-4-tamper-evident-audit-no-docker-20261101' || github.head_ref == 'test/w2-5-policy-revision-expiry-no-docker-20261101' || github.head_ref == 'test/w2-6-signed-pdp-policy-no-docker-20261101' || github.head_ref == 'test/w2-7-root-signed-trust-lifecycle-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101')
+        if: github.event_name == 'pull_request' && github.event.pull_request.draft && (github.head_ref == 'test/w2-4-tamper-evident-audit-no-docker-20261101' || github.head_ref == 'test/w2-5-policy-revision-expiry-no-docker-20261101' || github.head_ref == 'test/w2-6-signed-pdp-policy-no-docker-20261101' || github.head_ref == 'test/w2-7-root-signed-trust-lifecycle-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-9-durable-trust-recovery-no-docker-20261101')
         env:
           NODE_ENV: "test"
           TTO_LOOPBACK_E2E: "1"
@@ -181,7 +181,7 @@ jobs:
           node --test scripts/ci/w24-offline-audit-chain.test.cjs
           echo "TTO_W24_GITHUB_ACTIONS_NO_DOCKER=PASS"
       - name: W2.5 monotonic policy revisions, expiry and stale PDP decisions — NO DOCKER
-        if: github.event_name == 'pull_request' && github.event.pull_request.draft && (github.head_ref == 'test/w2-5-policy-revision-expiry-no-docker-20261101' || github.head_ref == 'test/w2-6-signed-pdp-policy-no-docker-20261101' || github.head_ref == 'test/w2-7-root-signed-trust-lifecycle-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101')
+        if: github.event_name == 'pull_request' && github.event.pull_request.draft && (github.head_ref == 'test/w2-5-policy-revision-expiry-no-docker-20261101' || github.head_ref == 'test/w2-6-signed-pdp-policy-no-docker-20261101' || github.head_ref == 'test/w2-7-root-signed-trust-lifecycle-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-9-durable-trust-recovery-no-docker-20261101')
         env:
           NODE_ENV: "test"
           TTO_LOOPBACK_E2E: "1"
@@ -205,7 +205,7 @@ jobs:
           node --test scripts/ci/w25-policy-revision-expiry.test.cjs
           echo "TTO_W25_GITHUB_ACTIONS_NO_DOCKER=PASS"
       - name: W2.6 child-authored Ed25519 PDP and signed policy proof — NO DOCKER
-        if: github.event_name == 'pull_request' && github.event.pull_request.draft && (github.head_ref == 'test/w2-6-signed-pdp-policy-no-docker-20261101' || github.head_ref == 'test/w2-7-root-signed-trust-lifecycle-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101')
+        if: github.event_name == 'pull_request' && github.event.pull_request.draft && (github.head_ref == 'test/w2-6-signed-pdp-policy-no-docker-20261101' || github.head_ref == 'test/w2-7-root-signed-trust-lifecycle-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-9-durable-trust-recovery-no-docker-20261101')
         env:
           NODE_ENV: "test"
           CI: "true"
@@ -234,7 +234,7 @@ jobs:
           timeout --signal=TERM --kill-after=5s 90s node --test scripts/ci/w26-signed-pdp-policy.test.cjs
           echo "TTO_W26_GITHUB_ACTIONS_NO_DOCKER=PASS"
       - name: W2.7 independent root-signed key lifecycle and PDP trust — NO DOCKER
-        if: github.event_name == 'pull_request' && github.event.pull_request.draft && github.head_ref == 'test/w2-7-root-signed-trust-lifecycle-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101'
+        if: github.event_name == 'pull_request' && github.event.pull_request.draft && github.head_ref == 'test/w2-7-root-signed-trust-lifecycle-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-9-durable-trust-recovery-no-docker-20261101'
         env:
           CI: "true"
           NODE_ENV: "test"
@@ -261,7 +261,7 @@ jobs:
           timeout --signal=TERM --kill-after=5s 90s node --test scripts/ci/w27-root-signed-key-lifecycle.test.cjs
           echo "TTO_W27_GITHUB_ACTIONS_NO_DOCKER=PASS"
       - name: W2.8 synthetic multi-instance signed trust sync — NO DOCKER
-        if: github.event_name == 'pull_request' && github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101'
+        if: github.event_name == 'pull_request' && github.event.pull_request.draft && github.head_ref == 'test/w2-8-multi-instance-trust-no-docker-20261101' || github.event.pull_request.draft && github.head_ref == 'test/w2-9-durable-trust-recovery-no-docker-20261101'
         env:
           CI: "true"
           NODE_ENV: "test"
@@ -282,6 +282,24 @@ jobs:
           node --check scripts/ci/w28-multi-instance-trust.test.cjs
           timeout --signal=TERM --kill-after=5s 90s node --test scripts/ci/w28-multi-instance-trust.test.cjs
           echo "TTO_W28_GITHUB_ACTIONS_NO_DOCKER=PASS"
+      - name: W2.9 synthetic durable trust replay and rollback — NO DOCKER
+        if: github.event_name == 'pull_request' && github.event.pull_request.draft && github.head_ref == 'test/w2-9-durable-trust-recovery-no-docker-20261101'
+        env:
+          NODE_ENV: "test"
+          TTO_LOOPBACK_E2E: "1"
+          TTO_W26_SIGNED_LAB: "1"
+          TTO_W27_TRUST_LAB: "1"
+          TTO_W28_SYNC_LAB: "1"
+          TTO_W29_PERSISTENCE_LAB: "1"
+          DATABASE_URL: ""
+          TTO_API_BASE_URL: ""
+          VERCEL: ""
+        run: |
+          set -euo pipefail
+          node --check scripts/security/w29-durable-trust-recovery.cjs
+          node --check scripts/ci/w29-durable-trust-recovery.test.cjs
+          timeout --signal=TERM --kill-after=5s 90s node --test scripts/ci/w29-durable-trust-recovery.test.cjs
+          echo "TTO_W29_GITHUB_ACTIONS_NO_DOCKER=PASS"
       - name: Offline SMS safety, scanner protocol, Preview classifier and Next smoke
         if: steps.scope.outputs.suite != 'lite'
         run: |
