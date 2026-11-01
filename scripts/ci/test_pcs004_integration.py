@@ -24,7 +24,7 @@ class Pcs004(unittest.TestCase):
             self.assertIn('next/font/local',layout)
             self.assertNotIn('next/font/google',layout)
     def test_alternative_journal_is_not_live_import(self):
-        journal=read("scripts/security/w24-offline-audit-chain.cjs")
+        journal=read("scripts/security/w24-offline-audit-ledger.cjs")
         self.assertIn("CI",journal)
         api=read("services/api/src/module.ts")
         self.assertNotIn("w24-durable-synthetic-audit",api)
