@@ -129,3 +129,11 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - Separate legal/authority decision record: TTO_PCS_014_BROWSER_PILOT_SOURCE_GATES.md. Child06 membership owner, independent Child07 share ledger custodian, and pilot cooperative are NOT SELECTED/AUTHORIZED. No live sources switched on.
 - Wave-0 G3 management acceptance pending, Wave-1 own-only fictional source display technically browser-validated; no manual WCAG/visual signoff or production readiness. No merge/deploy, real people, real holdings, payment or share transfer.
 - NEXT: owner/codeowner review of consolidated draft PR stack, independent Child06/Child07 source steward and pilot approvals, human accessibility audit. Only after documented legal source approvals may separately gated real-data integration begin.
+
+## PCS-015 final management-review handoff — 2026-11-01
+- Integrated app/docs Draft PR #109 HEAD e87f2a874200f7694faa3959d03bdeeb0890ba6f; full GitHub Actions run 41323031652 job 124897099133 COMPLETED SUCCESS (build/TS, PG17 0001–0010, Nest/Next authorized E2E, historical SQL/OTP, four OCI smoke builds/no push). Earlier 41322689067 initial and rerun CANCELLED and are not counted green.
+- Source app PR #107 HEAD cb533fd6f06dde8cdeccd8f0adf4665901e33b55, governance PR #108 HEAD 37254e741357f36e6414d9172c60bdefc527d7ff. 21/22 governance docs transferred. PCS009 audit gap document remains on governance branch because connector write was blocked: DOCUMENT_GAP_1.
+- Exact integrated SHA did not rerun PCS014 Chromium; prior 8 browser scenarios PASS run 41313801001 against source app SHA only.
+- Management decision memo TTO_PCS_015_G3_MANAGEMENT_DECISION.md. Wave 0 G3 remains PENDING / NOT ACCEPTED despite integrated release CI PASS. Codeowner full cumulative review, one-doc reconciliation and human RTL keyboard/WCAG required. No Merge/Deploy.
+- Pilot cooperative not selected; official Child06 data owner and independent Child07 share-register custodian approvals not granted. Wave1 real data activation BLOCKED. No live persons, share trades, transfer or custody.
+- NEXT: authorize doc reconciliation and full independent codeowner/UX review before G3 signoff. Separately nominate lawful pilot and source stewards only via explicit recorded decisions.
