@@ -17,3 +17,9 @@ Date: 2026-11-01 | Application Draft PR #101 | Product scope: fictional, CI-gate
 ## CI
 - Initial candidate app SHA 9210d09080f5ede1721b1b7fb5ae66539cf9d47a, GitHub Actions run 41310689316 — status must be checked; never infer success from PR creation.
 - Resume on verified final app HEAD and exact workflow conclusion. If failing, repair narrowly, rerun and update checkpoint and evidence register.
+
+## Final validation
+- App Draft PR #101 exact SHA 34f9ad6dcf14f008e6e96684d292b74f1abb844c. Run 41310870892, job 124860764292, COMPLETED SUCCESS, all steps passed. Workspace Next/Nest builds and TypeScript, temporary PG17 migrations 0001–0010, PCS010/011 real session and PG audit test, existing identity/source/share quarantine E2E and teardown passed.
+- Earlier run 41310689316 failed only at newly added Next BFF POST origin strict host mismatch (localhost versus 127.0.0.1); fixed by restricting allowed origins to both exact loopback names on port 32711 in the CI-only BFF. Failed run preserved as evidence.
+- HTTP E2E shows Next BFF GET/POST to Nest with PG session manager, count after approval = 2 synthetic events, member denied, anonymous denied and cross-origin POST denied. This is not a complete Chromium click-through of the new manager screen nor an authorized official-member/holding projection.
+- Gate: TECHNICAL_PARTIAL_VERIFY, not Wave-1 operational acceptance. NO merge, deploy, real Child06/07 data, live trading or legal owner signoff.
