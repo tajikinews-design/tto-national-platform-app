@@ -118,7 +118,7 @@ jobs:
           echo "TTO_W2_HARDENING_GITHUB_ACTIONS_NO_DOCKER=PASS"
           echo "TTO_W2_GITHUB_ACTIONS_NO_DOCKER=PASS"
       - name: W2.2 real cancellable PDP process and delayed-response tests — NO DOCKER
-        if: github.event_name == 'pull_request' && github.event.pull_request.draft && github.head_ref == 'test/w2-2-cancellable-pdp-no-docker-20261101'
+        if: github.event_name == 'pull_request' && github.event.pull_request.draft && (github.head_ref == 'test/w2-2-cancellable-pdp-no-docker-20261101' || github.head_ref == 'spec/w2-3-dormant-boundary-contract-no-docker-20261101')
         env:
           NODE_ENV: "test"
           TTO_LOOPBACK_E2E: "1"
