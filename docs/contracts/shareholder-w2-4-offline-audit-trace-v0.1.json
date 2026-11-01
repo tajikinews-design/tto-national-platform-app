@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "0.1-DRAFT",
+  "title": "W2_4_OFFLINE_FILE_BACKED_AUDIT_TRACE",
+  "acceptedParentSHA": "216f5a4bf99fe6ad1cd4ea42d05b24323b94fbdb",
+  "implementation": "LAB_ONLY_NOT_PRODUCTION",
+  "fileLocation": "GitHub Actions runner temporary directory, deleted after tests",
+  "operationalDatabase": false,
+  "dockerUsed": false,
+  "productionRoutesModified": false,
+  "durableCentralAudit": false,
+  "cryptographicSignature": false,
+  "legalAuthorityGranted": false,
+  "shareTradingEnabled": false,
+  "sourceApprovalGranted": false,
+  "trace": {
+    "phases": [
+      "BFF_PRECHECK",
+      "NEST_SCOPE",
+      "PDP_DECISION",
+      "BFF_RESPONSE"
+    ],
+    "fields": [
+      "version",
+      "sequence",
+      "requestId",
+      "phase",
+      "decision",
+      "reasonCode",
+      "previousHash",
+      "hash"
+    ],
+    "inputAllowlist": [
+      "requestId",
+      "phase",
+      "decision",
+      "reasonCode"
+    ],
+    "requestId": "random version-4 UUID; same ID across synthetic BFF, Nest and PDP decision",
+    "forbidden": [
+      "principal",
+      "party",
+      "tenant",
+      "owner",
+      "session",
+      "cookie",
+      "token",
+      "authorization",
+      "ip",
+      "requestBody",
+      "responseData",
+      "shareholder",
+      "sourceRecord"
+    ],
+    "decisionStates": [
+      "NONE",
+      "DENY",
+      "SIMULATED_ALLOW"
+    ],
+    "legalOperationalEffect": "NONE",
+    "append": "exclusive file create mode 0600; append, fsync and deterministic SHA256 hash chain",
+    "verify": "requires trusted in-memory independent {count,head} checkpoint; rejects edits, reorder, truncation, partial records, permission errors and missing file",
+    "failClosed": "audit append unavailable prevents starting PDP, returning positive operational response or source access",
+    "checkpointSecurity": "external anchoring NOT implemented; rewrite of both file and checkpoint is outside detection guarantee"
+  },
+  "scenarios": [
+    "full synthetic NextRequest to ephemeral Nest and cancellable Python PDP trace",
+    "no PII or identity fields even if attackers inject them",
+    "anonymous/cross-tenant/cross-owner audited preflight deny",
+    "audit failure denies before PDP",
+    "PDP timeout denies without reaching any data source",
+    "mutation, reordered records and truncation detected with independent checkpoint",
+    "replacement/permission change/missing file fail closed",
+    "poisoned sink cannot recover without reconciliation"
+  ],
+  "acceptance": {
+    "draftOnly": true,
+    "githubActionsRequired": true,
+    "nodeBuildAndTypecheckRequired": true,
+    "allW2W21W22W23TestsRequired": true,
+    "sixDockerStepsSkipped": true,
+    "mergeAllowed": false,
+    "deployAllowed": false
+  },
+  "limitations": [
+    "The ledger is a disposable file in one CI runner, not a durable operational audit repository.",
+    "SHA256 hash chain without independently secured immutable checkpoint or signing is tamper-evident only relative to its checkpoint.",
+    "File fsync does not guarantee directory metadata persistence across power loss or supply multi-writer serialization.",
+    "No atomic distributed correlation across production BFF and Nest workers, or independently verifiable real PDP identity.",
+    "No real shareholders, actual authorized source, financial data, transactions or accounting workflows.",
+    "No PostgreSQL, Docker, external audit service or production deployment."
+  ]
+}
