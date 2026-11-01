@@ -12,7 +12,7 @@ const components=[];
 const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
 async function wait(port,path="/"){for(let i=0;i<90;i++){try{const r=await fetch("http://127.0.0.1:"+port+path,{signal:AbortSignal.timeout(1500)});if(r.status===200)return}catch{}await sleep(350)}throw Error("NOT_READY_"+port)}
 async function main(){
- const broker=spawn(process.execPath,["scripts/security/pcs007-synthetic-cooperative-broker.cjs"],{cwd:ROOT,env:ENV,stdio:"ignore"});components.push(broker);await wait(32990,"/view");
+ const broker=spawn(process.execPath,["scripts/security/pcs007-synthetic-cooperative-broker.cjs"],{cwd:ROOT,env:ENV,stdio:"ignore"});components.push(broker);let brokerReady=false;for(let i=0;i<90;i++){try{const r=await fetch("http://127.0.0.1:32990/view",{headers:{"x-pcs007-lab-token":ENV.TTO_PCS007_TOKEN},signal:AbortSignal.timeout(1400)});if(r.ok){brokerReady=true;break}}catch{}await sleep(350)}if(!brokerReady)throw Error("BROKER_NOT_READY");
  const apps=[["cooperative-management",32982],["shareholder",32981]];
  for(const [app,port] of apps){const cwd=resolve(ROOT,"apps",app);
   const nextBin=require.resolve("next/dist/bin/next",{paths:[cwd]});
