@@ -54,3 +54,10 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - Corrected full-release run 41303773442 currently PENDING final confirmation; do not mark green until job completes.
 - Separate gaps: browser is synthetic-only and does not authenticate a manager; pilot and Child06/Child07 source legal approvals missing; no final owner merger acceptance. Wave-0 IN_PROGRESS / G3 NOT ACCEPTED.
 - Next: review exact-head full release including OCI PASS and remediate if required, then seek user-approved consolidation and pilot data authority.
+
+## PCS-005 final verified gate — 2026-11-01
+- Earlier checkpoint stated release run pending. This addendum supersedes only the run status, not the historic failure entries.
+- Final exact app SHA 064ef8b27b280526468b540291299d49e08347d6, Draft PR #90. GitHub Actions run 41303773442 job 124839904879 **completed SUCCESS**, every step passing: Chromium synthetic 390/1440 for shareholder & cooperative, Next/Nest build/check, PostgreSQL17 0001–0010 migrations, real identity/tenant/share E2E, historical SQL/OTP regression, four OCI build/smoke without registry push, PostgreSQL teardown.
+- Initial lite and failed OCI runs retained in PCS-005 report; OCI Bash bug repaired without weakening test steps.
+- G3 Wave-0 still IN_PROGRESS: require codeowner/owner review of candidate baseline, safe merge strategy and authorized reviewer acceptance. Wave-1 BLOCKED on approved pilot/Child06/Child07 official source contracts. No merge, deploy, real PII, share trading.
+- Next action: owner review of exact candidate PR #90 and Draft PCS docs PRs, consolidate after explicit approval; select lawful pilot and official membership/ledger data authority.
