@@ -32,3 +32,9 @@ No inferred legal approval. Distinguish conversation approval of a plan from sou
 | D-018 | Authorize main merge or production deploy | NOT_GRANTED | explicit separate project-owner decision |
 
 Historical D-001–D-012 remain as issued; PCS015 supersedes their *candidate* SHA only, not their recorded decisions. No legal data source, official share register or buyer/seller operation is activated by a passing CI.
+
+## PCS-015 latest evidence for decision owners — 2026-11-01
+- Proposed G3-reviewed code/docs baseline: frozen Draft PR **#109** SHA `e87f2a874200f7694faa3959d03bdeeb0890ba6f`. Full Release CI `41323031652` job `124897099133` **SUCCESS**; 22/22 source PCS documents present (21 unchanged blobs, checkpoint intentionally extended). Prior cancelled run `41322689067` is not an acceptance failure of the tested SHA.
+- **D-013 technical evidence updated to PASS for submission to G3 review, not owner approval.** Decisions **D-014–D-018 remain PENDING/BLOCKED/NOT_GRANTED**. The required accountable individuals must explicitly approve; no assistant or CI result may sign on their behalf.
+- Decision form for project owner: [ ] APPROVE this frozen candidate for formal Wave-0 G3 after required codeowner/QA review; [ ] REQUEST CHANGES; [ ] REJECT. **None selected.** Any later merge requires a separate instruction and a review of branch protections; deployment requires another approval.
+- Pilot activation decisions: [ ] identify cooperative and legal signatory; [ ] approve source Child06; [ ] independently approve official share register Child07; [ ] document lawful purpose, permitted population, data processor/controller, retention/revocation/rollback and security; [ ] authorize any real data. **All unchecked.**
