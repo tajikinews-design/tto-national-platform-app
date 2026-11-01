@@ -44,7 +44,9 @@ class W23DormantSecuritySeam(unittest.TestCase):
             ):
                 with self.subTest(forbidden=forbidden):self.assertNotIn(forbidden,s)
         self.assertIn('import type { W1BffResult } from "./w1-boundary-seam"',self.bff)
-        self.assertIn('import type { W1PdpContext, W1ServerLabProof } from "./w1-boundary-seam"',self.nest)
+        self.assertIn("export type W23SyntheticServerProof",self.nest)
+        self.assertIn("export type W23SyntheticPdpContext",self.nest)
+        self.assertNotIn("w1-boundary-seam",self.nest)
 
     def test_02_bff_six_field_envelope_and_closed_response(self):
         s=self.bff
