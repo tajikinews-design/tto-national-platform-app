@@ -460,7 +460,7 @@ jobs:
             docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$migration"
           done
       - name: PCS-010 real session/manager tenant role and PostgreSQL fictional approval audit
-        if: github.event_name == 'pull_request' && (github.head_ref == 'feat/tto-pcs-010-nest-pg-validated-fixtures-20261101' || github.head_ref == 'feat/tto-pcs-011-manager-real-pg-bff-20261101')
+        if: github.event_name == 'pull_request' && (github.head_ref == 'feat/tto-pcs-010-nest-pg-validated-fixtures-20261101' || github.head_ref == 'feat/tto-pcs-011-manager-real-pg-bff-20261101' || github.head_ref == 'feat/tto-pcs-012-manager-audit-browser-20261101')
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
           TTO_PCS010_LAB: "1"
@@ -468,7 +468,12 @@ jobs:
         run: |
           set -euo pipefail
           docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0011_pcs010_fixture_review_lab.sql
-          timeout --signal=TERM --kill-after=5s 90s node scripts/ci/pcs010-real-nest-pg.test.cjs
+          if [ "$GITHUB_HEAD_REF" = "feat/tto-pcs-012-manager-audit-browser-20261101" ]; then
+            npm install --prefix /tmp/tto-pcs012-browser --no-audit --no-fund playwright@1.56.1
+            node /tmp/tto-pcs012-browser/node_modules/playwright/cli.js install --with-deps chromium
+            export TTO_PCS012_BROWSER=1
+          fi
+          timeout --signal=TERM --kill-after=5s 180s node scripts/ci/pcs010-real-nest-pg.test.cjs
           echo "TTO_PCS010_REAL_PG_ROLE_AUDIT=PASS"
       - name: Real Next Nest PostgreSQL identity, tenant, source and share quarantine E2E
         if: steps.scope.outputs.suite != 'lite' && env.TTO_W2_NO_DOCKER_BRANCH != 'true'

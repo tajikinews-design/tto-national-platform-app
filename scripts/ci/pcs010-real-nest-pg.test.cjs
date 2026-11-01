@@ -66,6 +66,30 @@ async function main(){await db.connect();await db.query("ALTER ROLE tto_app LOGI
    "content-type":"application/json",origin:"https://attacker.invalid"},
    body:JSON.stringify({fixtureRef:"PCS010-FAKE-EVIL-0001"})});
   assert.equal(wrong.status,403,"cross origin must not submit");
+  if(process.env.TTO_PCS012_BROWSER==="1"){
+   const {chromium}=require("/tmp/tto-pcs012-browser/node_modules/playwright");
+   const browser=await chromium.launch({headless:true});
+   try{
+    for(const width of [390,1440]){
+     const context=await browser.newContext({viewport:{width,height:width===390?844:900},locale:"fa-IR"});
+     await context.addCookies([{name:"tto_session",value:tokens.manager,url:"http://127.0.0.1:32711",httpOnly:true,sameSite:"Lax"}]);
+     const page=await context.newPage();
+     const errors=[];page.on("pageerror",e=>errors.push(e.message));
+     const response=await page.goto("http://127.0.0.1:32711/review/pcs011/"+TENANT,{waitUntil:"networkidle",timeout:45000});
+     assert.equal(response.status(),200);
+     await page.getByText("تعداد رویدادهای ساختگی ثبت‌شده:").waitFor({timeout:25000});
+     await page.getByText("PCS010-FAKE-MANAGER-0001").waitFor({timeout:15000});
+     if(width===390){
+      await page.getByRole("button",{name:"تأیید پرونده ساختگی"}).click();
+      await page.getByText("PCS010-FAKE-MANAGER-0002").waitFor({timeout:15000});
+     }
+     assert.equal(await page.locator("body").evaluate(e=>e.scrollWidth>e.clientWidth+3),false);
+     assert.deepEqual(errors,[]);
+     console.log("TTO_PCS012_CHROMIUM_REAL_PG_"+width+"=PASS");
+     await context.close();
+    }
+   }finally{await browser.close()}
+  }
   console.log("TTO_PCS011_NEXT_BFF_REAL_PG_PASS=7");
  }finally{next.kill("SIGTERM")}
  console.log("TTO_PCS010_REAL_NEST_PG_FIXTURE_APPROVAL_PASS=8");
