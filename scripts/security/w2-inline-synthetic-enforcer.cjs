@@ -96,7 +96,9 @@ function reply(decision,reasonCode,id,sourceTouches=0){
  * @param {object} cfg
  * @param {unknown} cfg.candidate Five-field allowlisted BFF candidate, NOT proof.
  * @param {object} cfg.proof Trusted server-only in-memory session fixture.
- * @param {(op:string, ctx:object)=>Promise<unknown>} cfg.policy Python W1 PDP/PEP bridge.
+ * @param {(op:string, ctx:object, options:{signal:AbortSignal})=>Promise<unknown>} cfg.policy
+ * Cancellable untrusted W1 Python PDP/PEP child in the W2.2 offline lab.
+ * @param {AbortSignal} [cfg.requestSignal] Client/disconnect signal.
  * @param {{record:(e:object)=>void}} cfg.audit In-memory allowlisted synthetic audit.
  * @param {{read:(key:object)=>object}} cfg.source In-memory synthetic resource counter.
  * @param {number} cfg.deadlineMs Strict timeout for the policy provider.
@@ -143,17 +145,52 @@ async function enforceW2SyntheticInline(cfg){
  }
  const timeout=Number.isSafeInteger(cfg.deadlineMs)&&
     cfg.deadlineMs>=1&&cfg.deadlineMs<=2000?cfg.deadlineMs:150;
- let timer;
- let raw;
+ const external=cfg.requestSignal;
+ if(external!==undefined&&!(external instanceof AbortSignal))
+  return deny("REQUEST_SIGNAL_INVALID");
+ if(external?.aborted)return deny("REQUEST_ABORTED");
+ const deadlineAt=performance.now()+timeout;
+ const controller=new AbortController();
+ let timer,stopRequest,expired=false,disconnected=false,raw;
+ const cancellation=new Promise((_,reject)=>{
+  stopRequest=()=>{
+   disconnected=true;
+   controller.abort();
+   reject(Error("REQUEST_ABORTED"));
+  };
+  external?.addEventListener("abort",stopRequest,{once:true});
+ });
+ const timeoutPromise=new Promise((_,reject)=>{
+  timer=setTimeout(()=>{
+   expired=true;
+   controller.abort();
+   reject(Error("PDP_TIMEOUT"));
+  },timeout);
+ });
  try{
   raw=await Promise.race([
-   Promise.resolve().then(()=>cfg.policy("read",derivedContext(p))),
-   new Promise((_,reject)=>{
-    timer=setTimeout(()=>reject(Error("POLICY_TIMEOUT")),timeout);
-   })
+   Promise.resolve().then(()=>cfg.policy("read",derivedContext(p),{
+    signal:controller.signal
+   })),
+   timeoutPromise,
+   cancellation
   ]);
- }catch{return deny("PDP_UNAVAILABLE")}
- finally{clearTimeout(timer)}
+ }catch{
+  controller.abort();
+  if(disconnected||external?.aborted)return deny("REQUEST_ABORTED");
+  if(expired||performance.now()>=deadlineAt)return deny("PDP_TIMEOUT");
+  return deny("PDP_UNAVAILABLE");
+ }finally{
+  clearTimeout(timer);
+  external?.removeEventListener("abort",stopRequest);
+ }
+ // A late success (even from a provider ignoring AbortSignal) must never be
+ // honored after its deadline or after a browser disconnect.
+ if(disconnected||external?.aborted)return deny("REQUEST_ABORTED");
+ if(expired||performance.now()>=deadlineAt){
+  controller.abort();
+  return deny("PDP_TIMEOUT");
+ }
  if(!unchangedProof())return deny("PROOF_CHANGED");
  if(!validDecision(raw))return deny(DENIED_REASON);
  if(raw.decision==="DENY")return deny(raw.reasonCode);
@@ -166,6 +203,8 @@ async function enforceW2SyntheticInline(cfg){
  }catch{return reply("DENY","AUDIT_UNAVAILABLE",id)}
  // Audit callbacks are synchronous but may revoke a test grant. Check again
  // after audit and before the first source touch. No async work occurs between.
+ if(external?.aborted)return deny("REQUEST_ABORTED");
+ if(performance.now()>=deadlineAt)return deny("PDP_TIMEOUT");
  if(!unchangedProof())return deny("PROOF_CHANGED");
  try{
   // This returns no record, only an integer counter; the fixture itself is
