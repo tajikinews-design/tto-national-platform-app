@@ -129,3 +129,10 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - Separate legal/authority decision record: TTO_PCS_014_BROWSER_PILOT_SOURCE_GATES.md. Child06 membership owner, independent Child07 share ledger custodian, and pilot cooperative are NOT SELECTED/AUTHORIZED. No live sources switched on.
 - Wave-0 G3 management acceptance pending, Wave-1 own-only fictional source display technically browser-validated; no manual WCAG/visual signoff or production readiness. No merge/deploy, real people, real holdings, payment or share transfer.
 - NEXT: owner/codeowner review of consolidated draft PR stack, independent Child06/Child07 source steward and pilot approvals, human accessibility audit. Only after documented legal source approvals may separately gated real-data integration begin.
+
+## TTO-PCS-015 — consolidated branch for independent Wave-0 G3 decision (2026-11-01)
+- App parent Draft PR #107 exact SHA cb533fd6f06dde8cdeccd8f0adf4665901e33b55. Docs source Draft PR #108 SHA 37254e741357f36e6414d9172c60bdefc527d7ff. No merges into main or production.
+- Consolidated candidate integration/tto-pcs-015-wave0-candidate-20261101 contains 21/22 docs/project-control source files and full cumulative application; TTO_PCS_009_AUTH_AUDIT_GAPS.md retained on PR #108 because automated creation was blocked. **Document-completeness exception unresolved**.
+- Force full RELEASE CI on branch despite doc-only diff. Exact run and final SHA must be verified and recorded before technical acceptance.
+- Decision memo: TTO_PCS_015_CONSOLIDATED_G3_PILOT_DOSSIER.md. Wave-0 G3 remains PENDING codeowner/product/owner signoff and blocked document reconciliation, human UX/WCAG; Child06, Child07 and named pilot legal approvals all BLOCKED. Wave-1 not operationally accepted.
+- Never merge/deploy or use real personal/share ledger data or actual share operations without separate approvals.
