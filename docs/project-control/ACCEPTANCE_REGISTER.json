@@ -34,5 +34,21 @@
       "Wave 0 G3 signoff",
       "production merge/deploy"
     ]
+  },
+  "pcs011": {
+    "scope": "CI_ONLY_MANAGER_NEXT_BFF_REAL_NEST_PG_FIXTURE_AUDIT",
+    "status": "VERIFIED_LIMITED_HTTP_E2E",
+    "appPR": 101,
+    "sha": "34f9ad6dcf14f008e6e96684d292b74f1abb844c",
+    "run": 41310870892,
+    "job": 124860764292,
+    "conclusion": "success",
+    "notAccepted": [
+      "Full browser visual manager acceptance",
+      "official Child06/07 source",
+      "authenticated shareholder authorized holdings",
+      "Wave 0 owner G3 signoff",
+      "production merge/deploy"
+    ]
   }
 }
