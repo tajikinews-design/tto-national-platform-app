@@ -76,3 +76,9 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - Implemented only CI/test-gated local fictional approval broker, demo cooperative action and demo shareholder display; no real source, official ledger, database writes, money, or transfer.
 - CURRENT STATE: Wave-0 G3 owner acceptance PENDING; Wave-1 G1 SYNTHETIC PROTOTYPE ONLY, real membership/ledger source BLOCKED; Wave-2/3 NOT_STARTED.
 - NEXT: cross-portal browser E2E for demo on strict CI test gate; then approved actual Child06/07 source contracts and authorized manager domain implementation. No merge/deploy until owner decision.
+
+## PCS-008 exact-head validated — 2026-11-01
+- App Draft PR #95: feat/tto-pcs-008-browser-vertical-slice-20261101 exact SHA f3d14eef7a449888b244c7b83a8c76e35431ce60.
+- Run 41307901786: COMPLETED SUCCESS: Chromium synthetic manager form approval -> shareholder fictional holdings on 390 and 1440 screens, existing workspace build/check, PostgreSQL17 all migrations 0001-0010 and real Next/Nest/PG tenant/source E2E. Historic failed runs and repairs in TTO_PCS_008_BROWSER_FLOW.md.
+- This demonstrates a functional synthetic browser loop only; **NOT** authenticated manager/real membership/ledger or operational authorization. G3 Wave-0 acceptance still owner pending. Wave-1 fixture-only thin slice verified; real Child06/Child07 source and manager workbench remain blocked/not implemented.
+- No merge, deployment or live share trade. NEXT: owner baseline acceptance decision, official pilot source approvals, and implement an authenticated, auditable manager source-admission flow using isolated approved fixtures, then integrate official source only upon authority.
