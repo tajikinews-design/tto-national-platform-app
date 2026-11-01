@@ -460,7 +460,7 @@ jobs:
             docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$migration"
           done
       - name: PCS-010 real session/manager tenant role and PostgreSQL fictional approval audit
-        if: github.event_name == 'pull_request' && github.head_ref == 'feat/tto-pcs-010-nest-pg-validated-fixtures-20261101'
+        if: github.event_name == 'pull_request' && (github.head_ref == 'feat/tto-pcs-010-nest-pg-validated-fixtures-20261101' || github.head_ref == 'feat/tto-pcs-011-manager-real-pg-bff-20261101')
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
           TTO_PCS010_LAB: "1"
