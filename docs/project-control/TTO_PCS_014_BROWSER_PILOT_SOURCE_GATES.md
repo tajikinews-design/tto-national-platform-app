@@ -39,3 +39,10 @@ Owner must explicitly nominate a cooperative and authorized contact; specify geo
 
 ## Resume point
 Check exact app PR #107 HEAD and workflow run 41313270388. If failing, preserve failure, fix the specific cause and rerun. Update CURRENT_CHECKPOINT and ACCEPTANCE_REGISTER with exact SHA/run ID and remaining blockers. No merge/deploy, real user data or actual trades.
+
+## Final exact-head technical validation
+- App Draft PR #107 exact HEAD cb533fd6f06dde8cdeccd8f0adf4665901e33b55.
+- GitHub Actions run **41313801001**, job **124869513540**, COMPLETED **SUCCESS**.
+- All eight Chromium scenario markers PASS: BLOCKED_BOTH, CHILD06_ONLY, BOTH_APPROVED_37, EXPLICIT_ZERO, each at widths 390/1440; real isolated Next/Nest/PostgreSQL17 sessions and synthetic source approvals used. Existing source/tenant/Party negative and revocation E2E suite passed.
+- Earlier run 41313270388 FAILED on new page goto waiting for networkidle for 45 seconds. Replaced browser readiness with DOMContentLoaded and explicit UI element checks, reran exact SHA successfully.
+- No manual human WCAG/keyboard acceptance or officially authorized Child06/Child07/pilot. G3 remains PENDING; no merge/deploy or real shareholder information.
