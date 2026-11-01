@@ -23,3 +23,8 @@ Scope: integrated build, actual disposable PostgreSQL17 and HTTP, temporary Chro
 
 ## Next step
 Review latest exact-HEAD CI; if regression fails, fix only documented failure, rerun and update checkpoint and acceptance register. After green, create safe signed-off consolidation proposal for PCS docs and app baseline (no silent merge).
+
+## Final exact-SHA validation — 2026-11-01
+App PR #90 HEAD **064ef8b27b280526468b540291299d49e08347d6**. GitHub Actions workflow run **41303773442**, job **124839904879**: **completed / SUCCESS**. The following steps all **SUCCESS**: install/build/TypeScript; synthetic Chromium shareholder and cooperative at 390/1440 widths; disposable PostgreSQL17 start; migration 0001–0010; real Next/Nest/PG source, tenant and share quarantine E2E; historical SQL and OTP login/logout authority regression; Arvan manifests offline validation (not deployment); all four OCI images built and smoke tested **without push**; PostgreSQL teardown. No failed steps.
+
+Caveat: Browser test validates only public/synthetic review pages and not authenticated manager operations, real data sources, full WCAG or manual visual sign-off. Full technical CI on this SHA passed; **Wave 0 G3 still requires user approval and safe consolidation decision** and Wave 1 awaits lawful data source/pilot. No production activation.
