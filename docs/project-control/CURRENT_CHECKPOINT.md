@@ -140,3 +140,8 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 ## PCS-015 provenance and review gates (continuation)
 - Git tree comparison app ancestor #107 cb533fd6f06dde8cdeccd8f0adf4665901e33b55 against integration commit 09ef8e48b74c1da32ec9aa0c55b5b2b64e8ebfd2: all 452 parent blobs preserved except adaptive CI (full RELEASE forced); 23 project-control paths added including dossier. No app feature or DB migration modified.
 - Main remains outside this code stack. Full Release validation on the final branch PR is the next technical gate, not proof of owner acceptance. No pilot, Child06 or independent Child07 steward approval exists. G3 must not auto-advance to ACCEPTED.
+
+## PCS-015 observed CI blocker update (2026-11-01)
+- Draft PR #109 integrated candidate original SHA f36bb5d8371f3ad6964c09d3c430d3fd366c366a. Full RELEASE run 41322689067 cancelled twice: original job 124896073774 and explicit rerun job 124896624370. **NO exact integrated branch full CI PASS** and no Wave-0 G3 approval.
+- Source PR #108 contains 22 project-control files, only 21 copied. TTO_PCS_009_AUTH_AUDIT_GAPS.md write was blocked; do not call consolidation complete.
+- A new checkpoint/report commit changes HEAD; retest only after resolving cancellation root cause. Complete cumulative application review, document reconciliation, human UX/WCAG and separately authorized Child06/Child07 custodians and pilot before any operational action. No merge/deploy.
