@@ -31,3 +31,10 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - Reuse guidance, mandatory real-database tests and Wave-0 safe integration proposal recorded in TTO_PCS_002_INTEGRATION_AUDIT.md.
 - NO code or database changed; no CI run on consolidated app branch, no merge/deploy or legal source approval. Wave-0 remains IN_PROGRESS, G3 pending. Wave 1 remains BLOCKED.
 - Next action: exact-patch comparison of four off-path PRs against #84 tree and final safe candidate build/test plan, then owner review of consolidation. Never auto merge.
+
+## PCS-003 side PR comparison — 2026-11-01
+- Blob-level exact tree comparison of four off-path Draft PRs against app candidate #84 at a5e211ec9933055657055d2bf64712d558fe6c0e completed and documented in TTO_PCS_003_SIDE_PR_RECONCILIATION.md.
+- #43: 3 changed files, 2 absent from candidate, 1 different; #44: 14, 7 absent/7 different; #64: 10, 2 absent/8 different; #73: 8, 6 absent/2 different. No identical Git blobs. DIFFERENT does not prove missing feature; semantic/test review remains pending.
+- PR #84 selected as PROVISIONAL integration candidate (not accepted baseline). Do not auto import alternate NAV04, lockfile or journal.
+- Pending: manual patch review of unique assertions, approved isolated integration branch, full Next/Nest/PG17/Chromium exact-SHA tests and source/legal signoffs. Wave-0 IN_PROGRESS. No merge/deploy/live share operations.
+- Next action: review missing test assertions #43/#44 and font behavior #64 against current candidate, then build approved full integration test candidate.
