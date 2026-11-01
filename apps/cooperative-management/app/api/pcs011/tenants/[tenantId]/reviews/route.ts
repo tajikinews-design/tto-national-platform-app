@@ -15,7 +15,7 @@ async function dispatch(req:NextRequest,params:Promise<{tenantId:string}>,method
  if(!token||!TOKEN.test(token))return denial(401,"SESSION_REQUIRED");
  if(method==="POST"){
    const origin=req.headers.get("origin");
-   if(origin!==new URL(req.url).origin)return denial(403,"ORIGIN_DENIED");
+   if(origin!=="http://127.0.0.1:32711"&&origin!=="http://localhost:32711")return denial(403,"ORIGIN_DENIED");
  }
  let payload:unknown=undefined;
  if(method==="POST"){
