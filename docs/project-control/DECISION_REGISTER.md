@@ -12,3 +12,11 @@
 | D-008 | Authorize any merge or deployment | NOT_GRANTED | Project owner separately |
 
 No inferred legal approval. Distinguish conversation approval of a plan from source/legal approval to process data or shares.
+
+## PCS-006 candidates, not approvals (2026-11-01)
+| ID | Proposal | State | Authority |
+|---|---|---|---|
+| D-009 | Freeze PR #90 SHA 064ef8b27b280526468b540291299d49e08347d6 as reviewed engineering candidate | TECHNICALLY_RECOMMENDED / OWNER_PENDING | Project owner and code owner |
+| D-010 | Consolidate project-control docs #91 with app only on separately reviewed candidate | PROPOSED / NO_MERGE | Project owner and code owner |
+| D-011 | Start first Wave-1 scope via fictional Child06/Child07 source fixtures and manager-to-shareholder tests | SPECIFIED / NOT_IMPLEMENTED | Product and data owners |
+| D-012 | Permit official Child06/Child07 records and pilot cooperative | BLOCKED / NO_AUTHORITY | Cooperative official source owners and legal reviewer |
