@@ -25,7 +25,7 @@ async function main(){
    const ctx=await browser.newContext({viewport:{width,height:width===390?844:900},locale:"fa-IR",serviceWorkers:"block"});
    const manager=await ctx.newPage(),holder=await ctx.newPage(),failures=[];
    for(const page of [manager,holder]){page.on("pageerror",e=>failures.push(e.message));await page.route("**/*",async route=>{
-    const req=route.request();if(!/^http:\/\/127\.0\.0\.1:3298[12]\//.test(req.url())){failures.push("OUTBOUND_"+req.url());await route.abort()}else await route.continue();
+    const req=route.request();if(!/^http:\/\/(?:127\.0\.0\.1|localhost):3298[12]\//.test(req.url())){failures.push("OUTBOUND_"+req.url());await route.abort()}else await route.continue();
    })}
    await manager.goto("http://127.0.0.1:32982/review/pcs007",{waitUntil:"networkidle"});
    await holder.goto("http://127.0.0.1:32981/review/pcs007",{waitUntil:"networkidle"});
