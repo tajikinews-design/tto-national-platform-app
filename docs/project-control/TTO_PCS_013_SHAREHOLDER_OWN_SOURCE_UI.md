@@ -22,3 +22,9 @@ Date: 2026-11-01
 
 ## Acceptance state
 At creation, app PR #105 is DRAFT, exact-head CI run 41312820232 was in progress. Only mark technical PASS after verifying job completion. Wave-0 G3 pending, Wave-1 first real data source still blocked.
+
+## Verified exact-head CI result
+- App PR #105 exact HEAD `f7c2fe7310cee4111d32b346a49d51c5c45939b0`.
+- GitHub Actions run **41312820232** COMPLETED **SUCCESS**, build and TypeScript, PCS013 source safety test and existing real disposable PostgreSQL17 / Next / Nest identity and source quarantine E2E all SUCCESS.
+- PCS010/011 special branch-only fixture approval step SKIPPED on this branch, intentionally; no claim of re-running that synthetic manager path on PCS013 HEAD. This does not weaken the independent existing source-read tests.
+- Current UI tests are static boundary checks plus existing BFF/Nest PG HTTP E2E; **not new screen-level Chromium acceptance**. Source legal authority and real Party linkage still pending.
