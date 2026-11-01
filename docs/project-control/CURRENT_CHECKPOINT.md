@@ -132,7 +132,11 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 
 ## TTO-PCS-015 — consolidated branch for independent Wave-0 G3 decision (2026-11-01)
 - App parent Draft PR #107 exact SHA cb533fd6f06dde8cdeccd8f0adf4665901e33b55. Docs source Draft PR #108 SHA 37254e741357f36e6414d9172c60bdefc527d7ff. No merges into main or production.
-- Consolidated candidate integration/tto-pcs-015-wave0-candidate-20261101 contains 21/22 docs/project-control source files and full cumulative application; TTO_PCS_009_AUTH_AUDIT_GAPS.md retained on PR #108 because automated creation was blocked. **Document-completeness exception unresolved**.
+- Consolidated candidate integration/tto-pcs-015-wave0-candidate-20261101 contains all 22/22 docs/project-control source files and the cumulative application. Exact blob audit: 21/22 unchanged source blobs, CURRENT_CHECKPOINT.md intentionally extended for PCS015. Missing PCS009 report copied at commit 09ef8e48b74c1da32ec9aa0c55b5b2b64e8ebfd2. **Document reconciliation COMPLETE; owner acceptance still pending.**
 - Force full RELEASE CI on branch despite doc-only diff. Exact run and final SHA must be verified and recorded before technical acceptance.
-- Decision memo: TTO_PCS_015_CONSOLIDATED_G3_PILOT_DOSSIER.md. Wave-0 G3 remains PENDING codeowner/product/owner signoff and blocked document reconciliation, human UX/WCAG; Child06, Child07 and named pilot legal approvals all BLOCKED. Wave-1 not operationally accepted.
+- Decision memo: TTO_PCS_015_CONSOLIDATED_G3_PILOT_DOSSIER.md. Wave-0 G3 remains PENDING codeowner/product/owner signoff and human UX/WCAG; Child06, Child07 and named pilot legal approvals all BLOCKED. Wave-1 not operationally accepted.
 - Never merge/deploy or use real personal/share ledger data or actual share operations without separate approvals.
+
+## PCS-015 provenance and review gates (continuation)
+- Git tree comparison app ancestor #107 cb533fd6f06dde8cdeccd8f0adf4665901e33b55 against integration commit 09ef8e48b74c1da32ec9aa0c55b5b2b64e8ebfd2: all 452 parent blobs preserved except adaptive CI (full RELEASE forced); 23 project-control paths added including dossier. No app feature or DB migration modified.
+- Main remains outside this code stack. Full Release validation on the final branch PR is the next technical gate, not proof of owner acceptance. No pilot, Child06 or independent Child07 steward approval exists. G3 must not auto-advance to ACCEPTED.
