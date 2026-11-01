@@ -76,7 +76,7 @@ class TestW22CancellablePdp(unittest.TestCase):
         self.assertIn('connection?.once("close",onDisconnect)',s)
         self.assertIn('requestSignal:aborter.signal',s)
         self.assertIn('nodeRes.once("close",onClientDisconnect)',s)
-        self.assertIn('signal:upstreamAbort.signal',s)
+        self.assertIn('signal:AbortSignal.any([upstreamAbort.signal,AbortSignal.timeout(3000)])',s)
         self.assertIn('scripts.security.w1_isolated_http_bridge',s)
         self.assertNotIn('spawnSync(',s)
         self.assertNotIn('DATABASE_URL:process.env.DATABASE_URL',s)
@@ -110,7 +110,7 @@ class TestW22CancellablePdp(unittest.TestCase):
             with self.subTest(marker=marker):self.assertIn(marker,s)
         f=CHILD.read_text(encoding="utf8")
         self.assertIn('TTO_W22_CHILD_FIXTURE',f)
-        for mode in ('"hang"','"late"','"crash"','"invalid"','"oversize"'):
+        for mode in ('"hang"','"late"','"crash"','"invalid"','"schema"','"oversize"'):
             self.assertIn(mode,f)
         self.assertNotIn('require("node:http")',f)
         self.assertNotIn('require("node:net")',f)
