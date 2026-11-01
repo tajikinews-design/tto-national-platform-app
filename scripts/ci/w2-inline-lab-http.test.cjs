@@ -116,7 +116,8 @@ class W2Controller{
     candidate:req.body,proof:actor?.proof,policy,
     requestSignal:aborter.signal,
     audit:{record:safeAudit},source,
-    deadlineMs:current.policyMode==="timeout"?35:1200
+    deadlineMs:current.policyMode==="timeout"?35:
+     current.policyMode==="hang"?2000:1200
    });
   }finally{
    connection?.off("close",onDisconnect);
@@ -326,6 +327,41 @@ test("W2 real HTTP NextRequest -> Nest lab inline Python PDP/PEP -> fake source,
   }
  });
  console.log("TTO_W2_PDP_FAILURE_AND_TIMEOUT_DENY=PASS");
+
+ await t.test("real HTTP browser disconnect cancels the Nest PDP child before deadline",async()=>{
+  // This is a real loopback HTTP abort, not merely a direct AbortController
+  // passed to the enforcer. A killed client must cancel BFF fetch, Nest socket,
+  // and finally the Python/fake child without ever touching source.read().
+  current.policyMode="hang";
+  const controller=new AbortController();
+  const start=pdpStats(),beforeTouches=touches.length;
+  let pending;
+  try{
+   pending=fetch(bffUrl+relative(),{
+    headers:{Cookie:"tto_lab_session="+cookies[0]},
+    signal:controller.signal
+   });
+   for(let i=0;i<100&&pdpStats().started===start.started;i++)
+    await new Promise(ok=>setTimeout(ok,10));
+   assert.ok(pdpStats().started>start.started,"PDP process must have started");
+   const abortedAt=Date.now();
+   controller.abort();
+   await assert.rejects(pending,error=>error?.name==="AbortError");
+   for(let i=0;i<120&&(pdpStats().aborted<=start.aborted||
+                        pdpStats().active!==0);i++)
+    await new Promise(ok=>setTimeout(ok,10));
+   assert.ok(pdpStats().aborted>start.aborted,
+    "HTTP disconnect must abort the PDP child");
+   assert.equal(pdpStats().active,0,"disconnected PDP child must be reaped");
+   assert.ok(Date.now()-abortedAt<1500,
+    "disconnect must terminate subprocess before 2000ms PDP deadline");
+   assert.equal(touches.length,beforeTouches,"disconnected request never reads fake source");
+  }finally{
+   controller.abort();current.policyMode="normal";
+  }
+ });
+ console.log("TTO_W22_HTTP_DISCONNECT_TERMINATES_PDP=PASS");
+
  await t.test("audit sink outage blocks resource even on valid read",async()=>{
   const before=touches.length;current.auditFail=true;
   try{
