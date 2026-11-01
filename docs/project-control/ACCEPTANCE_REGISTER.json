@@ -50,5 +50,28 @@
       "Wave 0 owner G3 signoff",
       "production merge/deploy"
     ]
+  },
+  "pcs014": {
+    "scope": "OWN_ONLY_SHAREHOLDER_UI_CHROMIUM_DISPOSABLE_PG_SOURCE_STATES",
+    "status": "VERIFIED_TECHNICAL_BROWSER_ONLY",
+    "appPR": 107,
+    "sha": "cb533fd6f06dde8cdeccd8f0adf4665901e33b55",
+    "run": 41313801001,
+    "job": 124869513540,
+    "conclusion": "success",
+    "tests": [
+      "unapproved both 390/1440",
+      "approved Child06 only 390/1440",
+      "Child06 Child07 approved 37 shares 390/1440",
+      "official-in-CI sourced explicit zero 390/1440"
+    ],
+    "notAccepted": [
+      "Wave 0 management G3",
+      "Human UX/WCAG review",
+      "Official Child06 legal source authority",
+      "Independent Child07 share-ledger steward approval",
+      "Pilot cooperative nomination",
+      "Production merge/deploy"
+    ]
   }
 }
