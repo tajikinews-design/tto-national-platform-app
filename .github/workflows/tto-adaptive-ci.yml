@@ -51,7 +51,7 @@ jobs:
           # PCS-005 requires integrated real ephemeral PostgreSQL checks even when the PR contains docs only.
           # This is a branch-scoped stronger quality gate; does not change existing W2 no-Docker branches.
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ] && [ "$GITHUB_HEAD_REF" = "integration/tto-pcs-005-full-validation-20261101" ]; then
-            mode="core"
+            mode="release"
           fi
           echo "suite=$mode" >> "$GITHUB_OUTPUT"
           echo "TTO_ADAPTIVE_SUITE=$mode"
