@@ -5,7 +5,12 @@
   "baseline": {
     "main": "9eb48b7f06c25e66021adbe0b4386133cdcb3039",
     "candidate": "a5e211ec9933055657055d2bf64712d558fe6c0e",
-    "candidatePR": 84
+    "candidatePR": 84,
+    "proposedAppSha": "064ef8b27b280526468b540291299d49e08347d6",
+    "proposedAppPR": 90,
+    "controlDocsPR": 91,
+    "technicalReleaseRun": 41303773442,
+    "decisionStatus": "OWNER_SIGNOFF_PENDING"
   },
   "waves": [
     {
@@ -19,7 +24,8 @@
         "select and approve consolidation approach",
         "approve pilot cooperative and source owners"
       ],
-      "dependencies": []
+      "dependencies": [],
+      "technicalCI": "PASS exact candidate SHA 064ef8b27b280526468b540291299d49e08347d6; G3 owner approval pending"
     },
     {
       "id": "WAVE-1",
@@ -36,7 +42,8 @@
         "authenticated scoped manager -> source -> own shareholder projection E2E",
         "negative cross-tenant and stale-source tests",
         "data and legal signoff"
-      ]
+      ],
+      "scopeContract": "docs/project-control/TTO_PCS_006_BASELINE_WAVE1_ACCEPTANCE.md"
     },
     {
       "id": "WAVE-2",
