@@ -38,3 +38,10 @@ Historical D-001–D-012 remain as issued; PCS015 supersedes their *candidate* S
 - **D-013 technical evidence updated to PASS for submission to G3 review, not owner approval.** Decisions **D-014–D-018 remain PENDING/BLOCKED/NOT_GRANTED**. The required accountable individuals must explicitly approve; no assistant or CI result may sign on their behalf.
 - Decision form for project owner: [ ] APPROVE this frozen candidate for formal Wave-0 G3 after required codeowner/QA review; [ ] REQUEST CHANGES; [ ] REJECT. **None selected.** Any later merge requires a separate instruction and a review of branch protections; deployment requires another approval.
 - Pilot activation decisions: [ ] identify cooperative and legal signatory; [ ] approve source Child06; [ ] independently approve official share register Child07; [ ] document lawful purpose, permitted population, data processor/controller, retention/revocation/rollback and security; [ ] authorize any real data. **All unchecked.**
+
+## PCS-016 — formal project-owner decision is requested, NOT recorded (2026-11-01)
+- Decision ID `W0-G3-OWNER-DECISION-2026-11-01`; evidence document `TTO_PCS_016_WAVE0_OWNER_G3_DECISION.md`.
+- PR #109 frozen tested candidate SHA `e87f2a874200f7694faa3959d03bdeeb0890ba6f`, Release run `41323031652` SUCCESS; PR #111 is a docs-only evidence update, not a new release-tested commit.
+- Recommendation **Option A:** technically acknowledge frozen engineering candidate *only* and authorize planning for pilot/source permissions; Wave-0 G3 remains PENDING. Option B is a separate formal amendment of the Wave-0 exit criteria; Option C is return for review. **No option has been selected, signed or recorded by the owner.**
+- Observed blockers: zero submitted reviews on #109 and #111, no located CODEOWNERS, `main` reported unprotected, no human UX/keyboard acceptance and no pilot/official Child06 or independent Child07 legal approval.
+- Existing decisions D-014 (Wave-0 G3), D-015 (pilot), D-016 (Child06), D-017 (Child07) and D-018 (merge/deploy) remain PENDING or NOT_GRANTED. No review document or passing workflow supplies those permissions.
