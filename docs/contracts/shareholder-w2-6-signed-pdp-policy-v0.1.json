@@ -19,7 +19,7 @@
   "publisher": {
     "signature": "Ed25519",
     "source": "separate ephemeral CI test publisher keypair",
-    "publisherPublicKey": "pinned as explicitly configured trusted lab input",
+    "publisherPublicKey": "pinned at child process launch via allowlisted public-only environment, never supplied in DECIDE payload",
     "policyFields": [
       "schemaVersion",
       "policyId",
@@ -41,7 +41,7 @@
     "privateKeyOrigin": "GENERATED_INSIDE_CHILD_ONLY",
     "process": "standalone Node child_process.spawn with fixed script, no shell and minimal allowlisted env",
     "signatureDomain": "W26_PDP_SIGN_V1",
-    "trustedBootstrap": "per-process public key received over local dedicated pipe and pinned in memory for that child",
+    "trustedBootstrap": "publisher public trust root pinned in child launch environment; PDP public key pinned from exact spawned local child",
     "publicKeyId": "SHA-256 SPKI DER",
     "evaluatedRules": "the child verifies signed policy artifact and executes synthetic deny/allow rules itself",
     "signedFields": [
@@ -95,6 +95,7 @@
     "attackCases": [
       "policy body edit or extra field",
       "wrong publisher key",
+      "child rejects correctly signed policy if launched with different publisher public root",
       "separate process actually executes fake rule and signs DENY",
       "response UUID/nonce/context digest mutation",
       "version/digest/epoch replay",
