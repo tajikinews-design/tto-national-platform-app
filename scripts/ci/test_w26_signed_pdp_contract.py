@@ -58,7 +58,7 @@ class W26IndependentPdpSignature(unittest.TestCase):
     def test_03_child_has_own_private_key_and_actually_evaluates(self):
         child=self.text["child"]
         for x in ('crypto.generateKeyPairSync("ed25519")',
-                  'verifySignedManifest(manifest,publisherPublicPem)',
+                  'verifySignedManifest(manifest,trustedPublisherPublicPem)',
                   'policyDecision(request.context,manifest.ruleset)',
                   'signDecision(reply,privateKey)',
                   'process.env.TTO_W26_CHILD!=="1"',
@@ -66,6 +66,8 @@ class W26IndependentPdpSignature(unittest.TestCase):
                   'request.delayMs>0',
                   'emit({type:"READY",publicPem,signerKeyId'):
             self.assertIn(x,child)
+        self.assertIn('process.env.TTO_W26_PUBLISHER_PUBLIC_B64',child)
+        self.assertNotIn('"publisherPublicPem","evaluatedAtMs"',child)
         self.assertNotIn('privateKey.export(',child)
         self.assertNotIn('fetch(',child)
         self.assertNotIn('require("node:http")',child)
@@ -84,7 +86,8 @@ class W26IndependentPdpSignature(unittest.TestCase):
                   'child.kill("SIGKILL")',
                   'counters.closed++','active.delete(child)',
                   'TTO_W26_SIGNED_LAB:"1"',
-                  'TTO_W26_CHILD:"1"'):
+                  'TTO_W26_CHILD:"1"',
+                  'TTO_W26_PUBLISHER_PUBLIC_B64:Buffer.from('):
             with self.subTest(symbol=x):self.assertIn(x,s)
         self.assertNotIn("spawnSync(",s)
         self.assertNotIn("env:process.env",s)
