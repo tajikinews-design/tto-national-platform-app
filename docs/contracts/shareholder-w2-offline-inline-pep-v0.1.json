@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "0.1-DRAFT",
+  "kind": "TTO_W2_IN_MEMORY_INLINE_PEP_NEST_TEST_ONLY",
+  "baselineAcceptedSHA": "40c07a8a972647c3247cc30890f7237b209b7a98",
+  "CI": "GITHUB_ACTIONS_ONLY_NO_DOCKER",
+  "ciLimitedToDraftBranch": "test/w2-inline-pep-offline-20261101",
+  "productionRouteRegistered": false,
+  "databaseOrDockerUsed": false,
+  "runtimePEPEnabled": false,
+  "authorizationOrSourceStatus": "NOT_APPROVED",
+  "legalOperationalEffect": "NONE",
+  "canGrantPermission": false,
+  "allowedDecisions": [
+    "DENY",
+    "SIMULATED_ALLOW"
+  ],
+  "isolatedProtocol": {
+    "ingress": "Real NextRequest/NextResponse objects in an ephemeral Node HTTP server; not actual Next App Router",
+    "policyEnforcement": "Real NestJS Fastify controller created exclusively in test process",
+    "serverTrustedProof": "In-memory opaque session handle issued by test BFF, resolved by Nest fixture map; never user headers",
+    "decisionEngine": "Accepted W1 Python PEP/PDP bridge invoked inline BEFORE fake source.read()",
+    "source": "In-memory synthetic counter with two owners in one synthetic tenant; no DB connectors",
+    "audit": "Allowlisted in-memory requestId/operation/decision/reasonCode, pre-source; not persistent or operational audit",
+    "noRealRecords": true,
+    "noRealTenantAccounts": true,
+    "failClosedOn": [
+      "missing session",
+      "wrong tenant",
+      "wrong owner same tenant",
+      "Party unbound",
+      "source unapproved",
+      "source stale",
+      "permission missing",
+      "forged role/identity headers",
+      "PDP error",
+      "PDP timeout",
+      "PDP response invalid",
+      "audit unavailable",
+      "download/export/write/trade/finalize",
+      "production environment"
+    ]
+  },
+  "assertions": [
+    "TTO_W2_ANONYMOUS_ZERO_NEST_TOUCH=PASS",
+    "TTO_W2_SAME_TENANT_TWO_OWNERS_ISOLATED=PASS",
+    "TTO_W2_INLINE_DENIED_SOURCE_TOUCHES=0",
+    "TTO_W2_PDP_FAILURE_AND_TIMEOUT_DENY=PASS",
+    "TTO_W2_AUDIT_FAILURE_FAIL_CLOSED=PASS",
+    "TTO_W2_MUTATING_AND_EXPORT_OPERATIONS_CLOSED=PASS",
+    "TTO_W2_PRODUCTION_LAB_GATE_CLOSED=PASS",
+    "TTO_W2_INMEMORY_AUDIT_ALLOWLIST=PASS",
+    "TTO_W2_INLINE_POLICY_BEFORE_SOURCE=PASS",
+    "TTO_W2_SYNTHETIC_ONLY_NO_OPERATIONAL_ALLOW=PASS",
+    "TTO_W2_NO_DB_NO_DOCKER_NO_DEPLOY=PASS",
+    "TTO_W2_GITHUB_ACTIONS_NO_DOCKER=PASS"
+  ],
+  "limitations": [
+    "Testing only: the Nest lab controller is not part of real API AppModule or routed in production",
+    "The test NextRequest objects run within an ephemeral Node HTTP test server, not an actual built Next app route",
+    "Source touch refers only to fake in-memory source counters, not PostgreSQL physical reads",
+    "Two fake owners with identical synthetic tenant do not prove legally approved same-tenant ownership separation",
+    "Positive SIMULATED_ALLOW is not an operational permission",
+    "No database, Docker, prod deployment, real source, real account or share transactions used",
+    "An in-memory audit failure is fail-closed but no durable audit chain is supplied",
+    "No claim of complete CI/release acceptance until actual GitHub workflow execution"
+  ],
+  "futureMergePrerequisites": {
+    "fullReleaseWithDocker": "DEFERRED_USER_REQUEST",
+    "independentSecurityReview": "REQUIRED",
+    "legalSourceApprovals": "REQUIRED_BEFORE_REAL_DATA",
+    "authorizedOperationalPolicies": "REQUIRED_BEFORE_LIVE_USE",
+    "inlineRuntimePEP": "NOT_IMPLEMENTED"
+  },
+  "changesDoNotAuthorize": [
+    "merge",
+    "deploy",
+    "grant permission",
+    "real source read",
+    "share transfer",
+    "payments",
+    "account updates"
+  ]
+}
