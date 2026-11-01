@@ -39,7 +39,7 @@ function digestOf(b){
 }
 function millis(v){return Number.isSafeInteger(v)&&v>=0}
 class SyntheticPolicyRegistry{
- #clock;#bundles=new Map();#active=null;#epoch=0;#maxRevision=0;
+ #clock;#bundles=new Map();#active=null;#epoch=0;#maxRevision=0;#lastActivatedRevision=0;
  constructor({clock}={}){
   if(!enabled())throw Error("W25_LAB_DISABLED");
   if(typeof clock!=="function")throw Error("TRUSTED_CLOCK_REQUIRED");
@@ -68,11 +68,8 @@ class SyntheticPolicyRegistry{
  activate(revision){
   if(!enabled())throw Error("W25_LAB_DISABLED");
   const bundle=this.#bundles.get(revision),now=this.#now();
-  if(!bundle||bundle.notBeforeMs>now||bundle.expiresAtMs<=now||
-     this.#active===revision||(this.#active!==null&&revision<this.#active))
-   throw Error("POLICY_ACTIVATION_INVALID");
-  // A retired revision may never be reactivated, even if it is not expired.
-  if(this.#active!==null&&this.#bundles.get(this.#active)?.retired)
+  if(!bundle||bundle.retired||bundle.notBeforeMs>now||bundle.expiresAtMs<=now||
+     revision<=this.#lastActivatedRevision||this.#active===revision)
    throw Error("POLICY_ACTIVATION_INVALID");
   const old=this.#active;
   if(old!==null&&old!==revision){
@@ -80,6 +77,7 @@ class SyntheticPolicyRegistry{
    this.#bundles.set(old,Object.freeze({...o,retired:true}));
   }
   this.#active=revision;this.#epoch++;
+  this.#lastActivatedRevision=revision;
   return Object.freeze({revision,epoch:this.#epoch,digest:bundle.digest});
  }
  revoke(revision){
