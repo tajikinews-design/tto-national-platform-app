@@ -102,3 +102,10 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - Cooperative manager Next route /review/pcs011/[tenantId] added with Persian RTL review count, approve and refresh actions; server BFF GET/POST forwards existing opaque session to Nest, never browser role headers. Nest GET role-gated synthetic PG audit count; POST existing role-gated fake fixture review and immutable record in PG.
 - Verified HTTP cross-app BFF Nest PostgreSQL with synthetic users and actual test sessions; no-session/member/cross-origin rejected; record count increases and persists within disposable database. Test not a Chromium screenshot or complete official shareholder workflow.
 - No merge/deploy. Wave-0 owner acceptance G3 pending. Wave-1 real official source Child06/Child07 not approved. Next: human review of manager page and optional Chromium with test sessions, design official source provenance and verified Party link. Preserve fixture-only boundaries.
+
+## PCS-012 — manager history / browser check (2026-11-01)
+- App Draft PR #103, base PR #101, candidate SHA 164e88c0ed02ad134a2ce23692fdeee8a5d347c9.
+- Manager-only Nest PG review list and Next BFF allowlisted event fields, RTL manager event timeline implemented; Chrome mobile/desktop with real PG test sessions and approval added to CI run 41311597144, current result must be independently verified before any PASS assertion.
+- Independent Child06 and Child07 legal/data authority contract recorded in TTO_PCS_012_MANAGER_HISTORY_AND_SHAREHOLDER_CONTRACT.md. Missing authorized Party link and official data source still block real shareholder panel.
+- Wave 0 G3 owner acceptance PENDING. Wave 1 is isolated fictional reviewer functionality only. No merge/deploy, official holdings or actual transfer.
+- Next action: inspect final CI result and repair any precise failure; archive run/commit in acceptance register and checkpoint, then authorized reviewer acceptance.
