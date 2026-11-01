@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "0.1-DRAFT",
+  "module": "SHAREHOLDER_W2_7_ROOT_SIGNED_KEY_LIFECYCLE_SYNTHETIC",
+  "acceptedBaselineSha": "0c9c08a5bc0de901d110eb33891ac6a16330783c",
+  "status": "OFFLINE_SYNTHETIC_GITHUB_ACTIONS_ONLY",
+  "legalOperationalEffect": "NONE",
+  "capabilities": {
+    "operationalRoutes": false,
+    "liveShareholderData": false,
+    "realTrades": false,
+    "docker": false,
+    "externalIdentityAttestation": false,
+    "productionPKI": false,
+    "durableTrustLog": false,
+    "merge": false,
+    "deploy": false,
+    "realDatabase": false,
+    "operationalSourceReads": false
+  },
+  "root": {
+    "algorithm": "Ed25519",
+    "publicKey": "explicitly pinned test input to verifier before signed keyset arrives",
+    "privateKey": "ephemeral test governance key; never sent to PDP child, gateway or policy bundle",
+    "rootKeyId": "SHA256 of SPKI DER",
+    "signatureDomain": "W27_ROOT_PUBLICATION_V1",
+    "antiRollback": "exact epoch increment, previousHash of last signed snapshot, no missing old key tombstones",
+    "hashDomain": "W27_TRUST_CHAIN_V1",
+    "keysetFields": [
+      "schemaVersion",
+      "rootKeyId",
+      "epoch",
+      "issuedAtMs",
+      "expiresAtMs",
+      "previousHash",
+      "entries",
+      "signature"
+    ],
+    "keyFields": [
+      "role",
+      "keyId",
+      "publicPem",
+      "generation",
+      "notBeforeMs",
+      "expiresAtMs",
+      "status"
+    ],
+    "allowedRoles": [
+      "POLICY_PUBLISHER",
+      "PDP_DECISION"
+    ],
+    "allowedStates": [
+      "ACTIVE",
+      "REVOKED"
+    ],
+    "keyGeneration": "monotonic per role; never reuse a previous generation or key fingerprint",
+    "maxActivePerRole": 1,
+    "revocation": "signed replacement preserves every known key as ACTIVE or REVOKED; once revoked cannot resurrect",
+    "expiry": "test injected clock, both signed snapshot expiry and per-key not-before/expiry",
+    "continuity": "single-process in-memory signed head and epoch; restart-safe checkpoint not implemented"
+  },
+  "publisher": {
+    "checks": [
+      "publisher role must be ACTIVE in currently signed keyset before policy signature",
+      "publisher checked again after awaited PDP response",
+      "publisher checked immediately after audit before fake source"
+    ],
+    "policies": "W2.5 signed synthetic only; independent verified W2.6 Ed25519 signature required",
+    "noBrowserAuthority": true
+  },
+  "pdp": {
+    "privateKeyOrigin": "independent W2.6 child process, ephemeral, never exported",
+    "publicKeyEnrollment": "explicit local test authority callback accepts the observed key only after trusted locally launched child READY; root signs and publishes key before DECIDE",
+    "checks": [
+      "root-signed ACTIVE PDP_DECISION role before sending DECIDE",
+      "PDP signature, nonce, requestId, context digest and version binding",
+      "root-signed ACTIVE PDP_DECISION role after signed decision",
+      "publisher and signer both rechecked after audit before fake source"
+    ],
+    "challenge": "W2.6 per-request random nonce",
+    "keyExpiry": "exclusive expiresAt; reject if expiry occurs during PDP response",
+    "keyRotation": "mark old key REVOKED with signed tombstone and enroll next generation",
+    "noRealAuthorization": "SIMULATED_ALLOW always mapped by BFF to 403",
+    "noRemotePKI": true
+  },
+  "tests": {
+    "suite": "scripts/ci/w27-root-signed-key-lifecycle.test.cjs",
+    "staticGuards": "scripts/ci/test_w27_root_signed_trust_lifecycle.py",
+    "priorSuites": [
+      "W2",
+      "W2.2",
+      "W2.3",
+      "W2.4",
+      "W2.5",
+      "W2.6"
+    ],
+    "cases": [
+      "root authorized signed keyset",
+      "forged root signature, replay and previousHash rollback",
+      "keyset extra field and future publication",
+      "role separation: publisher cannot act as PDP and vice versa",
+      "unknown PDP signer without enrollment",
+      "revocation of PDP signer during actual subprocess signature generation",
+      "PDP signer rotation while delayed signature pending",
+      "publisher revocation and rotation while PDP in flight",
+      "PDP key expiration mid-flight",
+      "missing revocation tombstones and forbidden resurrection",
+      "monotonic key generation and exactly one ACTIVE key per role",
+      "expired signed keyset and nonmonotonic time",
+      "two independent synthetic owners within same tenant",
+      "revocation after audit before source",
+      "audit sink failure",
+      "request abort reaps child",
+      "no real source and no permission grants"
+    ],
+    "githubOnly": true,
+    "sixDockerStagesSkipped": true
+  },
+  "limitations": [
+    "TOFU-style local child startup enrollment remains a trusted-process assumption: the root-signed keyset does NOT independently attest the PDP binary, process isolation, executable identity or a remotely authenticated server. Signing a key observed from a compromised local launch would still authorize that compromised key.",
+    "Offline governance root is generated in CI memory without HSM, PKI, secure key custody, independent multi-party issuance or production certificate authority.",
+    "Published keyset epochs, checkpoints and revoked tombstones live in one process: no independently anchored durable anti-rollback store, cross-instance propagation, partition consensus or reboot recovery.",
+    "The trust root itself is not rotated; trusted root replacement requires a separate independently approved cross-signing or secure provisioning protocol.",
+    "Fake injected clock supplies not-before/expiry checks; secure external time, CRL/OCSP equivalents, consistent revocation propagation and signed timestamps do not exist.",
+    "W2.6 Node child executes synthetic rules, not real approved cooperative policy or the W1 Python simulator.",
+    "Existing W2.4 file audit remains temporary; W2.5 version metadata and W2.7 keyset state are not persistently signed and anchored in an operational ledger.",
+    "No live shareholder, brokerage, trade approval, payment, database, financial accounting, official source admission, Next app route, Nest AppModule, RLS, Docker or production deployment."
+  ],
+  "acceptance": {
+    "GitHubActionsExactSha": "REQUIRED",
+    "BuildTypeScript": "REQUIRED",
+    "PythonSecurityBaseline": "REQUIRED",
+    "PriorW2ToW26": "REQUIRED",
+    "W27RootSignedSecurity": "REQUIRED",
+    "SixDockerSteps": "SKIPPED",
+    "ProductionRelease": "DEFERRED_USER_REQUEST",
+    "Merge": false,
+    "Deploy": false
+  }
+}
