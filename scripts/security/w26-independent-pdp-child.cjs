@@ -19,8 +19,8 @@ if(!labOnly()||process.env.TTO_W26_CHILD!=="1"||
 const {privateKey,publicKey}=crypto.generateKeyPairSync("ed25519");
 const publicPem=publicKey.export({format:"pem",type:"spki"}).toString();
 const signerKeyId=keyId(publicPem);
-let state="READY",closed=false;
-function emit(o){if(!closed)process.stdout.write(JSON.stringify(o)+"\n")}
+let state="READY";
+function emit(o){process.stdout.write(JSON.stringify(o)+"\n")}
 emit({type:"READY",publicPem,signerKeyId,protocol:"W26_CHILD_SIGNED_DECISION_V0_1"});
 const reader=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
 let size=0;
@@ -71,7 +71,7 @@ reader.on("line",async line=>{
  emit({type:"DECISION",signed});
  reader.close();
 });
-reader.on("close",()=>{
- closed=true;
- // Key material remains private to the one-shot child; process terminates.
-});
+// The parent sends exactly one JSONL line followed by EOF. The readline
+// close event is NOT authorization to suppress an asynchronous signed reply;
+// an in-flight delay may still be pending after stdin has ended.
+
