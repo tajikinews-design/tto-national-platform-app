@@ -176,6 +176,23 @@ test("W2.6 independent child policy evaluation & Ed25519 attestations",async t=>
  });
  console.log("TTO_W26_WRONG_PUBLISHER_DENIED=PASS");
 
+ await t.test("child rejects policy signed by different key than its launch-pinned publisher root",async()=>{
+  clock=BASE;
+  const {registry,b}=registryAndBundle();
+  const lease=registry.issue().lease;
+  const signed=makeSignedManifest(lease,b,publisher.privateKey,publisher.publicPem);
+  const accepted=candidate();
+  assert.equal(accepted.kind,"SYNTHETIC_PDP_CANDIDATE");
+  await assert.rejects(runSignedPdp({
+   requestId:accepted.requestId,context:accepted.context,
+   manifest:signed,publisherPublicPem:impostor.publicPem,
+   evaluatedAtMs:lease.issuedAtMs,
+   signal:new AbortController().signal
+  }),/W26_CHILD_POLICY_SIGNATURE_INVALID/);
+  await drained();
+ });
+ console.log("TTO_W26_CHILD_PINNED_PUBLISHER_ROOT_DENIES_IMPOSTOR=PASS");
+
  await t.test("PDP signs DENY when trusted synthetic context fails a rule",async()=>{
   clock=BASE;
   const good=candidate();
