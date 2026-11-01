@@ -14,3 +14,9 @@ Draft app PR #103 descends from #101. Nest manager-only GET returns last 30 fict
 
 ## Remaining project gates
 Wave-0 G3 owner acceptance still pending; Wave-1 test-only manager source review is not operational acceptance. Real Child06/Child07 source approval, manager delegation evidence, authenticated shareholder own read, full cross-portal journey and manual reviewer UX remain separate acceptance tasks. Do not silently merge or deploy.
+
+## Final exact-head validation
+- App Draft PR #103 exact HEAD 41b28310fab54852ac7fc14edcad6abc9313f8e6.
+- GitHub Actions run 41311842802, job 124863747272: COMPLETED SUCCESS. Real disposable PostgreSQL17 0001–0010 plus CI-only 0011, Nest and Next build/typecheck, PCS010/011 real session & role E2E, and Chromium manager UI at 390/1440px all passed. Logs include TTO_PCS012_CHROMIUM_REAL_PG_390=PASS and TTO_PCS012_CHROMIUM_REAL_PG_1440=PASS.
+- Earlier run 41311597144 FAILED because direct SELECT from the RLS-protected fictional audit table was intentionally revoked. Fixed by a tenant+manager-authorized PostgreSQL SECURITY DEFINER function pcs012_fixture_review_history; direct table privileges remain REVOKED.
+- Only fictional review IDs, status and timestamps shown to a test manager. Real shareholder data and official legal source admission still BLOCKED.
