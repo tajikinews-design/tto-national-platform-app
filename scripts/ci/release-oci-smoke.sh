@@ -29,5 +29,5 @@ for item in \
   grep -q 'dir="rtl"' /tmp/tto-preview.html
   grep -q 'داده' /tmp/tto-preview.html
  fi
- echo "TTO_RELEASE_OCI_$label_PASS"
+ echo "TTO_RELEASE_OCI_${label}_PASS"
 done
