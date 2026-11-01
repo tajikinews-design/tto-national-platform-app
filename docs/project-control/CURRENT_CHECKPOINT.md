@@ -109,3 +109,10 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - Independent Child06 and Child07 legal/data authority contract recorded in TTO_PCS_012_MANAGER_HISTORY_AND_SHAREHOLDER_CONTRACT.md. Missing authorized Party link and official data source still block real shareholder panel.
 - Wave 0 G3 owner acceptance PENDING. Wave 1 is isolated fictional reviewer functionality only. No merge/deploy, official holdings or actual transfer.
 - Next action: inspect final CI result and repair any precise failure; archive run/commit in acceptance register and checkpoint, then authorized reviewer acceptance.
+
+## PCS-012 final verification (2026-11-01)
+- App Draft PR #103, exact SHA 41b28310fab54852ac7fc14edcad6abc9313f8e6. GitHub Actions run 41311842802, job 124863747272, COMPLETED SUCCESS; Chromium 390/1440 both PASS with real disposable Next→Nest→PG manager review and refreshed fictional audit history. Existing identity/tenant/source regression passed.
+- Security repair: prohibited direct audit-table SELECT correctly failed in initial run 41311597144; fixed via role+tenant guarded database read function without opening direct table access.
+- Source contract: TTO_PCS_012_MANAGER_HISTORY_AND_SHAREHOLDER_CONTRACT.md. Official Child06 membership and independent Child07 share-ledger still pending issuer/legal/pilot authorization; no identity-to-Party official linkage accepted.
+- Wave-0 G3 owner signoff remains PENDING; Wave-1 fixture-only manager history verified, authenticated shareholder official read BLOCKED. No merge, deploy, real share transfer or payment.
+- Next: authorized product acceptance of manager UX and separate Child06/07 source governance; implement authenticated shareholder own-only BFF only after official sources and Party binding available, without fake zero holdings.
