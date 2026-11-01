@@ -124,7 +124,10 @@ async function handleBFF(nodeReq,nodeRes){
  const url="http://127.0.0.1"+nodeReq.url;
  const request=new NextRequest(url,{method:nodeReq.method,headers:nodeReq.headers});
  const fail=(status,code)=>NextResponse.json({
-  decision:"DENY",reasonCode:code,sourceTouches:0,
+  decision:"DENY",reasonCode:code,
+  // A 503 from an invalid upstream response cannot prove zero source touches.
+  // Only preflight denials are known to have touched no source.
+  sourceTouches:status===503?null:0,
   data:null,hasActualRecord:false,canGrantPermission:false,
   legalOperationalEffect:"NONE"
  },{status,headers:{"Cache-Control":"private, no-store"}});
