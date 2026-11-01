@@ -272,7 +272,9 @@ test("W2.5 versioned policy registry and async security decisions fail closed",a
    deny(await enforceW25Revision(f.cfg),f,"POLICY_RESPONSE_MISMATCH");
   }
   const token={...now,digest:"0".repeat(64)};
-  assert.equal(r.check(token).reasonCode,"POLICY_DIGEST_MISMATCH");
+  assert.equal(r.check(token).reasonCode,"POLICY_LEASE_UNTRUSTED");
+  assert.equal(r.check({...now}).reasonCode,"POLICY_LEASE_UNTRUSTED");
+  assert.equal(r.check(now).ok,true,"original frozen server-issued lease remains valid");
  });
  console.log("TTO_W25_STALE_DIGEST_EPOCH_REPLAY_DENY=PASS");
 
