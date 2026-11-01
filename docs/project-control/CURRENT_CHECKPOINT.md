@@ -160,3 +160,9 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - Governance conflict: current Wave-0 exit/G3 contract requires pilot/source authority, while requested sequence puts pilot/source selection after G3. **This is not silently reconciled.** Recommend conditional technical engineering baseline acknowledgment **without** Wave-0 G3 acceptance; alternatively owner must direct a formal contract amendment or reject/return for review.
 - Formal **unsigned decision form** `docs/project-control/TTO_PCS_016_WAVE0_OWNER_G3_DECISION.md`. No option selected, no owner signature, no source/pilot approval. Wave0 `TECHNICAL_G2_PASS / G3_PENDING`; Wave1 real source use BLOCKED.
 - No merge, deploy, real membership/share data, payments, ownership transfer or transactions. NEXT: explicit authenticated owner response and independent codeowner/QA approval, followed by separate lawful pilot and Child06/07 source stewards.
+
+## Follow-up to PCS-016 (2026-11-01)
+- User confirmed Option A in the current chat. Scope and constraints are now recorded in `TTO_PCS_016_OWNER_OPTION_A_DECISION_2026-11-01.md`, and cross-referenced in `DECISION_REGISTER.md`.
+- Only nonproduction pilot/source-permission planning is in scope. PR #109 at `e87f2a874200f7694faa3959d03bdeeb0890ba6f` remains frozen as the Release-tested candidate; WAVE-0 G3 remains PENDING.
+- The original unsigned G3 decision form and acceptance register have not been rewritten. Their older `NOT_SELECTED` notes are historical and must be read with the subsequent Option A planning record; they are not evidence of full G3 approval.
+- No codeowner or human QA signoffs, named pilot, Child06 or Child07 legal authorizations, main merge, deployment, real shareholder-data processing or share transactions have occurred.
