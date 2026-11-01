@@ -117,5 +117,40 @@
       "Main merge",
       "Production deployment"
     ]
+  },
+  "pcs016": {
+    "state": "OWNER_G3_DECISION_UNRECORDED",
+    "form": "docs/project-control/TTO_PCS_016_WAVE0_OWNER_G3_DECISION.md",
+    "technicalBase": {
+      "pr": 109,
+      "sha": "e87f2a874200f7694faa3959d03bdeeb0890ba6f",
+      "fullReleaseRun": 41323031652,
+      "conclusion": "success"
+    },
+    "supplementaryDocs": {
+      "pr": 111,
+      "sha": "6022bc42161f0b4b416640f797e7f045df1716fd",
+      "coreRun": 41323510534,
+      "conclusion": "success",
+      "fullReleaseOnThatSHA": false
+    },
+    "reviews": {
+      "pr109Approvals": 0,
+      "pr111Approvals": 0,
+      "humanUxSignoff": false
+    },
+    "mainBranch": {
+      "protected": false,
+      "codeownersFound": false
+    },
+    "governanceConflict": "Current Wave0 exit criteria include approved pilot/source authorities but proposed sequence defers their selection until after Wave0",
+    "recommendedDecision": "OPTION_A_CONDITIONAL_TECHNICAL_BASELINE_ONLY",
+    "ownerChoice": "NOT_SELECTED",
+    "g3Status": "PENDING_NOT_ACCEPTED",
+    "pilot": "NOT_SELECTED",
+    "Child06": "NOT_AUTHORIZED",
+    "Child07": "NOT_AUTHORIZED",
+    "merge": "NOT_AUTHORIZED",
+    "deploy": "NOT_AUTHORIZED"
   }
 }
