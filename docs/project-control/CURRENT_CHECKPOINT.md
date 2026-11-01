@@ -82,3 +82,10 @@ Read TTO_DELIVERY_3.0_MASTER.md, ROADMAP.json, CAPABILITY_REGISTRY.json, OPEN_PR
 - Run 41307901786: COMPLETED SUCCESS: Chromium synthetic manager form approval -> shareholder fictional holdings on 390 and 1440 screens, existing workspace build/check, PostgreSQL17 all migrations 0001-0010 and real Next/Nest/PG tenant/source E2E. Historic failed runs and repairs in TTO_PCS_008_BROWSER_FLOW.md.
 - This demonstrates a functional synthetic browser loop only; **NOT** authenticated manager/real membership/ledger or operational authorization. G3 Wave-0 acceptance still owner pending. Wave-1 fixture-only thin slice verified; real Child06/Child07 source and manager workbench remain blocked/not implemented.
 - No merge, deployment or live share trade. NEXT: owner baseline acceptance decision, official pilot source approvals, and implement an authenticated, auditable manager source-admission flow using isolated approved fixtures, then integrate official source only upon authority.
+
+## PCS-009 test-only role boundary (2026-11-01)
+- App Draft PR #97 exact HEAD 95bd2725d268694c2cc7e4e48d177fce05d4362a, parent #95.
+- GitHub Actions run 41308897202: COMPLETED SUCCESS, includes new PCS-009 role/tenant/Party and synthetic audit test, existing build/core tests; this is test-only actor credentials, not authenticated Nest session or durable audit.
+- Owner Wave-0 G3 still PENDING, official Child06 and Child07 source approvals missing. Wave-1 remains IN_PROGRESS (synthetic slice only, no operational acceptance).
+- No Merge/Deploy, real persons, real shares, financial transactions.
+- NEXT: implement real Nest/PG-backed, tenant-scoped manager workflow only after approved role delegation and source contract; first design and test isolated validated fixtures against existing real session/tenant gates, then wire authorized shareholder read. Reference TTO_PCS_009_AUTH_AUDIT_GAPS.md.
