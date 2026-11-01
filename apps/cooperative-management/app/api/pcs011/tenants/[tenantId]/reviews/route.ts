@@ -29,7 +29,17 @@ async function dispatch(req:NextRequest,params:Promise<{tenantId:string}>,method
   if(!upstream.ok)return denial([400,401,403,409].includes(upstream.status)?upstream.status:503,"REVIEW_DENIED_OR_UNAVAILABLE");
   const data=await upstream.json() as {kind?:string;official?:boolean;items?:number;recorded?:boolean};
   if(data.kind!=="SYNTHETIC_ONLY"||data.official!==false)return denial(503,"UNEXPECTED_SOURCE");
-  if(method==="GET")return NextResponse.json({kind:"SYNTHETIC_ONLY",official:false,items:Number(data.items??0)},{headers:HEADERS});
+  if(method==="GET"){
+   const events=Array.isArray((data as {events?:unknown}).events)?
+    (data as {events:unknown[]}).events.filter((e):e is {id:string;fixtureRef:string;status:string;recordedAt:string}=>{
+      if(typeof e!=="object"||e===null)return false;
+      const x=e as Record<string,unknown>;
+      return typeof x.id==="string"&&typeof x.fixtureRef==="string"&&
+       /^PCS010-FAKE-/.test(x.fixtureRef)&&x.status==="FICTIONAL_REVIEW_APPROVED"&&
+       typeof x.recordedAt==="string";
+    }).slice(0,30):[];
+   return NextResponse.json({kind:"SYNTHETIC_ONLY",official:false,items:Number(data.items??0),events},{headers:HEADERS});
+  }
   return NextResponse.json({recorded:data.recorded===true,kind:"SYNTHETIC_ONLY",official:false},{status:201,headers:HEADERS});
  }catch{return denial(503,"REVIEW_UNAVAILABLE")}
 }
