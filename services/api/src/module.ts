@@ -470,6 +470,23 @@ export class FoundationCommandsController {
 @Controller("v1/pcs010-lab/tenants")
 export class Pcs010FixtureController {
  constructor(private readonly db:Database) {}
+ @Get(":tenantId/fixture-reviews")
+ async listFake(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined) {
+  if(process.env.CI!=="true"||process.env.TTO_PCS010_LAB!=="1"||
+      !!process.env.VERCEL||!!process.env.APIIR_TOKEN||
+      !/^postgresql:\/\/tto_app@127\.0\.0\.1:5432\/tto$/.test(process.env.DATABASE_URL??""))
+    throw new ForbiddenException("Lab operation disabled");
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async client=>{
+    await client.query("SELECT set_config('tto.pcs010_lab','1',true)");
+    const count=await client.query<{n:string}>("SELECT tto.pcs010_fixture_review_count($1)::text AS n",[tenant]);
+    const allowed=await client.query<{allowed:boolean}>(
+      "SELECT tto.has_tenant_role($1,'COOPERATIVE_MANAGER') AS allowed",[tenant]);
+    if(allowed.rows[0]?.allowed!==true)throw new ForbiddenException("Manager role required");
+    return {kind:"SYNTHETIC_ONLY",official:false,canTrade:false,items:Number(count.rows[0]?.n??"0")};
+  });
+ }
  @Post(":tenantId/fixture-reviews")
  async approveFake(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
   @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>) {
