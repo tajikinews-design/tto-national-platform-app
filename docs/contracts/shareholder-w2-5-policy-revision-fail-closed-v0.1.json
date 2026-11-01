@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "0.1-DRAFT",
+  "name": "SHAREHOLDER_W2_5_VERSIONED_PDP_POLICY_GUARD_SYNTHETIC_ONLY",
+  "acceptedBaselineSha": "c3ea5a92b7f0ea48bff986be66b4cac3916d96ad",
+  "status": "NOT_OPERATIONALLY_APPROVED",
+  "code": {
+    "registry": "scripts/security/w25-synthetic-policy-registry.cjs",
+    "enforcer": "scripts/security/w25-synthetic-policy-version-enforcer.cjs",
+    "suite": "scripts/ci/w25-policy-revision-expiry.test.cjs",
+    "pythonGuards": "scripts/ci/test_w25_policy_revision_guard.py"
+  },
+  "environment": {
+    "githubActionsDraftOnly": true,
+    "noDocker": true,
+    "noPostgres": true,
+    "noRealSources": true,
+    "noRegisteredAppRoutes": true,
+    "noNestAppModule": true,
+    "noLiveShareholderAccounts": true,
+    "noRealTrades": true
+  },
+  "trustedBundle": {
+    "policyId": "SYNTHETIC_SELF_READ_ONLY",
+    "strictFields": [
+      "policyId",
+      "revision",
+      "ruleset",
+      "notBeforeMs",
+      "expiresAtMs"
+    ],
+    "rulesets": [
+      "SELF_READ_SYNTHETIC_V1",
+      "SELF_READ_SYNTHETIC_V2"
+    ],
+    "revision": "positive strictly increasing integer, never reused and no activation rollback",
+    "identity": "SHA256 over domain-separated canonical bundle; hash is NOT a signature",
+    "activation": "independent synthetic registry, monotonic epoch",
+    "clock": "injected trusted in-memory test clock (not production time authority)",
+    "validity": "not-before inclusive, expires-at exclusive (>= expiry denies)",
+    "revocation": "active registry state invalidates all issued leases immediately in single process"
+  },
+  "decisionBinding": {
+    "fields": [
+      "policyId",
+      "revision",
+      "digest",
+      "epoch",
+      "verdict"
+    ],
+    "interpretation": "server-only wrapper echoes trusted policy lease with W1 Python simulator result",
+    "attestation": "NO CRYPTOGRAPHIC PDP SIGNATURE; not proof actual Python executed that policy version",
+    "clientSuppliedRevision": "NEVER TRUSTED",
+    "consistencyChecks": [
+      "before PDP",
+      "after awaited PDP",
+      "after audit and before synthetic source"
+    ],
+    "failClosed": [
+      "no active version",
+      "not yet valid",
+      "expired",
+      "revoked",
+      "superseded",
+      "digest mismatch",
+      "epoch mismatch",
+      "malformed or extra fields",
+      "PDP timeout",
+      "abort",
+      "PDP crash",
+      "audit failure"
+    ],
+    "forbidOldDecisionReuse": true,
+    "publicResponse": "BFF always denies synthetic decisions, never returns operational 200 or actual record"
+  },
+  "provenance": {
+    "requestId": "server-generated ephemeral UUID from W2.3 trusted internal envelope",
+    "syntheticVersionTraceFields": [
+      "requestId",
+      "policyRevision",
+      "policyDigest",
+      "policyEpoch",
+      "decision",
+      "reasonCode"
+    ],
+    "fileAudit": "unchanged W2.4 file-backed chain with requestId, phase, decision, reasonCode only",
+    "limitation": "Policy revision trace is in-memory and NOT embedded in W2.4 persisted hash chain; production audit schema migration required",
+    "piiAndSecrets": "no tenant/owner/Party/session/cookie/token/PII/source data in version trace",
+    "auditOrder": "W2.4 audit record and in-memory version trace before source.read",
+    "allAuditsRequiredBeforeSource": true
+  },
+  "proofScope": {
+    "source": "synthetic in-memory source counter only; no physical SQL read proof",
+    "request": "detached W2.3 NextRequest and Nest synthetic proof checks; not real Nest controller for W2.5",
+    "twoOwners": "two synthetic owners in same fake tenant",
+    "positive": "SIMULATED_ALLOW never means real operational permission",
+    "rollback": "not supported in offline registry; never reopen revoked revisions",
+    "noRealData": true
+  },
+  "requiredMarkers": [
+    "TTO_W25_POLICY_VERSION_BOUND_TO_PDP_AND_AUDIT=PASS",
+    "TTO_W25_MISSING_POLICY_DENIED_BEFORE_PDP=PASS",
+    "TTO_W25_NO_VERSION_ROLLBACK_OR_REUSE=PASS",
+    "TTO_W25_NOT_BEFORE_AND_TRUSTED_CLOCK_GATE=PASS",
+    "TTO_W25_POLICY_BUNDLE_STRICT_SCHEMA=PASS",
+    "TTO_W25_EXPIRED_POLICY_PRE_PDP_DENIED=PASS",
+    "TTO_W25_INFLIGHT_EXPIRY_DISCARDS_PDP_ALLOW=PASS",
+    "TTO_W25_INFLIGHT_POLICY_REVOCATION_DENY=PASS",
+    "TTO_W25_INFLIGHT_REVISION_SWAP_DENY=PASS",
+    "TTO_W25_STALE_DIGEST_EPOCH_REPLAY_DENY=PASS",
+    "TTO_W25_RECHECK_AFTER_AUDIT_BEFORE_SOURCE=PASS",
+    "TTO_W25_VERSION_AUDIT_FAILURE_DENY=PASS",
+    "TTO_W25_UNATTESTED_OR_MALFORMED_DECISIONS_DENY=PASS",
+    "TTO_W25_REQUEST_ABORT_FAIL_CLOSED=PASS",
+    "TTO_W25_DEADLINE_DENIES_LATE_DECISIONS=PASS",
+    "TTO_W25_SAME_TENANT_OWNER_AND_REVISION_SCOPE=PASS",
+    "TTO_W25_CORRUPT_SOURCE_NEVER_REPORTED_ZERO=PASS",
+    "TTO_W25_NO_PII_VERSION_PROVENANCE=PASS",
+    "TTO_W25_SYNTHETIC_ONLY_NO_OPERATIONAL_ALLOW=PASS",
+    "TTO_W25_NO_DOCKER_NO_DB_NO_DEPLOY=PASS",
+    "TTO_W25_GITHUB_ACTIONS_NO_DOCKER=PASS"
+  ],
+  "prerequisitesForFutureOperationalWiring": [
+    "Independent signed versioned policy artifacts and immutable publication authority",
+    "Signed PDP decision attestation binding exact revision, digest, epoch, requestId and rule set",
+    "Cross-process globally consistent distributed revision/revocation and trustworthy time",
+    "Durable signed audit of version metadata integrated with W2.4 schema under an independent anchor",
+    "Independent legal source, board, classification and permissions approval",
+    "Actual Next/Nest/AppModule wiring, SQL source-touch instrumentation, RLS/security review",
+    "Full release checks deferred per user request; explicit Merge/Deploy authorization"
+  ],
+  "authorization": {
+    "merge": false,
+    "deploy": false,
+    "realData": false,
+    "realTrades": false,
+    "operationalPEP": false
+  }
+}
