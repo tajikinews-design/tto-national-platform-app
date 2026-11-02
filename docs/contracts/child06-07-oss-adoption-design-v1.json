@@ -1,0 +1,366 @@
+{
+  "schemaVersion": "1.0-PROPOSED",
+  "asOf": "2026-11-02",
+  "status": "DESIGN_ONLY_NOT_IMPLEMENTED",
+  "productionPermission": false,
+  "realShareTransfer": false,
+  "source": {
+    "repository": "tajikinews-design/tto-national-platform",
+    "commit": "5eb6be8edfbb61f2eca740a42c30f572b493f023",
+    "documents": [
+      "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+      "TTO-Share-Market-Spec-v3.0.docx"
+    ],
+    "extractedIndex": "docs/analysis/PH01_SOURCE_148_ENTITY_FIELD_INDEX.json",
+    "domainMap": "docs/analysis/CHILD23_SOURCE_POLICY_WORKFLOW_MAP.json",
+    "acceptanceIndex": "docs/analysis/ACCEPTANCE_IDS.json"
+  },
+  "technology": "Next.js 16 + NestJS 11/Fastify + PostgreSQL 17 RLS (ADR-001); do not change",
+  "domains": [
+    {
+      "id": "CHILD-06",
+      "owner": "OFFICIAL_MEMBER_MASTER",
+      "entities": [
+        {
+          "name": "MEMBERSHIP_APPLICATION",
+          "sourceParagraph": 896,
+          "sourceFieldPhrases": [
+            "application_id",
+            "tenant_id",
+            "party_id",
+            "status",
+            "submitted_at",
+            "evidence_refs[]",
+            "decision_ref?"
+          ],
+          "status": "DESIGN_SOURCE_ONLY"
+        },
+        {
+          "name": "COOPERATIVE_RELATIONSHIP",
+          "sourceParagraph": 898,
+          "sourceFieldPhrases": [
+            "relationship_id",
+            "tenant_id",
+            "party_id",
+            "type",
+            "status",
+            "valid_from",
+            "valid_until?",
+            "basis_ref"
+          ],
+          "status": "DESIGN_SOURCE_ONLY"
+        },
+        {
+          "name": "SHAREHOLDER_ACCOUNT",
+          "sourceParagraph": 900,
+          "sourceFieldPhrases": [
+            "shareholder_account_id",
+            "tenant_id",
+            "party_id",
+            "shareholder_type",
+            "status",
+            "bank_info_refs?"
+          ],
+          "status": "DESIGN_SOURCE_ONLY"
+        },
+        {
+          "name": "MEMBER_PROFILE",
+          "sourceParagraph": 902,
+          "sourceFieldPhrases": [
+            "tenant_id",
+            "party_id",
+            "member_no?",
+            "contact/preferences refs",
+            "classification"
+          ],
+          "status": "DESIGN_SOURCE_ONLY"
+        },
+        {
+          "name": "RELATIONSHIP_DECISION",
+          "sourceParagraph": 904,
+          "sourceFieldPhrases": [
+            "decision_id",
+            "application/relationship_ref",
+            "outcome",
+            "authority_ref",
+            "reason",
+            "decided_at"
+          ],
+          "status": "DESIGN_SOURCE_ONLY"
+        }
+      ],
+      "commands": [
+        "SubmitMembershipApplication",
+        "RecordMembershipDecision",
+        "ActivateRelationship",
+        "EndRelationship",
+        "CreateShareholderAccount",
+        "UpdateSelfServiceProfile"
+      ],
+      "queries": [
+        "GetMyMemberProfile",
+        "GetRelationship",
+        "ListMembers",
+        "GetShareholderAccount"
+      ],
+      "events": [
+        "MEMBERSHIP_APPLICATION_SUBMITTED",
+        "MEMBERSHIP_APPROVED",
+        "MEMBERSHIP_ENDED",
+        "SHAREHOLDER_ACCOUNT_ACTIVATED"
+      ],
+      "officialAcceptanceIDs": [
+        "MEMBER-AT-001",
+        "MEMBER-AT-002",
+        "MEMBER-AT-003",
+        "MEMBER-AT-004",
+        "MEMBER-AT-005",
+        "MEMBER-AT-006",
+        "MEMBER-AT-007"
+      ],
+      "proposedStateMachines": [
+        {
+          "entity": "MEMBERSHIP_APPLICATION",
+          "states": [
+            "SUBMITTED",
+            "UNDER_REVIEW",
+            "APPROVED",
+            "REJECTED",
+            "CANCELLED"
+          ],
+          "notes": "PROPOSED only — reconcile exact authoritative state transitions and Rule Registry before implementation"
+        },
+        {
+          "entity": "COOPERATIVE_RELATIONSHIP",
+          "states": [
+            "ACTIVE",
+            "SUSPENDED",
+            "ENDED"
+          ],
+          "notes": "PROPOSED only — no hard delete or MemberMatters account-lifecycle inference"
+        }
+      ],
+      "writeGate": "BLOCK_UNTIL_SOURCE_AND_LEGAL_AUTHORITY",
+      "readOnlyImplementedCandidate": "GET /v1/tenants/:tenantId/me/member-record",
+      "invariants": [
+        "USER_ACCOUNT != PARTY != MEMBERSHIP != SHAREHOLDER_ACCOUNT != SHARE_OWNERSHIP",
+        "Self-profile own Party only; manager tenant-bound",
+        "Nonmember shareholder rights require explicit CF04 Rule Registry; never inferred from shares",
+        "Duplicate active relationship policy-controlled; decisions use idempotency keys and version checks",
+        "No relation or member history hard-delete; effective dates and monotonic sourceVersion",
+        "No official record from Tapir/MemberMatters demo"
+      ]
+    },
+    {
+      "id": "CHILD-07",
+      "owner": "OFFICIAL_SHARE_OWNERSHIP_LEDGER",
+      "entities": [
+        {
+          "name": "SHARE_OWNERSHIP_LEDGER_ENTRY",
+          "sourceParagraph": 1026,
+          "sourceFieldPhrases": [
+            "entry_id",
+            "tenant_id",
+            "shareholder_account_id",
+            "share_qty",
+            "direction",
+            "source_case_ref",
+            "effective_at",
+            "previous_owner_ref?"
+          ],
+          "status": "DESIGN_SOURCE_ONLY"
+        },
+        {
+          "name": "CAPITAL_OFFER",
+          "sourceParagraph": 1028,
+          "sourceFieldPhrases": [
+            "offer_id",
+            "resolution_ref",
+            "terms",
+            "eligibility_rule_snapshot",
+            "status"
+          ],
+          "status": "DESIGN_SOURCE_ONLY"
+        },
+        {
+          "name": "SHARE_SELL_ORDER",
+          "sourceParagraph": 1030,
+          "sourceFieldPhrases": [
+            "sell_order_id",
+            "seller_ref",
+            "qty",
+            "valuation_ref",
+            "status"
+          ],
+          "status": "DESIGN_SOURCE_ONLY"
+        },
+        {
+          "name": "BUY_REQUEST",
+          "sourceParagraph": 1032,
+          "sourceFieldPhrases": [
+            "buy_request_id",
+            "buyer_ref",
+            "sell/order_ref",
+            "status"
+          ],
+          "status": "DESIGN_SOURCE_ONLY"
+        },
+        {
+          "name": "SHARE_LOCK",
+          "sourceParagraph": 1034,
+          "sourceFieldPhrases": [
+            "lock_id",
+            "owner_ref",
+            "qty",
+            "source_case_ref",
+            "status",
+            "expires_at?"
+          ],
+          "status": "DESIGN_SOURCE_ONLY"
+        },
+        {
+          "name": "TRANSFER_CASE",
+          "sourceParagraph": 1036,
+          "sourceFieldPhrases": [
+            "case_id",
+            "seller_ref",
+            "buyer_ref",
+            "qty",
+            "payment_refs",
+            "fee_refs",
+            "approvals",
+            "status"
+          ],
+          "status": "DESIGN_SOURCE_ONLY"
+        },
+        {
+          "name": "VALUATION_REPORT",
+          "sourceParagraph": 1038,
+          "sourceFieldPhrases": [
+            "valuation_id",
+            "document_ref",
+            "expert_ref",
+            "value",
+            "valid_from",
+            "valid_to?",
+            "status"
+          ],
+          "status": "DESIGN_SOURCE_ONLY"
+        }
+      ],
+      "commands": [
+        "CreateSellOrder",
+        "LockShares",
+        "SubmitBuyRequest",
+        "SelectBuyer",
+        "RecordApproval",
+        "AttachPaymentEvidence",
+        "MarkPaymentVerified",
+        "FinalizeTransfer",
+        "CancelTransfer"
+      ],
+      "queries": [
+        "GetMyHoldings",
+        "ListMarketOffers",
+        "GetTransferCase",
+        "GetValuationStatus"
+      ],
+      "events": [
+        "SHARE_SELL_REQUESTED",
+        "SHARES_LOCKED",
+        "PAYMENT_REPORTED",
+        "TRANSFER_READY",
+        "TRANSFER_COMPLETED"
+      ],
+      "officialAcceptanceIDs": [
+        "SHARE-AT-001",
+        "SHARE-AT-002",
+        "SHARE-AT-003",
+        "SHARE-AT-004",
+        "SHARE-AT-005",
+        "SHARE-AT-006",
+        "SHARE-AT-007",
+        "SHARE-AT-008"
+      ],
+      "proposedStateMachines": [
+        {
+          "entity": "TRANSFER_CASE",
+          "states": [
+            "REQUESTED",
+            "REVIEWING",
+            "APPROVED",
+            "PAYMENT_REPORTED",
+            "PAYMENT_VERIFIED",
+            "READY",
+            "COMPLETED",
+            "CANCELLED",
+            "REJECTED"
+          ],
+          "notes": "PROPOSED only; source state machine + legal gate to govern final meanings; no operative transfer code"
+        },
+        {
+          "entity": "SHARE_LOCK",
+          "states": [
+            "LOCKED",
+            "RELEASED",
+            "EXPIRED"
+          ],
+          "notes": "PROPOSED only; atomic concurrent lock and release semantics require PG17 tests"
+        }
+      ],
+      "writeGate": "ALL_SHARE_WRITE_AND_TRANSFER_BLOCKED_NO_LEGAL_AUTHORITY",
+      "readOnlyImplementedCandidate": "GET /v1/tenants/:tenantId/me/shareholding",
+      "invariants": [
+        "Official ledger append-only; read snapshots not official source or transfer authorization",
+        "Sourced Child06 membership and independently approved Child07 ledger required before holdings read",
+        "Missing source != zero; zero valid only from authenticated official source with version and asOf",
+        "Payment reported != verified != transfer completed",
+        "Atomic share lock, caps, valuation freshness, related-party approvals and SoD before finalization",
+        "FinalizeTransfer idempotent transaction; audit/outbox failure rolls back",
+        "No wallet, cash reservation, automated official trade or system-computed valuation",
+        "No OCF object alone proves Iranian cooperative share ownership"
+      ]
+    }
+  ],
+  "globalGuardrails": {
+    "legalAuthorityRequired": true,
+    "sourceOwnerApprovalRequired": true,
+    "securityIndependentSignoffRequired": true,
+    "exactShaCIRequired": true,
+    "noRealPIIOrMoney": true,
+    "noReleaseOrMerge": true,
+    "forbidUserInputTenantTrust": true,
+    "forceRLS": true,
+    "retain155CanonicalAcceptanceIDs": true,
+    "existingAsVsObservedTestIdsMustNotBeRewritten": true
+  },
+  "suggestedAPIContracts": [
+    {
+      "route": "GET /v1/tenants/:tenantId/me/member-record",
+      "status": "EXISTING_CANDIDATE_REQUIRES_SOURCE_APPROVAL",
+      "success": "source-backed versioned relation; no-store; 401/403/503 fail-closed"
+    },
+    {
+      "route": "GET /v1/tenants/:tenantId/me/shareholding",
+      "status": "EXISTING_CANDIDATE_REQUIRES_SOURCE_APPROVAL",
+      "success": "share quantity as STRING integer, ledgerVersion, ledgerAsOf; unavailable != zero"
+    },
+    {
+      "route": "POST membership application, decision, relationship and shareholder account",
+      "status": "DESIGN_ONLY_NO_ROUTE",
+      "success": "Do not implement until approved legal workflow and read source"
+    },
+    {
+      "route": "POST share sell, lock, buy, approve, pay, finalize, cancel",
+      "status": "BLOCKED_NO_ROUTE",
+      "success": "Do not expose payment/transfer actions in MVP without independent legal authority"
+    }
+  ],
+  "dataIntegrityDesign": [
+    "Separate tenant_id, party_id, shareholder_account_id and ledger_entry identifiers and referential constraints; no email/phone as authorization key",
+    "RLS USING/WITH CHECK + FORCE RLS on all tenant data; app role no bypass; trusted PG transaction-local session context only",
+    "Unique(tenant_id,party_id,official_source_version) per approved domain where appropriate after domain owner signoff",
+    "Append-only official audit/evidence, monotonic source versions, idempotency keys, invariants checked transactionally",
+    "No direct source snapshot CRUD by application runtime; external evidence provenance and legal hold"
+  ]
+}
