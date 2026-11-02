@@ -326,12 +326,14 @@ CREATE TABLE tto.relationship_event_receipts (
 ALTER TABLE tto.relationship_event_receipts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tto.relationship_event_receipts FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON tto.relationship_event_receipts FROM PUBLIC,tto_app,tto_ingestor;
+CREATE TRIGGER relationship_event_receipt_immutable BEFORE UPDATE OR DELETE
+ ON tto.relationship_event_receipts FOR EACH ROW EXECUTE FUNCTION tto.deny_evidence_mutation();
 CREATE FUNCTION tto.ingest_verified_relationship_event(
  p_tenant uuid,p_party uuid,p_source_event uuid,p_source_version bigint,
  p_relationship_status text,p_source_ref text)
  RETURNS boolean LANGUAGE plpgsql VOLATILE SECURITY DEFINER
  SET search_path=pg_catalog,tto AS $ingest$
- DECLARE inserted boolean;
+ DECLARE affected bigint;
  BEGIN
   IF p_tenant IS NULL OR p_party IS NULL OR p_source_event IS NULL
     OR p_source_version IS NULL OR p_source_version<1
@@ -344,8 +346,8 @@ CREATE FUNCTION tto.ingest_verified_relationship_event(
     (tenant_id,source_event_id,party_id,source_version,source_ref)
    VALUES(p_tenant,p_source_event,p_party,p_source_version,p_source_ref)
    ON CONFLICT(tenant_id,source_event_id) DO NOTHING;
-  GET DIAGNOSTICS inserted = ROW_COUNT;
-  IF NOT inserted THEN RETURN false; END IF;
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  IF affected=0 THEN RETURN false; END IF;
   INSERT INTO tto.relationship_projections
    (tenant_id,party_id,membership_status,source_event_id,source_version,
     relationship_id,relationship_type,relationship_status)
