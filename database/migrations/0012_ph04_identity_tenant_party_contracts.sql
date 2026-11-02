@@ -96,7 +96,9 @@ CREATE TABLE tto.tenant_slugs (
   redirect_to uuid REFERENCES tto.tenant_slugs(slug_id),
   CHECK(valid_until IS NULL OR valid_until > valid_from),
   CHECK(status<>'REDIRECT' OR redirect_to IS NOT NULL),
-  UNIQUE(tenant_id,slug)
+  UNIQUE(tenant_id,slug),
+  UNIQUE(slug_id,tenant_id),
+  FOREIGN KEY(redirect_to,tenant_id) REFERENCES tto.tenant_slugs(slug_id,tenant_id)
 );
 CREATE UNIQUE INDEX tenant_one_current_slug ON tto.tenant_slugs(tenant_id)
  WHERE status='CURRENT';
@@ -118,9 +120,9 @@ CREATE TABLE tto.tenant_legal_profiles (
 );
 -- For now these optional pointers do not certify record ownership/verification.
 ALTER TABLE tto.tenants ADD CONSTRAINT tenant_current_slug_ref_fk
- FOREIGN KEY(current_slug_ref) REFERENCES tto.tenant_slugs(slug_id);
+ FOREIGN KEY(current_slug_ref,tenant_id) REFERENCES tto.tenant_slugs(slug_id,tenant_id);
 ALTER TABLE tto.tenants ADD CONSTRAINT tenant_legal_profile_ref_fk
- FOREIGN KEY(legal_profile_ref) REFERENCES tto.tenant_legal_profiles(profile_id);
+ FOREIGN KEY(legal_profile_ref,tenant_id) REFERENCES tto.tenant_legal_profiles(profile_id,tenant_id);
 -- The tenant-specific meaning of these links is checked by future
 -- credentialed command handlers, not trusted from direct client input.
 
@@ -212,6 +214,7 @@ UPDATE tto.user_party_links SET status=CASE WHEN verified_at IS NOT NULL THEN 'V
 CREATE TRIGGER party_link_verification_status
  BEFORE INSERT OR UPDATE OF verified_at,status ON tto.user_party_links
  FOR EACH ROW EXECUTE FUNCTION tto.sync_verified_party_link_status();
+REVOKE ALL ON FUNCTION tto.sync_verified_party_link_status() FROM PUBLIC,tto_app;
 
 -- All newly created sensitive tables are owner-only; no app read/write or
 -- SECURITY DEFINER mutation routes. Also forbid accidental service-role access.
