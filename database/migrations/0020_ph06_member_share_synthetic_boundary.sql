@@ -158,6 +158,17 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
  WHERE u.user_id=tto.context_actor_id() AND u.verified_at IS NOT NULL
  AND a.tenant_id=tto.context_tenant_id();
 $f$;
+-- Buyer/seller only: no party list, no manager-wide transaction enumeration.
+CREATE FUNCTION tto.ph06_my_transfer_cases()
+RETURNS TABLE(case_id uuid,tenant_id uuid,requested_quantity bigint,state text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
+ SELECT c.case_id,c.tenant_id,c.requested_quantity,c.state
+ FROM tto.ph06_transfer_cases c
+ WHERE c.tenant_id=tto.context_tenant_id()
+ AND EXISTS(SELECT 1 FROM tto.user_party_links u
+  WHERE u.user_id=tto.context_actor_id() AND u.verified_at IS NOT NULL
+  AND u.party_id IN (c.seller_party_id,c.buyer_party_id));
+$f$;
 DO $roles$ DECLARE tab text;BEGIN
  FOREACH tab IN ARRAY ARRAY[
  'ph06_membership_applications','ph06_membership_events','ph06_membership_current',
@@ -171,5 +182,7 @@ REVOKE ALL ON FUNCTION tto.ph06_decide_membership(uuid,bigint,boolean,uuid,uuid,
  tto.ph06_try_lock_shares(uuid,uuid),tto.ph06_try_finalize_transfer(uuid,uuid)
  FROM PUBLIC,tto_app;
 REVOKE ALL ON FUNCTION tto.ph06_own_shareholder_accounts() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION tto.ph06_own_shareholder_accounts() TO tto_app;
+REVOKE ALL ON FUNCTION tto.ph06_my_transfer_cases() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION tto.ph06_own_shareholder_accounts(),
+ tto.ph06_my_transfer_cases() TO tto_app;
 COMMIT;
