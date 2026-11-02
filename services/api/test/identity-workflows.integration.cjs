@@ -49,6 +49,39 @@ async function main(){
  assert.equal(typeof login.accessToken,"string");
  await call("POST","/v1/auth/challenges/verify",null,{challengeId:challenge,otp},401);
  const actorToken=login.accessToken;
+ // DED.CORE-AUTH-AT-008: expired challenge must not issue a session.
+ const expiredChallenge=randomUUID(),expiredOtp="86410327";
+ await admin.query(
+  "INSERT INTO tto.auth_challenges(challenge_id,user_id,purpose,verifier_hash,expires_at) VALUES($1,$2,'LOGIN',$3,now()-interval '1 second')",
+  [expiredChallenge,userA,createHmac("sha256",pepper).update(expiredChallenge+":"+expiredOtp).digest()]
+ );
+ await call("POST","/v1/auth/challenges/verify",null,{challengeId:expiredChallenge,otp:expiredOtp},401);
+ // DED.CORE-AUTH-AT-016: two concurrent verifications -> exactly one success.
+ const concurrentChallenge=randomUUID(),concurrentOtp="73816429";
+ await admin.query(
+  "INSERT INTO tto.auth_challenges(challenge_id,user_id,purpose,verifier_hash,expires_at) VALUES($1,$2,'LOGIN',$3,now()+interval '5 minutes')",
+  [concurrentChallenge,userA,createHmac("sha256",pepper).update(concurrentChallenge+":"+concurrentOtp).digest()]
+ );
+ const parallelVerify=()=>fetch(root+"/v1/auth/challenges/verify",{
+  method:"POST",headers:{"content-type":"application/json"},
+  body:JSON.stringify({challengeId:concurrentChallenge,otp:concurrentOtp})
+ });
+ const parallelResult=await Promise.all([parallelVerify(),parallelVerify()]);
+ assert.deepEqual(parallelResult.map(x=>x.status).sort((x,y)=>x-y),[200,401],
+  "DED.CORE-AUTH-AT-016: only one concurrent Verify may succeed");
+ count+=2;
+ await call("GET","/v1/tenants/"+a+"/context",actorToken,null,200);
+ // DED.CORE-AUTH-AT-001: separate tenant roles are independent.
+ const tenantBRole=randomUUID();
+ await admin.query(
+  "INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'DOCUMENT_REVIEWER')",
+  [tenantBRole,userA,b]
+ );
+ await call("GET","/v1/tenants/"+b+"/context",actorToken,null,200);
+ // DED-001: tenant-B document-read permission must not grant tenant-A manager permissions.
+ await call("GET","/v1/tenants/"+b+"/documents",actorToken,null,200);
+ await admin.query("UPDATE tto.role_assignments SET revoked_at=now() WHERE assignment_id=$1",[tenantBRole]);
+ await call("GET","/v1/tenants/"+b+"/context",actorToken,null,403);
  await call("GET","/v1/tenants/"+a+"/context",actorToken,null,200);
  await call("GET","/v1/tenants/"+b+"/context",actorToken,null,403);
  const national=await tokenFor(reviewer);
@@ -61,11 +94,44 @@ async function main(){
  const after=await call("GET","/v1/tenants/"+a+"/documents",national,null,200);
  assert.ok(after.items.length>=1);
  assert.ok(after.items.every(d=>d.classification==="RESTRICTED"));
+ // DED.CORE-AUTH-AT-011: previously approved but expired JIT fails closed.
+ await admin.query(
+  "UPDATE tto.jit_access_grants SET requested_at=now()-interval '30 minutes', expires_at=now()-interval '1 second' WHERE grant_id=$1",
+  [requested.requestId]
+ );
+ await call("GET","/v1/tenants/"+a+"/documents",national,null,403);
  const assign=await call("POST","/v1/tenants/"+a+"/roles/assign",actorToken,
  {targetId:userC,roleCode:"MEMBER",legalAuthorityId:"aaaa0001-0001-4001-8001-aaaaaaaaaaaa"},201);
  assert.equal(assign.assigned,true);
  const userCToken=await tokenFor(userC);
  await call("GET","/v1/tenants/"+a+"/context",userCToken,null,200);
+ // DED.CORE-AUTH-AT-003: an expired role rejects even with active session.
+ await admin.query(
+  "UPDATE tto.role_assignments SET expires_at=now()-interval '1 second' WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER'",
+  [userC,a]
+ );
+ await call("GET","/v1/tenants/"+a+"/context",userCToken,null,403);
+ await admin.query(
+  "UPDATE tto.role_assignments SET expires_at=NULL WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER'",
+  [userC,a]
+ );
+ await call("GET","/v1/tenants/"+a+"/context",userCToken,null,200);
+ // DED-017 (partial): a software manager role without separately verified legal
+ // authority must not execute role-management. HTTP 403 is tested; the
+ // canonical AUTHORITY_REQUIRED decision code is NOT yet implemented.
+ const unbackedManagerRole=randomUUID();
+ await admin.query(
+  "INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'COOPERATIVE_MANAGER')",
+  [unbackedManagerRole,userC,a]
+ );
+ await call("POST","/v1/tenants/"+a+"/roles/assign",userCToken,
+  {targetId:reviewer,roleCode:"MEMBER",legalAuthorityId:randomUUID()},403);
+ await admin.query("UPDATE tto.role_assignments SET revoked_at=now() WHERE assignment_id=$1",[unbackedManagerRole]);
+ const unauthorizedEffect=await admin.query(
+  "SELECT count(*)::integer AS n FROM tto.role_assignments WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER'",
+  [reviewer,a]
+ );
+ assert.equal(unauthorizedEffect.rows[0].n,0,"DED-017: no unauthorized role assigned");
  const assigned=await admin.query("SELECT assignment_id FROM tto.role_assignments WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER'",[userC,a]);
  assert.equal(assigned.rowCount,1);
  await call("POST","/v1/tenants/"+a+"/roles/"+assigned.rows[0].assignment_id+"/revoke",actorToken,{expectedVersion:1},201);
@@ -98,6 +164,17 @@ async function main(){
  {oldPartyId:oldParty,currentPartyId:currentParty},403);
  await call("POST","/v1/auth/logout",actorToken,null,204);
  await call("GET","/v1/tenants/"+a+"/context",actorToken,null,401);
+ // DED-014 (partial): verify actual audit event values never contain test OTP,
+ // access token or raw challenge secret; schema/retention audit remains open.
+ const audit=await admin.query("SELECT event_name FROM tto.audit_events");
+ assert.ok(audit.rowCount>0,"DED-014 requires emitted audit evidence");
+ for(const row of audit.rows){
+  assert.equal(typeof row.event_name,"string");
+  for(const secret of [otp,expiredOtp,concurrentOtp,actorToken]){
+   assert.equal(row.event_name.includes(secret),false,"DED-014 audit leaked test secret");
+  }
+ }
+ console.log("TTO_CF01_DED014_AUDIT_EVENT_NO_RAW_SECRETS_PASS");
  console.log("TTO_CF01_03_REAL_HTTP_WORKFLOWS_PASS="+count);
 }
 main().catch(err=>{console.error("TTO_CF01_03_HTTP_WORKFLOWS_FAIL",err.message);process.exitCode=1})
