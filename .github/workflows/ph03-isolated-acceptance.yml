@@ -1,0 +1,61 @@
+name: PH03 isolated three-portal UX and authorization acceptance (NO DEPLOY)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [audit/ph02-design-architecture-20261102]
+permissions:
+  contents: read
+concurrency:
+  group: ph03-synthetic-acceptance-${{ github.event.pull_request.number }}-${{ github.sha }}
+  cancel-in-progress: true
+jobs:
+  three-portal-acceptance:
+    if: github.head_ref == 'feat/ph03-three-portal-secure-shells-20261102'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: ""
+      TTO_API_BASE_URL: ""
+      APIIR_TOKEN: ""
+      VERCEL: ""
+    steps:
+      - name: Checkout exact PR code without write credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Setup reviewed Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Validate source contracts
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p 'test_ph03*.py' -v
+          python3 -m unittest discover -s scripts/ci -p 'test_shareholder_phase4b.py' -v
+          python3 -m unittest discover -s scripts/ci -p 'test_shareholder_workspace.py' -v
+      - name: Install and build all three apps
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.18.0
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm check
+      - name: Run isolated 30-route backend-denied smoke
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=5s 210s node scripts/smoke-next-otp.mjs
+          echo "TTO_PH03_THIRTY_MODULE_ROUTES_FAIL_CLOSED_PASS"
+      - name: Install isolated pinned Chromium
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/tto-ph03-browser --no-audit --no-fund playwright@1.56.1
+          node /tmp/tto-ph03-browser/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Browser RTL keyboard contrast and anonymous deny
+        env:
+          NODE_PATH: /tmp/tto-ph03-browser/node_modules
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=5s 240s node scripts/ci/ph03-three-portal-browser.cjs
+          echo "TTO_PH03_THREE_PORTALS_BROWSER_ACCEPTED"
