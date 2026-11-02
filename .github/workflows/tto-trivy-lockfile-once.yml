@@ -23,7 +23,7 @@ jobs:
       APIIR_TOKEN: ""
       DATABASE_URL: ""
       TTO_API_BASE_URL: ""
-      TRIVY_REPORT: ${{ runner.temp }}/tto-trivy-once.json
+      TRIVY_REPORT: /tmp/tto-trivy-once.json
       TRIVY_DISABLE_VEX_NOTICE: "true"
     steps:
       - name: Checkout reviewed branch, no persisted write credentials
@@ -42,7 +42,7 @@ jobs:
           vuln-type: 'library'
           severity: 'CRITICAL,HIGH,MEDIUM'
           format: 'json'
-          output: ${{ runner.temp }}/tto-trivy-once.json
+          output: /tmp/tto-trivy-once.json
           exit-code: '0'
           cache: 'false'
           hide-progress: 'true'
