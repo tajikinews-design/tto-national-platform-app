@@ -33,18 +33,28 @@ SELECT tto.ingest_verified_relationship_event(
 SELECT tto.ingest_verified_relationship_event(
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','33333333-3333-4333-8333-333333333333',
  '99999999-9999-4999-8999-999999999999',1,'ACTIVE','PH04_SYNTHETIC_SOURCE_REF') AS replay;
+-- Dedicated §29 CORE-REL-AT-003: accept newer authoritative version,
+-- then replay an out-of-order *new* event_id with an older source_version.
+-- The receipt may record the delivery, but projection MUST NOT regress.
+SELECT tto.ingest_verified_relationship_event(
+ 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','33333333-3333-4333-8333-333333333333',
+ '99999999-9999-4999-8999-999999999997',2,'SUSPENDED','PH04_SYNTHETIC_SOURCE_REF') AS newer_source;
+SELECT tto.ingest_verified_relationship_event(
+ 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','33333333-3333-4333-8333-333333333333',
+ '99999999-9999-4999-8999-999999999996',1,'ENDED','PH04_SYNTHETIC_SOURCE_REF') AS stale_new_event;
 SELECT tto.ingest_verified_relationship_event(
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','33333333-3333-4333-8333-333333333333',
  '99999999-9999-4999-8999-999999999998',2,'SUSPENDED','UNKNOWN_UNAPPROVED_REF') AS unapproved_source;
 RESET ROLE;
 DO $verify$ BEGIN
- IF (SELECT count(*) FROM tto.relationship_event_receipts WHERE tenant_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')<>1
+ IF (SELECT count(*) FROM tto.relationship_event_receipts WHERE tenant_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')<>3
  OR (SELECT count(*) FROM tto.relationship_projections
     WHERE tenant_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
-     AND party_id='33333333-3333-4333-8333-333333333333' AND source_version=1
-     AND source_event_id='99999999-9999-4999-8999-999999999999')<>1
+     AND party_id='33333333-3333-4333-8333-333333333333' AND source_version=2
+     AND membership_status='SUSPENDED' AND relationship_status='SUSPENDED'
+     AND source_event_id='99999999-9999-4999-8999-999999999997')<>1
  OR (SELECT count(*) FROM tto.shareholding_source_snapshots WHERE tenant_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')<>0 THEN
-  RAISE EXCEPTION 'CHILD02_AT007_DUPLICATE_OR_UNAPPROVED_EVENT_SIDE_EFFECT';
+  RAISE EXCEPTION 'CHILD02_REL003_SOURCE_VERSION_REGRESSION_OR_DUPLICATE_EFFECT';
  END IF;
  BEGIN
   UPDATE tto.relationship_event_receipts SET source_version=2
@@ -57,3 +67,5 @@ DO $verify$ BEGIN
 END $verify$;
 ROLLBACK;
 SELECT 'CORE-TENANT-AT-007_SYNTHETIC_DUPLICATE_EVENT_IDEMPOTENCY_PASS' AS signal;
+
+SELECT 'CORE-REL-AT-003_OUT_OF_ORDER_SOURCE_VERSION_NO_REGRESSION_PASS' AS signal;
