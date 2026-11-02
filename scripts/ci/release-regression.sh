@@ -23,14 +23,20 @@ for f in \
  tests/sql/cf02-cf03-v4.sql; do sql "$f"; done
 # PH04 guarded HTTP tests require the complete additive schema after legacy v1-v4 checks.
 # This database is disposable and is reset below; no hosted/Production migration.
-for f in database/migrations/000[5-9]_*.sql database/migrations/001[0-8]_*.sql; do sql "$f"; done
-echo "TTO_RELEASE_HISTORICAL_COMPLETE_MIGRATIONS_0001_TO_0018_PASS"
+for f in database/migrations/000[5-9]_*.sql database/migrations/001[0-9]_*.sql; do sql "$f"; done
+echo "TTO_RELEASE_HISTORICAL_COMPLETE_MIGRATIONS_0001_TO_0019_PASS"
 # PH05 candidate source-backed physical security slices, each ROLLBACK-only.
 # Existing commands, historical E2E, and hosted DB remain untouched.
 sql tests/sql/ph05-cf03-audit-hold-negative.sql
 sql tests/sql/ph05-cf03-file-download-negative.sql
 sql tests/sql/ph05-cf04-source-rule-asof.sql
 sql tests/sql/ph05-cf05-webhook-payment-evidence.sql
+# Supplemental source-identified executable assertions on disposable PG17.
+# These do not validate live object storage, statutory authenticity or provider signatures.
+sql tests/sql/ph05-cf03-contract-depth.sql
+sql tests/sql/ph05-cf04-contract-depth.sql
+sql tests/sql/ph05-cf05-contract-depth.sql
+echo "TTO_PH05_SOURCE_DETAILED_SCOPED_ASSERTIONS_EXECUTED_NOT_FULL_E2E"
 echo "TTO_PH05_CF03_CF04_CF05_DISPOSABLE_SOURCE_NEGATIVE_SLICES_PASS_NOT_FULL_ACCEPTANCE"
 secret="$(openssl rand -hex 48)"
 echo "::add-mask::$secret"
