@@ -23,7 +23,7 @@ jobs:
       APIIR_TOKEN: ""
       DATABASE_URL: ""
       TTO_API_BASE_URL: ""
-      TRIVY_REPORT: /tmp/tto-trivy-once.json
+      TTO_TRIVY_SCAN_OUTPUT: /tmp/tto-trivy-once.json
       TRIVY_DISABLE_VEX_NOTICE: "true"
     steps:
       - name: Checkout reviewed branch, no persisted write credentials
@@ -54,7 +54,7 @@ jobs:
           python3 - <<'PY'
           import collections, json, os
           from pathlib import Path
-          p = Path(os.environ['TRIVY_REPORT'])
+          p = Path(os.environ['TTO_TRIVY_SCAN_OUTPUT'])
           if not p.is_file(): raise SystemExit("TTO_TRIVY_POC_FAILED_NO_JSON")
           data = json.loads(p.read_text(encoding='utf-8'))
           vulnerabilities = [v for r in data.get('Results', []) for v in (r.get('Vulnerabilities') or [])]
@@ -72,10 +72,10 @@ jobs:
               print('TTO_TRIVY_FINDING severity={} pkg={} installed={} id={} fixed={}'.format(
                   safe(v.get('Severity')),safe(v.get('PkgName')),safe(v.get('InstalledVersion')),
                   safe(v.get('VulnerabilityID')),safe(v.get('FixedVersion'))))
-          print("TTO_TRIVY_REPORT_RETAINED=NO")
+          print("TTO_TTO_TRIVY_SCAN_OUTPUT_RETAINED=NO")
           PY
 
       - name: Clear report from disposable runner
         if: always()
         shell: bash
-        run: rm -f "$TRIVY_REPORT"
+        run: rm -f "$TTO_TRIVY_SCAN_OUTPUT"
