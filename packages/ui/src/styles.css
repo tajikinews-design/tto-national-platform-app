@@ -103,3 +103,28 @@ button,input,textarea,select{font-family:var(--tto-font),Vazirmatn,Tahoma,Arial,
 .sw-section-boundary h4{font-size:12px;line-height:1.8;margin:0;color:#174b82}
 .sw-section-boundary p{font-size:12px;line-height:2;margin:0;color:#425975}
 @media(max-width:640px){.sw-section-boundary{grid-template-columns:1fr;gap:5px;padding:13px}.sw-closed-section{gap:12px}}
+
+/* PH03: keyboard-first three-portal navigation and legible management controls. */
+.skip-to-content{position:absolute;z-index:200;inset-block-start:-120px;inset-inline-start:12px;display:inline-block;
+ background:#073f7d;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:800}
+.skip-to-content:focus{inset-block-start:10px;outline:3px solid #ffc859;outline-offset:3px}
+.tenant-picker{background:#f8fbff;border:1px solid #cadff2;border-radius:12px;padding:18px;margin:16px 0}
+.tenant-picker h2{font-size:18px;margin:0 0 8px;color:#193d72}
+.tenant-picker p{font-size:12px;line-height:1.9}
+.tenant-picker label{display:block;margin:12px 0 7px;font-weight:700;font-size:13px}
+.tenant-picker select{max-width:100%;min-height:44px;width:min(100%,480px);border:1px solid #5e7695;
+ border-radius:8px;background:#fff;padding:9px 12px;color:#163659}
+.tenant-picker button{display:block;min-height:44px;margin:13px 0 0;padding:9px 17px;
+ border:0;border-radius:8px;background:#145da7;color:#fff;font-weight:700;cursor:pointer}
+.tenant-picker button:disabled{background:#73859b;cursor:not-allowed}
+.tenant-picker :is(select,button):focus-visible,
+.otp-panel :is(button,input):focus-visible{outline:3px solid #145da7;outline-offset:3px}
+@media (max-width:780px){
+ .topbar{gap:10px;flex-wrap:wrap;padding:12px}
+ .hero{padding:18px}
+ .tenant-picker{padding:13px}
+ .otp-panel{padding:13px}
+ .nav-area nav{overscroll-behavior-inline:contain;scroll-padding-inline:12px}
+ .main-content,.panel{min-width:0}
+}
+@media (prefers-reduced-motion:reduce){.skip-to-content,.nav-link{transition:none!important}}
