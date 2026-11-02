@@ -101,6 +101,20 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
           pnpm check
+      - name: PH03 isolated three-portal Chromium keyboard RTL and contrast acceptance
+        if: github.event_name == 'pull_request' && github.head_ref == 'feat/ph03-three-portal-secure-shells-20261102'
+        env:
+          NODE_ENV: "production"
+          DATABASE_URL: ""
+          TTO_API_BASE_URL: ""
+          APIIR_TOKEN: ""
+          VERCEL: ""
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/tto-ph03-browser --no-audit --no-fund playwright@1.56.1
+          node /tmp/tto-ph03-browser/node_modules/playwright/cli.js install --with-deps chromium
+          NODE_PATH=/tmp/tto-ph03-browser/node_modules timeout --signal=TERM --kill-after=5s 240s node scripts/ci/ph03-three-portal-browser.cjs
+          echo "TTO_PH03_3PORTAL_BROWSER_A11Y_PASS"
       - name: PCS-005 isolated Chromium shareholder/cooperative mobile and desktop
         if: github.event_name == 'pull_request' && github.head_ref == 'integration/tto-pcs-005-full-validation-20261101'
         env:
