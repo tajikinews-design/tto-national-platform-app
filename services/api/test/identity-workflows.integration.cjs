@@ -112,6 +112,9 @@ async function main(){
  assert.equal(stepUp.status,"ACCEPTED");
  await call("POST","/v1/auth/step-up/verify",actorToken,
    {challengeId:stepUp.requestId,otp:"000000"},401);
+ const otherSameUserToken=await tokenFor(userA);
+ await call("POST","/v1/auth/step-up/verify",otherSameUserToken,
+   {challengeId:stepUp.requestId,otp:"111222"},401);
  const elevated=await call("POST","/v1/auth/step-up/verify",actorToken,
    {challengeId:stepUp.requestId,otp:"111222"},200);
  assert.equal(elevated.elevated,true,"DED-018 proof belongs to existing session");
