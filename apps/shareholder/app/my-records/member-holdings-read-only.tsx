@@ -1,6 +1,7 @@
 "use client";
 
 import {useEffect,useState} from "react";
+import type {ReactNode} from "react";
 
 type Tenant={tenantId:string;displayName:string;evidenceStatus:"MEMBERSHIP_EVIDENCE"|"EVIDENCE_PENDING"};
 type Context="loading"|"unauthenticated"|"unavailable"|"ready";
@@ -44,7 +45,7 @@ async function read<T>(url:string,signal:AbortSignal,validate:(v:unknown)=>v is 
 function Provenance({version,date}:{version:number;date:string}){
  return <p className="tto-record-provenance">نسخه مرجع: <b dir="ltr">{version}</b> · زمان ثبت: <time dir="ltr">{date}</time></p>;
 }
-function ReadCard({title,state,children}:{title:string;state:RecordState;children?:React.ReactNode}){
+function ReadCard({title,state,children}:{title:string;state:RecordState;children?:ReactNode}){
  return <section className="tto-record-card" aria-label={title}>
   <h2>{title}</h2>
   <p className={"tto-record-state tto-record-"+state} role="status" aria-live="polite">{statusLabel[state]}</p>
@@ -74,7 +75,7 @@ export function MemberHoldingsReadOnly(){
        typeof x.displayName!=="string"||x.displayName.length<1||x.displayName.length>300||
        (x.evidenceStatus!=="EVIDENCE_PENDING"&&x.evidenceStatus!=="MEMBERSHIP_EVIDENCE"))throw Error("UNAVAILABLE");
      if(candidates.some(t=>t.tenantId===x.tenantId))throw Error("UNAVAILABLE");
-     candidates.push(x as Tenant);
+     candidates.push({tenantId:x.tenantId,displayName:x.displayName,evidenceStatus:x.evidenceStatus as Tenant["evidenceStatus"]});
     }
     if(!controller.signal.aborted){setTenants(candidates);setContext("ready");}
    }catch{if(!controller.signal.aborted){setContext("unavailable");setTenants([]);}}
