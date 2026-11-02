@@ -155,6 +155,45 @@ async function main(){
   [userC,a]
  );
  await call("GET","/v1/tenants/"+a+"/context",userCToken,null,200);
+ // DED-004 targeted negative: an untrusted UI may display a role-mutation button
+ // to a MEMBER. The API MUST independently deny the forged click and leave
+ // the target role and audit table unchanged. Synthetic UI representation only,
+ // not a human/Chromium UX certification.
+ const untrustedUiButton='<button type="button" data-action="assign-role">Assign role</button>';
+ assert.ok(untrustedUiButton.includes('data-action="assign-role"'));
+ const beforeDeniedUi=await admin.query(
+  "SELECT count(*)::integer AS n FROM tto.role_assignments WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER'",
+  [reviewer,a]);
+ const beforeDeniedAudit=await admin.query(
+  "SELECT count(*)::integer AS n FROM tto.audit_events WHERE tenant_id=$1 AND event_name='ROLE_ASSIGNED'",[a]);
+ const deniedUiClick=await call("POST","/v1/tenants/"+a+"/roles/assign",userCToken,
+  {targetId:reviewer,roleCode:"MEMBER",legalAuthorityId:randomUUID(),requestId:randomUUID()},403);
+ assert.equal(deniedUiClick.code,"PERMISSION_DENIED","DED-004 forged visible control must not grant server permission");
+ const afterDeniedUi=await admin.query(
+  "SELECT count(*)::integer AS n FROM tto.role_assignments WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER'",
+  [reviewer,a]);
+ const afterDeniedAudit=await admin.query(
+  "SELECT count(*)::integer AS n FROM tto.audit_events WHERE tenant_id=$1 AND event_name='ROLE_ASSIGNED'",[a]);
+ assert.equal(afterDeniedUi.rows[0].n,beforeDeniedUi.rows[0].n,"DED-004 role table changed after unauthorized UI");
+ assert.equal(afterDeniedAudit.rows[0].n,beforeDeniedAudit.rows[0].n,"DED-004 audit changed after unauthorized UI");
+ console.log("TTO_PH04_DED004_SYNTHETIC_UI_VISIBLE_SERVER_DENIAL_NO_EFFECT_PASS");
+ // DED-006 technical fail-closed boundary: there is intentionally no admitted
+ // share transfer or settlement command in PH04. A lifecycle/manager actor
+ // cannot use a fictitious route to mutate finance or shares. This is NOT a
+ // full regulated domain-command acceptance until Child06/07/market is active.
+ const preFinancial=await admin.query("SELECT count(*)::integer AS n FROM tto.shareholding_source_snapshots");
+ await call("POST","/v1/tenants/"+a+"/shares/transfer",actorToken,
+  {targetId:reviewer,quantity:1},404);
+ await call("POST","/v1/tenants/"+a+"/financial/settlement",actorToken,
+  {targetId:reviewer,amount:1},404);
+ const postFinancial=await admin.query("SELECT count(*)::integer AS n FROM tto.shareholding_source_snapshots");
+ assert.equal(postFinancial.rows[0].n,preFinancial.rows[0].n,"DED-006 unimplemented endpoint changed shareholding");
+ console.log("TTO_PH04_DED006_UNREGISTERED_SHARE_FINANCE_ROUTES_FAIL_CLOSED_ONLY");
+ // CHILD-02 AT-008 companion: absence of public Party enumeration endpoints;
+ // DB GRANT/RLS coverage is tested separately on PostgreSQL.
+ await call("GET","/v1/parties",null,null,404);
+ await call("GET","/v1/tenants/"+a+"/parties",userCToken,null,404);
+ console.log("TTO_PH04_CF02_AT008_HTTP_NO_ENUMERATION_ROUTE_PASS");
  // DED-017: a software manager role without separately verified legal
  // authority must not execute role-management; return exact AUTHORITY_REQUIRED
  // and guarantee no effect on the target User's role assignments.
