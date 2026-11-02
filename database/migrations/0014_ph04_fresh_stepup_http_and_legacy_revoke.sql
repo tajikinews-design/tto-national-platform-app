@@ -17,8 +17,8 @@ CREATE OR REPLACE FUNCTION tto.consume_challenge(p_challenge uuid,p_candidate by
  DECLARE r tto.auth_challenges%ROWTYPE; max_attempts integer; ttl integer;
    epoch bigint; auth_epoch bigint; active text;
  BEGIN
-  SELECT max_attempts,session_ttl_minutes INTO max_attempts,ttl
-   FROM tto.auth_policy WHERE policy_key='SESSION_CHALLENGE';
+  SELECT p.max_attempts,p.session_ttl_minutes INTO max_attempts,ttl
+   FROM tto.auth_policy p WHERE p.policy_key='SESSION_CHALLENGE';
   IF max_attempts IS NULL OR octet_length(p_candidate)<>32
    OR octet_length(p_session_hash)<>32 THEN RETURN NULL; END IF;
   SELECT * INTO r FROM tto.auth_challenges WHERE challenge_id=p_challenge FOR UPDATE;
@@ -83,8 +83,8 @@ CREATE FUNCTION tto.consume_session_stepup_smsotp(p_challenge uuid,p_candidate b
  BEGIN
   IF actor IS NULL OR octet_length(p_candidate)<>32
     OR octet_length(p_current_session_hash)<>32 THEN RETURN false;END IF;
-  SELECT max_attempts INTO max_attempts
-   FROM tto.auth_policy WHERE policy_key='SESSION_CHALLENGE';
+  SELECT p.max_attempts INTO max_attempts
+   FROM tto.auth_policy p WHERE p.policy_key='SESSION_CHALLENGE';
   IF max_attempts IS NULL THEN RETURN false;END IF;
   SELECT s.session_id INTO sid FROM tto.user_sessions s
    JOIN tto.user_accounts a ON a.user_id=s.user_id
