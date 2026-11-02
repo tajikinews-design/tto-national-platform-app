@@ -132,7 +132,7 @@ export class TenantPartyService {
       const result = await client.query<{tenant_id:string;slug:string;status:string}>(
         "SELECT tenant_id,slug,status FROM tto.tenants WHERE tenant_id=$1",[tenantId]
       );
-      if (!result.rowCount) throw new ForbiddenException("Tenant context denied");
+      if (!result.rowCount) throw new ForbiddenException({code:"CROSS_TENANT_ACCESS_DENIED",message:"Tenant scope inaccessible"});
       return result.rows[0];
     });
   }
@@ -155,7 +155,7 @@ export class DocumentsService {
     const actor=await this.identity.requireActor(authorization);
     return this.db.inTenant(actor,tenantId,async client=>{
       const valid=await client.query("SELECT tenant_id FROM tto.tenants WHERE tenant_id=$1",[tenantId]);
-      if(!valid.rowCount) throw new ForbiddenException("Tenant context denied");
+      if(!valid.rowCount) throw new ForbiddenException({code:"CROSS_TENANT_ACCESS_DENIED",message:"Tenant scope inaccessible"});
       const documents=await client.query(
         "SELECT document_id,title,classification,status,created_at FROM tto.documents WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 50",[tenantId]
       );
