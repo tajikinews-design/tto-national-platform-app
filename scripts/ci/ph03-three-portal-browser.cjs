@@ -4,9 +4,12 @@
 const assert=require("node:assert/strict");
 const {spawn}=require("node:child_process");
 const path=require("node:path");
+const fs=require("node:fs");
 const {chromium}=require("playwright");
 const axe=require("axe-core");
 const root=path.resolve(__dirname,"../..");
+const screenshotDir=path.join(root,".ph03-screenshots");
+fs.mkdirSync(screenshotDir,{recursive:true});
 const cfg=[
  {slug:"shareholder",title:"پنل سهامداران",port:32601},
  {slug:"cooperative-management",title:"مدیریت تعاونی",port:32602},
@@ -75,6 +78,7 @@ async function main(){
             nodes:v.nodes.slice(0,5).map(n=>({target:n.target,message:n.failureSummary?.slice(0,160)}))}));
         });
         assert.deepEqual(violations,[],app.slug+" "+route+" WCAG violations");
+        await page.screenshot({path:path.join(screenshotDir,app.slug+"-"+viewport.width+"-"+(route==="/"? "home":"module-nav02")+".png"),fullPage:true});
         checks++;
        }
       }
