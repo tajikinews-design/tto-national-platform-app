@@ -402,10 +402,25 @@ export class FoundationCommandsController {
     const role=requireText(input?.roleCode,2,40);
     if(!["MEMBER","COOPERATIVE_MANAGER","DOCUMENT_REVIEWER"].includes(role))
       throw new BadRequestException("Unsupported role");
-    const ok=await this.run<boolean>(tenant,auth,"SELECT tto.assign_tenant_role($1,$2,$3,$4) AS out",
-      [target,tenant,role,legal]);
-    if(!ok)throw new ForbiddenException("Role assignment denied");
-    return {assigned:true};
+    // A software manager role does NOT constitute legal authority. Decide both
+    // under the verified actor's transaction-local tenant context; never trust
+    // the caller's declared role, tenant or authority in the request payload.
+    const actor=await this.db.sessionActor(auth);
+    return this.db.inTenant(actor,tenant,async client=>{
+      const gate=await client.query<{permission:boolean;authority:boolean}>(
+        "SELECT tto.has_tenant_role($1,'COOPERATIVE_MANAGER') AS permission, tto.has_verified_authority($1,'ROLE_MANAGEMENT') AS authority",
+        [tenant]);
+      if(gate.rows[0]?.permission!==true)
+        throw new ForbiddenException({code:"PERMISSION_DENIED",message:"Role management permission required"});
+      if(gate.rows[0]?.authority!==true)
+        throw new ForbiddenException({code:"AUTHORITY_REQUIRED",message:"Independent legal authority required"});
+      const result=await client.query<{out:boolean}>(
+        "SELECT tto.assign_tenant_role($1,$2,$3,$4) AS out",
+        [target,tenant,role,legal]);
+      if(result.rows[0]?.out!==true)
+        throw new ForbiddenException({code:"AUTHORITY_REQUIRED",message:"Verified authority reference invalid or expired"});
+      return {assigned:true};
+    });
   }
   @Post("tenants/:tenantId/roles/:assignmentId/revoke")
   async revoke(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
