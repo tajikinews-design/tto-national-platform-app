@@ -36,6 +36,19 @@ CREATE FUNCTION tto.ph05_request_file_access(p_file uuid) RETURNS boolean
 REVOKE ALL ON FUNCTION tto.ph05_request_file_access(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION tto.ph05_request_file_access(uuid) TO tto_app;
 
+-- Synthetic policy schema guard; no tenant rule can authorize live transactions.
+CREATE TABLE tto.ph05_tenant_policy_value_candidates(
+ tenant_id uuid NOT NULL REFERENCES tto.tenants(tenant_id),
+ policy_code text NOT NULL CHECK(policy_code IN ('MAX_PROXIES','TWO_STAGE_THRESHOLD')),
+ numeric_value integer NOT NULL,
+ source_id uuid NOT NULL REFERENCES tto.ph05_legal_source_refs(source_id),
+ PRIMARY KEY(tenant_id,policy_code),
+ CHECK ((policy_code='MAX_PROXIES' AND numeric_value BETWEEN 0 AND 3)
+ OR (policy_code='TWO_STAGE_THRESHOLD' AND numeric_value=500))
+);
+REVOKE ALL ON tto.ph05_tenant_policy_value_candidates FROM PUBLIC,tto_app;
+ALTER TABLE tto.ph05_tenant_policy_value_candidates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tto.ph05_tenant_policy_value_candidates FORCE ROW LEVEL SECURITY;
 -- LEGAL-REVIEW-ONLY / synthetic baseline; not bound to a voting/share transaction.
 CREATE FUNCTION tto.ph05_proxy_baseline_review(p_proxy_count integer)
 RETURNS text LANGUAGE sql IMMUTABLE
