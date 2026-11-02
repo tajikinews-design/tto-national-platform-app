@@ -41,22 +41,30 @@ CREATE OR REPLACE FUNCTION tto.consume_challenge(p_challenge uuid,p_candidate by
   RETURN r.user_id;
  END $login$;
 
+CREATE TABLE tto.stepup_session_bindings(
+ challenge_id uuid PRIMARY KEY REFERENCES tto.auth_challenges(challenge_id),
+ session_id uuid NOT NULL REFERENCES tto.user_sessions(session_id),
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE tto.stepup_session_bindings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tto.stepup_session_bindings FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON tto.stepup_session_bindings FROM PUBLIC,tto_app;
 -- A short-lived challenge can only be requested for a previously independently
 -- verified phone associated with THIS actor and THIS current bearer session.
 CREATE FUNCTION tto.begin_session_stepup_smsotp(p_challenge uuid,p_candidate_hash bytea,
  p_current_session_hash bytea) RETURNS text LANGUAGE plpgsql VOLATILE
  SECURITY DEFINER SET search_path=pg_catalog,tto AS $begin$
- DECLARE actor uuid:=tto.context_actor_id();mobile text;identifier_count integer;
+ DECLARE actor uuid:=tto.context_actor_id();mobile text;identifier_count integer;initiating_session uuid;
  BEGIN
   IF actor IS NULL OR p_challenge IS NULL OR octet_length(p_candidate_hash)<>32
     OR octet_length(p_current_session_hash)<>32 THEN RETURN NULL;END IF;
-  IF NOT EXISTS(SELECT 1 FROM tto.user_sessions s
-     JOIN tto.user_accounts a ON a.user_id=s.user_id
+  SELECT s.session_id INTO initiating_session
+   FROM tto.user_sessions s JOIN tto.user_accounts a ON a.user_id=s.user_id
     WHERE s.user_id=actor AND s.session_hash=p_current_session_hash
       AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp()
       AND s.security_epoch=a.security_epoch
-      AND s.authorization_epoch_at_issue=a.authorization_epoch AND a.status='ACTIVE')
-  THEN RETURN NULL; END IF;
+      AND s.authorization_epoch_at_issue=a.authorization_epoch AND a.status='ACTIVE';
+  IF initiating_session IS NULL THEN RETURN NULL;END IF;
   SELECT count(*),min(v.mobile) INTO identifier_count,mobile
    FROM tto.verified_mobile_identifiers v
    WHERE v.user_id=actor AND v.revoked_at IS NULL;
@@ -72,6 +80,8 @@ CREATE FUNCTION tto.begin_session_stepup_smsotp(p_challenge uuid,p_candidate_has
     clock_timestamp()+interval '3 minutes');
   INSERT INTO tto.smsotp_delivery_attempts(challenge_id,state)
    VALUES(p_challenge,'PENDING');
+  INSERT INTO tto.stepup_session_bindings(challenge_id,session_id)
+   VALUES(p_challenge,initiating_session);
   RETURN mobile;
  END $begin$;
 
@@ -98,6 +108,8 @@ CREATE FUNCTION tto.consume_session_stepup_smsotp(p_challenge uuid,p_candidate b
   IF NOT FOUND OR chall.user_id<>actor OR chall.purpose<>'SMSOTP_STEP_UP'
     OR chall.consumed_at IS NOT NULL OR chall.expires_at<=clock_timestamp()
     OR chall.attempt_count>=max_attempts OR
+    NOT EXISTS(SELECT 1 FROM tto.stepup_session_bindings bind
+      WHERE bind.challenge_id=p_challenge AND bind.session_id=sid) OR
     NOT EXISTS(SELECT 1 FROM tto.smsotp_delivery_attempts d
      WHERE d.challenge_id=p_challenge AND d.state='ACCEPTED')
   THEN RETURN false;END IF;
