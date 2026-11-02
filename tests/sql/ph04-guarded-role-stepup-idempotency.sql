@@ -72,6 +72,10 @@ DO $check$ DECLARE mobile text;ok boolean;bad_session uuid;BEGIN
     AND c.user_id=tto.context_actor_id() AND c.purpose='SMSOTP_STEP_UP'
     AND c.consumed_at IS NULL AND c.expires_at>clock_timestamp() AND c.attempt_count<3),
   EXISTS(SELECT 1 FROM tto.smsotp_delivery_attempts d WHERE d.challenge_id='99999999-9999-4999-8999-999999999990' AND d.state='ACCEPTED');
+ RAISE NOTICE 'PH04_STEPUP_DIAGNOSTIC hash_ok=% attempts=% policy_limit=%',
+  (SELECT verifier_hash=decode(repeat('cd',32),'hex') FROM tto.auth_challenges WHERE challenge_id='99999999-9999-4999-8999-999999999990'),
+  (SELECT attempt_count FROM tto.auth_challenges WHERE challenge_id='99999999-9999-4999-8999-999999999990'),
+  (SELECT max_attempts FROM tto.auth_policy WHERE policy_key='SESSION_CHALLENGE');
  ok:=tto.consume_session_stepup_smsotp('99999999-9999-4999-8999-999999999990',
    decode(repeat('cd',32),'hex'),decode(repeat('ab',32),'hex'));
  IF NOT ok THEN RAISE EXCEPTION 'STEPUP_FRESH_PROOF_DENIED';END IF;
