@@ -60,6 +60,16 @@ jobs:
           set -euo pipefail
           docker exec -i tto-ph05-disposable psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph05-cf03-file-download-negative.sql
           echo "PH05_CF03_FILE_DECISION_NEGATIVE_SLICE_PASS_NOT_FULL_DOWNLOAD"
+      - name: Verify CF04 source-linked rule versions, effective dates and fail-closed open gate
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph05-disposable psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph05-cf04-source-rule-asof.sql
+          echo "PH05_CF04_RULE_CANDIDATE_PARTIAL_PROOF_NOT_LEGAL_APPROVAL"
+      - name: Verify CF05 webhook replay and payment-evidence-only boundaries
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph05-disposable psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph05-cf05-webhook-payment-evidence.sql
+          echo "PH05_CF05_REPLAY_REPORT_ONLY_PARTIAL_PROOF_NO_ACTUAL_PAYMENTS"
       - name: Erase synthetic database
         if: always()
         run: docker rm -f tto-ph05-disposable || true
