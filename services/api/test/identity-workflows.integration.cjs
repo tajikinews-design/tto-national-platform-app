@@ -101,6 +101,8 @@ async function main(){
   [requested.requestId]
  );
  await call("GET","/v1/tenants/"+a+"/documents",national,null,403);
+ const roleAuditBaseline=await admin.query(
+  "SELECT count(*)::integer AS n FROM tto.audit_events WHERE tenant_id=$1 AND event_name='ROLE_ASSIGNED'",[a]);
  const roleRequestId=randomUUID();
  const pendingRole={targetId:userC,roleCode:"MEMBER",
    legalAuthorityId:"aaaa0001-0001-4001-8001-aaaaaaaaaaaa",requestId:roleRequestId};
@@ -125,7 +127,8 @@ async function main(){
    {...pendingRole,targetId:reviewer},409);
  assert.equal(conflict.code,"IDEMPOTENCY_CONFLICT","DED-015: payload drift rejected");
  const grantAudit=await admin.query("SELECT count(*)::integer AS n FROM tto.audit_events WHERE tenant_id=$1 AND event_name='ROLE_ASSIGNED'",[a]);
- assert.equal(grantAudit.rows[0].n,1,"DED-015: role audit written once");
+ assert.equal(grantAudit.rows[0].n,roleAuditBaseline.rows[0].n+1,
+  "DED-015: exactly one additional role audit despite request replay");
  const userCToken=await tokenFor(userC);
  await call("GET","/v1/tenants/"+a+"/context",userCToken,null,200);
  // DED.CORE-AUTH-AT-003: an expired role rejects even with active session.
