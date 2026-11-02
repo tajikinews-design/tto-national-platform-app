@@ -216,6 +216,20 @@ export class FoundationCommandsController {
     if(!approved)throw new ForbiddenException("Tenant transition denied");
     return {transitioned:true};
   }
+  @Post("tenants/:tenantId/slug/transition")
+  async changeTenantSlug(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    const slug=requireText(input?.newSlug,2,101);
+    if(!/^[a-z0-9][a-z0-9-]{1,100}$/.test(slug))
+      throw new BadRequestException("Invalid tenant slug");
+    const version=input?.expectedVersion;
+    if(!Number.isSafeInteger(version)||Number(version)<1)
+      throw new BadRequestException("Invalid entity version");
+    const changed=await this.run<boolean>(tenant,auth,
+      "SELECT tto.change_tenant_slug($1,$2,$3) AS out",[tenant,slug,version]);
+    if(!changed)throw new ForbiddenException("Tenant slug transition denied");
+    return {changed:true};
+  }
   @Post("tenants/:tenantId/parties/aliases/merge")
   async mergeParty(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
     @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
