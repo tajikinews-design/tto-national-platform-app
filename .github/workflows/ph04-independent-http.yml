@@ -45,11 +45,27 @@ jobs:
             sleep 0.5
           done
           test "$ready" = true || { docker logs tto-adaptive-postgres | tail -60;exit 1; }
-      - name: Actual historical and fresh step-up HTTP regression
+      - name: Install isolated pinned Chromium for DED-004 negative UI gate
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/tto-ph04-browser --no-audit --no-fund playwright@1.56.1
+          node /tmp/tto-ph04-browser/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Actual historical, Chromium DED-004 and fresh step-up HTTP regression
+        env:
+          NODE_PATH: /tmp/tto-ph04-browser/node_modules
+          PH04_BROWSER_DED004: "1"
         run: |
           set -euo pipefail
           bash scripts/ci/release-regression.sh
           echo "TTO_PH04_INDEPENDENT_REAL_HTTP_SECURITY_PASS"
+      - name: Archive adversarial mobile Chromium evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ph04-ded004-chromium-negative
+          path: ph04-screenshots/*.png
+          retention-days: 7
+          if-no-files-found: warn
       - name: Erase synthetic PostgreSQL regardless of outcome
         if: always()
         run: docker rm -f tto-adaptive-postgres || true
