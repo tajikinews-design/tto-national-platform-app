@@ -49,6 +49,37 @@ class Phase01EvidenceIntegrity(unittest.TestCase):
                 self.assertNotIn(entry.get("status"), ("GREEN", "PASS", "ACCEPTED"))
         self.assertEqual(len([x for x in entries if x.get("exact_accepted_test_run")]), 0)
 
+    def test_every_entity_field_phrase_has_explicit_no_false_green_classification(self):
+        source = load("PH01_SOURCE_148_ENTITY_FIELD_INDEX.json")
+        physical = load("PH01_148_ENTITY_FIELD_PHYSICAL_CANDIDATES.json")
+        self.assertEqual(source["entity_count"], 148)
+        self.assertEqual(physical["entities"], 148)
+        self.assertEqual(physical["field_phrases"], 786)
+        self.assertEqual(len(physical["rows"]), 786)
+        valid = {
+            "NO_DIRECT_SQL_TABLE",
+            "NO_LITERAL_SQL_COLUMN",
+            "COMPOUND_OR_QUALIFIED_SOURCE_PHRASE_NEEDS_REVIEW",
+            "CANDIDATE_LITERAL_MATCH_VERIFY_SEMANTICS",
+        }
+        self.assertTrue(all(item["classification"] in valid for item in physical["rows"]))
+        self.assertTrue(all(item["source_field_phrase"] and item["child"] and item["source_entity"]
+                            for item in physical["rows"]))
+        self.assertTrue(all(not item["actual_semantic_equivalence_certified"]
+                            for item in physical["rows"]))
+        self.assertTrue(physical["no_automatic_green"])
+
+    def test_rebaselining_requires_independent_signed_adr(self):
+        adr = ROOT / "docs" / "architecture" / "ADR-PH01-001-DESIGN-VS-RUNTIME-ACCEPTANCE.md"
+        content = adr.read_text(encoding="utf-8")
+        self.assertIn("Status: PROPOSED", content)
+        self.assertIn("independent Product/Architecture/Legal/QA ratification required", content)
+        self.assertIn("PH-04–09", content)
+        self.assertIn("155", content)
+        self.assertIn("PH-01-C05 PENDING", content)
+        self.assertIn("PH-01-C06 PENDING", content)
+        self.assertIn("PH-01-C08 PENDING", content)
+
     def test_dedicated_child_01_conflicts_cannot_be_automatically_resolved(self):
         register = load("PH01_155_ACCEPTANCE_EVIDENCE_GATE.json")
         self.assertTrue(register["gate_policy"]["C08"].startswith("independent"))
