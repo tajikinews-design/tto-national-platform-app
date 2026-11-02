@@ -104,3 +104,21 @@ TTO در شاخه مبنا **کنترل‌های مستند و آزمون‌ها
 - **HARD blockers retained**: 148 physical parity, 155 exact official AT IDs, official Child06/07 source authority, W2 operational distributed trust, independent legal/security/QA and owner release authority.
 
 **Conclusion:** TTO already has meaningful negative and isolated database tests; the **unverified supply-chain/SBOM/vulnerability inventory and formal ASVS traceability** are the clearest observed gaps. This evaluation performed **no Trivy execution and found no evidence sufficient to declare the project vulnerability-free**.
+
+
+## VERIFIED FIELD-TEST ADDENDUM — 2026-11-02, supersedes only the earlier NOT_RUN Trivy-pilot status
+- **Performed:** Trivy **v0.76.1** filesystem vulnerability scan on **`pnpm-lock.yaml` only**, using an isolated exact-branch GitHub Actions job; pinned `aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25`, permissions `contents: read`, no secrets, no Docker/Production/share data, no published artifact. Final scan run [41491605676](https://github.com/tajikinews-design/tto-national-platform-app/actions/runs/41491605676), exact source SHA `2ad4a1f7aaea58eeeb265ed4bfb8be6c19a0449b`, **SUCCESS**, raw JSON deleted at job end. Earlier workflow setup failures are preserved as FAIL, not mistaken for vulnerability scan successes.
+- **Observed lockfile findings: 0 CRITICAL, 4 HIGH, 3 MEDIUM = 7 vulnerabilities, all tied to `fastify@5.11.3`**. IDs and per-advisory minimum corrected version:
+  | CVE | Severity | Trivy fixed version |
+  |---|---|---|
+  | CVE-2026-76169 | HIGH | 5.12.2 |
+  | CVE-2026-84428 | HIGH | 5.12.2 |
+  | CVE-2026-84469 | HIGH | 5.12.2 |
+  | CVE-2026-84504 | HIGH | 5.12.2 |
+  | CVE-2026-16732 | MEDIUM | 5.12.1 |
+  | CVE-2026-18504 | MEDIUM | 5.12.1 |
+  | CVE-2026-92081 | MEDIUM | 5.12.5 |
+- **Current upstream status**: [Fastify latest official v5.12.8](https://github.com/fastify/fastify/releases/tag/v5.12.8), published `2026-11-02T10:51:32Z`, is a **security release**. Minimum `5.12.5` resolves *these seven according to the scanner*, but **5.12.8 or newer vetted 5.x** should be assessed because new advisories are possible. Scanner summary is not exhaustive and gives no exploitability proof for the particular Nest app.
+- **Remediation issue** [#136](https://github.com/tajikinews-design/tto-national-platform-app/issues/136): isolated manifest+lockfile update (no hand-edit), pinned package and Nest Fastify adapter compatibility, real Nest/Next HTTP & RLS/tenant regression, fresh Trivy rescan, independent security/codeowner and owner approval before merge.
+- **Gate statuses corrected only for this POC**: `SEC-G03=SCANNED_LOCKFILE_FINDINGS_PENDING_REMEDIATION`; `SEC-G04=DISPOSABLE_LOCAL_JSON_PRIVATE_LOG_ONLY` (no third-party data proof outside POC); `SEC-G05=ONE_EXACT_BRANCH_BOUNDED_JOB_EXECUTED`; `SEC-G06=PENDING`. Full repo SCA, container image scan, SBOM and code-scan/production permission remain `NOT_RUN`. **The one-off test workflow must be removed before any final merge; never expand its push trigger.**
+- **Decision:** Do not adopt more OSS tools as production dependencies yet. Address observed Fastify high-severity advisories first on separately reviewed patch branch, then accept or reject additional OSS proposals based on actual evidence. No upgrade performed by this analysis.
