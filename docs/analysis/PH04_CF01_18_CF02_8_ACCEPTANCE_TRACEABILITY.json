@@ -26,7 +26,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-002",
@@ -40,7 +43,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "HTTP_403_REASON_NOT_EXACT"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-003",
@@ -54,7 +60,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-004",
@@ -68,7 +77,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "GAP_TRACKED"
+      "status": "GAP_TRACKED",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "GAP_NOT_EXECUTED"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-005",
@@ -82,7 +94,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-006",
@@ -96,7 +111,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "GAP_TRACKED"
+      "status": "GAP_TRACKED",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "GAP_NOT_EXECUTED"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-007",
@@ -110,7 +128,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-008",
@@ -124,7 +145,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-009",
@@ -138,7 +162,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-010",
@@ -152,7 +179,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-011",
@@ -166,7 +196,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-012",
@@ -180,7 +213,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-013",
@@ -194,7 +230,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-014",
@@ -208,7 +247,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-015",
@@ -222,7 +264,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-016",
@@ -236,7 +281,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-017",
@@ -250,7 +298,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF01.DED.CORE-AUTH-AT-018",
@@ -264,7 +315,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724483,
+      "technicalEvidence": "SOURCE_SCOPED_HTTP_PASS"
     },
     {
       "key": "CF02.PACK.CORE-TENANT-AT-001",
@@ -278,7 +332,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724392,
+      "technicalEvidence": "SOURCE_SCOPED_PG17_PASS"
     },
     {
       "key": "CF02.PACK.CORE-TENANT-AT-002",
@@ -292,7 +349,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724392,
+      "technicalEvidence": "SOURCE_SCOPED_PG17_PASS"
     },
     {
       "key": "CF02.PACK.CORE-TENANT-AT-003",
@@ -306,7 +366,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724392,
+      "technicalEvidence": "SOURCE_SCOPED_PG17_PASS"
     },
     {
       "key": "CF02.PACK.CORE-TENANT-AT-004",
@@ -320,7 +383,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724392,
+      "technicalEvidence": "SOURCE_SCOPED_PG17_PASS"
     },
     {
       "key": "CF02.PACK.CORE-TENANT-AT-005",
@@ -334,7 +400,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724392,
+      "technicalEvidence": "SOURCE_SCOPED_PG17_PASS"
     },
     {
       "key": "CF02.PACK.CORE-TENANT-AT-006",
@@ -348,7 +417,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724392,
+      "technicalEvidence": "SOURCE_SCOPED_PG17_PASS"
     },
     {
       "key": "CF02.PACK.CORE-TENANT-AT-007",
@@ -362,7 +434,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724392,
+      "technicalEvidence": "SOURCE_SCOPED_PG17_PASS"
     },
     {
       "key": "CF02.PACK.CORE-TENANT-AT-008",
@@ -376,7 +451,10 @@
       "exactCiRun": null,
       "exactCommitSha": null,
       "independentQa": null,
-      "status": "PENDING_EXACT_HEAD_SHA_RUN"
+      "status": "PENDING_EXACT_HEAD_SHA_RUN",
+      "technicalTestSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+      "technicalCiRun": 41447724392,
+      "technicalEvidence": "DB_PRIVILEGE_ONLY_NO_PUBLIC_API"
     }
   ],
   "summaryAliases": [
@@ -428,5 +506,14 @@
       "semanticCorrespondence": "CF01.DED.CORE-AUTH-AT-017",
       "status": "PROVENANCE_ALIAS_NOT_DUPLICATE_TEST"
     }
-  ]
+  ],
+  "verifiedEvidence": {
+    "codeSha": "889fa8122284e1d687adb81eb14b2f9dee7f16ca",
+    "httpReleaseCi": 41447724483,
+    "isolatedPg17Ci": 41447724392,
+    "httpWorkflowCalls": 48,
+    "tenantIdentityCoreChecks": 165,
+    "independentQaSignaturesAvailable": 0,
+    "notProductionAcceptance": true
+  }
 }
