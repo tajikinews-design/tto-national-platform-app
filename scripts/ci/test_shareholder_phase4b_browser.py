@@ -72,7 +72,7 @@ class SyntheticSessionBrowserContract(unittest.TestCase):
                 slug=f'/modules/nav-{n:02}'
                 self.assertIn(slug,self.smoke)
         self.assertIn('protectedShareholder=slug==="shareholder"',self.smoke)
-        self.assertIn('legacy module lost safe placeholder',self.smoke)
+        self.assertIn('management module bypassed safe OTP shell or leaked private data',self.smoke)
         self.assertIn('protected module leaked private data',self.smoke)
 
 if __name__=="__main__":
