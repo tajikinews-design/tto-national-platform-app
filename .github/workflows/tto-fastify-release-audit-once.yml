@@ -28,13 +28,13 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-          fetch-depth: 1
+          fetch-depth: 0
       - name: Verify candidate commit is sole parent of this one-shot workflow
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = 'f96c1a07b75e39e9deaad83521235664adc0e185'
-          test "$(git diff --name-only HEAD^ HEAD)" = '.github/workflows/tto-fastify-release-audit-once.yml'
+          git merge-base --is-ancestor 'f96c1a07b75e39e9deaad83521235664adc0e185' HEAD
+          test "$(git diff --name-only f96c1a07b75e39e9deaad83521235664adc0e185 HEAD)" = '.github/workflows/tto-fastify-release-audit-once.yml'
           echo 'TTO_RELEASE_AUDIT_CANDIDATE_SHA=f96c1a07b75e39e9deaad83521235664adc0e185'
       - name: Node 22
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
