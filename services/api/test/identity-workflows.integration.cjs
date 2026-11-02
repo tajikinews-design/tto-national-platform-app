@@ -12,11 +12,16 @@ const userA="11111111-1111-4111-8111-111111111111";
 const userC="cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const reviewer="44444444-4444-4444-8444-444444444444";
 const doc="cccc3333-3333-4333-8333-cccccccccccc";
-let proc,count=0;
+let proc,count=0,syntheticNestErrorLog="";
 const key=(token)=>token?{authorization:"Bearer "+token}:{};
 const root="http://127.0.0.1:31665";
 async function call(method,p,token,body,status){
  const res=await fetch(root+p,{method,headers:{...(body?{"content-type":"application/json"}:{}),...key(token)},body:body?JSON.stringify(body):undefined});
+ if(res.status!==status){
+   // Isolated synthetic CI only; print Nest diagnostics, never authorization header/OTP.
+   const short=syntheticNestErrorLog.slice(-2000).replace(/Bearer\\s+[A-Za-z0-9_-]+/g,"Bearer [MASKED]");
+   console.error("TTO_PH04_SYNTHETIC_NEST_STDERR",short);
+ }
  assert.equal(res.status,status,method+" "+p+" expected "+status+" actual "+res.status);
  count++;
  return status===204?null:res.json();
@@ -40,7 +45,9 @@ async function main(){
  [challenge,userA,createHmac("sha256",pepper).update(challenge+":"+otp).digest()]
  );
  proc=spawn(process.execPath,["dist/main.js"],{cwd:path.resolve(__dirname,".."),
-  env:{...process.env,NODE_ENV:"test",TTO_MOCK_SMSOTP_PROVIDER:"true",DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"31665"},stdio:"ignore"});
+  env:{...process.env,NODE_ENV:"test",TTO_MOCK_SMSOTP_PROVIDER:"true",DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"31665"},stdio:["ignore","ignore","pipe"]});
+ proc.stderr.on("data",buf=>{syntheticNestErrorLog+=String(buf);
+   if(syntheticNestErrorLog.length>10000)syntheticNestErrorLog=syntheticNestErrorLog.slice(-10000);});
  for(let i=0;i<70;i++){try{const res=await fetch(root+"/health");if(res.ok)break;}catch{}
   if(proc.exitCode!==null)throw Error("NEST_API_EXITED");
   await new Promise(r=>setTimeout(r,250));
