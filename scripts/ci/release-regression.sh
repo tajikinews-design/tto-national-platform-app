@@ -23,8 +23,8 @@ for f in \
  tests/sql/cf02-cf03-v4.sql; do sql "$f"; done
 # PH04 guarded HTTP tests require the complete additive schema after legacy v1-v4 checks.
 # This database is disposable and is reset below; no hosted/Production migration.
-for f in database/migrations/000[5-9]_*.sql database/migrations/001[0-5]_*.sql; do sql "$f"; done
-echo "TTO_RELEASE_HISTORICAL_COMPLETE_MIGRATIONS_0001_TO_0015_PASS"
+for f in database/migrations/000[5-9]_*.sql database/migrations/001[0-8]_*.sql; do sql "$f"; done
+echo "TTO_RELEASE_HISTORICAL_COMPLETE_MIGRATIONS_0001_TO_0018_PASS"
 # PH05 candidate source-backed physical security slices, each ROLLBACK-only.
 # Existing commands, historical E2E, and hosted DB remain untouched.
 sql tests/sql/ph05-cf03-audit-hold-negative.sql
