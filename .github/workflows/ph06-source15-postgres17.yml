@@ -55,6 +55,11 @@ jobs:
           set -euo pipefail
           docker exec -i tto-ph06-isolated psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph06-member-share-frozen15.sql
           echo "PH06_SOURCE15_PG17_SYNTHETIC_ASSERTIONS_PASS_NOT_REAL_TRANSFER"
+      - name: Race two independent PostgreSQL sessions on one seller inventory
+        run: |
+          set -euo pipefail
+          bash scripts/ci/ph06-concurrent-share-lock.sh
+          echo "PH06_SHARE_LOCK_CONCURRENT_INDEPENDENT_SESSIONS_PASS"
       - name: Erase only disposable PostgreSQL
         if: always()
         run: docker rm -f tto-ph06-isolated || true
