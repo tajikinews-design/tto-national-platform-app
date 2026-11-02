@@ -1,0 +1,865 @@
+{
+  "schemaVersion": "PH02-1.0",
+  "date": "2026-11-02",
+  "status": "ARCHITECTURE_DESIGN_CANDIDATE_NOT_DEPLOYED",
+  "source_sha": "5eb6be8edfbb61f2eca740a42c30f572b493f023",
+  "baseline_adr": "docs/architecture/ADR-001-FINAL-STACK.md",
+  "design_contract": {
+    "api": "HTTPS /v1/tenants/{tenantId}/<resource> JSON; OpenAPI versioned; tenant derived from authenticated session and checked against resource",
+    "outbox": "commit business state + immutable outbox record in same database transaction; at-least-once dispatch; consumer de-dup by unique event id; no external delivery in original DB transaction",
+    "security": "transaction-local actor and tenant; tto_app non-owner NOBYPASSRLS; FORCE RLS as appropriate, deny by default; security-definer reviewed, path fixed",
+    "secrets": "no credentials in repo/browser/logs; per-environment secret manager; rotation and masked CI; deny absent env",
+    "storage": "S3-compatible abstraction, content hash, scan result, classification and legal hold, signed download grant, no raw object URLs",
+    "broker": "outbox required; Redis/BullMQ optional only after measured need",
+    "preview": "Vercel protected synthetic preview only if eligibility/SSO/private repo authorized; not production",
+    "production": "ArvanCloud only after separate approval, no live data activated by design contract",
+    "payment": "buyer to seller direct; verification separate from reported, no internal wallet/custody, no transfer inferred"
+  },
+  "domains": [
+    {
+      "child": "CHILD-01",
+      "owner": "TTO-CORE-IDENTITY-AUTH-IMPLEMENTATION",
+      "representative_source_entity": "USER_ACCOUNT",
+      "command_contracts": [
+        "CreateUserAccount",
+        "VerifyAuthChallenge",
+        "CreateSession",
+        "AssignRole",
+        "RevokeRoleAssignment",
+        "BindAuthorityReference",
+        "GrantJitAccess"
+      ],
+      "query_contracts": [
+        "GetCurrentIdentity",
+        "EvaluatePermission",
+        "ListUserTenantContexts",
+        "ListActiveRoleAssignments"
+      ],
+      "event_contracts": [
+        "USER_ACTIVATED",
+        "ROLE_ASSIGNMENT_ACTIVATED",
+        "ROLE_ASSIGNMENT_REVOKED",
+        "JIT_ACCESS_GRANTED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "FOUNDATION_PARTIAL_NEEDS_FULL_SCHEMA_REVIEW",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-02",
+      "owner": "TTO-CORE-TENANT-PARTY-IMPLEMENTATION",
+      "representative_source_entity": "TENANT",
+      "command_contracts": [
+        "CreateTenant",
+        "ActivateTenant",
+        "ChangeTenantSlug",
+        "CreateParty",
+        "LinkUserToParty",
+        "CreatePartyMergeCase",
+        "ExecutePartyMerge"
+      ],
+      "query_contracts": [
+        "ResolveTenantBySlug",
+        "GetTenantStatus",
+        "GetPartyReferenceForUser",
+        "GetActiveTenantRelationshipProjection",
+        "ResolveMergedPartyAlias"
+      ],
+      "event_contracts": [
+        "TENANT_ACTIVATED",
+        "TENANT_SLUG_CHANGED",
+        "PARTY_CREATED",
+        "PARTY_MERGED",
+        "COOPERATIVE_RELATIONSHIP_PROJECTED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "FOUNDATION_PARTIAL_NEEDS_FULL_SCHEMA_REVIEW",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-03",
+      "owner": "TTO-CORE-DOCUMENT-EVIDENCE-AUDIT-IMPLEMENTATION",
+      "representative_source_entity": "FILE_OBJECT",
+      "command_contracts": [
+        "CreateFileUpload",
+        "CompleteFileUpload",
+        "CreateDocument",
+        "AddDocumentVersion",
+        "PublishDocumentVersion",
+        "CreateEvidenceReference",
+        "SealEvidenceBundle",
+        "AppendAuditEvent",
+        "PlaceLegalHold"
+      ],
+      "query_contracts": [
+        "GetDocument",
+        "GetDocumentVersion",
+        "GetEvidenceBundle",
+        "SearchAudit",
+        "CreateDownloadGrant"
+      ],
+      "event_contracts": [
+        "DOCUMENT_VERSION_CREATED",
+        "DOCUMENT_PUBLISHED",
+        "EVIDENCE_BUNDLE_SEALED",
+        "LEGAL_HOLD_PLACED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "FOUNDATION_PARTIAL_NEEDS_FULL_SCHEMA_REVIEW",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-04",
+      "owner": "TTO-CORE-RULES-POLICY-GATES-IMPLEMENTATION",
+      "representative_source_entity": "LEGAL_SOURCE",
+      "command_contracts": [
+        "CreateRuleVersion",
+        "ApproveRuleVersion",
+        "ActivateRuleVersion",
+        "SetPolicyValue",
+        "OpenLegalGate",
+        "ResolveLegalGate",
+        "CreateRuleSnapshot"
+      ],
+      "query_contracts": [
+        "EvaluateRules",
+        "GetActiveRuleVersion",
+        "GetGateStatus",
+        "ListPolicyValues"
+      ],
+      "event_contracts": [
+        "RULE_VERSION_ACTIVATED",
+        "POLICY_VALUE_ACTIVATED",
+        "LEGAL_GATE_OPENED",
+        "LEGAL_GATE_RESOLVED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-05",
+      "owner": "TTO-CORE-NOTIFICATION-PAYMENT-INTEGRATIONS-IMPLEMENTATION",
+      "representative_source_entity": "NOTIFICATION_JOB",
+      "command_contracts": [
+        "QueueNotification",
+        "ProcessDelivery",
+        "RecordDeliveryCallback",
+        "CreatePaymentIntent",
+        "ReportPaymentEvidence",
+        "VerifyPayment",
+        "RecordWebhook",
+        "DisableIntegration"
+      ],
+      "query_contracts": [
+        "GetNotificationStatus",
+        "GetPaymentVerification",
+        "GetIntegrationHealth",
+        "GetWebhookReceipt"
+      ],
+      "event_contracts": [
+        "NOTIFICATION_SENT",
+        "PAYMENT_REPORTED",
+        "PAYMENT_VERIFIED",
+        "PAYMENT_FAILED",
+        "INTEGRATION_DEGRADED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-06",
+      "owner": "TTO-MEMBER-SHAREHOLDER-IMPLEMENTATION",
+      "representative_source_entity": "MEMBERSHIP_APPLICATION",
+      "command_contracts": [
+        "SubmitMembershipApplication",
+        "RecordMembershipDecision",
+        "ActivateRelationship",
+        "EndRelationship",
+        "CreateShareholderAccount",
+        "UpdateSelfServiceProfile"
+      ],
+      "query_contracts": [
+        "GetMyMemberProfile",
+        "GetRelationship",
+        "ListMembers",
+        "GetShareholderAccount"
+      ],
+      "event_contracts": [
+        "MEMBERSHIP_APPLICATION_SUBMITTED",
+        "MEMBERSHIP_APPROVED",
+        "MEMBERSHIP_ENDED",
+        "SHAREHOLDER_ACCOUNT_ACTIVATED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-07",
+      "owner": "TTO-SHARE-CAPITAL-MARKET-IMPLEMENTATION",
+      "representative_source_entity": "SHARE_OWNERSHIP_LEDGER_ENTRY",
+      "command_contracts": [
+        "CreateSellOrder",
+        "LockShares",
+        "SubmitBuyRequest",
+        "SelectBuyer",
+        "RecordApproval",
+        "AttachPaymentEvidence",
+        "MarkPaymentVerified",
+        "FinalizeTransfer",
+        "CancelTransfer"
+      ],
+      "query_contracts": [
+        "GetMyHoldings",
+        "ListMarketOffers",
+        "GetTransferCase",
+        "GetValuationStatus"
+      ],
+      "event_contracts": [
+        "SHARE_SELL_REQUESTED",
+        "SHARES_LOCKED",
+        "PAYMENT_REPORTED",
+        "TRANSFER_READY",
+        "TRANSFER_COMPLETED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-08",
+      "owner": "TTO-GOVERNANCE-ASSEMBLIES-IMPLEMENTATION",
+      "representative_source_entity": "ASSEMBLY",
+      "command_contracts": [
+        "CreateAssembly",
+        "PublishAssemblyNotice",
+        "RegisterCandidate",
+        "RecordChamberLetter",
+        "RegisterProxy",
+        "RecordAttendance",
+        "RecordVoteResult",
+        "FinalizeMinutes",
+        "RecordBoardResolution"
+      ],
+      "query_contracts": [
+        "GetAssembly",
+        "ListEligibleVoters",
+        "ListCandidates",
+        "GetProxyCount",
+        "GetMinutes"
+      ],
+      "event_contracts": [
+        "ASSEMBLY_PUBLISHED",
+        "CANDIDACY_OPENED",
+        "CANDIDATE_APPROVED",
+        "ASSEMBLY_COMPLETED",
+        "BOARD_RESOLUTION_RECORDED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-09",
+      "owner": "TTO-COMMUNICATIONS-NOTICE-IMPLEMENTATION",
+      "representative_source_entity": "COMMUNICATION_ITEM",
+      "command_contracts": [
+        "CreateCommunication",
+        "ApproveCommunication",
+        "PublishCommunication",
+        "StartAssuranceCampaign",
+        "RecordRead",
+        "RecordAcknowledgement"
+      ],
+      "query_contracts": [
+        "GetCommunicationFeed",
+        "GetAssuranceStatus",
+        "GetEvidencePackage"
+      ],
+      "event_contracts": [
+        "COMMUNICATION_PUBLISHED",
+        "NOTICE_ASSURANCE_STARTED",
+        "NOTICE_ACKNOWLEDGED",
+        "NOTICE_EVIDENCE_COMPLETE"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-10",
+      "owner": "TTO-SUPPORT-IMPLEMENTATION",
+      "representative_source_entity": "TICKET",
+      "command_contracts": [
+        "CreateTicket",
+        "AssignTicket",
+        "AddTicketMessage",
+        "SetWaitingState",
+        "ResolveTicket",
+        "CloseTicket",
+        "EscalateTicket"
+      ],
+      "query_contracts": [
+        "GetMyTickets",
+        "GetQueue",
+        "GetTicketTimeline",
+        "GetSLAStatus"
+      ],
+      "event_contracts": [
+        "TICKET_CREATED",
+        "TICKET_ESCALATED",
+        "TICKET_RESOLVED",
+        "TICKET_REOPENED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-11",
+      "owner": "TTO-TRANSPARENCY-IMPLEMENTATION",
+      "representative_source_entity": "DISCLOSURE_ITEM",
+      "command_contracts": [
+        "CreateDisclosure",
+        "ApproveDisclosure",
+        "PublishDisclosure",
+        "SupersedeDisclosure",
+        "CreateReportPackage"
+      ],
+      "query_contracts": [
+        "ListPublishedDisclosures",
+        "GetDisclosureHistory",
+        "ExportDisclosurePackage"
+      ],
+      "event_contracts": [
+        "DISCLOSURE_PUBLISHED",
+        "DISCLOSURE_SUPERSEDED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-12",
+      "owner": "TTO-PROJECT-ASSET-IMPLEMENTATION",
+      "representative_source_entity": "PROJECT",
+      "command_contracts": [
+        "CreateProject",
+        "ApproveProject",
+        "ActivateProject",
+        "RecordProjectUpdate",
+        "CompleteMilestone",
+        "LinkAsset",
+        "RequestProcurementHandoff"
+      ],
+      "query_contracts": [
+        "GetProjectPortfolio",
+        "GetProjectTimeline",
+        "GetAssetRegister",
+        "GetPermitStatus"
+      ],
+      "event_contracts": [
+        "PROJECT_CREATED",
+        "PROJECT_STATUS_CHANGED",
+        "MILESTONE_COMPLETED",
+        "PROCUREMENT_NEEDED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-13",
+      "owner": "TTO-MEMBER-VOICE-IMPLEMENTATION",
+      "representative_source_entity": "ENGAGEMENT_PROCESS",
+      "command_contracts": [
+        "CreateEngagement",
+        "OpenEngagement",
+        "SubmitResponse",
+        "CloseEngagement",
+        "PublishManagementResponse",
+        "SubmitProposal"
+      ],
+      "query_contracts": [
+        "GetOpenEngagements",
+        "GetMyResponses",
+        "GetAggregateResults",
+        "ListProposals"
+      ],
+      "event_contracts": [
+        "ENGAGEMENT_OPENED",
+        "ENGAGEMENT_CLOSED",
+        "MANAGEMENT_RESPONSE_PUBLISHED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-14",
+      "owner": "TTO-ACADEMY-EVENTS-IMPLEMENTATION",
+      "representative_source_entity": "COURSE",
+      "command_contracts": [
+        "PublishCourse",
+        "EnrollLearner",
+        "RecordAssessment",
+        "CompleteCourse",
+        "IssueCertificate",
+        "CreateEventFromCourse",
+        "RegisterEvent",
+        "RecordAttendance"
+      ],
+      "query_contracts": [
+        "GetCourseCatalog",
+        "GetMyLearning",
+        "GetEventAvailability",
+        "GetAttendance"
+      ],
+      "event_contracts": [
+        "COURSE_ENROLLED",
+        "COURSE_COMPLETED",
+        "CERTIFICATE_ISSUED",
+        "EVENT_PUBLISHED",
+        "ATTENDANCE_RECORDED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-15",
+      "owner": "TTO-BENEFITS-IMPLEMENTATION",
+      "representative_source_entity": "BENEFIT",
+      "command_contracts": [
+        "CreateBenefit",
+        "ActivateBenefit",
+        "IssueEntitlement",
+        "ReserveEntitlement",
+        "RedeemBenefit",
+        "CancelEntitlement"
+      ],
+      "query_contracts": [
+        "ListMyBenefits",
+        "GetBenefitTerms",
+        "GetRewardHistory",
+        "GetBenefitUtilization"
+      ],
+      "event_contracts": [
+        "BENEFIT_ACTIVATED",
+        "ENTITLEMENT_ISSUED",
+        "BENEFIT_REDEEMED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-16",
+      "owner": "TTO-MARKETPLACE-ADVERTISING-IMPLEMENTATION",
+      "representative_source_entity": "PRODUCT",
+      "command_contracts": [
+        "PublishOffer",
+        "CreateOrder",
+        "ConfirmPayment",
+        "RecordFulfillment",
+        "RequestRefund",
+        "SubmitSupplierProposal",
+        "ApproveCampaign",
+        "ServeAd"
+      ],
+      "query_contracts": [
+        "BrowseCatalog",
+        "GetMyOrders",
+        "GetSellerOrders",
+        "GetCampaignStats"
+      ],
+      "event_contracts": [
+        "ORDER_CREATED",
+        "ORDER_FULFILLED",
+        "SUPPLIER_PROPOSAL_ACCEPTED",
+        "CAMPAIGN_STARTED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-17",
+      "owner": "TTO-COLLABORATION-PROCUREMENT-IMPLEMENTATION",
+      "representative_source_entity": "COLLAB_NEED",
+      "command_contracts": [
+        "PublishNeed",
+        "SubmitEOI",
+        "CreateJointInitiative",
+        "CreatePurchaseRequest",
+        "PublishSourcingEvent",
+        "SubmitBid",
+        "CloseBidding",
+        "RecordEvaluation",
+        "ApproveAward"
+      ],
+      "query_contracts": [
+        "BrowseCollaborationNeeds",
+        "GetSourcingEvent",
+        "GetMyBid",
+        "GetAward"
+      ],
+      "event_contracts": [
+        "JOINT_INITIATIVE_CREATED",
+        "SOURCING_EVENT_PUBLISHED",
+        "BID_CLOSED",
+        "AWARD_APPROVED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-18",
+      "owner": "TTO-OPPORTUNITIES-IMPLEMENTATION",
+      "representative_source_entity": "OPPORTUNITY",
+      "command_contracts": [
+        "PublishOpportunity",
+        "SubmitApplication",
+        "ScreenApplication",
+        "ShortlistApplication",
+        "ScheduleInterview",
+        "CloseOpportunity"
+      ],
+      "query_contracts": [
+        "ListOpportunities",
+        "GetMyApplications",
+        "ListApplications"
+      ],
+      "event_contracts": [
+        "OPPORTUNITY_PUBLISHED",
+        "APPLICATION_SUBMITTED",
+        "APPLICATION_STATUS_CHANGED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-19",
+      "owner": "TTO-COMMUNITY-IMPACT-IMPLEMENTATION",
+      "representative_source_entity": "COMMUNITY_NEED",
+      "command_contracts": [
+        "CreateImpactProgram",
+        "DefineIndicator",
+        "RecordMeasurement",
+        "CreateImpactClaim",
+        "ApproveImpactClaim",
+        "CreateGrantCase"
+      ],
+      "query_contracts": [
+        "GetImpactDashboard",
+        "GetMeasurementHistory",
+        "GetGrantStatus"
+      ],
+      "event_contracts": [
+        "IMPACT_MEASUREMENT_RECORDED",
+        "IMPACT_CLAIM_PUBLISHED",
+        "GRANT_APPROVED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-20",
+      "owner": "TTO-GRC-IMPLEMENTATION",
+      "representative_source_entity": "OBLIGATION",
+      "command_contracts": [
+        "CreateRisk",
+        "AssessRisk",
+        "DefineControl",
+        "RecordControlTest",
+        "DeclareConflict",
+        "ReviewRelatedPartyTransaction",
+        "BlockProhibitedDirectorLoan",
+        "OpenFinding",
+        "CreateRemediationAction"
+      ],
+      "query_contracts": [
+        "GetRiskRegister",
+        "GetControlStatus",
+        "GetConflictCase",
+        "GetFinding"
+      ],
+      "event_contracts": [
+        "RISK_ESCALATED",
+        "FINDING_OPENED",
+        "ACTION_CLOSED",
+        "CONFLICT_REVIEWED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-21",
+      "owner": "TTO-NETWORK-INTELLIGENCE-IMPLEMENTATION",
+      "representative_source_entity": "METRIC_DEFINITION",
+      "command_contracts": [
+        "DefineMetric",
+        "ApproveMetric",
+        "RunQualityCheck",
+        "BuildBenchmarkSnapshot",
+        "PublishInsight",
+        "SuppressBenchmark"
+      ],
+      "query_contracts": [
+        "GetMyMetrics",
+        "GetBenchmark",
+        "GetMetricDefinition",
+        "GetQualityStatus"
+      ],
+      "event_contracts": [
+        "METRIC_APPROVED",
+        "BENCHMARK_SNAPSHOT_CREATED",
+        "INSIGHT_PUBLISHED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-22",
+      "owner": "TTO-DATA-GOVERNANCE-RETENTION-IMPLEMENTATION",
+      "representative_source_entity": "DATA_CLASSIFICATION_POLICY",
+      "command_contracts": [
+        "AssignRetentionPolicy",
+        "PlaceLegalHold",
+        "ReleaseLegalHold",
+        "CreateDispositionCase",
+        "ApproveDisposition",
+        "ExecuteDisposition"
+      ],
+      "query_contracts": [
+        "GetRetentionStatus",
+        "ListLegalHolds",
+        "GetLineage"
+      ],
+      "event_contracts": [
+        "LEGAL_HOLD_PLACED",
+        "RETENTION_DUE",
+        "DISPOSITION_EXECUTED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    },
+    {
+      "child": "CHILD-23",
+      "owner": "TTO-TEST-MIGRATION-OPERATIONS-IMPLEMENTATION",
+      "representative_source_entity": "TEST_CASE",
+      "command_contracts": [
+        "CreateTestPlan",
+        "ExecuteTestRun",
+        "CreateMigrationPlan",
+        "RunMigrationDryRun",
+        "ExecuteMigration",
+        "CreateReleaseCandidate",
+        "RecordBackup",
+        "RunRestoreTest"
+      ],
+      "query_contracts": [
+        "GetTraceabilityStatus",
+        "GetMigrationStatus",
+        "GetReleaseGateStatus",
+        "GetBackupHealth"
+      ],
+      "event_contracts": [
+        "TEST_RUN_COMPLETED",
+        "MIGRATION_COMPLETED",
+        "RELEASE_CANDIDATE_READY",
+        "RESTORE_TEST_PASSED"
+      ],
+      "transactional_source": "DOMAIN_OWNED_NOT_INFERRED_FROM_READ_MODEL",
+      "implementation_status": "NOT_PROVEN_BY_SOURCE_EXTRACTION",
+      "required_policies": [
+        "tenant_bound_server_context",
+        "legal_authority_separate_from_role",
+        "classified_evidence",
+        "audit_material_commands",
+        "idempotent_command_and_outbox"
+      ],
+      "completion_gate": "PH04-09_DOMAIN_IMPLEMENTATION_AND_EXACT_TEST_EVIDENCE"
+    }
+  ],
+  "gates": {
+    "C01": {
+      "state": "PREVIOUSLY_GREEN",
+      "evidence": "ADR-001 decided"
+    },
+    "C02": {
+      "state": "IN_PROGRESS",
+      "evidence": "CF01-03 RLS/role precedent, exact 23-domain authorization implementation pending"
+    },
+    "C03": {
+      "state": "DESIGN_DRAFT",
+      "evidence": "23 ownership boundaries and outbox design recorded; no live domain outbox"
+    },
+    "C04": {
+      "state": "ENVIRONMENT_GATED",
+      "evidence": "secret/storage/provider policy documented, live provider entitlements not verified"
+    }
+  }
+}
