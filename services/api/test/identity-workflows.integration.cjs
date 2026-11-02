@@ -116,6 +116,22 @@ async function main(){
   [userC,a]
  );
  await call("GET","/v1/tenants/"+a+"/context",userCToken,null,200);
+ // DED-017 (partial): a software manager role without separately verified legal
+ // authority must not execute role-management. HTTP 403 is tested; the
+ // canonical AUTHORITY_REQUIRED decision code is NOT yet implemented.
+ const unbackedManagerRole=randomUUID();
+ await admin.query(
+  "INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'COOPERATIVE_MANAGER')",
+  [unbackedManagerRole,userC,a]
+ );
+ await call("POST","/v1/tenants/"+a+"/roles/assign",userCToken,
+  {targetId:reviewer,roleCode:"MEMBER",legalAuthorityId:randomUUID()},403);
+ await admin.query("UPDATE tto.role_assignments SET revoked_at=now() WHERE assignment_id=$1",[unbackedManagerRole]);
+ const unauthorizedEffect=await admin.query(
+  "SELECT count(*)::integer AS n FROM tto.role_assignments WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER'",
+  [reviewer,a]
+ );
+ assert.equal(unauthorizedEffect.rows[0].n,0,"DED-017: no unauthorized role assigned");
  const assigned=await admin.query("SELECT assignment_id FROM tto.role_assignments WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER'",[userC,a]);
  assert.equal(assigned.rowCount,1);
  await call("POST","/v1/tenants/"+a+"/roles/"+assigned.rows[0].assignment_id+"/revoke",actorToken,{expectedVersion:1},201);
