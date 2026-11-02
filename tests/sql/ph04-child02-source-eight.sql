@@ -36,17 +36,25 @@ BEGIN
 END $case$;
 SELECT 'CORE-TENANT-AT-001_SYNTHETIC_DIRECT_ASSERTION_PASS' AS signal;
 
--- CORE-TENANT-AT-002: stable immutable tenant_id through owner-side slug update.
--- Contractual authorized slug-change command and full redirect history are NOT yet proven.
-UPDATE tto.tenants SET slug='ph04-renamed'
- WHERE tenant_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+-- CORE-TENANT-AT-002: legally authorized versioned slug mutation, same
+-- immutable tenant UUID and redirect history; stale version always denied.
 DO $case$ BEGIN
- IF NOT EXISTS(SELECT 1 FROM tto.tenants WHERE
-  tenant_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND slug='ph04-renamed') THEN
-  RAISE EXCEPTION 'CHILD02_002_TENANT_ID_CHANGED';
+ IF NOT tto.change_tenant_slug('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'ph04-renamed',3) THEN RAISE EXCEPTION 'CHILD02_002_AUTHORIZED_SLUG_CHANGE_DENIED'; END IF;
+ IF tto.change_tenant_slug('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'ph04-stale',3) THEN RAISE EXCEPTION 'CHILD02_002_STALE_VERSION_ACCEPTED'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM tto.tenants t
+  JOIN tto.tenant_slugs current ON current.slug_id=t.current_slug_ref
+   AND current.tenant_id=t.tenant_id AND current.status='CURRENT'
+  JOIN tto.tenant_slugs old ON old.tenant_id=t.tenant_id
+   AND old.redirect_to=current.slug_id AND old.status='REDIRECT'
+  WHERE t.tenant_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+   AND t.version=4 AND t.slug='ph04-renamed' AND current.slug='ph04-renamed'
+   AND old.slug='ph04-original') THEN
+    RAISE EXCEPTION 'CHILD02_002_UUID_OR_REDIRECT_HISTORY_BROKEN';
  END IF;
 END $case$;
-SELECT 'CORE-TENANT-AT-002_PARTIAL_IMMUTABLE_UUID_ONLY' AS signal;
+SELECT 'CORE-TENANT-AT-002_SYNTHETIC_AUTHORIZED_SLUG_COMMAND_PASS' AS signal;
 
 -- CORE-TENANT-AT-003: existing UNIQUE catches sequential competing slug;
 -- a two-connection concurrent transaction race must still be tested.
