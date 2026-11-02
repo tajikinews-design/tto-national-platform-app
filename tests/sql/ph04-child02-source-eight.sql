@@ -122,11 +122,24 @@ DO $case$ BEGIN
       AND shareholder_account_id='b2222222-2222-4222-8222-222222222222')
  OR NOT EXISTS(SELECT 1 FROM tto.shareholding_source_snapshots
      WHERE ledger_entry_ref='b4444444-4444-4444-8444-444444444444'
-       AND share_quantity=11) THEN
+       AND share_quantity=11)
+ -- Dedicated §29 CORE-PARTY-AT-007: no historical Member Master source record
+ -- or original relationship projection may be silently rewritten by an alias.
+ OR NOT EXISTS(SELECT 1 FROM tto.member_source_snapshots
+     WHERE tenant_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+       AND party_id='33333333-3333-4333-8333-333333333333'
+       AND source_event_id='b1111111-1111-4111-8111-111111111111'
+       AND source_version=1 AND membership_status='ACTIVE')
+ OR NOT EXISTS(SELECT 1 FROM tto.relationship_projections
+     WHERE tenant_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+       AND party_id='33333333-3333-4333-8333-333333333333'
+       AND source_event_id='b1111111-1111-4111-8111-111111111111'
+       AND membership_status='ACTIVE') THEN
   RAISE EXCEPTION 'CHILD02_006_PARTY_MERGE_TRANSFERRED_SHARES';
  END IF;
 END $case$;
 SELECT 'CORE-TENANT-AT-006_SYNTHETIC_DIRECT_ASSERTION_PASS' AS signal;
+SELECT 'CORE-PARTY-AT-007_SYNTHETIC_MEMBERSHIP_HISTORY_UNCHANGED_AFTER_ALIAS_PASS' AS signal;
 
 -- CORE-TENANT-AT-007: same projection (tenant,party) cannot duplicate,
 -- but a full source-event idempotent ingestion command is not implemented.
