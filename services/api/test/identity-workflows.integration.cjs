@@ -31,6 +31,7 @@ async function main(){
  await admin.connect();
  await admin.query("ALTER ROLE tto_app LOGIN");
  await admin.query("INSERT INTO tto.user_accounts(user_id) VALUES($1)",[reviewer]);
+ await admin.query("INSERT INTO tto.verified_mobile_identifiers(mobile,user_id,verified_at) VALUES('09120000001',$1,now())",[userA]);
  await admin.query("INSERT INTO tto.platform_operator_authorizations(user_id,approved_by,evidence_id,expires_at) VALUES($1,$2,$3,now()+interval '1 day')",
  [reviewer,userC,"33333333-3333-4333-8333-333333333331"]);
  const challenge=randomUUID(),otp="73491826";
@@ -39,7 +40,7 @@ async function main(){
  [challenge,userA,createHmac("sha256",pepper).update(challenge+":"+otp).digest()]
  );
  proc=spawn(process.execPath,["dist/main.js"],{cwd:path.resolve(__dirname,".."),
-  env:{...process.env,DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"31665"},stdio:"ignore"});
+  env:{...process.env,NODE_ENV:"test",TTO_MOCK_SMSOTP_PROVIDER:"true",DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"31665"},stdio:"ignore"});
  for(let i=0;i<70;i++){try{const res=await fetch(root+"/health");if(res.ok)break;}catch{}
   if(proc.exitCode!==null)throw Error("NEST_API_EXITED");
   await new Promise(r=>setTimeout(r,250));
@@ -100,9 +101,31 @@ async function main(){
   [requested.requestId]
  );
  await call("GET","/v1/tenants/"+a+"/documents",national,null,403);
- const assign=await call("POST","/v1/tenants/"+a+"/roles/assign",actorToken,
- {targetId:userC,roleCode:"MEMBER",legalAuthorityId:"aaaa0001-0001-4001-8001-aaaaaaaaaaaa"},201);
- assert.equal(assign.assigned,true);
+ const roleRequestId=randomUUID();
+ const pendingRole={targetId:userC,roleCode:"MEMBER",
+   legalAuthorityId:"aaaa0001-0001-4001-8001-aaaaaaaaaaaa",requestId:roleRequestId};
+ const noStepUp=await call("POST","/v1/tenants/"+a+"/roles/assign",actorToken,pendingRole,403);
+ assert.equal(noStepUp.code,"STEP_UP_REQUIRED","DED-018: OTP-only bearer must not assign");
+ const stepUp=await call("POST","/v1/auth/step-up/request",actorToken,{},202);
+ assert.equal(stepUp.status,"ACCEPTED");
+ await call("POST","/v1/auth/step-up/verify",actorToken,
+   {challengeId:stepUp.requestId,otp:"000000"},401);
+ const elevated=await call("POST","/v1/auth/step-up/verify",actorToken,
+   {challengeId:stepUp.requestId,otp:"111222"},200);
+ assert.equal(elevated.elevated,true,"DED-018 proof belongs to existing session");
+ await call("POST","/v1/auth/step-up/verify",actorToken,
+   {challengeId:stepUp.requestId,otp:"111222"},401);
+ await call("POST","/v1/auth/challenges/verify",null,
+   {challengeId:stepUp.requestId,otp:"111222"},401);
+ const assign=await call("POST","/v1/tenants/"+a+"/roles/assign",actorToken,pendingRole,201);
+ assert.equal(assign.assigned,true);assert.equal(assign.alreadyApplied,false);
+ const replay=await call("POST","/v1/tenants/"+a+"/roles/assign",actorToken,pendingRole,201);
+ assert.equal(replay.alreadyApplied,true,"DED-015: replay is effect-free");
+ const conflict=await call("POST","/v1/tenants/"+a+"/roles/assign",actorToken,
+   {...pendingRole,targetId:reviewer},409);
+ assert.equal(conflict.code,"IDEMPOTENCY_CONFLICT","DED-015: payload drift rejected");
+ const grantAudit=await admin.query("SELECT count(*)::integer AS n FROM tto.audit_events WHERE tenant_id=$1 AND event_name='ROLE_ASSIGNED'",[a]);
+ assert.equal(grantAudit.rows[0].n,1,"DED-015: role audit written once");
  const userCToken=await tokenFor(userC);
  await call("GET","/v1/tenants/"+a+"/context",userCToken,null,200);
  // DED.CORE-AUTH-AT-003: an expired role rejects even with active session.
@@ -125,7 +148,7 @@ async function main(){
   [unbackedManagerRole,userC,a]
  );
  const deniedByAuthority=await call("POST","/v1/tenants/"+a+"/roles/assign",userCToken,
-  {targetId:reviewer,roleCode:"MEMBER",legalAuthorityId:randomUUID()},403);
+  {targetId:reviewer,roleCode:"MEMBER",legalAuthorityId:randomUUID(),requestId:randomUUID()},403);
  assert.equal(deniedByAuthority.code,"AUTHORITY_REQUIRED","DED-017 exact authority decision");
  await admin.query("UPDATE tto.role_assignments SET revoked_at=now() WHERE assignment_id=$1",[unbackedManagerRole]);
  const unauthorizedEffect=await admin.query(
