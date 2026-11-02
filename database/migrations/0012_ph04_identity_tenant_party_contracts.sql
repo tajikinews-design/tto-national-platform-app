@@ -102,6 +102,9 @@ CREATE TABLE tto.tenant_slugs (
 );
 CREATE UNIQUE INDEX tenant_one_current_slug ON tto.tenant_slugs(tenant_id)
  WHERE status='CURRENT';
+-- Active or redirecting slugs are globally reserved, not only unique per Tenant.
+CREATE UNIQUE INDEX tenant_slug_global_live_unique ON tto.tenant_slugs(slug)
+ WHERE status IN ('CURRENT','REDIRECT');
 CREATE TABLE tto.tenant_legal_profiles (
   profile_id uuid PRIMARY KEY,
   tenant_id uuid NOT NULL REFERENCES tto.tenants(tenant_id),
