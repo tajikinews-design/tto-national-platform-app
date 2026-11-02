@@ -35,7 +35,7 @@ jobs:
           done
           docker exec tto-ph04-ci-pg pg_isready -U postgres
           docker exec tto-ph04-ci-pg createdb -U postgres tto
-      - name: Apply pinned additive migrations 0001..0012 on disposable PG only
+      - name: Apply pinned additive migrations 0001..0013 on disposable PG only
         run: |
           set -euo pipefail
           for f in database/migrations/[0-9][0-9][0-9][0-9]_*.sql; do
@@ -63,6 +63,11 @@ jobs:
           set -euo pipefail
           bash scripts/ci/ph04-concurrent-slug-race.sh
           echo "TTO_PH04_CHILD02_AT003_REAL_RACE_PASS"
+      - name: Verify dedicated CF01 idempotent role grant and step-up fail-closed
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph04-ci-pg psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph04-guarded-role-stepup-idempotency.sql
+          echo "TTO_PH04_CF01_DED015_DED018_PG17_GUARDED_SQL_PASS"
       - name: Stop synthetic PG17 and erase data
         if: always()
         run: docker rm -f tto-ph04-ci-pg || true
