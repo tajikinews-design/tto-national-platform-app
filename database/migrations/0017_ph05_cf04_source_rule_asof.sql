@@ -72,7 +72,8 @@ BEGIN
   JOIN tto.ph05_legal_source_refs s ON s.source_id=v.source_id
   WHERE v.rule_code=p_rule_code AND v.effective_from<=p_as_of
   ORDER BY v.effective_from DESC,v.rule_version DESC LIMIT 1;
- IF NOT FOUND OR r.status<>'ACTIVE' OR r.source_id IS NULL
+ IF NOT FOUND THEN RETURN 'BLOCKED';END IF;
+ IF r.status<>'ACTIVE' OR r.source_id IS NULL
  THEN RETURN 'BLOCKED';END IF;
  IF r.candidate_disposition='BLOCK' THEN RETURN 'BLOCKED';END IF;
  -- Even an active, source-linked rule only reaches human/legal review.
