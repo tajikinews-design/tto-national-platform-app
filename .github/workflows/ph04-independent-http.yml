@@ -1,0 +1,71 @@
+name: PH04 independent real Nest HTTP and PostgreSQL acceptance (NO DEPLOY)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [feat/ph03-three-portal-secure-shells-20261102]
+permissions:
+  contents: read
+concurrency:
+  group: ph04-independent-http-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  real-nest-disposable-postgres:
+    if: github.head_ref == 'feat/ph04-identity-tenant-party-contract-parity-20261102'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      NODE_ENV: "test"
+      APIIR_TOKEN: ""
+      VERCEL: ""
+      TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+    steps:
+      - name: Checkout exact reviewed SHA read-only
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Setup Node22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Build all three portals and Nest API without production configuration
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.18.0
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm check
+      - name: Prepare disposable PG17 for real HTTP
+        run: |
+          set -euo pipefail
+          docker run --rm -d --name tto-adaptive-postgres -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto -p 127.0.0.1:5432:5432 postgres:17
+          ready=false
+          for n in $(seq 1 100);do
+            if docker exec tto-adaptive-postgres psql -U postgres -d tto -Atqc 'SELECT 1' >/dev/null 2>&1;then ready=true;break;fi
+            sleep 0.5
+          done
+          test "$ready" = true || { docker logs tto-adaptive-postgres | tail -60;exit 1; }
+      - name: Install isolated pinned Chromium for DED-004 negative UI gate
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/tto-ph04-browser --no-audit --no-fund playwright@1.56.1
+          node /tmp/tto-ph04-browser/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Actual historical, Chromium DED-004 and fresh step-up HTTP regression
+        env:
+          NODE_PATH: /tmp/tto-ph04-browser/node_modules
+          PH04_BROWSER_DED004: "1"
+        run: |
+          set -euo pipefail
+          bash scripts/ci/release-regression.sh
+          echo "TTO_PH04_INDEPENDENT_REAL_HTTP_SECURITY_PASS"
+      - name: Archive adversarial mobile Chromium evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ph04-ded004-chromium-negative
+          path: ph04-screenshots/*.png
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Erase synthetic PostgreSQL regardless of outcome
+        if: always()
+        run: docker rm -f tto-adaptive-postgres || true

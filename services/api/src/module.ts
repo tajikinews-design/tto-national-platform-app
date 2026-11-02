@@ -1,4 +1,4 @@
-import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, HttpCode, Req } from "@nestjs/common";
+import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
 import { createHash, createHmac, randomBytes, randomUUID, randomInt } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
@@ -85,14 +85,16 @@ export class Database {
     } catch(e) {try {await client.query("ROLLBACK")}catch{};throw e}
     finally {client.release()}
   }
+  sessionDigest(authorization?:string):Buffer {
+    const match=/^Bearer ([A-Za-z0-9_-]{32,256})$/.exec(authorization ?? "");
+    if(!match)throw new UnauthorizedException("Authentication required");
+    return createHash("sha256").update(match[1]).digest();
+  }
   async sessionActor(authorization?: string): Promise<string> {
-    const match = /^Bearer ([A-Za-z0-9_-]{32,256})$/.exec(authorization ?? "");
-    if (!match) throw new UnauthorizedException("Authentication required");
-    const hash = createHash("sha256").update(match[1]).digest("hex");
-    const result = await this.pool.query<{user_id:string}>(
-      "SELECT user_id FROM tto.resolve_session(decode($1, 'hex'))", [hash]
-    );
-    if (result.rows.length !== 1) throw new UnauthorizedException("Invalid or expired session");
+    const hash=this.sessionDigest(authorization);
+    const result=await this.pool.query<{user_id:string}>(
+      "SELECT user_id FROM tto.resolve_session($1)",[hash]);
+    if(result.rows.length!==1)throw new UnauthorizedException("Invalid or expired session");
     return result.rows[0].user_id;
   }
   async inTenant<T>(userId:string, tenantId:string, work:(client:PoolClient)=>Promise<T>): Promise<T> {
@@ -130,7 +132,7 @@ export class TenantPartyService {
       const result = await client.query<{tenant_id:string;slug:string;status:string}>(
         "SELECT tenant_id,slug,status FROM tto.tenants WHERE tenant_id=$1",[tenantId]
       );
-      if (!result.rowCount) throw new ForbiddenException("Tenant context denied");
+      if (!result.rowCount) throw new ForbiddenException({code:"CROSS_TENANT_ACCESS_DENIED",message:"Tenant scope inaccessible"});
       return result.rows[0];
     });
   }
@@ -153,7 +155,7 @@ export class DocumentsService {
     const actor=await this.identity.requireActor(authorization);
     return this.db.inTenant(actor,tenantId,async client=>{
       const valid=await client.query("SELECT tenant_id FROM tto.tenants WHERE tenant_id=$1",[tenantId]);
-      if(!valid.rowCount) throw new ForbiddenException("Tenant context denied");
+      if(!valid.rowCount) throw new ForbiddenException({code:"CROSS_TENANT_ACCESS_DENIED",message:"Tenant scope inaccessible"});
       const documents=await client.query(
         "SELECT document_id,title,classification,status,created_at FROM tto.documents WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 50",[tenantId]
       );
@@ -215,6 +217,20 @@ export class FoundationCommandsController {
       [tenant,oldState,nextState,version]);
     if(!approved)throw new ForbiddenException("Tenant transition denied");
     return {transitioned:true};
+  }
+  @Post("tenants/:tenantId/slug/transition")
+  async changeTenantSlug(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    const slug=requireText(input?.newSlug,2,101);
+    if(!/^[a-z0-9][a-z0-9-]{1,100}$/.test(slug))
+      throw new BadRequestException("Invalid tenant slug");
+    const version=input?.expectedVersion;
+    if(!Number.isSafeInteger(version)||Number(version)<1)
+      throw new BadRequestException("Invalid entity version");
+    const changed=await this.run<boolean>(tenant,auth,
+      "SELECT tto.change_tenant_slug($1,$2,$3) AS out",[tenant,slug,version]);
+    if(!changed)throw new ForbiddenException("Tenant slug transition denied");
+    return {changed:true};
   }
   @Post("tenants/:tenantId/parties/aliases/merge")
   async mergeParty(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
@@ -383,6 +399,56 @@ export class FoundationCommandsController {
     if(!accepted)throw new UnauthorizedException("Challenge invalid or expired");
     return {accessToken:token,tokenType:"Bearer"};
   }
+  @Post("auth/step-up/request")
+  @HttpCode(202)
+  async requestStepUp(@Headers("authorization") auth:string|undefined){
+    const actor=await this.db.sessionActor(auth);
+    const secret=process.env.AUTH_CHALLENGE_HMAC_SECRET;
+    if(!secret||Buffer.byteLength(secret)<32)
+      throw new ServiceUnavailableException("Step-up authentication unavailable");
+    const mock=process.env.NODE_ENV==="test"&&process.env.TTO_MOCK_SMSOTP_PROVIDER==="true";
+    if(!mock&&(process.env.TTO_ENABLE_REAL_SMSOTP_DELIVERY!=="true"||
+      !process.env.APIIR_TOKEN||process.env.APIIR_TOKEN.length<12))
+      throw new ServiceUnavailableException("Step-up SMS provider unavailable");
+    const requestId=randomUUID();
+    const code=mock?"111222":String(randomInt(100000,1000000));
+    const digest=createHmac("sha256",secret).update(requestId+":"+code).digest();
+    const sessionHash=this.db.sessionDigest(auth);
+    const mobile=await this.db.withActor(actor,async client=>{
+      const result=await client.query<{mobile:string|null}>(
+        "SELECT tto.begin_session_stepup_smsotp($1,$2,$3) AS mobile",
+        [requestId,digest,sessionHash]);
+      return result.rows[0]?.mobile??null;
+    });
+    if(!mobile)return {requestId,status:"ACCEPTED"};
+    let delivered=false;
+    try {delivered=mock||await this.sms.send(mobile,code)}catch{delivered=false}
+    await this.db.attestSmsDelivery(requestId,delivered);
+    // Generic response. No mobile, OTP, proof or session data is returned.
+    return {requestId,status:"ACCEPTED"};
+  }
+  @Post("auth/step-up/verify")
+  @HttpCode(200)
+  async verifyStepUp(@Headers("authorization") auth:string|undefined,
+    @Body() payload:Record<string,unknown>){
+    const actor=await this.db.sessionActor(auth);
+    const challenge=requireId(payload?.challengeId);
+    if(typeof payload?.otp!=="string"||!/^[0-9]{6,10}$/.test(payload.otp))
+      throw new BadRequestException("Invalid verification code");
+    const secret=process.env.AUTH_CHALLENGE_HMAC_SECRET;
+    if(!secret||Buffer.byteLength(secret)<32)
+      throw new ServiceUnavailableException("Step-up authentication unavailable");
+    const candidate=createHmac("sha256",secret).update(challenge+":"+payload.otp).digest();
+    const sessionHash=this.db.sessionDigest(auth);
+    const ok=await this.db.withActor(actor,async client=>{
+      const result=await client.query<{verified:boolean}>(
+        "SELECT tto.consume_session_stepup_smsotp($1,$2,$3) AS verified",
+        [challenge,candidate,sessionHash]);
+      return result.rows[0]?.verified===true;
+    });
+    if(!ok)throw new UnauthorizedException("Step-up verification denied");
+    return {elevated:true,validForSeconds:300};
+  }
   // Authentication only: never infer any tenant role, legal authority or national-admin scope.
   @Get("auth/session")
   async session(@Headers("authorization") auth?:string){
@@ -397,15 +463,29 @@ export class FoundationCommandsController {
   }
   @Post("tenants/:tenantId/roles/assign")
   async assign(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
-    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>) {
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
     const target=requireId(input?.targetId),legal=requireId(input?.legalAuthorityId);
+    const requestId=requireId(input?.requestId);
     const role=requireText(input?.roleCode,2,40);
     if(!["MEMBER","COOPERATIVE_MANAGER","DOCUMENT_REVIEWER"].includes(role))
       throw new BadRequestException("Unsupported role");
-    const ok=await this.run<boolean>(tenant,auth,"SELECT tto.assign_tenant_role($1,$2,$3,$4) AS out",
-      [target,tenant,role,legal]);
-    if(!ok)throw new ForbiddenException("Role assignment denied");
-    return {assigned:true};
+    const actor=await this.db.sessionActor(auth);
+    const sessionHash=this.db.sessionDigest(auth);
+    const decision=await this.db.inTenant(actor,tenant,async client=>{
+      const r=await client.query<{out:string}>(
+        "SELECT tto.assign_tenant_role_guarded($1,$2,$3,$4,$5,$6) AS out",
+        [target,tenant,role,legal,requestId,sessionHash]);
+      return r.rows[0]?.out??"PERMISSION_DENIED";
+    });
+    if(decision==="ASSIGNED")return {assigned:true,requestId,alreadyApplied:false};
+    if(decision==="ALREADY_APPLIED")return {assigned:true,requestId,alreadyApplied:true};
+    if(decision==="IDEMPOTENCY_CONFLICT")
+      throw new ConflictException({code:"IDEMPOTENCY_CONFLICT",message:"Request ID reused with different assignment"});
+    if(decision==="STEP_UP_REQUIRED")
+      throw new ForbiddenException({code:"STEP_UP_REQUIRED",message:"Fresh session-bound verification required"});
+    if(decision==="AUTHORITY_REQUIRED")
+      throw new ForbiddenException({code:"AUTHORITY_REQUIRED",message:"Independent legal authority required"});
+    throw new ForbiddenException({code:"PERMISSION_DENIED",message:"Role assignment permission denied"});
   }
   @Post("tenants/:tenantId/roles/:assignmentId/revoke")
   async revoke(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
@@ -414,10 +494,20 @@ export class FoundationCommandsController {
     const version=input?.expectedVersion;
     if(!Number.isSafeInteger(version)||Number(version)<1)
       throw new BadRequestException("Invalid expected version");
-    const ok=await this.run<boolean>(tenant,auth,"SELECT tto.revoke_role_assignment($1,$2) AS out",
-      [assignment,version]);
-    if(!ok)throw new ForbiddenException("Role revocation denied");
-    return {revoked:true};
+    const actor=await this.db.sessionActor(auth);
+    const digest=this.db.sessionDigest(auth);
+    const decision=await this.db.inTenant(actor,tenant,async client=>{
+      const r=await client.query<{out:string}>(
+        "SELECT tto.revoke_role_assignment_guarded($1,$2,$3) AS out",
+        [assignment,version,digest]);
+      return r.rows[0]?.out??"PERMISSION_DENIED";
+    });
+    if(decision==="REVOKED")return {revoked:true};
+    if(decision==="STEP_UP_REQUIRED")
+      throw new ForbiddenException({code:"STEP_UP_REQUIRED",message:"Fresh session-bound verification required"});
+    if(decision==="AUTHORITY_REQUIRED")
+      throw new ForbiddenException({code:"AUTHORITY_REQUIRED",message:"Independent legal authority required"});
+    throw new ForbiddenException({code:"PERMISSION_DENIED",message:"Role revocation denied"});
   }
   @Post("tenants/:tenantId/jit/requests")
   async requestJit(@Param("tenantId",new ParseUUIDPipe()) tenant:string,

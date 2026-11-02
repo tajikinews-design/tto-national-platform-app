@@ -1,0 +1,80 @@
+name: PH04 Child01/02 physical contract and RLS acceptance (synthetic PG17 only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - feat/ph03-three-portal-secure-shells-20261102
+permissions:
+  contents: read
+concurrency:
+  group: ph04-contract-pg17-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  child01-child02-disposable-pg:
+    if: github.head_ref == 'feat/ph04-identity-tenant-party-contract-parity-20261102'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      CI: "true"
+      DATABASE_URL: ""
+      TTO_API_BASE_URL: ""
+      APIIR_TOKEN: ""
+      VERCEL: ""
+    steps:
+      - name: Checkout exact PR commit read-only
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Start synthetic non-hosted PG17
+        run: |
+          set -euo pipefail
+          docker run --rm -d --name tto-ph04-ci-pg -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine
+          # PostgreSQL initdb may briefly start and then restart its temporary server.
+          # Retry the actual database creation instead of trusting one pg_isready edge.
+          ready=false
+          for n in $(seq 1 100); do
+            if docker exec tto-ph04-ci-pg psql -U postgres -d postgres -Atqc "SELECT 1" >/dev/null 2>&1 &&
+               docker exec tto-ph04-ci-pg createdb -U postgres tto >/dev/null 2>&1; then
+              ready=true
+              break
+            fi
+            sleep 0.5
+          done
+          test "$ready" = true || { docker logs tto-ph04-ci-pg | tail -50; exit 1; }
+          docker exec tto-ph04-ci-pg psql -U postgres -d tto -v ON_ERROR_STOP=1 -Atqc 'SELECT 1'
+      - name: Apply pinned additive migrations 0001..0013 on disposable PG only
+        run: |
+          set -euo pipefail
+          for f in database/migrations/[0-9][0-9][0-9][0-9]_*.sql; do
+            echo "PH04_MIGRATION_APPLY_SYNTHETIC=$(basename "$f")"
+            docker exec -i tto-ph04-ci-pg psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" >/dev/null
+          done
+          echo "TTO_PH04_ALL_MIGRATIONS_SYNTHETIC_PASS"
+      - name: Verify source physical field constraints and fail-closed isolation
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph04-ci-pg psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph04-identity-tenant-party-v12.sql
+          echo "TTO_PH04_CF01_CF02_SYNTHETIC_SQL_ACCEPTANCE_PASS"
+      - name: Execute original CHILD-02 eight scenarios with partial-evidence flags
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph04-ci-pg psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph04-child02-source-eight.sql
+          echo "TTO_PH04_CHILD02_SOURCE_EIGHT_PROBES_PASS_WITH_PARTIAL_GAPS"
+      - name: Verify approved source event replay has zero second effects
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph04-ci-pg psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph04-child02-idempotent-ingest.sql
+          echo "TTO_PH04_CHILD02_AT007_REPLAY_NO_EFFECT_PASS"
+      - name: Run actual two-transaction cross-tenant slug collision race
+        run: |
+          set -euo pipefail
+          bash scripts/ci/ph04-concurrent-slug-race.sh
+          echo "TTO_PH04_CHILD02_AT003_REAL_RACE_PASS"
+      - name: Verify dedicated CF01 idempotent role grant and step-up fail-closed
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph04-ci-pg psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph04-guarded-role-stepup-idempotency.sql
+          echo "TTO_PH04_CF01_DED015_DED018_PG17_GUARDED_SQL_PASS"
+      - name: Stop synthetic PG17 and erase data
+        if: always()
+        run: docker rm -f tto-ph04-ci-pg || true
