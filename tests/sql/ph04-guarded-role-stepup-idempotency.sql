@@ -64,6 +64,14 @@ DO $check$ DECLARE mobile text;ok boolean;bad_session uuid;BEGIN
   RAISE EXCEPTION 'STEPUP_ACCEPTED_BEFORE_PROVIDER_DELIVERY';END IF;
  ok:=tto.complete_smsotp_delivery('99999999-9999-4999-8999-999999999990',true);
  IF NOT ok THEN RAISE EXCEPTION 'STEPUP_DELIVERY_STATUS_FAILED';END IF;
+ INSERT INTO tto.user_sessions(session_id,user_id,session_hash,security_epoch,
+  authorization_epoch_at_issue,assurance_level,expires_at)
+  VALUES('a2222222-2222-4222-8222-222222222222',
+   '11111111-1111-4111-8111-111111111111',decode(repeat('bc',32),'hex'),
+   0,0,'OTP',now()+interval '1 hour');
+ IF tto.consume_session_stepup_smsotp('99999999-9999-4999-8999-999999999990',
+   decode(repeat('cd',32),'hex'),decode(repeat('bc',32),'hex')) THEN
+  RAISE EXCEPTION 'STEPUP_OTHER_SAME_USER_SESSION_ACCEPTED';END IF;
  ok:=tto.consume_session_stepup_smsotp('99999999-9999-4999-8999-999999999990',
    decode(repeat('cd',32),'hex'),decode(repeat('ab',32),'hex'));
  IF NOT ok THEN RAISE EXCEPTION 'STEPUP_FRESH_PROOF_DENIED';END IF;
@@ -100,8 +108,10 @@ DO $check$ DECLARE code text; BEGIN
  IF (SELECT count(*) FROM tto.audit_events
     WHERE tenant_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND event_name='ROLE_ASSIGNED')<>1
  THEN RAISE EXCEPTION 'DED_015_MORE_THAN_ONE_ROLE_AUDIT'; END IF;
- IF has_table_privilege('tto_app','tto.role_assignment_request_receipts','SELECT') THEN
-  RAISE EXCEPTION 'GUARDED_REQUEST_LOG_DATA_EXPOSED';END IF;
+ IF has_table_privilege('tto_app','tto.role_assignment_request_receipts','SELECT') OR
+    has_function_privilege('tto_app',
+     'tto.assign_tenant_role(uuid,uuid,text,uuid)','EXECUTE') THEN
+  RAISE EXCEPTION 'GUARDED_ROLE_REQUEST_CAN_BYPASS';END IF;
 END $check$;
 UPDATE tto.user_accounts SET authorization_epoch=1
  WHERE user_id='11111111-1111-4111-8111-111111111111';
