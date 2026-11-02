@@ -494,10 +494,20 @@ export class FoundationCommandsController {
     const version=input?.expectedVersion;
     if(!Number.isSafeInteger(version)||Number(version)<1)
       throw new BadRequestException("Invalid expected version");
-    const ok=await this.run<boolean>(tenant,auth,"SELECT tto.revoke_role_assignment($1,$2) AS out",
-      [assignment,version]);
-    if(!ok)throw new ForbiddenException("Role revocation denied");
-    return {revoked:true};
+    const actor=await this.db.sessionActor(auth);
+    const digest=this.db.sessionDigest(auth);
+    const decision=await this.db.inTenant(actor,tenant,async client=>{
+      const r=await client.query<{out:string}>(
+        "SELECT tto.revoke_role_assignment_guarded($1,$2,$3) AS out",
+        [assignment,version,digest]);
+      return r.rows[0]?.out??"PERMISSION_DENIED";
+    });
+    if(decision==="REVOKED")return {revoked:true};
+    if(decision==="STEP_UP_REQUIRED")
+      throw new ForbiddenException({code:"STEP_UP_REQUIRED",message:"Fresh session-bound verification required"});
+    if(decision==="AUTHORITY_REQUIRED")
+      throw new ForbiddenException({code:"AUTHORITY_REQUIRED",message:"Independent legal authority required"});
+    throw new ForbiddenException({code:"PERMISSION_DENIED",message:"Role revocation denied"});
   }
   @Post("tenants/:tenantId/jit/requests")
   async requestJit(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
