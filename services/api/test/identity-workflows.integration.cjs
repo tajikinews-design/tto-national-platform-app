@@ -194,6 +194,46 @@ async function main(){
  await call("GET","/v1/parties",null,null,404);
  await call("GET","/v1/tenants/"+a+"/parties",userCToken,null,404);
  console.log("TTO_PH04_CF02_AT008_HTTP_NO_ENUMERATION_ROUTE_PASS");
+ // DED-004: actual Chromium button click -> live Nest HTTP 403, no database effect.
+ // This is an adversarial visible-control fixture hosted on Nest's own origin,
+ // NOT a claim that a production manager feature is currently rendered.
+ if(process.env.PH04_BROWSER_DED004==="1"){
+  const {chromium}=require("playwright");
+  const fs=require("node:fs");
+  const browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+  try{
+   const context=await browser.newContext({viewport:{width:390,height:844},locale:"fa-IR"});
+   try{
+    const page=await context.newPage();
+    const health=await page.goto(root+"/health",{waitUntil:"domcontentloaded"});
+    assert.equal(health.status(),200,"Live Nest test origin must be reachable");
+    await page.setContent('<!doctype html><html lang="fa" dir="rtl"><body><main><h1>سناریوی کنترل نامعتبر</h1><button id="forged" type="button">واگذاری نقش بدون مجوز</button><p id="outcome" role="status">آماده</p></main></body></html>');
+    const beforeRole=await admin.query("SELECT count(*)::integer AS n FROM tto.role_assignments WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER'",[reviewer,a]);
+    const beforeAudit=await admin.query("SELECT count(*)::integer AS n FROM tto.audit_events WHERE tenant_id=$1 AND event_name='ROLE_ASSIGNED'",[a]);
+    await page.evaluate(({token,tenant,target})=>{
+     document.getElementById("forged").addEventListener("click",async()=>{
+      const response=await fetch("/v1/tenants/"+tenant+"/roles/assign",{
+       method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+token},
+       body:JSON.stringify({targetId:target,roleCode:"MEMBER",
+        legalAuthorityId:"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        requestId:"ffffffff-ffff-4fff-8fff-ffffffffffff"})
+      });
+      const result=await response.json();
+      document.getElementById("outcome").textContent=response.status+":"+result.code;
+     });
+    },{token:userCToken,tenant:a,target:reviewer});
+    await page.getByRole("button",{name:"واگذاری نقش بدون مجوز"}).click();
+    await page.getByRole("status").getByText("403:PERMISSION_DENIED").waitFor({timeout:10000});
+    const afterRole=await admin.query("SELECT count(*)::integer AS n FROM tto.role_assignments WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER'",[reviewer,a]);
+    const afterAudit=await admin.query("SELECT count(*)::integer AS n FROM tto.audit_events WHERE tenant_id=$1 AND event_name='ROLE_ASSIGNED'",[a]);
+    assert.equal(afterRole.rows[0].n,beforeRole.rows[0].n,"DED004 Chromium click created unauthorized role");
+    assert.equal(afterAudit.rows[0].n,beforeAudit.rows[0].n,"DED004 Chromium click changed role audit");
+    fs.mkdirSync("ph04-screenshots",{recursive:true});
+    await page.screenshot({path:"ph04-screenshots/ded004-chromium-forged-control-mobile.png",fullPage:true});
+    console.log("TTO_PH04_DED004_REAL_CHROMIUM_ADVERSARIAL_BUTTON_TO_NEST_DENIAL_PASS");
+   }finally{await context.close();}
+  }finally{await browser.close();}
+ }
  // DED-017: a software manager role without separately verified legal
  // authority must not execute role-management; return exact AUTHORITY_REQUIRED
  // and guarantee no effect on the target User's role assignments.
