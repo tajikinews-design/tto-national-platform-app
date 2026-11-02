@@ -78,6 +78,8 @@ async function main(){
   [tenantBRole,userA,b]
  );
  await call("GET","/v1/tenants/"+b+"/context",actorToken,null,200);
+ // DED-001: tenant-B document-read permission must not grant tenant-A manager permissions.
+ await call("GET","/v1/tenants/"+b+"/documents",actorToken,null,200);
  await admin.query("UPDATE tto.role_assignments SET revoked_at=now() WHERE assignment_id=$1",[tenantBRole]);
  await call("GET","/v1/tenants/"+b+"/context",actorToken,null,403);
  await call("GET","/v1/tenants/"+a+"/context",actorToken,null,200);
