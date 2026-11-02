@@ -128,3 +128,12 @@ button,input,textarea,select{font-family:var(--tto-font),Vazirmatn,Tahoma,Arial,
  .main-content,.panel{min-width:0}
 }
 @media (prefers-reduced-motion:reduce){.skip-to-content,.nav-link{transition:none!important}}
+
+/* PH03 WCAG AA: small secondary copy must remain readable on white/blue cards. */
+.nav-link small{color:#42526a}
+.metric small,.panel p,footer{color:#43546d}
+.hint{color:#42526a}
+.module-card>span:not(.module-card-code){color:#43546d}
+.module-card-code{color:#445575}
+.module-empty span{color:#405773}
+.topbar .preview-tag{color:#644500}
