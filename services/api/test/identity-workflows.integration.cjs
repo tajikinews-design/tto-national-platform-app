@@ -45,9 +45,11 @@ async function main(){
  [challenge,userA,createHmac("sha256",pepper).update(challenge+":"+otp).digest()]
  );
  proc=spawn(process.execPath,["dist/main.js"],{cwd:path.resolve(__dirname,".."),
-  env:{...process.env,NODE_ENV:"test",TTO_MOCK_SMSOTP_PROVIDER:"true",DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"31665"},stdio:["ignore","ignore","pipe"]});
- proc.stderr.on("data",buf=>{syntheticNestErrorLog+=String(buf);
-   if(syntheticNestErrorLog.length>10000)syntheticNestErrorLog=syntheticNestErrorLog.slice(-10000);});
+  env:{...process.env,NODE_ENV:"test",TTO_MOCK_SMSOTP_PROVIDER:"true",DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"31665"},stdio:["ignore","pipe","pipe"]});
+ for(const stream of [proc.stdout,proc.stderr]){
+   stream.on("data",buf=>{syntheticNestErrorLog+=String(buf);
+     if(syntheticNestErrorLog.length>12000)syntheticNestErrorLog=syntheticNestErrorLog.slice(-12000);});
+ }
  for(let i=0;i<70;i++){try{const res=await fetch(root+"/health");if(res.ok)break;}catch{}
   if(proc.exitCode!==null)throw Error("NEST_API_EXITED");
   await new Promise(r=>setTimeout(r,250));
