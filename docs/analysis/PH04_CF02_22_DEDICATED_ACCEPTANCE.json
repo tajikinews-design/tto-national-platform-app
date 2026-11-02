@@ -213,14 +213,15 @@
       "sourceSection": "§29",
       "scenario": "Party Merge with membership history",
       "expected": "source preserved",
-      "technicalEvidence": "SOURCE_GAP",
+      "technicalEvidence": "SYNTHETIC_PG17_HISTORY_INVARIANT_RUN_PENDING",
       "acceptanceStatus": "PENDING_INDEPENDENT_EXACT_PROOF",
       "exactCiRun": null,
       "acceptedSha": null,
       "independentProduct": null,
       "independentArchitecture": null,
       "independentLegal": null,
-      "independentQA": null
+      "independentQA": null,
+      "technicalAssertionSource": "tests/sql/ph04-child02-source-eight.sql"
     },
     {
       "key": "CF02.DED.CORE-PARTY-AT-008",
@@ -277,14 +278,17 @@
       "sourceSection": "§29",
       "scenario": "Out-of-order source version",
       "expected": "no state regression",
-      "technicalEvidence": "NEW_SQL_PENDING_CI",
+      "technicalEvidence": "SYNTHETIC_PG17_STALE_VERSION_NO_REGRESSION_PASS",
       "acceptanceStatus": "PENDING_INDEPENDENT_EXACT_PROOF",
       "exactCiRun": null,
       "acceptedSha": null,
       "independentProduct": null,
       "independentArchitecture": null,
       "independentLegal": null,
-      "independentQA": null
+      "independentQA": null,
+      "technicalAssertionSource": "tests/sql/ph04-child02-idempotent-ingest.sql",
+      "relatedHistoricalRun": 41458569480,
+      "relatedHistoricalSha": "3ada2eeb95ae65625c6b8ea5a6f5670a8cdd1a73"
     },
     {
       "key": "CF02.DED.CORE-REL-AT-004",
