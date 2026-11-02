@@ -1,0 +1,92 @@
+name: TTO Fastify one-shot complete release validation (NO DEPLOY)
+on:
+  push:
+    branches:
+      - ci/tto-fastify-release-audit-20261102
+    paths:
+      - .github/workflows/tto-fastify-release-audit-once.yml
+permissions:
+  contents: read
+concurrency:
+  group: tto-fastify-release-audit-once
+  cancel-in-progress: true
+jobs:
+  disposable-full-release:
+    if: github.ref == 'refs/heads/ci/tto-fastify-release-audit-20261102'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      CI: 'true'
+      APIIR_TOKEN: ''
+      NEXT_TELEMETRY_DISABLED: '1'
+      TTO_API_BASE_URL: ''
+      VERCEL: ''
+      DATABASE_URL: ''
+      TEST_ADMIN_DATABASE_URL: 'postgresql://postgres@127.0.0.1:5432/tto'
+    steps:
+      - name: Read-only checkout of candidate exact code plus isolated test workflow
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Verify candidate commit is sole parent of this one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = 'f96c1a07b75e39e9deaad83521235664adc0e185'
+          test "$(git diff --name-only HEAD^ HEAD)" = '.github/workflows/tto-fastify-release-audit-once.yml'
+          echo 'TTO_RELEASE_AUDIT_CANDIDATE_SHA=f96c1a07b75e39e9deaad83521235664adc0e185'
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Source integrity and full build with frozen lockfile
+        run: |
+          set -euo pipefail
+          python3 scripts/check_source_baseline.py
+          python3 -m unittest discover -s tests -v
+          python3 -m unittest discover -s scripts/ci -p 'test_*.py' -v
+          npm install -g pnpm@10.18.0 --no-audit --no-fund
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm check
+          echo 'TTO_FASTIFY_RELEASE_BUILD_TYPECHECK_PASS'
+      - name: Create disposable PostgreSQL17 (NO HOSTED DB)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name tto-adaptive-postgres --rm -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto -p 127.0.0.1:5432:5432 postgres:17
+          for i in $(seq 1 40); do
+            if docker exec tto-adaptive-postgres pg_isready -h 127.0.0.1 -U postgres -d tto >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec tto-adaptive-postgres pg_isready -h 127.0.0.1 -U postgres -d tto
+      - name: Full historical SQL, HTTP, OTP, JIT and share-source regression on disposable PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/ci/release-regression.sh
+          echo 'TTO_FASTIFY_FULL_HISTORICAL_REGRESSION_PASS'
+      - name: Rebuild disposable schema and verify cross-tenant real Next/Nest/PostgreSQL integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec tto-adaptive-postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'DROP DATABASE IF EXISTS tto WITH (FORCE)'
+          docker exec tto-adaptive-postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE tto'
+          for migration in database/migrations/00{01,02,03,04,05,06,07,08,09,10}_*.sql; do
+            test -f "$migration"
+            docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$migration"
+          done
+          timeout --signal=TERM --kill-after=5s 220s node scripts/e2e-cf02-identity-authority.cjs
+          echo 'TTO_FASTIFY_REAL_HTTP_PG17_CORE_E2E_PASS'
+      - name: Verify deployment manifests without deploying
+        run: node scripts/test_arvan_k8s_templates.cjs
+      - name: Full OCI container build and synthetic RTL/runtime smoke, no registry push
+        run: |
+          set -euo pipefail
+          bash scripts/ci/release-oci-smoke.sh
+          echo 'TTO_FASTIFY_RELEASE_OCI_SMOKE_PASS'
+      - name: Destroy disposable PG17 even on test failure
+        if: always()
+        shell: bash
+        run: docker stop tto-adaptive-postgres >/dev/null 2>&1 || true
