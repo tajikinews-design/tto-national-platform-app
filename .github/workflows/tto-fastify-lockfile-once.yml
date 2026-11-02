@@ -81,7 +81,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF" = "refs/heads/fix/tto-fastify-security-lock-20261102"
-          test -z "$(git status --porcelain | awk '$2 != "pnpm-lock.yaml" {print}')"
+          test "$(git diff --name-only)" = "pnpm-lock.yaml"
           git add pnpm-lock.yaml
           if git diff --cached --quiet; then echo "TTO_LOCKFILE_NOT_UPDATED"; exit 1; fi
           git config user.name 'github-actions[bot]'
