@@ -101,7 +101,7 @@ class Phase4A(unittest.TestCase):
         self.assertIn('PortalModulePreview',self.module)
         self.assertIn('.sw-closed-section',self.css)
         self.assertIn('@media(max-width:640px)',self.css)
-        self.assertIn('legacy module lost safe placeholder',self.smoke)
+        self.assertIn('management module bypassed safe OTP shell or leaked private data',self.smoke)
 
 if __name__=="__main__":
     unittest.main()
