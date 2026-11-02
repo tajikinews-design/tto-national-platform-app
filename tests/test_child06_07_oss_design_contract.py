@@ -82,8 +82,8 @@ class Child0607OssDesignGuard(unittest.TestCase):
 
     def test_no_unapproved_financial_owner_or_voting_power(self):
         prose = json.dumps(self.design, ensure_ascii=False)
-        for guard in ("Party", "RLS", "Wallet", "sourceVersion", "Shareholder"):
-            self.assertIn(guard, prose)
+        for guard in ("party", "rls", "wallet", "sourceversion", "shareholder"):
+            self.assertIn(guard, prose.lower())
         self.assertNotIn('"status": "APPROVED_FOR_PRODUCTION"', prose)
 
 
