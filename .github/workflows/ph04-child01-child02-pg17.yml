@@ -53,6 +53,11 @@ jobs:
           set -euo pipefail
           docker exec -i tto-ph04-ci-pg psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph04-child02-source-eight.sql
           echo "TTO_PH04_CHILD02_SOURCE_EIGHT_PROBES_PASS_WITH_PARTIAL_GAPS"
+      - name: Run actual two-transaction cross-tenant slug collision race
+        run: |
+          set -euo pipefail
+          bash scripts/ci/ph04-concurrent-slug-race.sh
+          echo "TTO_PH04_CHILD02_AT003_REAL_RACE_PASS"
       - name: Stop synthetic PG17 and erase data
         if: always()
         run: docker rm -f tto-ph04-ci-pg || true
