@@ -116,16 +116,17 @@ async function main(){
   [userC,a]
  );
  await call("GET","/v1/tenants/"+a+"/context",userCToken,null,200);
- // DED-017 (partial): a software manager role without separately verified legal
- // authority must not execute role-management. HTTP 403 is tested; the
- // canonical AUTHORITY_REQUIRED decision code is NOT yet implemented.
+ // DED-017: a software manager role without separately verified legal
+ // authority must not execute role-management; return exact AUTHORITY_REQUIRED
+ // and guarantee no effect on the target User's role assignments.
  const unbackedManagerRole=randomUUID();
  await admin.query(
   "INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'COOPERATIVE_MANAGER')",
   [unbackedManagerRole,userC,a]
  );
- await call("POST","/v1/tenants/"+a+"/roles/assign",userCToken,
+ const deniedByAuthority=await call("POST","/v1/tenants/"+a+"/roles/assign",userCToken,
   {targetId:reviewer,roleCode:"MEMBER",legalAuthorityId:randomUUID()},403);
+ assert.equal(deniedByAuthority.code,"AUTHORITY_REQUIRED","DED-017 exact authority decision");
  await admin.query("UPDATE tto.role_assignments SET revoked_at=now() WHERE assignment_id=$1",[unbackedManagerRole]);
  const unauthorizedEffect=await admin.query(
   "SELECT count(*)::integer AS n FROM tto.role_assignments WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER'",
