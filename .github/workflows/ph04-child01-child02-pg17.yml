@@ -48,6 +48,11 @@ jobs:
           set -euo pipefail
           docker exec -i tto-ph04-ci-pg psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph04-identity-tenant-party-v12.sql
           echo "TTO_PH04_CF01_CF02_SYNTHETIC_SQL_ACCEPTANCE_PASS"
+      - name: Execute original CHILD-02 eight scenarios with partial-evidence flags
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph04-ci-pg psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph04-child02-source-eight.sql
+          echo "TTO_PH04_CHILD02_SOURCE_EIGHT_PROBES_PASS_WITH_PARTIAL_GAPS"
       - name: Stop synthetic PG17 and erase data
         if: always()
         run: docker rm -f tto-ph04-ci-pg || true
