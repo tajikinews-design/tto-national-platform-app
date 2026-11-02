@@ -1,0 +1,899 @@
+{
+  "schemaVersion": "1.0",
+  "status": "SOURCE_EXTRACTED_NO_IMPLEMENTATION_ACCEPTANCE",
+  "source_file": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+  "source_sha": "5eb6be8edfbb61f2eca740a42c30f572b493f023",
+  "extraction_rule": "Canonical Entities sections 3→4; paragraph ordinal zero-based",
+  "children_count": 23,
+  "entity_count": 148,
+  "entities": [
+    {
+      "child_id": "CHILD-01",
+      "entity": "USER_ACCOUNT",
+      "fields": "user_account_id, party_ref?, status, authorization_epoch, security_epoch, version",
+      "source_paragraph": 161
+    },
+    {
+      "child_id": "CHILD-01",
+      "entity": "AUTH_IDENTIFIER",
+      "fields": "identifier_id, user_account_id, type, normalized_hash, protected_value, verification_status",
+      "source_paragraph": 163
+    },
+    {
+      "child_id": "CHILD-01",
+      "entity": "AUTH_CHALLENGE",
+      "fields": "challenge_id, purpose, secret_hash, issued_at, expires_at, attempt_count, status",
+      "source_paragraph": 165
+    },
+    {
+      "child_id": "CHILD-01",
+      "entity": "SESSION",
+      "fields": "session_id, user_account_id, assurance_level, expires_at, revoked_at?, security_epoch_at_issue",
+      "source_paragraph": 167
+    },
+    {
+      "child_id": "CHILD-01",
+      "entity": "ROLE_ASSIGNMENT",
+      "fields": "assignment_id, user_account_id, role_code, scope_type, tenant_id?, resource_ref?, valid_from/until?, basis_ref?, authority_ref?, status",
+      "source_paragraph": 169
+    },
+    {
+      "child_id": "CHILD-01",
+      "entity": "AUTHORITY_REFERENCE",
+      "fields": "authority_reference_id, type, source_domain/entity, evidence_ref?, validity",
+      "source_paragraph": 171
+    },
+    {
+      "child_id": "CHILD-01",
+      "entity": "JIT_ACCESS_GRANT",
+      "fields": "grant_id, user_account_id, tenant_id, purpose, scope[], valid_from, expires_at, status",
+      "source_paragraph": 173
+    },
+    {
+      "child_id": "CHILD-02",
+      "entity": "TENANT",
+      "fields": "tenant_id immutable, type, legal/display name, geography_ref, status, current_slug_ref, legal_profile_ref, version",
+      "source_paragraph": 308
+    },
+    {
+      "child_id": "CHILD-02",
+      "entity": "TENANT_SLUG",
+      "fields": "slug_id, tenant_id, slug, status, valid_from/until, redirect_to?",
+      "source_paragraph": 310
+    },
+    {
+      "child_id": "CHILD-02",
+      "entity": "TENANT_LEGAL_PROFILE",
+      "fields": "profile_id, tenant_id, registration refs, establishment/change document refs, declared values",
+      "source_paragraph": 312
+    },
+    {
+      "child_id": "CHILD-02",
+      "entity": "PARTY",
+      "fields": "party_id global, PERSON/ORGANIZATION, status, canonical/display name, merged_into?",
+      "source_paragraph": 314
+    },
+    {
+      "child_id": "CHILD-02",
+      "entity": "PARTY_IDENTIFIER",
+      "fields": "identifier_id, party_id, type, normalized_hash, protected_value, verification_status",
+      "source_paragraph": 316
+    },
+    {
+      "child_id": "CHILD-02",
+      "entity": "USER_PARTY_LINK",
+      "fields": "link_id, user_account_id, party_id, status, basis, evidence_ref?",
+      "source_paragraph": 318
+    },
+    {
+      "child_id": "CHILD-02",
+      "entity": "COOPERATIVE_RELATIONSHIP_PROJECTION",
+      "fields": "tenant_id, party_id, relationship_id/type/status, source_version, source_event_id",
+      "source_paragraph": 320
+    },
+    {
+      "child_id": "CHILD-02",
+      "entity": "PARTY_MERGE_CASE",
+      "fields": "case_id, survivor_party_id, duplicate_party_id, evidence, status",
+      "source_paragraph": 322
+    },
+    {
+      "child_id": "CHILD-03",
+      "entity": "FILE_OBJECT",
+      "fields": "file_object_id, tenant_id?, storage_ref, mime_type, size_bytes, sha256, scan_status, classification, created_at",
+      "source_paragraph": 460
+    },
+    {
+      "child_id": "CHILD-03",
+      "entity": "DOCUMENT",
+      "fields": "document_id, tenant_id, owner_domain, document_type, status, current_version_id, classification",
+      "source_paragraph": 462
+    },
+    {
+      "child_id": "CHILD-03",
+      "entity": "DOCUMENT_VERSION",
+      "fields": "version_id, document_id, version_no, file_object_id, content_hash, effective_at?, supersedes_version_id?, created_by",
+      "source_paragraph": 464
+    },
+    {
+      "child_id": "CHILD-03",
+      "entity": "EVIDENCE_REFERENCE",
+      "fields": "evidence_ref_id, source_type, source_ref, integrity_ref, observed_at, captured_by, classification",
+      "source_paragraph": 466
+    },
+    {
+      "child_id": "CHILD-03",
+      "entity": "EVIDENCE_BUNDLE",
+      "fields": "bundle_id, subject_ref, evidence_refs[], sealed_at?, bundle_hash?",
+      "source_paragraph": 468
+    },
+    {
+      "child_id": "CHILD-03",
+      "entity": "AUDIT_EVENT",
+      "fields": "audit_event_id, tenant_id?, actor, action, entity_ref, before_ref?, after_ref?, reason, occurred_at, request_id",
+      "source_paragraph": 470
+    },
+    {
+      "child_id": "CHILD-03",
+      "entity": "LEGAL_HOLD_REFERENCE",
+      "fields": "hold_ref_id, subject_ref, source_case_ref, status, placed_at, released_at?",
+      "source_paragraph": 472
+    },
+    {
+      "child_id": "CHILD-04",
+      "entity": "LEGAL_SOURCE",
+      "fields": "source_id, source_type, citation, issued_at, authority, status",
+      "source_paragraph": 612
+    },
+    {
+      "child_id": "CHILD-04",
+      "entity": "LEGAL_RULE_VERSION",
+      "fields": "rule_id, version, source_id, effective_from, effective_to?, applicability, expression_ref, status",
+      "source_paragraph": 614
+    },
+    {
+      "child_id": "CHILD-04",
+      "entity": "POLICY_DEFINITION",
+      "fields": "policy_code, scope, allowed_values/schema, owner",
+      "source_paragraph": 616
+    },
+    {
+      "child_id": "CHILD-04",
+      "entity": "POLICY_VALUE",
+      "fields": "policy_code, tenant_id?, value, valid_from, valid_to?, source/basis",
+      "source_paragraph": 618
+    },
+    {
+      "child_id": "CHILD-04",
+      "entity": "LEGAL_GATE",
+      "fields": "gate_code, domain, question, disposition, status, affected_features, evidence_required",
+      "source_paragraph": 620
+    },
+    {
+      "child_id": "CHILD-04",
+      "entity": "RULE_SNAPSHOT",
+      "fields": "snapshot_id, rule_refs[], policy_refs[], evaluated_at, subject_ref",
+      "source_paragraph": 622
+    },
+    {
+      "child_id": "CHILD-05",
+      "entity": "NOTIFICATION_JOB",
+      "fields": "job_id, tenant_id, source_ref, recipient_ref, channel, template_ref, status, priority",
+      "source_paragraph": 751
+    },
+    {
+      "child_id": "CHILD-05",
+      "entity": "DELIVERY_ATTEMPT",
+      "fields": "attempt_id, job_id, provider, provider_ref, status, attempted_at, error_code?",
+      "source_paragraph": 753
+    },
+    {
+      "child_id": "CHILD-05",
+      "entity": "PAYMENT_INTENT",
+      "fields": "payment_intent_id, tenant_id, purpose, payer_ref, payee_ref, amount_minor, currency, status",
+      "source_paragraph": 755
+    },
+    {
+      "child_id": "CHILD-05",
+      "entity": "PAYMENT_ATTEMPT",
+      "fields": "attempt_id, intent_id, provider_ref, status, idempotency_key",
+      "source_paragraph": 757
+    },
+    {
+      "child_id": "CHILD-05",
+      "entity": "PAYMENT_VERIFICATION",
+      "fields": "verification_id, intent_id, method, result, verified_at, evidence_ref",
+      "source_paragraph": 759
+    },
+    {
+      "child_id": "CHILD-05",
+      "entity": "INTEGRATION_ENDPOINT",
+      "fields": "integration_code, tenant_scope?, provider, auth_profile_ref, status",
+      "source_paragraph": 761
+    },
+    {
+      "child_id": "CHILD-05",
+      "entity": "WEBHOOK_RECEIPT",
+      "fields": "receipt_id, provider, external_event_id, signature_status, received_at, processing_status",
+      "source_paragraph": 763
+    },
+    {
+      "child_id": "CHILD-06",
+      "entity": "MEMBERSHIP_APPLICATION",
+      "fields": "application_id, tenant_id, party_id, status, submitted_at, evidence_refs[], decision_ref?",
+      "source_paragraph": 896
+    },
+    {
+      "child_id": "CHILD-06",
+      "entity": "COOPERATIVE_RELATIONSHIP",
+      "fields": "relationship_id, tenant_id, party_id, type, status, valid_from, valid_until?, basis_ref",
+      "source_paragraph": 898
+    },
+    {
+      "child_id": "CHILD-06",
+      "entity": "SHAREHOLDER_ACCOUNT",
+      "fields": "shareholder_account_id, tenant_id, party_id, shareholder_type, status, bank_info_refs?",
+      "source_paragraph": 900
+    },
+    {
+      "child_id": "CHILD-06",
+      "entity": "MEMBER_PROFILE",
+      "fields": "tenant_id, party_id, member_no?, contact/preferences refs, classification",
+      "source_paragraph": 902
+    },
+    {
+      "child_id": "CHILD-06",
+      "entity": "RELATIONSHIP_DECISION",
+      "fields": "decision_id, application/relationship_ref, outcome, authority_ref, reason, decided_at",
+      "source_paragraph": 904
+    },
+    {
+      "child_id": "CHILD-07",
+      "entity": "SHARE_OWNERSHIP_LEDGER_ENTRY",
+      "fields": "entry_id, tenant_id, shareholder_account_id, share_qty, direction, source_case_ref, effective_at, previous_owner_ref?",
+      "source_paragraph": 1026
+    },
+    {
+      "child_id": "CHILD-07",
+      "entity": "CAPITAL_OFFER",
+      "fields": "offer_id, resolution_ref, terms, eligibility_rule_snapshot, status",
+      "source_paragraph": 1028
+    },
+    {
+      "child_id": "CHILD-07",
+      "entity": "SHARE_SELL_ORDER",
+      "fields": "sell_order_id, seller_ref, qty, valuation_ref, status",
+      "source_paragraph": 1030
+    },
+    {
+      "child_id": "CHILD-07",
+      "entity": "BUY_REQUEST",
+      "fields": "buy_request_id, buyer_ref, sell/order_ref, status",
+      "source_paragraph": 1032
+    },
+    {
+      "child_id": "CHILD-07",
+      "entity": "SHARE_LOCK",
+      "fields": "lock_id, owner_ref, qty, source_case_ref, status, expires_at?",
+      "source_paragraph": 1034
+    },
+    {
+      "child_id": "CHILD-07",
+      "entity": "TRANSFER_CASE",
+      "fields": "case_id, seller_ref, buyer_ref, qty, payment_refs, fee_refs, approvals, status",
+      "source_paragraph": 1036
+    },
+    {
+      "child_id": "CHILD-07",
+      "entity": "VALUATION_REPORT",
+      "fields": "valuation_id, document_ref, expert_ref, value, valid_from, valid_to?, status",
+      "source_paragraph": 1038
+    },
+    {
+      "child_id": "CHILD-08",
+      "entity": "ASSEMBLY",
+      "fields": "assembly_id, type, tenant_id, mode, status, scheduled_at, rule_snapshot",
+      "source_paragraph": 1172
+    },
+    {
+      "child_id": "CHILD-08",
+      "entity": "CANDIDATE",
+      "fields": "candidate_id, party_ref, election_ref, status, documents[]",
+      "source_paragraph": 1174
+    },
+    {
+      "child_id": "CHILD-08",
+      "entity": "CHAMBER_QUALIFICATION_LETTER",
+      "fields": "letter_ref, province, number, date, document_ref, person_results[]",
+      "source_paragraph": 1176
+    },
+    {
+      "child_id": "CHILD-08",
+      "entity": "PROXY",
+      "fields": "proxy_id, principal_ref, representative_ref, assembly_id, evidence_ref, status",
+      "source_paragraph": 1178
+    },
+    {
+      "child_id": "CHILD-08",
+      "entity": "ATTENDANCE",
+      "fields": "attendance_id, assembly_id, party/representative_ref, status",
+      "source_paragraph": 1180
+    },
+    {
+      "child_id": "CHILD-08",
+      "entity": "BALLOT / VOTE_RESULT",
+      "fields": "ballot/result refs, eligibility snapshot, tally, status",
+      "source_paragraph": 1182
+    },
+    {
+      "child_id": "CHILD-08",
+      "entity": "MINUTES / RESOLUTION",
+      "fields": "document refs, approval/finalization state",
+      "source_paragraph": 1184
+    },
+    {
+      "child_id": "CHILD-08",
+      "entity": "REPRESENTATIVE_ELECTION",
+      "fields": "electoral_area, term, elected_representatives[]",
+      "source_paragraph": 1186
+    },
+    {
+      "child_id": "CHILD-08",
+      "entity": "BOARD_MEETING",
+      "fields": "meeting_id, agenda, attendance, resolutions[]",
+      "source_paragraph": 1188
+    },
+    {
+      "child_id": "CHILD-09",
+      "entity": "COMMUNICATION_ITEM",
+      "fields": "item_id, source_domain/ref, type, title/body_ref, classification, status",
+      "source_paragraph": 1325
+    },
+    {
+      "child_id": "CHILD-09",
+      "entity": "AUDIENCE_DEFINITION",
+      "fields": "audience_id, rules/ref, tenant_id, status",
+      "source_paragraph": 1327
+    },
+    {
+      "child_id": "CHILD-09",
+      "entity": "AUDIENCE_SNAPSHOT",
+      "fields": "snapshot_id, recipient_refs[], frozen_at",
+      "source_paragraph": 1329
+    },
+    {
+      "child_id": "CHILD-09",
+      "entity": "ASSURANCE_CAMPAIGN",
+      "fields": "campaign_id, source_ref, assurance_level, status",
+      "source_paragraph": 1331
+    },
+    {
+      "child_id": "CHILD-09",
+      "entity": "RECIPIENT_ASSURANCE",
+      "fields": "recipient_ref, delivery/read/ack states, evidence_refs[]",
+      "source_paragraph": 1333
+    },
+    {
+      "child_id": "CHILD-09",
+      "entity": "ACKNOWLEDGEMENT",
+      "fields": "ack_id, recipient_ref, method, acknowledged_at, evidence_ref",
+      "source_paragraph": 1335
+    },
+    {
+      "child_id": "CHILD-10",
+      "entity": "TICKET",
+      "fields": "ticket_id, tenant_id, requester_ref, category, priority, status, assigned_queue, source_entity_ref?",
+      "source_paragraph": 1448
+    },
+    {
+      "child_id": "CHILD-10",
+      "entity": "TICKET_MESSAGE",
+      "fields": "message_id, ticket_id, author_ref, body/document refs, visibility",
+      "source_paragraph": 1450
+    },
+    {
+      "child_id": "CHILD-10",
+      "entity": "SLA_CLOCK",
+      "fields": "ticket_id, policy_ref, started_at, due_at, paused_intervals",
+      "source_paragraph": 1452
+    },
+    {
+      "child_id": "CHILD-10",
+      "entity": "CHILD_TASK",
+      "fields": "task_id, ticket_id, owner_domain/queue, status",
+      "source_paragraph": 1454
+    },
+    {
+      "child_id": "CHILD-10",
+      "entity": "ESCALATION",
+      "fields": "escalation_id, reason, target, status",
+      "source_paragraph": 1456
+    },
+    {
+      "child_id": "CHILD-11",
+      "entity": "DISCLOSURE_ITEM",
+      "fields": "item_id, tenant_id, type, period, status, classification, source_refs[]",
+      "source_paragraph": 1571
+    },
+    {
+      "child_id": "CHILD-11",
+      "entity": "REPORT_PACKAGE",
+      "fields": "package_id, disclosure_refs[], period, version, status",
+      "source_paragraph": 1573
+    },
+    {
+      "child_id": "CHILD-11",
+      "entity": "FINANCIAL_STATEMENT_REFERENCE",
+      "fields": "statement_ref, external/source_document_ref, period, status",
+      "source_paragraph": 1575
+    },
+    {
+      "child_id": "CHILD-11",
+      "entity": "DISCLOSURE_VERSION",
+      "fields": "version_id, item_id, version_no, effective_at, supersedes?",
+      "source_paragraph": 1577
+    },
+    {
+      "child_id": "CHILD-12",
+      "entity": "PROJECT",
+      "fields": "project_id, tenant_id, name, type, status, location, owner_ref, resolution_refs[]",
+      "source_paragraph": 1679
+    },
+    {
+      "child_id": "CHILD-12",
+      "entity": "ASSET",
+      "fields": "asset_id, tenant_id, asset_type, ownership_evidence_refs[], status",
+      "source_paragraph": 1681
+    },
+    {
+      "child_id": "CHILD-12",
+      "entity": "MILESTONE",
+      "fields": "milestone_id, project_id, planned/actual dates, status",
+      "source_paragraph": 1683
+    },
+    {
+      "child_id": "CHILD-12",
+      "entity": "PROJECT_UPDATE",
+      "fields": "update_id, project_id, dimensions, progress, evidence_refs[]",
+      "source_paragraph": 1685
+    },
+    {
+      "child_id": "CHILD-12",
+      "entity": "PERMIT_REFERENCE",
+      "fields": "permit_ref, authority, document_ref, status, valid_to?",
+      "source_paragraph": 1687
+    },
+    {
+      "child_id": "CHILD-12",
+      "entity": "CONTRACT_REFERENCE",
+      "fields": "contract_ref, counterparty_party_ref, document_ref, status",
+      "source_paragraph": 1689
+    },
+    {
+      "child_id": "CHILD-13",
+      "entity": "ENGAGEMENT_PROCESS",
+      "fields": "process_id, tenant_id, type, audience_ref, status, opens_at, closes_at",
+      "source_paragraph": 1803
+    },
+    {
+      "child_id": "CHILD-13",
+      "entity": "QUESTION",
+      "fields": "question_id, process_id, type, options/schema",
+      "source_paragraph": 1805
+    },
+    {
+      "child_id": "CHILD-13",
+      "entity": "RESPONSE",
+      "fields": "response_id, process_id, respondent_ref, answers, submitted_at",
+      "source_paragraph": 1807
+    },
+    {
+      "child_id": "CHILD-13",
+      "entity": "PROPOSAL",
+      "fields": "proposal_id, proposer_ref, content_ref, status",
+      "source_paragraph": 1809
+    },
+    {
+      "child_id": "CHILD-13",
+      "entity": "MANAGEMENT_RESPONSE",
+      "fields": "response_ref, process/proposal_ref, decision/action_ref?",
+      "source_paragraph": 1811
+    },
+    {
+      "child_id": "CHILD-14",
+      "entity": "COURSE",
+      "fields": "course_id, owner_scope, title, status, learning_outcomes",
+      "source_paragraph": 1921
+    },
+    {
+      "child_id": "CHILD-14",
+      "entity": "LEARNING_PATH",
+      "fields": "path_id, course_refs[], rules",
+      "source_paragraph": 1923
+    },
+    {
+      "child_id": "CHILD-14",
+      "entity": "ENROLLMENT",
+      "fields": "enrollment_id, learner_party_ref, course_id, status",
+      "source_paragraph": 1925
+    },
+    {
+      "child_id": "CHILD-14",
+      "entity": "ASSESSMENT_RESULT",
+      "fields": "result_id, enrollment_id, score/result, evidence_ref?",
+      "source_paragraph": 1927
+    },
+    {
+      "child_id": "CHILD-14",
+      "entity": "CERTIFICATE",
+      "fields": "certificate_id, enrollment_id, issued_at, status",
+      "source_paragraph": 1929
+    },
+    {
+      "child_id": "CHILD-14",
+      "entity": "EVENT",
+      "fields": "event_id, tenant_id?, source_course_ref?, status, capacity",
+      "source_paragraph": 1931
+    },
+    {
+      "child_id": "CHILD-14",
+      "entity": "SESSION",
+      "fields": "session_id, event_id, starts_at, ends_at, venue/online_ref",
+      "source_paragraph": 1933
+    },
+    {
+      "child_id": "CHILD-14",
+      "entity": "REGISTRATION",
+      "fields": "registration_id, event_id, party_ref, status",
+      "source_paragraph": 1935
+    },
+    {
+      "child_id": "CHILD-14",
+      "entity": "ATTENDANCE",
+      "fields": "attendance_id, session_id, party_ref, status",
+      "source_paragraph": 1937
+    },
+    {
+      "child_id": "CHILD-15",
+      "entity": "BENEFIT",
+      "fields": "benefit_id, tenant_id, type, terms, allocation_policy_ref, status",
+      "source_paragraph": 2061
+    },
+    {
+      "child_id": "CHILD-15",
+      "entity": "ENTITLEMENT",
+      "fields": "entitlement_id, benefit_id, party_ref, qty/value_non_cash, status",
+      "source_paragraph": 2063
+    },
+    {
+      "child_id": "CHILD-15",
+      "entity": "VOUCHER",
+      "fields": "voucher_id, entitlement_id, code/token_ref, status, valid_to",
+      "source_paragraph": 2065
+    },
+    {
+      "child_id": "CHILD-15",
+      "entity": "REWARD_LEDGER_ENTRY",
+      "fields": "entry_id, party_ref, reward_type, units, source_ref, direction, occurred_at",
+      "source_paragraph": 2067
+    },
+    {
+      "child_id": "CHILD-16",
+      "entity": "PRODUCT",
+      "fields": "product_id, tenant_id, title, status, supplier_source_ref?",
+      "source_paragraph": 2181
+    },
+    {
+      "child_id": "CHILD-16",
+      "entity": "OFFER",
+      "fields": "offer_id, seller_tenant_id, product_id, price, terms_version, status",
+      "source_paragraph": 2183
+    },
+    {
+      "child_id": "CHILD-16",
+      "entity": "ORDER",
+      "fields": "order_id, buyer_party_ref, seller_tenant_id, totals, status, payment_ref",
+      "source_paragraph": 2185
+    },
+    {
+      "child_id": "CHILD-16",
+      "entity": "FULFILLMENT",
+      "fields": "fulfillment_id, order_id, status, tracking/evidence",
+      "source_paragraph": 2187
+    },
+    {
+      "child_id": "CHILD-16",
+      "entity": "SUPPLIER_PROPOSAL",
+      "fields": "proposal_id, member_party_ref, product/service ref, status",
+      "source_paragraph": 2189
+    },
+    {
+      "child_id": "CHILD-16",
+      "entity": "AD_SLOT",
+      "fields": "slot_id, placement, audience_constraints, status",
+      "source_paragraph": 2191
+    },
+    {
+      "child_id": "CHILD-16",
+      "entity": "CAMPAIGN",
+      "fields": "campaign_id, sponsor_ref, budget/ref, status",
+      "source_paragraph": 2193
+    },
+    {
+      "child_id": "CHILD-16",
+      "entity": "CREATIVE",
+      "fields": "creative_id, campaign_id, asset_ref, review_status",
+      "source_paragraph": 2195
+    },
+    {
+      "child_id": "CHILD-17",
+      "entity": "COLLAB_NEED",
+      "fields": "need_id, tenant_id, scope, status",
+      "source_paragraph": 2318
+    },
+    {
+      "child_id": "CHILD-17",
+      "entity": "EOI",
+      "fields": "eoi_id, need/opportunity_ref, tenant_ref, status",
+      "source_paragraph": 2320
+    },
+    {
+      "child_id": "CHILD-17",
+      "entity": "JOINT_INITIATIVE",
+      "fields": "initiative_id, participants[], governance_ref, status",
+      "source_paragraph": 2322
+    },
+    {
+      "child_id": "CHILD-17",
+      "entity": "PURCHASE_REQUEST",
+      "fields": "pr_id, tenant_id, requirement, approval_ref, status",
+      "source_paragraph": 2324
+    },
+    {
+      "child_id": "CHILD-17",
+      "entity": "SUPPLIER_PROFILE",
+      "fields": "supplier_party_ref, qualification_status, evidence_refs[]",
+      "source_paragraph": 2326
+    },
+    {
+      "child_id": "CHILD-17",
+      "entity": "SOURCING_EVENT",
+      "fields": "event_id, type, criteria_version, deadline, status",
+      "source_paragraph": 2328
+    },
+    {
+      "child_id": "CHILD-17",
+      "entity": "BID",
+      "fields": "bid_id, event_id, supplier_ref, sealed_payload_ref, submitted_at, status",
+      "source_paragraph": 2330
+    },
+    {
+      "child_id": "CHILD-17",
+      "entity": "AWARD",
+      "fields": "award_id, event_id, supplier_ref, decision_ref, status",
+      "source_paragraph": 2332
+    },
+    {
+      "child_id": "CHILD-18",
+      "entity": "OPPORTUNITY",
+      "fields": "opportunity_id, tenant_id, type, terms, status, opens/closes",
+      "source_paragraph": 2456
+    },
+    {
+      "child_id": "CHILD-18",
+      "entity": "APPLICATION",
+      "fields": "application_id, opportunity_id, party_ref, status, document_refs[]",
+      "source_paragraph": 2458
+    },
+    {
+      "child_id": "CHILD-18",
+      "entity": "SCREENING_DECISION",
+      "fields": "decision_id, application_id, reviewer_ref, outcome, reason",
+      "source_paragraph": 2460
+    },
+    {
+      "child_id": "CHILD-18",
+      "entity": "MATCH_RECOMMENDATION",
+      "fields": "recommendation_id, score/features refs, advisory_only=true",
+      "source_paragraph": 2462
+    },
+    {
+      "child_id": "CHILD-19",
+      "entity": "COMMUNITY_NEED",
+      "fields": "need_id, geography, source_refs, status",
+      "source_paragraph": 2571
+    },
+    {
+      "child_id": "CHILD-19",
+      "entity": "IMPACT_PROGRAM",
+      "fields": "program_id, tenant_id, objective, status",
+      "source_paragraph": 2573
+    },
+    {
+      "child_id": "CHILD-19",
+      "entity": "INDICATOR",
+      "fields": "indicator_id, definition, unit, methodology_version",
+      "source_paragraph": 2575
+    },
+    {
+      "child_id": "CHILD-19",
+      "entity": "MEASUREMENT",
+      "fields": "measurement_id, indicator_id, period, value, source/evidence, quality_status",
+      "source_paragraph": 2577
+    },
+    {
+      "child_id": "CHILD-19",
+      "entity": "IMPACT_CLAIM",
+      "fields": "claim_id, program_id, statement, evidence_refs[], review_status",
+      "source_paragraph": 2579
+    },
+    {
+      "child_id": "CHILD-19",
+      "entity": "GRANT_CASE",
+      "fields": "grant_id, recipient_ref, purpose, decision_ref, status",
+      "source_paragraph": 2581
+    },
+    {
+      "child_id": "CHILD-20",
+      "entity": "OBLIGATION",
+      "fields": "obligation_id, rule_ref, tenant_id, owner, due_pattern, status",
+      "source_paragraph": 2691
+    },
+    {
+      "child_id": "CHILD-20",
+      "entity": "RISK",
+      "fields": "risk_id, tenant_id, category, likelihood, impact, status",
+      "source_paragraph": 2693
+    },
+    {
+      "child_id": "CHILD-20",
+      "entity": "CONTROL",
+      "fields": "control_id, objective, owner, frequency, status",
+      "source_paragraph": 2695
+    },
+    {
+      "child_id": "CHILD-20",
+      "entity": "CONTROL_TEST",
+      "fields": "test_id, control_id, result, evidence_refs[], tested_at",
+      "source_paragraph": 2697
+    },
+    {
+      "child_id": "CHILD-20",
+      "entity": "CONFLICT_CASE",
+      "fields": "case_id, parties, related_transaction_ref, status",
+      "source_paragraph": 2699
+    },
+    {
+      "child_id": "CHILD-20",
+      "entity": "FINDING",
+      "fields": "finding_id, source, severity, status",
+      "source_paragraph": 2701
+    },
+    {
+      "child_id": "CHILD-20",
+      "entity": "REMEDIATION_ACTION",
+      "fields": "action_id, finding/risk_ref, owner, due_at, status",
+      "source_paragraph": 2703
+    },
+    {
+      "child_id": "CHILD-20",
+      "entity": "WHISTLEBLOW_REPORT",
+      "fields": "report_id, channel, identity_ref?, content_ref, status, classification=HIGHLY_RESTRICTED",
+      "source_paragraph": 2705
+    },
+    {
+      "child_id": "CHILD-21",
+      "entity": "METRIC_DEFINITION",
+      "fields": "metric_code, definition, grain, numerator/denominator, unit, window, source_contract, version",
+      "source_paragraph": 2829
+    },
+    {
+      "child_id": "CHILD-21",
+      "entity": "DATA_QUALITY_RESULT",
+      "fields": "metric/source period, completeness, validity, status",
+      "source_paragraph": 2831
+    },
+    {
+      "child_id": "CHILD-21",
+      "entity": "COHORT_DEFINITION",
+      "fields": "cohort_id, criteria, min_size_policy_ref, version",
+      "source_paragraph": 2833
+    },
+    {
+      "child_id": "CHILD-21",
+      "entity": "BENCHMARK_SNAPSHOT",
+      "fields": "snapshot_id, metric_version, cohort_version, period, stats, suppression_status",
+      "source_paragraph": 2835
+    },
+    {
+      "child_id": "CHILD-21",
+      "entity": "INSIGHT",
+      "fields": "insight_id, tenant_id, benchmark_ref, explanation, status",
+      "source_paragraph": 2837
+    },
+    {
+      "child_id": "CHILD-21",
+      "entity": "IMPROVEMENT_ACTION_REF",
+      "fields": "action_ref, source_insight, owner_domain",
+      "source_paragraph": 2839
+    },
+    {
+      "child_id": "CHILD-22",
+      "entity": "DATA_CLASSIFICATION_POLICY",
+      "fields": "classification code, handling rules, export/search/ai constraints",
+      "source_paragraph": 2951
+    },
+    {
+      "child_id": "CHILD-22",
+      "entity": "RETENTION_POLICY",
+      "fields": "policy_id, data_category, trigger, duration/rule, disposition_action, legal_basis_ref",
+      "source_paragraph": 2953
+    },
+    {
+      "child_id": "CHILD-22",
+      "entity": "RETENTION_ASSIGNMENT",
+      "fields": "subject_ref, policy_id, trigger_date, due_date/status",
+      "source_paragraph": 2955
+    },
+    {
+      "child_id": "CHILD-22",
+      "entity": "LEGAL_HOLD",
+      "fields": "hold_id, scope, reason, authority_ref, status",
+      "source_paragraph": 2957
+    },
+    {
+      "child_id": "CHILD-22",
+      "entity": "DISPOSITION_CASE",
+      "fields": "case_id, subjects, policy_snapshot, status, evidence_refs[]",
+      "source_paragraph": 2959
+    },
+    {
+      "child_id": "CHILD-22",
+      "entity": "LINEAGE_RECORD",
+      "fields": "record_id, source_ref, derived_ref, transformation_ref, occurred_at",
+      "source_paragraph": 2961
+    },
+    {
+      "child_id": "CHILD-23",
+      "entity": "TEST_CASE",
+      "fields": "test_id, source_requirement, layer, priority, owner, status",
+      "source_paragraph": 3074
+    },
+    {
+      "child_id": "CHILD-23",
+      "entity": "TEST_RUN",
+      "fields": "run_id, environment, build_ref, started/ended, result, evidence_refs[]",
+      "source_paragraph": 3076
+    },
+    {
+      "child_id": "CHILD-23",
+      "entity": "MIGRATION_PLAN",
+      "fields": "plan_id, source_version, target_version, steps, rollback_ref, status",
+      "source_paragraph": 3078
+    },
+    {
+      "child_id": "CHILD-23",
+      "entity": "MIGRATION_BATCH",
+      "fields": "batch_id, plan_id, scope, result, reconciliation_refs[]",
+      "source_paragraph": 3080
+    },
+    {
+      "child_id": "CHILD-23",
+      "entity": "RELEASE_CANDIDATE",
+      "fields": "rc_id, build_ref, spec_versions, status",
+      "source_paragraph": 3082
+    },
+    {
+      "child_id": "CHILD-23",
+      "entity": "BACKUP_RECORD",
+      "fields": "backup_id, scope, checksum, created_at, restore_test_ref?",
+      "source_paragraph": 3084
+    },
+    {
+      "child_id": "CHILD-23",
+      "entity": "INCIDENT_RECORD",
+      "fields": "incident_id, severity, service, status, postmortem_ref?",
+      "source_paragraph": 3086
+    }
+  ]
+}
