@@ -22,7 +22,7 @@ class Source15(unittest.TestCase):
  def test_all_ids_have_executable_physical_signal(self):
   for c in self.data["cases"]:
    with self.subTest(c=c["sourceTestId"]):
-    sig="PH06_"+c["sourceTestId"].replace("-","_")+"_"
+    sig="PH06_"+c["sourceTestId"].replace("-AT-","_AT").replace("-","_")+"_"
     self.assertIn(sig,self.sql)
  def test_no_claim_of_verbatim_source_or_live_ownership(self):
   self.assertTrue(self.data["noProductionAuthorization"])
