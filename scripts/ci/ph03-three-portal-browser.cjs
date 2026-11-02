@@ -8,7 +8,7 @@ const fs=require("node:fs");
 const {chromium}=require("playwright");
 const axe=require("axe-core");
 const root=path.resolve(__dirname,"../..");
-const screenshotDir=path.join(root,".ph03-screenshots");
+const screenshotDir=path.join(root,"ph03-screenshots");
 fs.mkdirSync(screenshotDir,{recursive:true});
 const cfg=[
  {slug:"shareholder",title:"پنل سهامداران",port:32601},
