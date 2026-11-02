@@ -55,6 +55,11 @@ jobs:
           set -euo pipefail
           docker exec -i tto-ph05-disposable psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph05-cf03-audit-hold-negative.sql
           echo "PH05_CF03_FIRST_NEGATIVE_SECURITY_SLICE_PASS_NOT_24_ACCEPTANCE"
+      - name: Verify file decision: scanned published only, tenant and role scoped
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph05-disposable psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph05-cf03-file-download-negative.sql
+          echo "PH05_CF03_FILE_DECISION_NEGATIVE_SLICE_PASS_NOT_FULL_DOWNLOAD"
       - name: Erase synthetic database
         if: always()
         run: docker rm -f tto-ph05-disposable || true
