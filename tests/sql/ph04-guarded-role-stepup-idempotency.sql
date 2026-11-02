@@ -1,4 +1,4 @@
--- Run only after 0001..0013 on disposable PostgreSQL17.
+-- Run only after 0001..0014 on disposable PostgreSQL17.
 BEGIN;
 INSERT INTO tto.user_accounts(user_id) VALUES
  ('11111111-1111-4111-8111-111111111111'),
@@ -33,7 +33,41 @@ DO $check$ DECLARE code text; BEGIN
  IF EXISTS(SELECT 1 FROM tto.role_assignments WHERE user_id='33333333-3333-4333-8333-333333333333')
  THEN RAISE EXCEPTION 'DED_018_LOW_ASSURANCE_MUTATED_ROLE'; END IF;
 END $check$;
-UPDATE tto.user_sessions SET assurance_level='ELEVATED' WHERE session_id='88888888-8888-4888-8888-888888888888';
+-- A manual database flip to ELEVATED is NOT a step-up; it requires a
+-- fresh delivered and consumed challenge bound to this exact session.
+UPDATE tto.user_sessions SET assurance_level='ELEVATED'
+ WHERE session_id='88888888-8888-4888-8888-888888888888';
+DO $check$ DECLARE code text;BEGIN
+ code:=tto.assign_tenant_role_guarded(
+  '33333333-3333-4333-8333-333333333333','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','MEMBER',
+  '66666666-6666-4666-8666-666666666666','99999999-9999-4999-8999-999999999999',
+  decode(repeat('ab',32),'hex'));
+ IF code<>'STEP_UP_REQUIRED' THEN RAISE EXCEPTION 'DED_018_FAKE_ELEVATION_ACCEPTED';END IF;
+END $check$;
+UPDATE tto.user_sessions SET assurance_level='OTP'
+ WHERE session_id='88888888-8888-4888-8888-888888888888';
+INSERT INTO tto.verified_mobile_identifiers(mobile,user_id,verified_at)
+ VALUES('09120000001','11111111-1111-4111-8111-111111111111',now());
+DO $check$ DECLARE mobile text;ok boolean;bad_session uuid;BEGIN
+ mobile:=tto.begin_session_stepup_smsotp(
+  '99999999-9999-4999-8999-999999999990',decode(repeat('cd',32),'hex'),
+  decode(repeat('ab',32),'hex'));
+ IF mobile<>'09120000001' THEN RAISE EXCEPTION 'STEPUP_VERIFIED_IDENTIFIER_MISSING';END IF;
+ IF tto.consume_challenge('99999999-9999-4999-8999-999999999990',
+   decode(repeat('cd',32),'hex'),decode(repeat('ef',32),'hex')) IS NOT NULL THEN
+  RAISE EXCEPTION 'STEPUP_CODE_CREATED_NEW_SESSION';END IF;
+ IF tto.consume_session_stepup_smsotp('99999999-9999-4999-8999-999999999990',
+   decode(repeat('cd',32),'hex'),decode(repeat('ab',32),'hex')) THEN
+  RAISE EXCEPTION 'STEPUP_ACCEPTED_BEFORE_PROVIDER_DELIVERY';END IF;
+ ok:=tto.complete_smsotp_delivery('99999999-9999-4999-8999-999999999990',true);
+ IF NOT ok THEN RAISE EXCEPTION 'STEPUP_DELIVERY_STATUS_FAILED';END IF;
+ ok:=tto.consume_session_stepup_smsotp('99999999-9999-4999-8999-999999999990',
+   decode(repeat('cd',32),'hex'),decode(repeat('ab',32),'hex'));
+ IF NOT ok THEN RAISE EXCEPTION 'STEPUP_FRESH_PROOF_DENIED';END IF;
+ IF tto.consume_session_stepup_smsotp('99999999-9999-4999-8999-999999999990',
+   decode(repeat('cd',32),'hex'),decode(repeat('ab',32),'hex')) THEN
+  RAISE EXCEPTION 'STEPUP_REPLAY_ACCEPTED';END IF;
+END $check$;
 DO $check$ DECLARE code text; BEGIN
  code:=tto.assign_tenant_role_guarded(
   '33333333-3333-4333-8333-333333333333','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','MEMBER',
