@@ -1,34 +1,73 @@
 "use client";
-import {useCallback,useEffect,useState} from "react";
+import {useCallback,useEffect,useRef,useState} from "react";
 import {useParams} from "next/navigation";
 
 type Member={membershipStatus:"ACTIVE";partyKind:"PERSON"|"ORGANIZATION";sourceVersion:number;sourceAsOf:string};
 type Holding={shareQuantity:string;ledgerVersion:number;ledgerAsOf:string};
-type SourceState<T>={status:"loading"|"available"|"unavailable"|"session-required";record:T|null};
-
+type State="loading"|"available"|"unavailable"|"session-required";
+type SourceState<T>={status:State;record:T|null};
 const initial=<T,>():SourceState<T>=>({status:"loading",record:null});
+const error=<T,>(status:"unavailable"|"session-required"):SourceState<T>=>({status,record:null});
+const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+const SHARE_QTY=/^(0|[1-9][0-9]{0,18})$/;
+// Defense-in-depth: the source-gated BFF and Nest/PG remain the only authorization authorities.
+function memberRecord(value:unknown):value is Member{
+ if(!value||typeof value!=="object"||Array.isArray(value))return false;
+ const r=value as Record<string,unknown>;
+ return r.membershipStatus==="ACTIVE"&&(r.partyKind==="PERSON"||r.partyKind==="ORGANIZATION")&&
+  Number.isSafeInteger(r.sourceVersion)&&Number(r.sourceVersion)>0&&
+  typeof r.sourceAsOf==="string"&&Number.isFinite(Date.parse(r.sourceAsOf));
+}
+function holdingRecord(value:unknown):value is Holding{
+ if(!value||typeof value!=="object"||Array.isArray(value))return false;
+ const r=value as Record<string,unknown>;
+ return typeof r.shareQuantity==="string"&&SHARE_QTY.test(r.shareQuantity)&&
+  Number.isSafeInteger(r.ledgerVersion)&&Number(r.ledgerVersion)>0&&
+  typeof r.ledgerAsOf==="string"&&Number.isFinite(Date.parse(r.ledgerAsOf));
+}
+async function getSource<T>(tenantId:string,domain:"member-record"|"shareholding",
+ signal:AbortSignal,validate:(value:unknown)=>value is T):Promise<SourceState<T>>{
+ try{
+  const r=await fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/me/"+domain,{
+   method:"GET",cache:"no-store",credentials:"same-origin",redirect:"error",signal
+  });
+  if(r.status===401)return error("session-required");
+  if(r.status!==200)return error("unavailable"); // 403, missing source, outage are never zero
+  const body=await r.json() as {available?:unknown;record?:unknown};
+  if(body?.available!==true||!validate(body.record))return error("unavailable");
+  return {status:"available",record:body.record};
+ }catch{return error("unavailable");}
+}
 export default function MyVerifiedRecords(){
  const {tenantId}=useParams<{tenantId:string}>();
+ const active=useRef<AbortController|null>(null);
  const [member,setMember]=useState<SourceState<Member>>(initial<Member>);
  const [holding,setHolding]=useState<SourceState<Holding>>(initial<Holding>);
  const [busy,setBusy]=useState(false);
  const load=useCallback(async()=>{
+  active.current?.abort();
+  const controller=new AbortController();active.current=controller;
   setBusy(true);setMember(initial());setHolding(initial());
-  const read=async <T,>(name:"member-record"|"shareholding",update:(s:SourceState<T>)=>void)=>{
-   try{
-    const r=await fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/me/"+name,{cache:"no-store",credentials:"same-origin"});
-    if(r.status===401){update({status:"session-required",record:null});return}
-    if(!r.ok){update({status:"unavailable",record:null});return}
-    const data=await r.json();
-    if(data.available!==true||!data.record){update({status:"unavailable",record:null});return}
-    update({status:"available",record:data.record as T});
-   }catch{update({status:"unavailable",record:null})}
-  };
-  await Promise.all([read<Member>("member-record",setMember),read<Holding>("shareholding",setHolding)]);
+  if(!UUID.test(tenantId)){
+   setMember(error("unavailable"));setHolding(error("unavailable"));setBusy(false);return;
+  }
+  const [m,h]=await Promise.all([
+   getSource(tenantId,"member-record",controller.signal,memberRecord),
+   getSource(tenantId,"shareholding",controller.signal,holdingRecord)
+  ]);
+  if(controller.signal.aborted)return; // never render a late response from an old tenant/session
+  if(m.status==="session-required"||h.status==="session-required"){
+   setMember(error("session-required"));setHolding(error("session-required"));
+  }else{
+   setMember(m);setHolding(h); // independent source approval, not inferred from the other domain
+  }
   setBusy(false);
  },[tenantId]);
- useEffect(()=>{void load()},[load]);
- const text=(s:SourceState<unknown>)=>s.status==="loading"?"در حال بررسی منبع معتبر":s.status==="session-required"?"برای مشاهده اطلاعات، ورود معتبر الزامی است":s.status==="unavailable"?"اطلاعات رسمی تأییدشده در دسترس نیست":null;
+ useEffect(()=>{void load();return ()=>active.current?.abort()},[load]);
+ const text=(s:SourceState<unknown>)=>
+  s.status==="loading"?"در حال بررسی منبع معتبر":
+  s.status==="session-required"?"برای مشاهده اطلاعات، ورود معتبر الزامی است":
+  s.status==="unavailable"?"اطلاعات رسمی تأییدشده در دسترس نیست":null;
  return <main dir="rtl" lang="fa" style={{maxWidth:860,margin:"0 auto",padding:"24px",lineHeight:1.9}}>
   <h1>پرونده اختصاصی عضویت و سهام</h1>
   <p>اطلاعات فقط در صورت تأیید منبع رسمی و مجوز مشاهده شخص نمایش داده می‌شود. نبود اطلاعات به معنی صفر سهم نیست.</p>
@@ -36,8 +75,8 @@ export default function MyVerifiedRecords(){
    <h2 id="membership-heading">وضعیت عضویت</h2>
    <p role="status" aria-live="polite">{text(member)}</p>
    {member.status==="available"&&member.record&&<div>
-     <p>عضویت: فعال</p><p>نوع پرونده: {member.record.partyKind==="PERSON"?"شخص حقیقی":"شخص حقوقی"}</p>
-     <p>نسخه منبع عضویت: {member.record.sourceVersion}</p><p>زمان مرجع عضویت: {member.record.sourceAsOf}</p>
+    <p>عضویت: فعال</p><p>نوع پرونده: {member.record.partyKind==="PERSON"?"شخص حقیقی":"شخص حقوقی"}</p>
+    <p>نسخه منبع عضویت: {member.record.sourceVersion}</p><p>زمان مرجع عضویت: {member.record.sourceAsOf}</p>
    </div>}
   </section>
   <section aria-labelledby="holdings-heading">
@@ -48,7 +87,10 @@ export default function MyVerifiedRecords(){
     <p>نسخه دفتر سهام: {holding.record.ledgerVersion}</p><p>زمان مرجع دفتر سهام: {holding.record.ledgerAsOf}</p>
    </div>}
   </section>
-  <button type="button" disabled={busy} onClick={()=>void load()}>بررسی مجدد اطلاعات</button>
-  <p>این صفحه امکان خرید، فروش، انتقال یا تغییر تعداد سهام ندارد.</p>
+  <button type="button" disabled={busy} onClick={()=>void load()}
+   style={{minHeight:44,padding:"8px 16px",font:"inherit",cursor:"pointer"}}>
+   بررسی مجدد اطلاعات
+  </button>
+  <p>این صفحه امکان خرید، فروش، انتقال یا تغییر تعداد سهام ندارد. تأیید عضویت، مجوز مشاهده سهام ایجاد نمی‌کند.</p>
  </main>;
 }
