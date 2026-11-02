@@ -40,3 +40,10 @@ C08 also combines technical source-semantic reconciliation, which can happen dur
 **Current official state until approved:** PH-01-C05 PENDING; PH-01-C06 PENDING; PH-01-C08 PENDING; PH-01 **5/8 GREEN**, no PH-02 advancement.
 
 **No Merge, deployment, real share purchase/sale/transfer, new accounting/custody, or production data operation.**
+
+
+## 2026-11-02 — Project-owner review attestation (scope-limited)
+
+The project owner has explicitly stated in the current project conversation: «بازبینی ها از نظر مالک پروژه انجام و تایید شده است» and authorized beginning PHASE-02 while PHASE-01 gaps are remediated. **Record this as OWNER_REVIEW_CONFIRMED_BY_USER only**: permission to proceed with design and testing, and owner-level review of the project work; do not mislabel it as an independently signed Product/Architecture/Legal/QA review, a ratification of every proposed ADR clause, or authorization for official share-data processing. Reviewer identity, review content, exact accepted SHA, and specialist decisions must be evidenced separately.
+
+Project-control decision: **PH02_DESIGN_CAN_START_IN_PARALLEL_WITH_PH01_GAPS**. Existing original PH-01-C05/C06/C08 remain PENDING until separately satisfied or expressly rebaselined through recorded change control. PH-01 5/8 GREEN; no fabricated completion.
