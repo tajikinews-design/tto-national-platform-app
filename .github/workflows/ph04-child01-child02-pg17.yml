@@ -53,6 +53,11 @@ jobs:
           set -euo pipefail
           docker exec -i tto-ph04-ci-pg psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph04-child02-source-eight.sql
           echo "TTO_PH04_CHILD02_SOURCE_EIGHT_PROBES_PASS_WITH_PARTIAL_GAPS"
+      - name: Verify approved source event replay has zero second effects
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph04-ci-pg psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph04-child02-idempotent-ingest.sql
+          echo "TTO_PH04_CHILD02_AT007_REPLAY_NO_EFFECT_PASS"
       - name: Run actual two-transaction cross-tenant slug collision race
         run: |
           set -euo pipefail
