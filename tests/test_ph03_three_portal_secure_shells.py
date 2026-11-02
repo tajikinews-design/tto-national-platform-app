@@ -26,7 +26,7 @@ class ThreePortalBoundary(unittest.TestCase):
         self.assertIn('if(!enabled||!verified)return;',login)
         self.assertNotIn('surface!=="shareholder"',login)
         self.assertIn('method:"GET",credentials:"same-origin",cache:"no-store"',login)
-        self.assertIn('if(data.authenticated!==true)',login)
+        self.assertIn('if((data as {authenticated:boolean}).authenticated!==true)invalidateSession();',login)
         for app,surface in SURFACES.items():
             home=(APPS/app/"app/page.tsx").read_text(encoding="utf-8")
             self.assertIn('OtpLogin surface="'+surface+'"',home)
