@@ -1,20 +1,21 @@
 name: TTO one-shot Trivy lockfile pilot (NO DEPLOY)
 on:
-  pull_request:
-    types: [opened]
+  push:
     branches:
-      - docs/tto-oss-p0-deep-audit-20261102
+      - feat/tto-child06-07-design-trivy-poc-20261102
+    paths:
+      - .github/workflows/tto-trivy-lockfile-once.yml
 
 permissions:
   contents: read
 
 concurrency:
-  group: tto-trivy-one-shot-${{ github.event.pull_request.number }}
+  group: tto-trivy-one-shot-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   trivy-private-lockfile-pilot:
-    if: github.event.pull_request.draft && github.head_ref == 'feat/tto-child06-07-design-trivy-poc-20261102'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feat/tto-child06-07-design-trivy-poc-20261102'
     runs-on: ubuntu-latest
     timeout-minutes: 16
     env:
