@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ph03-synthetic-acceptance-${{ github.event.pull_request.number }}-${{ github.sha }}
+  group: ph03-synthetic-acceptance-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 jobs:
   three-portal-acceptance:
@@ -50,7 +50,7 @@ jobs:
       - name: Install isolated pinned Chromium
         run: |
           set -euo pipefail
-          npm install --prefix /tmp/tto-ph03-browser --no-audit --no-fund playwright@1.56.1
+          npm install --prefix /tmp/tto-ph03-browser --no-audit --no-fund playwright@1.56.1 axe-core@4.10.3
           node /tmp/tto-ph03-browser/node_modules/playwright/cli.js install --with-deps chromium
       - name: Browser RTL keyboard contrast and anonymous deny
         env:
