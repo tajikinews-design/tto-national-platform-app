@@ -164,6 +164,17 @@ async function main(){
  {oldPartyId:oldParty,currentPartyId:currentParty},403);
  await call("POST","/v1/auth/logout",actorToken,null,204);
  await call("GET","/v1/tenants/"+a+"/context",actorToken,null,401);
+ // DED-014 (partial): verify actual audit event values never contain test OTP,
+ // access token or raw challenge secret; schema/retention audit remains open.
+ const audit=await admin.query("SELECT event_name FROM tto.audit_events");
+ assert.ok(audit.rowCount>0,"DED-014 requires emitted audit evidence");
+ for(const row of audit.rows){
+  assert.equal(typeof row.event_name,"string");
+  for(const secret of [otp,expiredOtp,concurrentOtp,actorToken]){
+   assert.equal(row.event_name.includes(secret),false,"DED-014 audit leaked test secret");
+  }
+ }
+ console.log("TTO_CF01_DED014_AUDIT_EVENT_NO_RAW_SECRETS_PASS");
  console.log("TTO_CF01_03_REAL_HTTP_WORKFLOWS_PASS="+count);
 }
 main().catch(err=>{console.error("TTO_CF01_03_HTTP_WORKFLOWS_FAIL",err.message);process.exitCode=1})
