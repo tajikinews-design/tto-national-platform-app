@@ -74,6 +74,12 @@ DO $test$ BEGIN
   RAISE EXCEPTION 'PH04_CROSS_TENANT_ROLE';
  END IF;
 END $test$;
+DO $test$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM tto.list_actor_tenant_options() o
+               WHERE o."tenantId"='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND o."managerRole") THEN
+  RAISE EXCEPTION 'PH04_MANAGER_OPTION_MISSING_BEFORE_REVOCATION';
+ END IF;
+END $test$;
 UPDATE tto.role_assignments SET status='REVOKED'
  WHERE assignment_id='55555555-5555-4555-8555-555555555555';
 DO $test$ BEGIN
@@ -81,12 +87,27 @@ DO $test$ BEGIN
   RAISE EXCEPTION 'PH04_REVOKED_ROLE_STILL_ACTIVE';
  END IF;
 END $test$;
+DO $test$ BEGIN
+ IF EXISTS(SELECT 1 FROM tto.list_actor_tenant_options() o
+           WHERE o."tenantId"='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND o."managerRole") THEN
+  RAISE EXCEPTION 'PH04_REVOKED_ROLE_VISIBLE_IN_TENANT_OPTIONS';
+ END IF;
+END $test$;
+UPDATE tto.role_assignments SET status='ACTIVE'
+ WHERE assignment_id='55555555-5555-4555-8555-555555555555';
 INSERT INTO tto.user_party_links(user_id,party_id,verified_at)
  VALUES('11111111-1111-4111-8111-111111111111','33333333-3333-4333-8333-333333333333',now());
 DO $test$ BEGIN
  IF NOT EXISTS(SELECT 1 FROM tto.user_party_links
   WHERE user_id='11111111-1111-4111-8111-111111111111' AND status='VERIFIED') THEN
   RAISE EXCEPTION 'PH04_PARTY_LINK_SYNC_NOT_VERIFIED';
+ END IF;
+END $test$;
+DO $test$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM tto.list_actor_tenant_options() o
+              WHERE o."tenantId"='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+                AND o."verifiedPartyLink") THEN
+   RAISE EXCEPTION 'PH04_VERIFIED_PARTY_LINK_NOT_VISIBLE';
  END IF;
 END $test$;
 UPDATE tto.user_party_links SET status='REVOKED'
@@ -97,6 +118,13 @@ DO $test$ BEGIN
   RAISE EXCEPTION 'PH04_REVOKED_PARTY_LINK_STILL_VERIFIED';
  END IF;
 END $test$;
+DO $test$ BEGIN
+ IF EXISTS(SELECT 1 FROM tto.list_actor_tenant_options() o
+           WHERE o."tenantId"='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+             AND o."verifiedPartyLink") THEN
+   RAISE EXCEPTION 'PH04_REVOKED_PARTY_LINK_STILL_VISIBLE';
+ END IF;
+END $test$;
 -- Same-tenant slug status and valid profile; no automatic real legal verification.
 INSERT INTO tto.tenant_slugs(slug_id,tenant_id,slug,status,valid_from)
  VALUES('77777777-7777-4777-8777-777777777777','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -104,6 +132,18 @@ INSERT INTO tto.tenant_slugs(slug_id,tenant_id,slug,status,valid_from)
 INSERT INTO tto.tenant_legal_profiles(profile_id,tenant_id)
  VALUES('88888888-8888-4888-8888-888888888888','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
 DO $test$ BEGIN
+ BEGIN
+  UPDATE tto.tenants SET current_slug_ref='77777777-7777-4777-8777-777777777777'
+   WHERE tenant_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  RAISE EXCEPTION 'PH04_CROSS_TENANT_SLUG_REF_ACCEPTED';
+ EXCEPTION WHEN foreign_key_violation THEN NULL;
+ END;
+ BEGIN
+  UPDATE tto.tenants SET legal_profile_ref='88888888-8888-4888-8888-888888888888'
+   WHERE tenant_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  RAISE EXCEPTION 'PH04_CROSS_TENANT_LEGAL_PROFILE_REF_ACCEPTED';
+ EXCEPTION WHEN foreign_key_violation THEN NULL;
+ END;
  BEGIN
   INSERT INTO tto.tenant_slugs(slug_id,tenant_id,slug,status,valid_from)
    VALUES('99999999-9999-4999-8999-999999999999','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
