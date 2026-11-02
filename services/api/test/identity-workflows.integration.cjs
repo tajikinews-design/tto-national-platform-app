@@ -84,7 +84,8 @@ async function main(){
  await admin.query("UPDATE tto.role_assignments SET revoked_at=now() WHERE assignment_id=$1",[tenantBRole]);
  await call("GET","/v1/tenants/"+b+"/context",actorToken,null,403);
  await call("GET","/v1/tenants/"+a+"/context",actorToken,null,200);
- await call("GET","/v1/tenants/"+b+"/context",actorToken,null,403);
+ const tenantMismatch=await call("GET","/v1/tenants/"+b+"/context",actorToken,null,403);
+ assert.equal(tenantMismatch.code,"CROSS_TENANT_ACCESS_DENIED","DED-002 exact cross-tenant error");
  const national=await tokenFor(reviewer);
  await call("GET","/v1/tenants/"+a+"/documents",national,null,403);
  const requested=await call("POST","/v1/tenants/"+a+"/jit/requests",national,
