@@ -1,0 +1,60 @@
+name: PH05 first-slice CF03 immutable audit & legal hold (synthetic PG17 ONLY)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - feat/ph04-identity-tenant-party-contract-parity-20261102
+permissions:
+  contents: read
+concurrency:
+  group: ph05-source-cf03-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  disposable-cf03-negative:
+    if: github.head_ref == 'feat/ph05-core-foundation-evidence-gates-20261102'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      CI: "true"
+      DATABASE_URL: ""
+      APIIR_TOKEN: ""
+      TTO_API_BASE_URL: ""
+      VERCEL: ""
+    steps:
+      - name: Checkout candidate exact SHA without write credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify frozen 155 and PH05 24 source ID semantics
+        run: |
+          set -euo pipefail
+          python3 -m unittest tests/test_ph05_24_source_truth.py -v
+          python3 -m unittest tests/test_ph04_155_execution_truth.py -v
+          python3 -m unittest tests/test_ph04_cf02_22_detailed_truth.py -v
+      - name: Start ephemeral nonhosted PG17
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name tto-ph05-disposable -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine
+          ready=false
+          for n in $(seq 1 100); do
+            if docker exec tto-ph05-disposable psql -U postgres -d postgres -Atqc "SELECT 1" >/dev/null 2>&1 &&
+               docker exec tto-ph05-disposable createdb -U postgres tto >/dev/null 2>&1; then ready=true; break; fi
+            sleep 0.5
+          done
+          test "$ready" = true || { docker logs tto-ph05-disposable | tail -60; exit 1; }
+      - name: Apply existing 0001..0015 exact-head migrations to disposable PG only
+        run: |
+          set -euo pipefail
+          for f in database/migrations/[0-9][0-9][0-9][0-9]_*.sql; do
+            echo "PH05_SYNTHETIC_MIGRATION=$(basename "$f")"
+            docker exec -i tto-ph05-disposable psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" > /dev/null
+          done
+          echo "PH05_SYNTHETIC_MIGRATIONS_PASS"
+      - name: Execute CF03 audit immutability and held-document deny
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph05-disposable psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph05-cf03-audit-hold-negative.sql
+          echo "PH05_CF03_FIRST_NEGATIVE_SECURITY_SLICE_PASS_NOT_24_ACCEPTANCE"
+      - name: Erase synthetic database
+        if: always()
+        run: docker rm -f tto-ph05-disposable || true
