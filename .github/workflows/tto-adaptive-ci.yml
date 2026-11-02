@@ -512,6 +512,15 @@ jobs:
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
         run: bash scripts/ci/release-regression.sh
+      - name: PH05 exact-head synthetic source checks and historical HTTP regression
+        if: github.event_name == 'pull_request' && github.head_ref == 'feat/ph05-core-foundation-evidence-gates-20261102' && steps.scope.outputs.suite != 'lite' && env.TTO_W2_NO_DOCKER_BRANCH != 'true'
+        env:
+          TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+          APIIR_TOKEN: ""
+        run: |
+          set -euo pipefail
+          bash scripts/ci/release-regression.sh
+          echo "TTO_PH05_CF03_CF04_CF05_SOURCE_NEGATIVE_EXACT_HEAD_PASS"
       - name: Validate Arvan manifests without deployment (offline; no deploy)
         if: steps.scope.outputs.suite == 'release'
         run: |
