@@ -5,6 +5,7 @@ const assert=require("node:assert/strict");
 const {spawn}=require("node:child_process");
 const path=require("node:path");
 const {chromium}=require("playwright");
+const axe=require("axe-core");
 const root=path.resolve(__dirname,"../..");
 const cfg=[
  {slug:"shareholder",title:"پنل سهامداران",port:32601},
@@ -65,6 +66,17 @@ async function main(){
        assert.ok(ratio(style.c,style.bg==="rgba(0, 0, 0, 0)"?style.body:style.bg)>=4.5,app.slug+" text contrast");
        assert.ok(style.over<=2,app.slug+" horizontal document overflow "+style.over);
        checks+=8;
+       if(route==="/"||route==="/modules/nav-02"){
+        await page.addScriptTag({content:axe.source});
+        const violations=await page.evaluate(async()=> {
+          const report=await window.axe.run(document,{runOnly:{type:"tag",
+            values:["wcag2a","wcag2aa","wcag21a","wcag21aa","wcag22aa"]}});
+          return report.violations.map(v=>({id:v.id,impact:v.impact,
+            nodes:v.nodes.slice(0,5).map(n=>({target:n.target,message:n.failureSummary?.slice(0,160)}))}));
+        });
+        assert.deepEqual(violations,[],app.slug+" "+route+" WCAG violations");
+        checks++;
+       }
       }
       await page.goto(server.url,{waitUntil:"domcontentloaded"});
       await page.keyboard.press("Tab");
