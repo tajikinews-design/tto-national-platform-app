@@ -163,7 +163,14 @@ async function main(){
  assert.equal(assigned.rowCount,1);
  await call("POST","/v1/tenants/"+a+"/roles/"+assigned.rows[0].assignment_id+"/revoke",actorToken,{expectedVersion:1},201);
  await call("GET","/v1/tenants/"+a+"/context",userCToken,null,403);
- await admin.query("INSERT INTO tto.documents(document_id,tenant_id,title,classification) VALUES($1,$2,'Synthetic publish API','MEMBER')",[doc,a]);
+ // DED-013: an actor authorized within A must not mutate a document owned by B.
+ const foreignDocumentId=randomUUID();
+ await admin.query("INSERT INTO tto.documents(document_id,tenant_id,title,classification) VALUES($1,$2,'Synthetic foreign doc','MEMBER')",[foreignDocumentId,b]);
+ await call("POST","/v1/tenants/"+a+"/documents/"+foreignDocumentId+"/versions",actorToken,
+   {cleanFileId:"dddddddd-dddd-4ddd-8ddd-ddddddddddd1",version:1},403);
+ const unaffectedForeign=await admin.query("SELECT count(*)::integer AS n FROM tto.document_versions WHERE document_id=$1",[foreignDocumentId]);
+ assert.equal(unaffectedForeign.rows[0].n,0,"DED-013: resource tenant mismatch has no write effect");
+  await admin.query("INSERT INTO tto.documents(document_id,tenant_id,title,classification) VALUES($1,$2,'Synthetic publish API','MEMBER')",[doc,a]);
  await call("POST","/v1/tenants/"+a+"/documents/"+doc+"/versions",actorToken,
   {cleanFileId:"dddddddd-dddd-4ddd-8ddd-ddddddddddd2",version:1},403);
  await call("POST","/v1/tenants/"+a+"/documents/"+doc+"/versions",actorToken,
@@ -193,12 +200,12 @@ async function main(){
  await call("GET","/v1/tenants/"+a+"/context",actorToken,null,401);
  // DED-014 (partial): verify actual audit event values never contain test OTP,
  // access token or raw challenge secret; schema/retention audit remains open.
- const audit=await admin.query("SELECT event_name FROM tto.audit_events");
+ const audit=await admin.query("SELECT * FROM tto.audit_events");
  assert.ok(audit.rowCount>0,"DED-014 requires emitted audit evidence");
  for(const row of audit.rows){
   assert.equal(typeof row.event_name,"string");
   for(const secret of [otp,expiredOtp,concurrentOtp,actorToken]){
-   assert.equal(row.event_name.includes(secret),false,"DED-014 audit leaked test secret");
+   assert.equal(JSON.stringify(row).includes(secret),false,"DED-014 full audit row leaked test secret");
   }
  }
  console.log("TTO_CF01_DED014_AUDIT_EVENT_NO_RAW_SECRETS_PASS");
