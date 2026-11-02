@@ -28,12 +28,13 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
-      - name: Build actual Nest API without production configuration
+      - name: Build all three portals and Nest API without production configuration
         run: |
           set -euo pipefail
           npm install -g pnpm@10.18.0
           pnpm install --frozen-lockfile
-          pnpm --filter @tto/api build
+          pnpm build
+          pnpm check
       - name: Prepare disposable PG17 for real HTTP
         run: |
           set -euo pipefail
