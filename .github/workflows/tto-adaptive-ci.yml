@@ -111,7 +111,7 @@ jobs:
           VERCEL: ""
         run: |
           set -euo pipefail
-          npm install --prefix /tmp/tto-ph03-browser --no-audit --no-fund playwright@1.56.1
+          npm install --prefix /tmp/tto-ph03-browser --no-audit --no-fund playwright@1.56.1 axe-core@4.10.3
           node /tmp/tto-ph03-browser/node_modules/playwright/cli.js install --with-deps chromium
           NODE_PATH=/tmp/tto-ph03-browser/node_modules timeout --signal=TERM --kill-after=5s 240s node scripts/ci/ph03-three-portal-browser.cjs
           echo "TTO_PH03_3PORTAL_BROWSER_A11Y_PASS"
