@@ -306,6 +306,64 @@ SELECT e.tenant_id,e.display_name,
 FROM eligible e ORDER BY e.display_name,e.tenant_id LIMIT 50
 $func$;
 
+-- CF02 relation projection ingestion is a separate owner-approved source boundary.
+-- No ordinary API actor can write source snapshots, create membership or transfer shares.
+DO $role$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='tto_ingestor') THEN
+  CREATE ROLE tto_ingestor NOLOGIN NOBYPASSRLS;
+ END IF;
+END $role$;
+GRANT USAGE ON SCHEMA tto TO tto_ingestor;
+CREATE TABLE tto.relationship_event_receipts (
+ tenant_id uuid NOT NULL REFERENCES tto.tenants(tenant_id),
+ source_event_id uuid NOT NULL,
+ party_id uuid NOT NULL REFERENCES tto.parties(party_id),
+ source_version bigint NOT NULL CHECK(source_version>0),
+ source_ref text NOT NULL CHECK(length(trim(source_ref))>=8),
+ received_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(tenant_id,source_event_id)
+);
+ALTER TABLE tto.relationship_event_receipts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tto.relationship_event_receipts FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON tto.relationship_event_receipts FROM PUBLIC,tto_app,tto_ingestor;
+CREATE FUNCTION tto.ingest_verified_relationship_event(
+ p_tenant uuid,p_party uuid,p_source_event uuid,p_source_version bigint,
+ p_relationship_status text,p_source_ref text)
+ RETURNS boolean LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+ SET search_path=pg_catalog,tto AS $ingest$
+ DECLARE inserted boolean;
+ BEGIN
+  IF p_tenant IS NULL OR p_party IS NULL OR p_source_event IS NULL
+    OR p_source_version IS NULL OR p_source_version<1
+    OR p_relationship_status NOT IN('ACTIVE','ENDED','SUSPENDED')
+    OR NOT EXISTS(SELECT 1 FROM tto.tenants WHERE tenant_id=p_tenant AND status='ACTIVE')
+    OR NOT EXISTS(SELECT 1 FROM tto.parties WHERE party_id=p_party)
+    OR NOT tto.valid_read_source(p_tenant,'CHILD06_MEMBERSHIP',p_source_ref)
+  THEN RETURN false;END IF;
+  INSERT INTO tto.relationship_event_receipts
+    (tenant_id,source_event_id,party_id,source_version,source_ref)
+   VALUES(p_tenant,p_source_event,p_party,p_source_version,p_source_ref)
+   ON CONFLICT(tenant_id,source_event_id) DO NOTHING;
+  GET DIAGNOSTICS inserted = ROW_COUNT;
+  IF NOT inserted THEN RETURN false; END IF;
+  INSERT INTO tto.relationship_projections
+   (tenant_id,party_id,membership_status,source_event_id,source_version,
+    relationship_id,relationship_type,relationship_status)
+   VALUES(p_tenant,p_party,p_relationship_status,p_source_event,p_source_version,
+    gen_random_uuid(),'MEMBERSHIP',p_relationship_status)
+   ON CONFLICT(tenant_id,party_id) DO UPDATE SET
+    membership_status=EXCLUDED.membership_status,
+    source_event_id=EXCLUDED.source_event_id,
+    source_version=EXCLUDED.source_version,
+    relationship_status=EXCLUDED.relationship_status
+    WHERE tto.relationship_projections.source_version < EXCLUDED.source_version;
+  RETURN true;
+ END $ingest$;
+REVOKE ALL ON FUNCTION tto.ingest_verified_relationship_event(
+ uuid,uuid,uuid,bigint,text,text) FROM PUBLIC,tto_app;
+GRANT EXECUTE ON FUNCTION tto.ingest_verified_relationship_event(
+ uuid,uuid,uuid,bigint,text,text) TO tto_ingestor;
+
 -- All newly created sensitive tables are owner-only; no app read/write or
 -- SECURITY DEFINER mutation routes. Also forbid accidental service-role access.
 DO $do$ DECLARE tbl text; BEGIN
