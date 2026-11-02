@@ -29,12 +29,19 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm -d --name tto-ph04-ci-pg -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine
+          # PostgreSQL initdb may briefly start and then restart its temporary server.
+          # Retry the actual database creation instead of trusting one pg_isready edge.
+          ready=false
           for n in $(seq 1 100); do
-            if docker exec tto-ph04-ci-pg pg_isready -U postgres >/dev/null 2>&1; then break; fi
-            sleep 0.4
+            if docker exec tto-ph04-ci-pg psql -U postgres -d postgres -Atqc "SELECT 1" >/dev/null 2>&1 &&
+               docker exec tto-ph04-ci-pg createdb -U postgres tto >/dev/null 2>&1; then
+              ready=true
+              break
+            fi
+            sleep 0.5
           done
-          docker exec tto-ph04-ci-pg pg_isready -U postgres
-          docker exec tto-ph04-ci-pg createdb -U postgres tto
+          test "$ready" = true || { docker logs tto-ph04-ci-pg | tail -50; exit 1; }
+          docker exec tto-ph04-ci-pg psql -U postgres -d tto -v ON_ERROR_STOP=1 -Atqc 'SELECT 1'
       - name: Apply pinned additive migrations 0001..0013 on disposable PG only
         run: |
           set -euo pipefail
