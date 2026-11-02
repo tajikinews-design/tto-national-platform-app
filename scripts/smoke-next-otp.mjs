@@ -21,22 +21,12 @@ for (let idx=0;idx<slugs.length;idx++){
    await new Promise(r=>setTimeout(r,200));
   }
   if(!ready)throw Error(slug+" not ready");
-  // All ten shareholder module pages mount only fail-closed public SSR without
+  // All ten module pages per portal mount only fail-closed public SSR without
   // backend/session; authenticated owner information never renders anonymously.
-  const moduleCases=[
-   ["/modules/nav-02","NAV-02"],
-   ["/modules/nav-11","NAV-11"],
-   ...(slug==="shareholder"?[
-     ["/modules/nav-03","NAV-03"],
-     ["/modules/nav-05","NAV-05"],
-     ["/modules/nav-04","NAV-04"],
-     ["/modules/nav-06","NAV-06"],
-     ["/modules/nav-07","NAV-07"],
-     ["/modules/nav-08","NAV-08"],
-     ["/modules/nav-09","NAV-09"],
-     ["/modules/nav-10","NAV-10"]
-   ]:[])
-  ];
+  const moduleCases=Array.from({length:10},(_,i)=>{
+   const nav="NAV-"+String(i+2).padStart(2,"0");
+   return ["/modules/"+nav.toLowerCase(),nav];
+  });
   for(const [path,title] of moduleCases){
    const response=await fetch("http://127.0.0.1:"+port+path);
    if(response.status!==200)throw Error(slug+" module route "+path+" returned "+response.status);
@@ -55,9 +45,12 @@ for (let idx=0;idx<slugs.length;idx++){
         html.includes("تعداد سهام: "))
        throw Error(slug+" protected module leaked private data or lacked fail-closed OTP");
    }else{
-     if(!html.includes("ساختار این بخش آماده بررسی است")||
-        !html.includes("هیچ داده، مانده سهام"))
-       throw Error(slug+" legacy module lost safe placeholder");
+     if(!html.includes("ورود با رمز یک‌بارمصرف")||
+        !html.includes("در این نسخه پیش‌نمایش")||
+        !html.includes("دسترسی ماژول نیازمند تأیید مجوز است")||
+        html.includes("کارپوشه شخصی سهامدار")||
+        html.includes("تعداد سهام: "))
+       throw Error(slug+" management module bypassed safe OTP shell or leaked private data");
    }
    checks++;
   }

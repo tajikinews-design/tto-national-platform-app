@@ -21,9 +21,9 @@ class SessionPrivacyPhase4B(unittest.TestCase):
         cls.read=READ.read_text(encoding="utf-8")
         cls.api=API.read_text(encoding="utf-8")
 
-    def test_periodic_revalidation_only_for_authenticated_shareholder(self):
+    def test_periodic_revalidation_for_authenticated_shareholder_and_management(self):
         for expected in (
-            'if(!enabled||!verified||surface!=="shareholder")return;',
+            'if(!enabled||!verified)return;',
             'fetch("/api/auth/session"',
             'method:"GET",credentials:"same-origin",cache:"no-store"',
             'window.setInterval(()=>{void revalidate();},60000)',

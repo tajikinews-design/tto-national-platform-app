@@ -8,7 +8,7 @@ const titles={
  JIT_DOCUMENT_REVIEW_ONLY:"مجوز موقت صرفاً برای بررسی اسناد؛ بدون دسترسی نامحدود به تعاونی‌ها",
  EVIDENCE_PENDING:"تأیید ارتباط شخص، سابقه عضویت یا اختیار قانونی کامل نیست"
 };
-export function TenantScopePicker({surface}:{surface:Surface}){
+export function TenantScopePicker({surface,moduleId}:{surface:Surface;moduleId?:string}){
  const [items,setItems]=useState<Candidate[]>([]);
  const [selected,setSelected]=useState("");
  const [busy,setBusy]=useState(false);
@@ -28,9 +28,31 @@ export function TenantScopePicker({surface}:{surface:Surface}){
    .catch(()=>{if(!c.signal.aborted){setItems([]);setMessage("بازیابی مجوزهای تعاونی ممکن نیست؛ دسترسی بسته است.");setLoading(false);}});
   return ()=>c.abort();
  },[surface]);
+ // A tenant approval is not a permanent grant. Re-confirm when the user returns to
+ // a suspended management page or the short-lived scope check expires.
+ useEffect(()=>{
+  if(surface==="shareholder"||!scopeVerified)return;
+  const expire=()=>setScopeVerified(false);
+  const onVisible=()=>{if(document.visibilityState==="visible")expire();};
+  const timer=window.setTimeout(expire,60000);
+  window.addEventListener("focus",expire);
+  document.addEventListener("visibilitychange",onVisible);
+  return ()=>{window.clearTimeout(timer);window.removeEventListener("focus",expire);
+    document.removeEventListener("visibilitychange",onVisible);};
+ },[surface,scopeVerified]);
  const current=items.find(x=>x.tenantId===selected);
  async function verify(){
   if(!current||busy)return;
+  if(surface==="cooperative"&&current.evidenceStatus!=="ROLE_AUTHORITY_EVIDENCE"){
+   setScopeVerified(false);
+   setMessage("سند اختیار مورد نیاز برای این پنل تأیید نشده است؛ دسترسی به ماژول بسته است.");
+   return;
+  }
+  if(surface==="national"&&current.evidenceStatus!=="JIT_DOCUMENT_REVIEW_ONLY"){
+   setScopeVerified(false);
+   setMessage("مجوز موقت بررسی اسناد فعال نیست؛ دسترسی مدیریت ملی بسته است.");
+   return;
+  }
   setBusy(true);setMessage("");setMember(null);setHolding(null);setScopeVerified(false);
   setMemberUnavailable(false);setHoldingUnavailable(false);
   try{
@@ -41,7 +63,9 @@ export function TenantScopePicker({surface}:{surface:Surface}){
     return;
    }
    setScopeVerified(true);
-   setMessage("محدوده تعاونی تأیید شد. داده‌ها فقط پس از تأیید مستقل منبع عضویت و سهام نمایش داده می‌شوند.");
+   setMessage(surface==="shareholder"?
+    "محدوده تعاونی تأیید شد. داده‌ها فقط پس از تأیید مستقل منبع عضویت و سهام نمایش داده می‌شوند.":
+    "محدوده مجاز تأیید شد؛ اجرای عملیات هر بخش مستلزم تصمیم مجوز جداگانه است.");
    if(surface!=="shareholder")return;
    const p="/api/tenants/"+current.tenantId+"/me/";
    const [m,h]=await Promise.all([
@@ -80,6 +104,10 @@ export function TenantScopePicker({surface}:{surface:Surface}){
     </button>
    </div>}
   {message?<p role="status" aria-live="polite">{message}</p>:null}
+  {surface!=="shareholder"&&scopeVerified?<div className="module-status" role="status" aria-label="محدوده تأییدشده و محدودیت عملیات">
+    <strong>محدوده بررسی شد؛ عملیات ماژول فعال نیست</strong>
+    <span>{moduleId?moduleId+" — ":""}تأیید محدوده جایگزین اختیار حقوقی و تصمیم دسترسی هر عملیات نیست؛ هیچ اطلاعات محرمانه دیگری بارگذاری نمی‌شود.</span>
+   </div>:null}
   {surface==="shareholder"&&scopeVerified?<div aria-label="اطلاعات اختصاصی تأییدشده">
    <h3>وضعیت عضویت</h3>
    {member?<p role="status">عضویت: فعال | نوع شخص: {member.partyKind==="PERSON"?"حقیقی":"حقوقی"} | نسخه منبع: {member.sourceVersion}</p>:

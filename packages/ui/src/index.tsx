@@ -99,9 +99,10 @@ export function PortalShell({
   const selection = active < 0 ? 0 : active;
   const currentTitle = home ? cfg.title : cfg.navigation[selection];
   return <div className="shell" dir="rtl">
+    <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
     <aside className="nav-area">
       <a className="logo" href="/" aria-label="بازگشت به داشبورد پلتفرم ملی">TTO <span>پلتفرم ملی تعاونی توسعه و عمران</span></a>
-      <nav aria-label="منوی اصلی">
+      <nav aria-label={"منوی اصلی "+cfg.title}>
         {cfg.navigation.map((name, i) =>
           <a href={navHref(i)} aria-current={selection === i ? "page" : undefined}
             className={selection === i ? "nav-link current" : "nav-link"} key={NAV_IDS[i]}>
