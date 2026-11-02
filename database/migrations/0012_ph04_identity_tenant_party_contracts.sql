@@ -174,8 +174,7 @@ CREATE TABLE tto.party_merge_cases (
   created_at timestamptz NOT NULL DEFAULT now(),
   CHECK(survivor_party_id<>duplicate_party_id)
 );
--- CHILD02 approved slug transition: immutable UUID, optimistic version,
--- old-slug redirect and same-Tenant FK, legal authority required.
+-- CHILD02 authorized immutable Tenant slug transition; optimistic version & redirect.
 CREATE FUNCTION tto.change_tenant_slug(p_tenant uuid,p_new_slug text,p_expected_version bigint)
  RETURNS boolean LANGUAGE plpgsql VOLATILE SECURITY DEFINER
  SET search_path=pg_catalog,tto AS $fn$
@@ -183,111 +182,7 @@ CREATE FUNCTION tto.change_tenant_slug(p_tenant uuid,p_new_slug text,p_expected_
  BEGIN
   IF tto.context_actor_id() IS NULL OR p_tenant IS DISTINCT FROM tto.context_tenant_id()
     OR NOT tto.has_verified_authority(p_tenant,'TENANT_LIFECYCLE')
-    OR p_new_slug !~ '^[a-z0-9][a-z0-9-]{1,100}
--- MUST take effect immediately even when session token itself remains unexpired.
-CREATE OR REPLACE FUNCTION tto.has_tenant_role(p_tenant uuid, p_role text DEFAULT NULL) RETURNS boolean
- LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto
- AS $fn$
- SELECT COALESCE(
-   p_tenant=tto.context_tenant_id() AND
-   EXISTS (
-     SELECT 1 FROM tto.role_assignments a JOIN tto.tenants t ON t.tenant_id=a.tenant_id
-     WHERE a.user_id=tto.context_actor_id() AND a.tenant_id=p_tenant
-       AND t.status='ACTIVE' AND a.revoked_at IS NULL
-       AND a.status='ACTIVE' AND a.scope_type='TENANT'
-       AND (a.valid_from IS NULL OR a.valid_from<=now())
-       AND (a.expires_at IS NULL OR a.expires_at>now())
-       AND (p_role IS NULL OR a.role_code=p_role)
-   ),false) $fn$;
-CREATE OR REPLACE FUNCTION tto.resolve_session(p_hash bytea) RETURNS TABLE(user_id uuid)
- LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto
- AS $fn$
- SELECT a.user_id FROM tto.user_sessions s JOIN tto.user_accounts a ON a.user_id=s.user_id
- WHERE s.session_hash=p_hash AND s.revoked_at IS NULL AND s.expires_at>now()
-   AND s.security_epoch=a.security_epoch
-   AND s.authorization_epoch_at_issue=a.authorization_epoch
-   AND a.status='ACTIVE' LIMIT 1 $fn$;
-
--- Existing Party link approval writes verified_at; enforce a consistent
--- source-contract status atomically without granting extra runtime privileges.
-CREATE FUNCTION tto.sync_verified_party_link_status() RETURNS trigger
- LANGUAGE plpgsql SET search_path=pg_catalog,tto AS $fn$
- BEGIN
-   IF NEW.status='REVOKED' THEN
-     NEW.verified_at=NULL;
-   ELSIF NEW.verified_at IS NOT NULL THEN
-     NEW.status='VERIFIED';
-   ELSE
-     NEW.status='UNVERIFIED';
-   END IF;
-   RETURN NEW;
- END $fn$;
-UPDATE tto.user_party_links SET status=CASE WHEN verified_at IS NOT NULL THEN 'VERIFIED' ELSE 'UNVERIFIED' END;
-CREATE TRIGGER party_link_verification_status
- BEFORE INSERT OR UPDATE OF verified_at,status ON tto.user_party_links
- FOR EACH ROW EXECUTE FUNCTION tto.sync_verified_party_link_status();
-REVOKE ALL ON FUNCTION tto.sync_verified_party_link_status() FROM PUBLIC,tto_app;
-
--- Actor-visible tenant options obey the same revoked-role/Party-link checks.
-CREATE OR REPLACE FUNCTION tto.list_actor_tenant_options()
-RETURNS TABLE ("tenantId" uuid,"displayName" text,"memberRole" boolean,
- "managerRole" boolean,"verifiedPartyLink" boolean,"activeMembershipProjection" boolean,
- "roleManagementAuthority" boolean,"approvedDocumentJit" boolean,"platformOperator" boolean)
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto
-AS $func$
-WITH actor AS (SELECT tto.context_actor_id() AS uid),
-eligible AS (
- SELECT t.tenant_id,t.display_name FROM tto.tenants t CROSS JOIN actor a
- WHERE a.uid IS NOT NULL AND t.status='ACTIVE' AND (
-  EXISTS(SELECT 1 FROM tto.role_assignments r WHERE r.user_id=a.uid
-   AND r.tenant_id=t.tenant_id AND r.revoked_at IS NULL AND r.status='ACTIVE' AND r.scope_type='TENANT'
-  AND (r.valid_from IS NULL OR r.valid_from<=now()) AND (r.expires_at IS NULL OR r.expires_at>now()))
-  OR EXISTS(SELECT 1 FROM tto.jit_access_grants g WHERE g.requester_id=a.uid
-   AND g.tenant_id=t.tenant_id AND g.status='APPROVED'
-   AND g.decided_at IS NOT NULL AND g.approver_id IS NOT NULL
-   AND g.approver_id<>g.requester_id AND g.expires_at>now())
- ))
-SELECT e.tenant_id,e.display_name,
- EXISTS(SELECT 1 FROM tto.role_assignments r CROSS JOIN actor a WHERE
-  r.tenant_id=e.tenant_id AND r.user_id=a.uid AND r.role_code='MEMBER'
-  AND r.revoked_at IS NULL AND r.status='ACTIVE' AND r.scope_type='TENANT'
-  AND (r.valid_from IS NULL OR r.valid_from<=now()) AND (r.expires_at IS NULL OR r.expires_at>now())),
- EXISTS(SELECT 1 FROM tto.role_assignments r CROSS JOIN actor a WHERE
-  r.tenant_id=e.tenant_id AND r.user_id=a.uid AND r.role_code='COOPERATIVE_MANAGER'
-  AND r.revoked_at IS NULL AND r.status='ACTIVE' AND r.scope_type='TENANT'
-  AND (r.valid_from IS NULL OR r.valid_from<=now()) AND (r.expires_at IS NULL OR r.expires_at>now())),
- EXISTS(SELECT 1 FROM tto.user_party_links l CROSS JOIN actor a WHERE
-  l.user_id=a.uid AND l.status='VERIFIED' AND l.verified_at IS NOT NULL),
- EXISTS(SELECT 1 FROM tto.user_party_links l
-  JOIN tto.relationship_projections p ON p.party_id=l.party_id AND p.tenant_id=e.tenant_id
-  CROSS JOIN actor a WHERE l.user_id=a.uid AND l.status='VERIFIED' AND l.verified_at IS NOT NULL
-  AND p.membership_status='ACTIVE' AND p.source_version>0),
- EXISTS(SELECT 1 FROM tto.legal_authorities v CROSS JOIN actor a WHERE
-  v.holder_id=a.uid AND v.tenant_id=e.tenant_id AND v.scope='ROLE_MANAGEMENT'
-  AND v.revoked_at IS NULL AND v.valid_until>now() AND v.verified_by<>v.holder_id),
- EXISTS(SELECT 1 FROM tto.jit_access_grants g CROSS JOIN actor a WHERE
-  g.requester_id=a.uid AND g.tenant_id=e.tenant_id AND g.status='APPROVED'
-  AND g.decided_at IS NOT NULL AND g.approver_id<>g.requester_id
-  AND g.expires_at>now()),
- EXISTS(SELECT 1 FROM tto.platform_operator_authorizations o CROSS JOIN actor a WHERE
-  o.user_id=a.uid AND o.approved_by<>o.user_id AND o.revoked_at IS NULL AND o.expires_at>now())
-FROM eligible e ORDER BY e.display_name,e.tenant_id LIMIT 50
-$func$;
-
--- All newly created sensitive tables are owner-only; no app read/write or
--- SECURITY DEFINER mutation routes. Also forbid accidental service-role access.
-DO $do$ DECLARE tbl text; BEGIN
- FOREACH tbl IN ARRAY ARRAY[
-   'auth_identifiers','auth_factors','role_definitions','authority_references',
-   'tenant_slugs','tenant_legal_profiles','party_identifiers','party_merge_cases'
- ] LOOP
-  EXECUTE format('ALTER TABLE tto.%I ENABLE ROW LEVEL SECURITY',tbl);
-  EXECUTE format('ALTER TABLE tto.%I FORCE ROW LEVEL SECURITY',tbl);
-  EXECUTE format('REVOKE ALL ON tto.%I FROM PUBLIC,tto_app',tbl);
- END LOOP;
-END $do$;
-COMMIT;
-
+    OR p_new_slug !~ '^[a-z0-9][a-z0-9-]{1,100}$'
     OR p_expected_version IS NULL OR p_expected_version<1
   THEN RETURN false;END IF;
   SELECT slug,version,status INTO old_slug,old_version,current_state
