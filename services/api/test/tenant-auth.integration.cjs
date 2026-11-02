@@ -49,6 +49,30 @@ async function run() {
     "INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'MEMBER')",
     [randomUUID(), userA, tenantA]
   );
+  // PH02-C02: transaction-local actor/tenant context must not bleed across pooled uses.
+  // A single non-owner PostgreSQL connection is reused to emulate the same pool client.
+  const isolated = new Client({ connectionString: "postgresql://tto_app@127.0.0.1:5432/tto" });
+  try {
+    await isolated.connect();
+    await isolated.query("BEGIN");
+    await isolated.query("SELECT set_config('tto.actor_id',$1,true),set_config('tto.tenant_id',$2,true)",[userA,tenantA]);
+    const scoped = await isolated.query("SELECT tenant_id FROM tto.tenants WHERE tenant_id=$1",[tenantA]);
+    assert.equal(scoped.rowCount,1,"PH02 scoped role can see own cooperative");
+    await isolated.query("COMMIT");
+    const leaked = await isolated.query("SELECT NULLIF(current_setting('tto.actor_id',true),'') AS actor, NULLIF(current_setting('tto.tenant_id',true),'') AS tenant");
+    assert.equal(leaked.rows[0].actor,null,"PH02-C02 actor context did not clear after commit");
+    assert.equal(leaked.rows[0].tenant,null,"PH02-C02 tenant context did not clear after commit");
+    const afterCommit = await isolated.query("SELECT tenant_id FROM tto.tenants WHERE tenant_id=$1",[tenantA]);
+    assert.equal(afterCommit.rowCount,0,"PH02-C02 pooled client must deny without new tenant context");
+    await isolated.query("BEGIN");
+    await isolated.query("SELECT set_config('tto.actor_id',$1,true),set_config('tto.tenant_id',$2,true)",[userA,tenantB]);
+    const foreign = await isolated.query("SELECT tenant_id FROM tto.tenants WHERE tenant_id=$1",[tenantA]);
+    assert.equal(foreign.rowCount,0,"PH02-C02 wrong-tenant context cannot expose previous tenant");
+    await isolated.query("ROLLBACK");
+    console.log("TTO_PH02_TRANSACTION_LOCAL_POOL_CROSS_TENANT_ISOLATION_PASS");
+  } finally {
+    await isolated.end().catch(()=>{});
+  }
   const tokenA = await issueSession(userA);
   const tokenB = await issueSession(userB);
   const port = 31239;

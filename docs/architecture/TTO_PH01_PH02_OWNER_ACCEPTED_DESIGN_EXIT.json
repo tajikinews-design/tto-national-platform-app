@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1.0",
+  "recordedAt": "2026-11-02",
+  "authorityEvidence": "User in TTO project conversation explicitly states project-owner and specialist approvals fully given; this is an OWNER_ATTESTED decision, not independently verified individual signatures.",
+  "officialInterpretation": "Design-only stage acceptance for PH01 and PH02 by approved change-control rebaseline; original runtime acceptance criteria moved unchanged to blocking PH04-09 and PH12-13.",
+  "source_sha": "5eb6be8edfbb61f2eca740a42c30f572b493f023",
+  "approvals": {
+    "owner": "OWNER_APPROVED_IN_CONVERSATION",
+    "specialist": "OWNER_ATTESTED_APPROVED_NOT_INDEPENDENTLY_VERIFIED",
+    "independent_signature_files": 0
+  },
+  "phase01": {
+    "stage": "PH-01",
+    "scope": "LOGICAL_DESIGN_BASELINE_ONLY",
+    "state": "DESIGN_GREEN_OWNER_APPROVED",
+    "original_gate_count": 8,
+    "design_green": 8,
+    "gates": {
+      "C01": "GREEN_SOURCE_23_CHILD",
+      "C02": "GREEN_148_ENTITIES_71_STATES_165_COMMANDS_90_QUERIES_89_EVENTS_SOURCE_EXTRACTED",
+      "C03": "GREEN_11_NAV_ROOTS_SOURCE_EXTRACTED",
+      "C04": "GREEN_155_ORIGINAL_ACCEPTANCE_IDS_PRESERVED",
+      "C05": "GREEN_DESIGN_SOURCE_148_AND_786_FIELD_PHRASES_MAPPED_WITH_GAPS_NOT_RUNTIME_PARITY",
+      "C06": "GREEN_DESIGN_155_SCENARIOS_EXPECTED_AND_DOWNSTREAM_TEST_GAPS_TRACKED_NOT_RUNTIME_PASS",
+      "C07": "GREEN_GAP_ACCOUNTING_WITH_OWNERSHIP",
+      "C08": "GREEN_OWNER_ATTESTED_DESIGN_SOURCE_PRECEDENCE_CF01_18_DEDICATED_WITH_PACK_8_NAMESPACED"
+    },
+    "not_claimed": [
+      "148_RUNTIME_FIELDS_PARITY",
+      "155_BUSINESS_TESTS_PASS",
+      "INDEPENDENT_SIGNED_SHA_REVIEWS"
+    ]
+  },
+  "phase02": {
+    "stage": "PH-02",
+    "scope": "ARCHITECTURE_AND_ENVIRONMENT_POLICY_BASELINE_ONLY",
+    "state": "DESIGN_GREEN_OWNER_APPROVED",
+    "original_gate_count": 4,
+    "design_green": 4,
+    "gates": {
+      "C01": "GREEN_STACK_ADR_001",
+      "C02": "GREEN_RLS_TRANSACTION_CONTEXT_RUNTIME_SUBTEST_CI_41409321670",
+      "C03": "GREEN_23_DOMAIN_OWNERS_EVENT_OUTBOX_DESIGN_NOT_MIGRATION",
+      "C04": "GREEN_TEST_ONLY_VERCEL_HOBBY_BOUNDARY_AND_DEDICATED_SERVER_PRODUCTION_POLICY"
+    },
+    "vercel": {
+      "permitted_intent": "NON_COMMERCIAL_PERSONAL_SYNTHETIC_TESTS_ONLY",
+      "real_data": false,
+      "live_customer_delivery": false,
+      "no_payment_or_live_shares": true,
+      "anonymous_preview_sso_checked": true,
+      "provider_terms": "IF_ANY_DEPLOYMENT_USE_IS_COMMERCIALLY_CLASSIFIED, DO_NOT_USE_HOBBY; MOVE_TO_AUTHORIZED_ENVIRONMENT_OR_OBTAIN_PROVIDER_RULING",
+      "official_reference": "https://vercel.com/docs/limits/fair-use-guidelines"
+    },
+    "production": {
+      "target": "DEDICATED_SERVER",
+      "current_provisioned_and_verified": false,
+      "release_permission": false
+    }
+  },
+  "deferred_release_blockers": {
+    "issue": "https://github.com/tajikinews-design/tto-national-platform-app/issues/119",
+    "source_148_physical_contracts": "MUST_BE_IMPLEMENTED_AND_TESTED_BEFORE_PRODUCTION",
+    "source_155_acceptance": "MUST_BE_EXECUTED_WITH_EXACT_REQUIREMENT_ASSERTION_SHA_RUN_QA",
+    "independent_specialist_signatures": "MUST_BE_OBTAINED_OR_FORMALLY_AUDITABLE_BEFORE_REGULATED_PRODUCTION",
+    "legal_share_transfer_payment": "NOT_AUTHORIZED",
+    "dedicated_prod_sec_bcp_dr": "NOT_YET_TESTED",
+    "production_release": "BLOCKED"
+  },
+  "no_green_claim_for_runtime": true,
+  "no_merge_or_deploy_by_documenting": true
+}
