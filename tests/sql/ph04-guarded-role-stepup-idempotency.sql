@@ -61,6 +61,17 @@ DO $check$ DECLARE mobile text;ok boolean;bad_session uuid;BEGIN
   RAISE EXCEPTION 'STEPUP_ACCEPTED_BEFORE_PROVIDER_DELIVERY';END IF;
  ok:=tto.complete_smsotp_delivery('99999999-9999-4999-8999-999999999990',true);
  IF NOT ok THEN RAISE EXCEPTION 'STEPUP_DELIVERY_STATUS_FAILED';END IF;
+ RAISE NOTICE 'PH04_STEPUP_DIAGNOSTIC actor_valid=% session_valid=% challenge_valid=% delivery_ok=%',
+  tto.context_actor_id() IS NOT NULL,
+  EXISTS(SELECT 1 FROM tto.user_sessions s JOIN tto.user_accounts a ON a.user_id=s.user_id
+    WHERE s.user_id=tto.context_actor_id() AND s.session_hash=decode(repeat('ab',32),'hex')
+    AND s.revoked_at IS NULL AND s.expires_at>clock_timestamp()
+    AND s.security_epoch=a.security_epoch AND s.authorization_epoch_at_issue=a.authorization_epoch
+    AND a.status='ACTIVE'),
+  EXISTS(SELECT 1 FROM tto.auth_challenges c WHERE c.challenge_id='99999999-9999-4999-8999-999999999990'
+    AND c.user_id=tto.context_actor_id() AND c.purpose='SMSOTP_STEP_UP'
+    AND c.consumed_at IS NULL AND c.expires_at>clock_timestamp() AND c.attempt_count<3),
+  EXISTS(SELECT 1 FROM tto.smsotp_delivery_attempts d WHERE d.challenge_id='99999999-9999-4999-8999-999999999990' AND d.state='ACCEPTED');
  ok:=tto.consume_session_stepup_smsotp('99999999-9999-4999-8999-999999999990',
    decode(repeat('cd',32),'hex'),decode(repeat('ab',32),'hex'));
  IF NOT ok THEN RAISE EXCEPTION 'STEPUP_FRESH_PROOF_DENIED';END IF;
