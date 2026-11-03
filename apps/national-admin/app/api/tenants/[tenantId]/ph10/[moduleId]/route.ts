@@ -60,7 +60,7 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{tenantId:str
   for(const raw of data.items){
    if(!raw||typeof raw!=="object"||Array.isArray(raw))return deny(503,"DOCUMENT_BAD_CONTRACT");
    const x=raw as Record<string,unknown>;
-   if(x.status!=="PUBLISHED"||!["MEMBER","TENANT_INTERNAL"].includes(String(x.classification)))continue;
+   if(x.status!=="PUBLISHED"||!["MEMBER","RESTRICTED"].includes(String(x.classification)))continue;
    if(typeof x.document_id!=="string"||!UUID.test(x.document_id)||typeof x.title!=="string"||
     x.title.length<1||x.title.length>200)return deny(503,"DOCUMENT_BAD_CONTRACT");
    items.push({document_id:x.document_id,title:x.title,classification:String(x.classification),status:"PUBLISHED"});
