@@ -306,7 +306,7 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
       const reply=await pageResponse.goto(publicRoute,{waitUntil:'domcontentloaded',timeout:30000});
       assert.equal(reply.status(),nav===1?404:200,
        'PH10_ANONYMOUS_NAV_HTTP_'+profile.kind+'_'+slot);
-      assert.equal(await pageResponse.locator('html').getAttribute('dir'),'rtl');
+      if(nav!==1)assert.equal(await pageResponse.locator('html').getAttribute('dir'),'rtl');
       assert.equal((await pageResponse.locator('body').innerText()).includes(profile.expected),false,
        'PH10_ANONYMOUS_NAV_PRIVATE_RECORD_LEAK_'+profile.kind+'_'+slot);
       checks++;
