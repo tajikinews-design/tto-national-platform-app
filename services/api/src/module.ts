@@ -602,5 +602,86 @@ export class Pcs010FixtureController {
  }
 }
 
-@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController],providers:[ApiIrSmsOtpProvider]})
+/**
+ * PH07 bounded, tenant-scoped read models on the real Nest authentication path.
+ * Query functions are SECURITY DEFINER with role-based and tenant-based filters;
+ * API runs exclusively as tto_app. No raw table access or legal e-voting host.
+ */
+@Controller("v1/tenants")
+export class Ph07PortalController {
+ constructor(private readonly db:Database) {}
+ private async scoped<T>(tenant:string,auth:string|undefined,run:(client:PoolClient)=>Promise<T>):Promise<T>{
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,run);
+ }
+ @Get(":tenantId/ph07/communications")
+ async communications(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+   @Headers("authorization") auth?:string) {
+  return this.scoped(tenant,auth,async c=>{
+   const r=await c.query("SELECT publication_id,title,version FROM tto.ph07_my_publications() LIMIT 50");
+   return {items:r.rows,source:"PH07_MEMBER_PUBLICATION"};
+  });
+ }
+ @Get(":tenantId/ph07/notices/:publicationId/status")
+ async noticeStatus(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+   @Param("publicationId",new ParseUUIDPipe()) publication:string,
+   @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,async c=>{
+   const r=await c.query("SELECT delivered,read,acknowledged FROM tto.ph07_my_notice_status($1)",[publication]);
+   if(r.rows.length!==1)throw new ForbiddenException({code:"NOTICE_SCOPE_DENIED"});
+   return r.rows[0];
+  });
+ }
+ @Get(":tenantId/ph07/support/my-tickets")
+ async myTickets(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+   @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,async c=>{
+   const r=await c.query("SELECT ticket_id,status,issue_key FROM tto.ph07_my_support_tickets() LIMIT 50");
+   return {items:r.rows};
+  });
+ }
+ @Get(":tenantId/ph07/support/:ticketId/notes")
+ async ticketNotes(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+   @Param("ticketId",new ParseUUIDPipe()) ticket:string,
+   @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,async c=>{
+   const own=await c.query("SELECT 1 FROM tto.ph07_my_support_tickets() WHERE ticket_id=$1",[ticket]);
+   if(!own.rows.length)throw new ForbiddenException({code:"TICKET_SCOPE_DENIED"});
+   const r=await c.query("SELECT note_id,body FROM tto.ph07_my_ticket_notes($1) LIMIT 100",[ticket]);
+   return {items:r.rows};
+  });
+ }
+ @Get(":tenantId/ph07/support/:ticketId/sensitive-access")
+ async sensitive(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+   @Param("ticketId",new ParseUUIDPipe()) ticket:string,
+   @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,async c=>{
+   const r=await c.query<{allowed:boolean}>("SELECT tto.ph07_can_view_sensitive_source($1) AS allowed",[ticket]);
+   if(r.rows[0]?.allowed!==true)throw new ForbiddenException({code:"JIT_REQUIRED"});
+   return {authorized:true,sourceDataReturned:false};
+  });
+ }
+ @Post(":tenantId/ph07/support/:ticketId/resolve")
+ async resolve(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+   @Param("ticketId",new ParseUUIDPipe()) ticket:string,
+   @Headers("authorization") auth:string|undefined,
+   @Body() body:Record<string,unknown>){
+  const evidence=requireId(body?.evidenceId);
+  return this.scoped(tenant,auth,async c=>{
+   const r=await c.query<{approved:boolean}>("SELECT tto.ph07_resolve_ticket($1,$2) AS approved",[ticket,evidence]);
+   if(r.rows[0]?.approved!==true)throw new ForbiddenException({code:"SUPPORT_RESOLVE_DENIED"});
+   return {resolved:true};
+  });
+ }
+ @Get(":tenantId/ph07/disclosures")
+ async disclosures(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+   @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,async c=>{
+   const r=await c.query("SELECT package_id,version_num,report_kind,dividend_state FROM tto.ph07_my_disclosures() LIMIT 50");
+   return {items:r.rows,kind:"SOURCE_BACKED_DISCLOSURE_ONLY",accountingEngine:false};
+  });
+ }
+}
+
+@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController],providers:[ApiIrSmsOtpProvider]})
 export class AppModule {}
