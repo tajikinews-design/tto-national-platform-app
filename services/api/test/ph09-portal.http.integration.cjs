@@ -311,10 +311,10 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
  const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
  try{
   const profiles=[
-   {kind:'cooperative',port:31678,token:managerToken,route:'nav-10',
-    select:'#tto-select-cooperative',button:'بررسی مجوز محدوده',expected:'ARTICLE129'},
    {kind:'shareholder',port:31679,token:memberToken,route:'nav-07',
     select:'#sw-tenant',button:'تأیید محدوده و استعلام',expected:'Cooperative Product'},
+   {kind:'cooperative',port:31678,token:managerToken,route:'nav-10',
+    select:'#tto-select-cooperative',button:'بررسی مجوز محدوده',expected:'ARTICLE129'},
    {kind:'national',port:31680,token:await token(outsider),route:'nav-09',
     select:'#tto-select-national',button:'بررسی مجوز محدوده',expected:'Synthetic approved-to-display minute'}
   ];
@@ -330,12 +330,17 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
     const page=await context.newPage();
     console.log('PH10_CHROMIUM_START_'+profile.kind.toUpperCase());
     const url='http://127.0.0.1:'+profile.port+'/modules/'+profile.route;
+    console.log('PH10_CHROMIUM_BEFORE_INITIAL_NAV_'+profile.kind.toUpperCase());
     const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
+    console.log('PH10_CHROMIUM_AFTER_INITIAL_NAV_'+profile.kind.toUpperCase());
     assert.equal(response.status(),200);
     await page.locator(profile.select).waitFor({state:'visible',timeout:25000});
+    console.log('PH10_CHROMIUM_AFTER_TENANT_SELECTOR_'+profile.kind.toUpperCase());
     await page.locator(profile.select).selectOption(tenant);
     await page.getByRole('button',{name:profile.button}).click();
+    console.log('PH10_CHROMIUM_AFTER_SCOPE_CONFIRM_'+profile.kind.toUpperCase());
     await page.getByText(profile.expected).waitFor({state:'visible',timeout:25000});
+    console.log('PH10_CHROMIUM_AFTER_SOURCE_RENDER_'+profile.kind.toUpperCase());
     assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
     assert.equal(await page.getByText(profile.expected).count()>0,true);
     assert.equal((await page.locator('body').innerText()).includes('SEALED_SOURCE_IDENTITY'),false);
