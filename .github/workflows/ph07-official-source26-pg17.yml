@@ -32,7 +32,7 @@ jobs:
       - name: Start disposable PostgreSQL 17 and isolated database
         run: |
           set -euo pipefail
-          docker run -d --rm --name tto-ph07-isolated -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine
+          docker run -d --rm --name tto-ph07-isolated -e POSTGRES_HOST_AUTH_METHOD=trust -p 127.0.0.1:5432:5432 postgres:17-alpine
           ready=false
           for n in $(seq 1 100); do
             if docker exec tto-ph07-isolated psql -U postgres -d postgres -Atqc 'SELECT 1' >/dev/null 2>&1; then
@@ -80,6 +80,22 @@ jobs:
           set -euo pipefail
           docker exec -i tto-ph07-isolated psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph07-transparency-acceptance.sql
           echo "PH07_TRN_SIX_SOURCE_BOUNDARY_PASS"
+      - name: Build Nest API for real authenticated HTTP without deployments
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.18.0
+          pnpm install --frozen-lockfile
+          pnpm --filter @tto/api build
+      - name: Run real Nest portal HTTP against isolated tto_app PostgreSQL
+        env:
+          TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+          AUTH_CHALLENGE_HMAC_SECRET: PH07_DISPOSABLE_NOT_A_REAL_SECRET_32_BYTE_MINIMUM
+          APIIR_TOKEN: ""
+          TTO_ENABLE_REAL_SMSOTP_DELIVERY: "false"
+        run: |
+          set -euo pipefail
+          node services/api/test/ph07-portal.http.integration.cjs
+          echo "PH07_REAL_NEST_HTTP_SYNTHETIC_INTEGRATION_PASS"
       - name: Close scoped PH07 synthetic gate, no approval of live workflows
         run: |
           echo "PH07_SOURCE_26_26_SYNTHETIC_PG17_PROOFS_PASS"
