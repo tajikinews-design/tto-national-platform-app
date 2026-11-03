@@ -13,7 +13,7 @@ const A=randomUUID(),B=randomUUID(),PARTY=randomUUID(),PARTY2=randomUUID();
 const USER=randomUUID(),MANAGER=randomUUID(),NATIONAL=randomUUID(),REVIEWER=randomUUID(),APPROVER=randomUUID();
 const REQ=randomUUID(),DEC=randomUUID();
 const API="http://127.0.0.1:31997";
-const running=[];let checks=0;
+const running=[];let checks=0;let startedBrowser=null;
 const tokenMap=new Map();
 function ok(value,label){assert.ok(value,label);checks++;}
 async function status(response,expected,label){
@@ -156,6 +156,7 @@ async function main(){
  // Child06/07: never infer membership or share balance from successful login/Party link.
  const browserEnabled=process.env.TTO_PCS014_BROWSER==="1";
  const browser=browserEnabled?await require("/tmp/tto-pcs014-browser/node_modules/playwright").chromium.launch({headless:true}):null;
+ startedBrowser=browser;
  async function inspectOwnScreen(name, expectedMember, expectedShares) {
   if(!browser)return;
   for(const width of [390,1440]){
@@ -419,6 +420,60 @@ async function main(){
  const rejected=await status(await post(membershipPath+"/"+second.applicationId+"/decision",memberManager,
   {approve:false,expectedVersion:1,decisionEvidenceId:DEC}),201,"member review rejection");
  ok(rejected.status==="REJECTED"&&!rejected.alreadyApplied,"reject branch is terminal");
+
+ // Optional ACTUAL Chromium browser smoke of the two existing portal forms.
+ // These are synthetic records, with no operation against real member/ledger sources.
+ if(browser){
+  const formParty=randomUUID();
+  await db.query("INSERT INTO tto.parties(party_id,party_kind,display_label) VALUES($1,'PERSON','CI form-only applicant')",[formParty]);
+  await db.query("INSERT INTO tto.user_party_links(user_id,party_id,verified_at) VALUES($1,$2,now())",[USER,formParty]);
+  await db.query("INSERT INTO tto.identity_link_cases(case_id,tenant_id,user_id,party_id,request_evidence_id,requested_by,status,decided_at,decided_by,decision_evidence_id,version) VALUES($1,$2,$3,$4,$5,$3,'APPROVED',now(),$6,$7,2)",[randomUUID(),A,USER,formParty,REQ,REVIEWER,DEC]);
+  for(const width of [390,1440]){
+   const userCtx=await browser.newContext({viewport:{width,height:900},locale:"fa-IR",serviceWorkers:"block"});
+   await userCtx.addCookies([{name:"tto_session",value:myToken,url:sh.origin,httpOnly:true,sameSite:"Lax"}]);
+   const userPage=await userCtx.newPage();const errors=[];
+   userPage.on("pageerror",e=>errors.push(e.message));
+   await userPage.goto(sh.origin+"/tenants/"+A+"/membership-application",{waitUntil:"domcontentloaded",timeout:20000});
+   await userPage.getByRole("heading",{name:"درخواست عضویت در تعاونی"}).waitFor();
+   if(width===390){
+    await userPage.getByLabel("شناسه مرجع هویت تأییدشده (Party)").fill(formParty);
+    await userPage.getByLabel("شناسه سند و شاهد معتبر").fill(REQ);
+    await userPage.getByRole("button",{name:"ثبت درخواست برای بررسی"}).click();
+    await userPage.getByText("درخواست ثبت شد؛ در صف بررسی مدیر تعاونی است. هنوز هیچ عضویت یا سهمی فعال نشده است.").waitFor();
+    await userPage.getByRole("heading",{name:"پیگیری درخواست"}).waitFor();
+   }
+   const managerCtx=await browser.newContext({viewport:{width,height:900},locale:"fa-IR",serviceWorkers:"block"});
+   await managerCtx.addCookies([{name:"tto_session",value:memberManager,url:cm.origin,httpOnly:true,sameSite:"Lax"}]);
+   const managerPage=await managerCtx.newPage();
+   managerPage.on("pageerror",e=>errors.push(e.message));
+   await managerPage.goto(cm.origin+"/tenants/"+A+"/membership-applications",{waitUntil:"domcontentloaded",timeout:20000});
+   await managerPage.getByRole("heading",{name:"بررسی درخواست‌های عضویت"}).waitFor();
+   if(width===390){
+    const item=managerPage.locator("li").filter({hasText:formParty});
+    await item.waitFor();
+    await item.getByLabel("شناسه سند مستقل تصمیم مدیر").fill(DEC);
+    managerPage.once("dialog",dialog=>void dialog.accept());
+    await item.getByRole("button",{name:"تأیید درخواست"}).click();
+    await managerPage.getByText("درخواست مجازِ در انتظار بررسی وجود ندارد.").waitFor();
+    const review=await db.query("SELECT status,version,application_id FROM tto.membership_applications WHERE tenant_id=$1 AND party_id=$2",[A,formParty]);
+    ok(review.rowCount===1&&review.rows[0].status==="APPROVED"&&Number(review.rows[0].version)===2,
+     "browser manager approval persisted once and advanced version");
+    await userPage.getByRole("button",{name:"استعلام وضعیت جدید"}).click();
+    await userPage.getByText("وضعیت: درخواست تأیید شده؛ عضویت هنوز فعال نشده است").waitFor();
+   }else{
+    // The same case must not reappear on a second viewport; UI is stable at desktop widths.
+    await managerPage.getByText("درخواست مجازِ در انتظار بررسی وجود ندارد.").waitFor();
+   }
+   ok(!errors.length,"no client page errors on membership forms "+width);
+   ok(await userPage.locator("html").getAttribute("dir")==="rtl","shareholder form RTL "+width);
+   ok(await managerPage.locator("html").getAttribute("dir")==="rtl","cooperative review form RTL "+width);
+   for(const page of [userPage,managerPage])
+    ok(await page.locator("body").evaluate(e=>e.scrollWidth<=e.clientWidth+3),"no horizontal overflow "+width);
+   console.log("TTO_CHILD06_REAL_BROWSER_FORMS_"+width+"=PASS");
+   await userCtx.close();await managerCtx.close();
+  }
+ }
+
  await db.query("UPDATE tto.membership_review_rule_gates SET enabled=false WHERE tenant_id=$1",[A]);
  await status(await get(membershipPath+"/pending",memberManager),403,"revoked policy fails closed");
  await db.query("UPDATE tto.role_assignments SET revoked_at=now() WHERE user_id=$1 AND tenant_id=$2 AND role_code='COOPERATIVE_MANAGER'",[MANAGER,A]);
@@ -453,4 +508,4 @@ async function main(){
  console.log("TTO_CF02_NO_REAL_IDENTITIES_NO_SHARE_LEDGER_NO_HOSTED_MIGRATION");
 }
 main().catch(e=>{console.error("TTO_CF02_E2E_FAIL",e?.stack??String(e));process.exitCode=1})
-.finally(async()=>{for(const proc of running)if(proc.exitCode===null)proc.kill("SIGTERM");await db.end().catch(()=>{});});
+.finally(async()=>{await startedBrowser?.close().catch(()=>{});for(const proc of running)if(proc.exitCode===null)proc.kill("SIGTERM");await db.end().catch(()=>{});});
