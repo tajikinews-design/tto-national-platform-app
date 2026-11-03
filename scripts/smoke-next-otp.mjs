@@ -124,6 +124,35 @@ for (let idx=0;idx<slugs.length;idx++){
     checks++;
    }
   }
+  // PH10 cooperative source BFF: spoofed credentials never bypass cookies or
+  // switch source domain and tenant; no backend must always fail closed.
+  if(slug==="cooperative-management"){
+    const root="http://127.0.0.1:"+port+"/api/tenants/"+tid+"/ph10/";
+    for(const moduleId of ["NAV-04","NAV-05","NAV-07","NAV-08","NAV-09","NAV-10"]){
+      const anonymous=await fetch(root+moduleId,{
+        headers:{Authorization:"Bearer "+"z".repeat(48),"X-Role":"COOPERATIVE_MANAGER"}
+      });
+      const anonBody=await anonymous.json();
+      if(anonymous.status!==401||anonBody.available!==false||
+         !/no-store/.test(anonymous.headers.get("cache-control")??""))
+        throw Error("PH10_BFF_UNAUTH_SOURCE_LEAK_"+moduleId);
+      checks++;
+      const fakeCookie=await fetch(root+moduleId,{
+        headers:{Cookie:"tto_session="+"f".repeat(48)}
+      });
+      const unavailable=await fakeCookie.json();
+      if(fakeCookie.status!==503||unavailable.available!==false)
+        throw Error("PH10_BFF_MISSING_BACKEND_FAIL_OPEN_"+moduleId);
+      checks++;
+    }
+    const unapproved=await fetch(root+"NAV-03");
+    if(unapproved.status!==404)throw Error("PH10_BFF_UNAPPROVED_MODULE_ACCESS");
+    const invalid=await fetch("http://127.0.0.1:"+port+
+      "/api/tenants/not-uuid/ph10/NAV-10");
+    if(invalid.status!==400)throw Error("PH10_BFF_INVALID_TENANT");
+    checks+=2;
+    console.log("PH10_COOP_BFF_SIX_SOURCE_ROUTES_FAIL_CLOSED_PASS");
+  }
   // Anonymous navigation is allowed only for public-design review copy.
   // The actual shareholder operational portal remains guarded by OTP and legal sources.
   if(slug==="shareholder"){
