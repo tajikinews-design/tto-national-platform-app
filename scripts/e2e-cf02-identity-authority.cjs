@@ -657,10 +657,24 @@ async function main(){
   ok(duplicate.rowCount===0,"PG17 source claim is not concurrently duplicated");
   const stale=await serviceDb.query("SELECT tto.cf02_consumer_complete($1,$2,$3) AS result",[A,projectionEventId,randomUUID()]);
   ok(stale.rows[0].result==="STALE_CLAIM","incorrect lease token cannot complete delivery");
-  const completed=await serviceDb.query("SELECT tto.cf02_consumer_complete($1,$2,$3) AS result",[A,projectionEventId,claimedToken]);
-  ok(completed.rows[0].result==="ACKED","valid lease completes only committed CF02 projection");
+  // Simulate a worker crashing without ACK after a committed claim.
   await serviceDb.query("COMMIT");
  } catch(err){await serviceDb.query("ROLLBACK");throw err}
+ await db.query("UPDATE tto.cf02_child06_delivery_leases SET claimed_until=clock_timestamp()-interval '1 second',available_at=clock_timestamp()-interval '1 second' WHERE source_event_id=$1",[projectionEventId]);
+ await serviceDb.query("BEGIN");
+ try {
+  await serviceDb.query("SET LOCAL ROLE tto_cf02_consumer");
+  await serviceDb.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+  await serviceDb.query("SELECT set_config('tto.tenant_id',$1,true)",[A]);
+  const reclaimed=await serviceDb.query("SELECT * FROM tto.cf02_consumer_claim($1,$2)",[A,30]);
+  ok(reclaimed.rowCount===1&&reclaimed.rows[0].event_id===projectionEventId&&reclaimed.rows[0].claim_token!==claimedToken,
+    "expired durable PG17 lease recovers a claimed event with a new fencing token");
+  const oldAttempt=await serviceDb.query("SELECT tto.cf02_consumer_complete($1,$2,$3) AS result",[A,projectionEventId,claimedToken]);
+  ok(oldAttempt.rows[0].result==="STALE_CLAIM","recovered event cannot be completed using the old lease token");
+  const completed=await serviceDb.query("SELECT tto.cf02_consumer_complete($1,$2,$3) AS result",[A,projectionEventId,reclaimed.rows[0].claim_token]);
+  ok(completed.rows[0].result==="ACKED","recovered delivery completes only once with valid claim");
+  await serviceDb.query("COMMIT");
+ }catch(err){await serviceDb.query("ROLLBACK");throw err}
  const adapterReplay=await consumeCf02Event(adapterSource,{enabled:true,authorized:true,ports:adapterPorts});
  ok(adapterReplay.status==="ACKED_REPLAY"&&ackCount===1,
   "real PG17 CF02 outbox adapter replay acks committed immutable receipt only");
