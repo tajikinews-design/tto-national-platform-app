@@ -6,7 +6,7 @@ const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]
 const TOKEN=/^[A-Za-z0-9_-]{32,256}$/;
 const HEADERS={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 const ROUTES:Record<string,{path:string;keys:readonly string[]}>={
- "NAV-06":{path:"ph08/learning/events",keys:["event_id","course_title","capacity","refund_policy_version"]},
+ "NAV-06":{path:"ph08/learning/events",keys:["event_id","course_title","capacity","refund_policy_version","registration_state"]},
  "NAV-07":{path:"ph08/market/offers",keys:["offer_id","title","price_snapshot","seller_kind"]},
  "NAV-08":{path:"ph08/projects/disclosures",keys:["project_id","name"]},
  "NAV-10":{path:"ph09/impact/approved",keys:["claim_id","measurement_id","amount"]}
