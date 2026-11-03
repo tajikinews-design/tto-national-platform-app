@@ -55,6 +55,22 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
       OR (p.classification='INTERNAL' AND tto.has_tenant_role(p.tenant_id,'COOPERATIVE_MANAGER')))
  AND EXISTS (SELECT 1 FROM tto.tenants t WHERE t.tenant_id=p.tenant_id AND t.status='ACTIVE');
 $f$;
+-- A published source must belong to the exact cooperative, not just any source UUID.
+CREATE FUNCTION tto.ph07_validate_disclosure_source() RETURNS trigger
+LANGUAGE plpgsql SET search_path=pg_catalog,tto AS $f$
+DECLARE own_tenant uuid;
+BEGIN
+ SELECT p.tenant_id INTO own_tenant FROM tto.ph07_disclosure_packages p
+ WHERE p.package_id=NEW.package_id;
+ IF NEW.status='PUBLISHED' AND NOT EXISTS(
+ SELECT 1 FROM tto.evidence_references e WHERE e.evidence_id=NEW.source_evidence
+ AND e.tenant_id=own_tenant)
+ THEN RAISE EXCEPTION 'DISCLOSURE_SOURCE_TENANT_INVALID';END IF;
+ RETURN NEW;
+END $f$;
+CREATE TRIGGER ph07_disclosure_source_guard BEFORE INSERT
+ON tto.ph07_disclosure_versions FOR EACH ROW
+EXECUTE FUNCTION tto.ph07_validate_disclosure_source();
 CREATE TRIGGER ph07_disclosure_version_immutable BEFORE UPDATE OR DELETE
  ON tto.ph07_disclosure_versions FOR EACH ROW EXECUTE FUNCTION tto.deny_evidence_mutation();
 CREATE TRIGGER ph07_disclosure_package_immutable BEFORE DELETE
