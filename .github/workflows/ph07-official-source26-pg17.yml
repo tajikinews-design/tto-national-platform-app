@@ -65,6 +65,10 @@ jobs:
           set -euo pipefail
           docker exec -i tto-ph07-isolated psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph07-governance-acceptance.sql
           echo "PH07_GOV_EIGHT_SOURCE_BOUNDARY_PASS"
+      - name: Race two independent PostgreSQL proxy registrations against max three
+        run: |
+          set -euo pipefail
+          bash scripts/ci/ph07-concurrent-proxy.sh
       - name: COMM official 6/6 exact-source assertions
         run: |
           set -euo pipefail
