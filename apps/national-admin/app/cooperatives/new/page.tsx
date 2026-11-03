@@ -1,9 +1,9 @@
 "use client";
-import {useEffect,useState,type FormEvent} from "react";
+import {useEffect,useState,type FormEvent,type CSSProperties} from "react";
 type CompanyDraft={name:string,registrationNumber:string,nationalId:string,province:string,county:string,address:string,representative:string};
 const initial:CompanyDraft={name:"",registrationNumber:"",nationalId:"",province:"",county:"",address:"",representative:""};
-const fieldStyle:React.CSSProperties={width:"100%",minHeight:45,border:"1px solid #bacddd",borderRadius:8,padding:"10px 12px",background:"#fff",boxSizing:"border-box",font:"inherit"};
-const textStyle:React.CSSProperties={color:"#244661",lineHeight:1.9};
+const fieldStyle:CSSProperties={width:"100%",minHeight:45,border:"1px solid #bacddd",borderRadius:8,padding:"10px 12px",background:"#fff",boxSizing:"border-box",font:"inherit"};
+const textStyle:CSSProperties={color:"#244661",lineHeight:1.9};
 const digits=(v:string)=>v.replace(/[۰-۹]/g,x=>String(x.charCodeAt(0)-1776)).replace(/[٠-٩]/g,x=>String(x.charCodeAt(0)-1632));
 export default function NewCooperative(){
  const [draft,setDraft]=useState<CompanyDraft>(initial);
