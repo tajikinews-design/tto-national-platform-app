@@ -456,9 +456,7 @@ async function main(){
     await item.getByRole("button",{name:"تأیید درخواست"}).click();
     await managerPage.getByText("درخواست مجازِ در انتظار بررسی وجود ندارد.").waitFor();
     const review=await db.query("SELECT status,version,application_id FROM tto.membership_applications WHERE tenant_id=$1 AND party_id=$2",[A,formParty]);
-    console.log("TTO_CHILD06_FORM_DECISION_DIAG",JSON.stringify(review.rows),
-     "UI=",await managerPage.locator('p[role="status"]').allTextContents());
-    ok(review.rowCount===1&&review.rows[0].status==="APPROVED"&&review.rows[0].version===2,
+    ok(review.rowCount===1&&review.rows[0].status==="APPROVED"&&Number(review.rows[0].version)===2,
      "browser manager approval persisted once and advanced version");
     await userPage.getByRole("button",{name:"استعلام وضعیت جدید"}).click();
     await userPage.getByText("وضعیت: درخواست تأیید شده؛ عضویت هنوز فعال نشده است").waitFor();
