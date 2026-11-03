@@ -124,5 +124,15 @@ REVOKE ALL ON FUNCTION tto.cf02_consumer_claim(uuid,integer),
 GRANT EXECUTE ON FUNCTION tto.cf02_consumer_claim(uuid,integer),
  tto.cf02_consumer_complete(uuid,uuid,uuid),
  tto.cf02_consumer_retry(uuid,uuid,uuid,integer) TO tto_cf02_consumer;
+CREATE FUNCTION tto.cf02_consumer_source(p_tenant uuid,p_event uuid)
+RETURNS TABLE(event_id uuid,tenant_id uuid,party_id uuid,relationship_id uuid,source_version bigint,event_name text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
+ SELECT o.event_id,o.tenant_id,o.party_id,o.relationship_id,o.source_version,o.event_name
+ FROM tto.cooperative_relationship_outbox o WHERE o.tenant_id=p_tenant
+ AND o.event_id=p_event AND p_tenant=tto.context_tenant_id()
+ AND tto.cf02_relationship_projector_authorized(p_tenant)
+$f$;
+REVOKE ALL ON FUNCTION tto.cf02_consumer_source(uuid,uuid) FROM PUBLIC,tto_app;
+GRANT EXECUTE ON FUNCTION tto.cf02_consumer_source(uuid,uuid) TO tto_cf02_consumer;
 COMMENT ON ROLE tto_cf02_consumer IS 'CF02 Child06 restricted NOLOGIN executor: separate deployment credential mapping required; no automatic dispatcher';
 COMMIT;
