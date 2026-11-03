@@ -44,7 +44,10 @@ async function consumeOnce({databaseUrl,tenantId,actorId,enable=false,clientFact
     if(q.rows[0].result!=="ACKED")throw Error("DURABLE_ACK_NOT_COMMITTED");
    }),
    retry:async(id,tenant)=>transact(async()=>db.query("SELECT tto.cf02_consumer_retry($1,$2,$3,30)",[tenant,id,token])),
-   quarantine:async()=>{throw Error("QUARANTINE_REQUIRES_EXPLICIT_OPERATOR_REVIEW")}
+   quarantine:async(id,tenant,reason)=>transact(async()=>{
+    const q=await db.query("SELECT tto.cf02_consumer_quarantine($1,$2,$3,$4) AS result",[tenant,id,token,reason]);
+    if(q.rows[0].result!=="QUARANTINED")throw Error("QUARANTINE_NOT_COMMITTED");
+   })
   };
   const envelope=await ports.readSource(eventId,tenantId);
   if(!envelope)return {status:"UNKNOWN_SOURCE_EVENT"};
