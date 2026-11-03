@@ -378,6 +378,32 @@ export class FoundationCommandsController {
       (input.approve?"APPROVED":"REJECTED"):result,alreadyApplied:result==="ALREADY_APPLIED"};
   }
 
+  // ActivateRelationship is a distinct, source-owned Child06 command, not request approval.
+  @Post("tenants/:tenantId/membership-applications/:applicationId/activate")
+  async activateApprovedMembership(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Param("applicationId",new ParseUUIDPipe()) application:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    const evidence=requireId(input?.activationEvidenceId);
+    if(!Number.isSafeInteger(input?.expectedVersion)||Number(input.expectedVersion)<1)
+      throw new BadRequestException("Expected approved application version required");
+    const status=await this.run<string>(tenant,auth,
+      "SELECT tto.activate_relationship($1,$2,$3,$4) AS out",
+      [tenant,application,evidence,input.expectedVersion]);
+    if(status==="STALE_VERSION"||status==="CONFLICT_ACTIVE_RELATIONSHIP")
+      throw new ConflictException("Relationship version or active source conflict");
+    if(!["ACTIVATED","ALREADY_ACTIVATED"].includes(status))
+      throw new ForbiddenException("Relationship activation denied");
+    return {recorded:true,status:"ACTIVATED",alreadyActivated:status==="ALREADY_ACTIVATED"};
+  }
+  @Get("tenants/:tenantId/me/membership-applications/:applicationId/relationship")
+  async ownActiveRelationship(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Param("applicationId",new ParseUUIDPipe()) application:string,
+    @Headers("authorization") auth?:string){
+    const record=await this.run<Record<string,unknown>|null>(tenant,auth,
+      "SELECT tto.my_activated_relationship_status($1,$2) AS out",[tenant,application]);
+    if(!record)throw new ForbiddenException("Relationship source unavailable");
+    return {record};
+  }
   @Post("auth/challenges/request")
   @HttpCode(202)
   async requestSmsLogin(@Body() payload:Record<string,unknown>,@Req() req:{ip?:string}){

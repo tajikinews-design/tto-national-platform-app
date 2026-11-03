@@ -421,6 +421,79 @@ async function main(){
   {approve:false,expectedVersion:1,decisionEvidenceId:DEC}),201,"member review rejection");
  ok(rejected.status==="REJECTED"&&!rejected.alreadyApplied,"reject branch is terminal");
 
+ // Child06 independent ActivateRelationship command. The prior APPROVED decision
+ // must NOT have materialized a relationship; only the third-party activation may.
+ const activationPath=membershipPath+"/"+submitted.applicationId+"/activate";
+ const activationBff=manageBff+"/"+submitted.applicationId+"/activate";
+ const activationEvidence=randomUUID();
+ await db.query("INSERT INTO tto.evidence_references(evidence_id,tenant_id,document_id,source_entity_type,source_entity_id) SELECT $1,tenant_id,document_id,'CI_CHILD06_ACTIVATION',$3 FROM tto.evidence_references WHERE evidence_id=$2",
+  [activationEvidence,DEC,randomUUID()]);
+ const activatedBefore=await db.query("SELECT count(*)::int AS n FROM tto.cooperative_relationships WHERE tenant_id=$1 AND party_id=$2",[A,PENDING_PARTY]);
+ ok(activatedBefore.rows[0].n===0,"reviewed application must not activate relationship");
+ await status(await post(activationPath,myToken,{activationEvidenceId:activationEvidence,expectedVersion:2}),
+  403,"applicant cannot activate relationship");
+ await status(await post(activationPath,memberManager,{activationEvidenceId:activationEvidence,expectedVersion:2}),
+  403,"decision reviewer must not activate own decision");
+ await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'COOPERATIVE_MANAGER')",
+  [randomUUID(),REVIEWER,A]);
+ const activatorToken=tokenMap.get(REVIEWER);
+ const activatorCookie={Cookie:"tto_session="+activatorToken,Origin:cm.origin,"Content-Type":"application/json"};
+ await status(await post(activationPath,activatorToken,{activationEvidenceId:activationEvidence,expectedVersion:2}),
+  403,"manager role alone lacks activation authority");
+ await db.query("INSERT INTO tto.membership_activation_authorizations(tenant_id,activator_id,approved_by,evidence_id,valid_until) VALUES($1,$2,$3,$4,now()+interval '1 hour')",
+  [A,REVIEWER,APPROVER,DEC]);
+ await db.query("INSERT INTO tto.membership_activation_rule_gates(tenant_id,rule_snapshot_ref,evidence_id,approved_by,valid_until,enabled) VALUES($1,$2,$3,$4,now()+interval '1 hour',false)",
+  [A,randomUUID(),DEC,APPROVER]);
+ await status(await post(activationPath,activatorToken,{activationEvidenceId:activationEvidence,expectedVersion:2}),
+  403,"separately authorized activator still requires active rule snapshot gate");
+ await db.query("UPDATE tto.membership_activation_rule_gates SET enabled=true WHERE tenant_id=$1",[A]);
+ await status(await post(activationPath,activatorToken,{activationEvidenceId:DEC,expectedVersion:2}),
+  403,"activation must not reuse approval-decision evidence");
+ await status(await post(activationPath,activatorToken,{activationEvidenceId:activationEvidence,expectedVersion:1}),
+  409,"activation rejects stale version");
+ await status(await post("/v1/tenants/"+B+"/membership-applications/"+submitted.applicationId+"/activate",
+  activatorToken,{activationEvidenceId:activationEvidence,expectedVersion:2}),
+  403,"activation strictly tenant-bound");
+ await status(await fetch(activationBff,{method:"POST",headers:{
+  Authorization:"Bearer "+activatorToken,Origin:cm.origin,"Content-Type":"application/json"},
+  body:JSON.stringify({activationEvidenceId:activationEvidence,expectedVersion:2})}),401,
+  "forged browser bearer cannot activate relationship");
+ await status(await fetch(activationBff,{method:"POST",
+  headers:{...activatorCookie,Origin:"https://evil.example"},
+  body:JSON.stringify({activationEvidenceId:activationEvidence,expectedVersion:2})}),403,
+  "activation BFF must enforce CSRF protection");
+ const activation=await status(await fetch(activationBff,{method:"POST",headers:activatorCookie,
+  body:JSON.stringify({activationEvidenceId:activationEvidence,expectedVersion:2})}),201,
+  "third-party actor activates only the approved Child06 relationship");
+ assert.deepEqual(activation,{recorded:true,status:"ACTIVATED",alreadyActivated:false});checks++;
+ const activationReplay=await status(await post(activationPath,activatorToken,
+  {activationEvidenceId:activationEvidence,expectedVersion:2}),201,
+  "identical activation is idempotent");
+ assert.deepEqual(activationReplay,{recorded:true,status:"ACTIVATED",alreadyActivated:true});checks++;
+ const storedRelationship=await db.query("SELECT relationship_status,source_version,activated_by FROM tto.cooperative_relationships WHERE tenant_id=$1 AND party_id=$2",
+  [A,PENDING_PARTY]);
+ ok(storedRelationship.rowCount===1&&storedRelationship.rows[0].relationship_status==="ACTIVE"&&
+  Number(storedRelationship.rows[0].source_version)===1&&storedRelationship.rows[0].activated_by===REVIEWER,
+  "Child06 source-owned relationship committed at monotonic v1");
+ const sourceEvents=await db.query("SELECT count(*)::int AS n FROM tto.cooperative_relationship_outbox WHERE tenant_id=$1 AND party_id=$2 AND event_name='MEMBERSHIP_APPROVED'",
+  [A,PENDING_PARTY]);
+ ok(sourceEvents.rows[0].n===1,"activation replays do not duplicate monotonic outbox event");
+ const projected=await db.query("SELECT count(*)::int AS n FROM tto.relationship_projections WHERE tenant_id=$1 AND party_id=$2",[A,PENDING_PARTY]);
+ ok(projected.rows[0].n===0,"CF02 projection not rewritten without separate projector");
+ const noAccount=await db.query("SELECT count(*)::int AS n FROM tto.shareholder_source_accounts WHERE tenant_id=$1 AND party_id=$2",[A,PENDING_PARTY]);
+ ok(noAccount.rows[0].n===0,"activation never manufactures shareholder account or shares");
+ const ownRelation=await status(await get("/v1/tenants/"+A+"/me/membership-applications/"+submitted.applicationId+"/relationship",myToken),
+  200,"member applicant can read own activated source-relationship reference");
+ ok(ownRelation.record.status==="ACTIVE"&&Number(ownRelation.record.sourceVersion)===1,
+  "private relationship status is source-versioned");
+ await status(await get("/v1/tenants/"+A+"/me/membership-applications/"+submitted.applicationId+"/relationship",memberManager),
+  403,"reviewer cannot inspect another applicant's relationship");
+ await db.query("UPDATE tto.membership_activation_rule_gates SET enabled=false WHERE tenant_id=$1",[A]);
+ await status(await post(activationPath,activatorToken,
+  {activationEvidenceId:activationEvidence,expectedVersion:2}),403,
+  "revoked activation rule blocks replay despite past success");
+
+
  // Optional ACTUAL Chromium browser smoke of the two existing portal forms.
  // These are synthetic records, with no operation against real member/ledger sources.
  if(browser){
@@ -481,7 +554,7 @@ async function main(){
  try{
   await assert.rejects(()=>app.query("SELECT * FROM tto.identity_link_cases"),e=>e.code==="42501");checks++;
   await assert.rejects(()=>app.query("SELECT * FROM tto.identity_review_authorizations"),e=>e.code==="42501");checks++;
-  for(const tbl of ["source_contract_approvals","member_source_snapshots","shareholder_source_accounts","shareholding_source_snapshots","source_import_batches","source_import_claims","membership_applications","membership_review_authorizations","membership_review_rule_gates","membership_application_outbox"]){
+  for(const tbl of ["source_contract_approvals","member_source_snapshots","shareholder_source_accounts","shareholding_source_snapshots","source_import_batches","source_import_claims","membership_applications","membership_review_authorizations","membership_review_rule_gates","membership_application_outbox","cooperative_relationships","membership_activation_authorizations","membership_activation_rule_gates","cooperative_relationship_outbox"]){
    await assert.rejects(()=>app.query("SELECT * FROM tto."+tbl),e=>e.code==="42501");checks++;
   }
   await assert.rejects(()=>app.query("SELECT tto.assess_source_import_claim($1)",[claimReady]),e=>e.code==="42501");checks++;
