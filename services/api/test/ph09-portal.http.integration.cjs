@@ -31,6 +31,17 @@ const foreignSnapshot='9a600000-0000-4000-8000-000000000002';
 const retentionPolicy='9a700000-0000-4000-8000-000000000001';
 const held='9a800000-0000-4000-8000-000000000001';
 const eligible='9a800000-0000-4000-8000-000000000002';
+const p8project='9c000000-0000-4000-8000-000000000001';
+const p8package='9c100000-0000-4000-8000-000000000001';
+const p8version='9c200000-0000-4000-8000-000000000001';
+const p8poll='9c300000-0000-4000-8000-000000000001';
+const p8course='9c400000-0000-4000-8000-000000000001';
+const p8event='9c500000-0000-4000-8000-000000000001';
+const p8benefit='9c600000-0000-4000-8000-000000000001';
+const p8entitlement='9c700000-0000-4000-8000-000000000001';
+const p8voucher='9c800000-0000-4000-8000-000000000001';
+const p8offer='9c900000-0000-4000-8000-000000000001';
+const p8tender='9ca00000-0000-4000-8000-000000000001';
 let server,stderr='',checks=0;
 const port=31677,root='http://127.0.0.1:'+port;
 async function token(uid){
@@ -60,6 +71,19 @@ async function seed(){
  await db.query("INSERT INTO tto.ph09_retention_policies(policy_id,tenant_id,policy_code,version,source_evidence) VALUES($1,$2,'POLICY',1,$3)",[retentionPolicy,tenant,evidence]);
  await db.query("INSERT INTO tto.ph09_retention_records(record_id,tenant_id,classification,policy_id) VALUES($1,$2,'INTERNAL',$3),($4,$2,'INTERNAL',$3)",[held,tenant,retentionPolicy,eligible]);
  await db.query("INSERT INTO tto.ph09_legal_holds(hold_id,record_id,reason_evidence) VALUES($1,$2,$3)",[randomUUID(),held,evidence]);
+ await db.query("INSERT INTO tto.ph08_projects(project_id,tenant_id,name,county_code,status) VALUES($1,$2,'PH10 Approved Project','COUNTY_X','DRAFT')",[p8project,tenant]);
+ await db.query("INSERT INTO tto.ph07_disclosure_packages(package_id,tenant_id,subject_code,classification) VALUES($1,$2,'PH10_PROJECT','MEMBER')",[p8package,tenant]);
+ await db.query("INSERT INTO tto.ph07_disclosure_versions(version_id,package_id,version_num,period_start,period_end,source_evidence,report_kind,status,created_by,approved_by) VALUES($1,$2,1,'2026-01-01','2026-12-31',$3,'STATUTORY','PUBLISHED',$4,$5)",[p8version,p8package,evidence,user,manager]);
+ await db.query("INSERT INTO tto.ph08_project_disclosures(project_id,disclosure_version_id) VALUES($1,$2)",[p8project,p8version]);
+ await db.query("INSERT INTO tto.ph08_polls(poll_id,tenant_id,title,deadline,min_aggregate_size) VALUES($1,$2,'Test Survey',now()+interval '1 day',5)",[p8poll,tenant]);
+ await db.query("INSERT INTO tto.ph08_poll_audience(poll_id,user_id) VALUES($1,$2)",[p8poll,user]);
+ await db.query("INSERT INTO tto.ph08_courses(course_id,tenant_id,title,status) VALUES($1,$2,'Training Course','ACTIVE')",[p8course,tenant]);
+ await db.query("INSERT INTO tto.ph08_training_events(event_id,course_id,tenant_id,capacity,refund_policy_version) VALUES($1,$2,$3,5,'PH10_REFUND_V1')",[p8event,p8course,tenant]);
+ await db.query("INSERT INTO tto.ph08_benefits(benefit_id,tenant_id,title,limited,status) VALUES($1,$2,'Noncash Reward',false,'ACTIVE')",[p8benefit,tenant]);
+ await db.query("INSERT INTO tto.ph08_benefit_entitlements(entitlement_id,benefit_id,tenant_id,holder_id,noncash_units) VALUES($1,$2,$3,$4,1)",[p8entitlement,p8benefit,tenant,user]);
+ await db.query("INSERT INTO tto.ph08_benefit_vouchers(voucher_id,entitlement_id,expires_at) VALUES($1,$2,now()+interval '1 day')",[p8voucher,p8entitlement]);
+ await db.query("INSERT INTO tto.ph08_market_offers(offer_id,seller_tenant_id,title,price_snapshot,status) VALUES($1,$2,'Cooperative Product',100,'PUBLISHED')",[p8offer,tenant]);
+ await db.query("INSERT INTO tto.ph08_sourcing_tenders(tender_id,tenant_id,deadline,source_policy) VALUES($1,$2,now()+interval '1 day',$3)",[p8tender,tenant,evidence]);
 }
 async function start(){
  server=spawn(process.execPath,['dist/main.js'],{
@@ -117,6 +141,41 @@ async function main(){
  assert.equal(x.disposed,true);
  await request('POST',me+'/data-governance/records/'+eligible+'/dispose',managerToken,403);
  console.log('PH09_REAL_NEST_DG_HOLD_PRIVILEGE_ATOMIC_DISPOSE_HTTP_PASS');
+
+ const p8='/v1/tenants/'+tenant+'/ph08', p8Other='/v1/tenants/'+foreign+'/ph08';
+ await request('GET',p8+'/projects/disclosures',null,401);
+ let y=await request('GET',p8+'/projects/disclosures',memberToken,200);
+ assert.equal(y.items.length,1);assert.equal(y.items[0].name,'PH10 Approved Project');
+ y=await request('GET',p8Other+'/projects/disclosures',memberToken,200);
+ assert.equal(y.items.length,0);
+ console.log('PH10_REAL_HTTP_PH08_APPROVED_PROJECT_DISCLOSURE_PASS');
+ y=await request('GET',p8+'/voice/open-polls',memberToken,200);
+ assert.equal(y.items.length,1);assert.equal(y.items[0].poll_id,p8poll);
+ y=await request('GET',p8+'/voice/open-polls',managerToken,200);
+ assert.equal(y.items.length,0);
+ console.log('PH10_REAL_HTTP_PH08_POLL_AUDIENCE_AND_ROLE_PASS');
+ y=await request('GET',p8+'/learning/events',memberToken,200);
+ assert.equal(y.items.length,1);assert.equal(y.items[0].refund_policy_version,'PH10_REFUND_V1');
+ y=await request('GET',p8Other+'/learning/events',memberToken,200);
+ assert.equal(y.items.length,0);
+ console.log('PH10_REAL_HTTP_PH08_TRAINING_TENANT_SCOPE_PASS');
+ y=await request('GET',p8+'/benefits/my-vouchers',memberToken,200);
+ assert.equal(y.items.length,1);assert.equal(y.items[0].voucher_id,p8voucher);
+ y=await request('GET',p8+'/benefits/my-vouchers',managerToken,200);
+ assert.equal(y.items.length,0);
+ console.log('PH10_REAL_HTTP_PH08_NONCASH_BENEFIT_OWNERSHIP_PASS');
+ y=await request('GET',p8+'/market/offers',memberToken,200);
+ assert.equal(y.items.length,1);assert.equal(y.items[0].seller_kind,'COOPERATIVE');
+ y=await request('GET',p8Other+'/market/offers',memberToken,200);
+ assert.equal(y.items.length,0);
+ console.log('PH10_REAL_HTTP_PH08_MARKET_COOPERATIVE_TENANT_PASS');
+ y=await request('GET',p8+'/procurement/tenders',managerToken,200);
+ assert.equal(y.items.length,1);assert.equal(y.items[0].tender_id,p8tender);
+ assert.ok(!Object.prototype.hasOwnProperty.call(y.items[0],'sealed_content'));
+ y=await request('GET',p8+'/procurement/tenders',memberToken,200);
+ assert.equal(y.items.length,0);
+ console.log('PH10_REAL_HTTP_PH08_MANAGER_TENDER_METADATA_ONLY_PASS');
+ console.log('PH10_REAL_HTTP_TOTAL_PHASE09_PLUS_PHASE08_REQUESTS='+checks);
  console.log('PH09_REAL_NEST_HTTP_REQUESTS_PASS='+checks);
 }
 main().catch(e=>{console.error('PH09_REAL_NEST_HTTP_FAIL',String(e?.message).slice(0,1500));process.exitCode=1;})
