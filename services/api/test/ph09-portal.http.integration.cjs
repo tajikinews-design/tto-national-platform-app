@@ -59,6 +59,9 @@ async function request(method,route,bearer,status,payload){
 }
 async function seed(){
  await db.query("ALTER ROLE tto_app LOGIN");
+ await db.query("INSERT INTO tto.legal_authorities(authority_id,holder_id,tenant_id,scope,evidence_id,verified_by,verified_at,valid_until) VALUES($1,$2,$3,'ROLE_MANAGEMENT',$4,$5,now(),now()+interval '1 hour')",
+ [randomUUID(),manager,tenant,evidence,user]);
+
  await db.query("INSERT INTO tto.ph09_opportunities(opportunity_id,tenant_id,title,deadline) VALUES($1,$2,'Member opportunity',now()+interval '1 day'),($3,$4,'Foreign opportunity',now()+interval '1 day')",
  [opportunity,tenant,foreignOpportunity,foreign]);
  await db.query("INSERT INTO tto.ph09_impact_methods(method_id,tenant_id,method_code,version,source_evidence) VALUES($1,$2,'SOURCE_METHOD',1,$3)",[method,tenant,evidence]);
@@ -201,6 +204,42 @@ async function testShareholderBff(memberToken,managerToken){
  assert.equal(malformed.status,400);checks++;
  console.log('PH10_SHAREHOLDER_BFF_SOURCE_ONLY_CROSS_TENANT_GATES_PASS');
 }
+async function testActualAuthenticatedBrowser(memberToken,managerToken){
+ if(process.env.PH10_AUTH_CHROMIUM!=='1')return;
+ const {chromium}=require('playwright');
+ const fs=require('node:fs');
+ const evidenceDir=path.resolve(__dirname,'../../../ph10-artifacts');
+ fs.mkdirSync(evidenceDir,{recursive:true});
+ const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+ try{
+  const profiles=[
+   {kind:'cooperative',port:31678,token:managerToken,route:'nav-07',
+    select:'#tto-select-cooperative',button:'بررسی مجوز محدوده',expected:'Cooperative Product'},
+   {kind:'shareholder',port:31679,token:memberToken,route:'nav-07',
+    select:'#sw-tenant',button:'تأیید محدوده و استعلام',expected:'Cooperative Product'}
+  ];
+  for(const profile of profiles){
+   const context=await browser.newContext({locale:'fa-IR',viewport:{width:390,height:844}});
+   try{
+    await context.addCookies([{name:'tto_session',value:profile.token,domain:'127.0.0.1',
+     path:'/',httpOnly:true,secure:false,sameSite:'Lax'}]);
+    const page=await context.newPage();
+    const url='http://127.0.0.1:'+profile.port+'/modules/'+profile.route;
+    const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
+    assert.equal(response.status(),200);
+    await page.locator(profile.select).waitFor({state:'visible',timeout:25000});
+    await page.locator(profile.select).selectOption(tenant);
+    await page.getByRole('button',{name:profile.button}).click();
+    await page.getByText(profile.expected).waitFor({state:'visible',timeout:25000});
+    assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
+    assert.equal(await page.getByText('Cooperative Product').count()>0,true);
+    assert.equal((await page.locator('body').innerText()).includes('SEALED_SOURCE_IDENTITY'),false);
+    await page.screenshot({path:path.join(evidenceDir,'ph10-'+profile.kind+'-authenticated-nav07-mobile.png'),fullPage:true});
+    console.log('PH10_AUTH_CHROMIUM_'+profile.kind.toUpperCase()+'_REAL_SOURCE_RENDER_PASS');
+   }finally{await context.close();}
+  }
+ }finally{await browser.close();}
+}
 async function main(){
  await db.connect();await seed();
  const memberToken=await token(user),managerToken=await token(manager),foreignToken=await token(outsider);
@@ -294,6 +333,7 @@ async function main(){
  console.log('PH10_REAL_HTTP_PH08_VOUCHER_SINGLE_USE_AND_NO_CASH_PASS');
  await testCooperativeBff(memberToken,managerToken);
  await testShareholderBff(memberToken,managerToken);
+ await testActualAuthenticatedBrowser(memberToken,managerToken);
  console.log('PH10_REAL_HTTP_TOTAL_PHASE09_PLUS_PHASE08_REQUESTS='+checks);
  console.log('PH09_REAL_NEST_HTTP_REQUESTS_PASS='+checks);
 }
