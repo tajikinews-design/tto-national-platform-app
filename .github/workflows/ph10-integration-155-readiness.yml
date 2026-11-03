@@ -187,6 +187,10 @@ jobs:
             ph10-artifacts/ph10_155_exact_run_sql_ledger.json
           retention-days: 14
           if-no-files-found: warn
+      - name: Verify disposable PostgreSQL17 snapshot backup and restore
+        run: |
+          set -euo pipefail
+          bash scripts/ci/ph10-disposable-backup-restore.sh
       - name: Explicitly preserve the remaining mandatory integration blockers
         run: |
           echo PH10_ALL155_FULL_USER_JOURNEYS_NOT_YET_PROVEN
