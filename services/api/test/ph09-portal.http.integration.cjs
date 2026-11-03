@@ -312,6 +312,19 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
     }
     console.log('PH10_AUTH_CHROMIUM_'+profile.kind.toUpperCase()+
       '_TEN_MODULE_NAVIGATION_RTL_PASS_NOT_ALL_WORKFLOWS');
+    // Revoke only this isolated browser's session cookie, then verify a fresh
+    // navigation cannot reuse previously fetched privileged page content.
+    await context.clearCookies();
+    const afterLogout=await context.newPage();
+    try{
+     const response=await afterLogout.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
+     assert.equal(response.status(),200);
+     assert.equal((await afterLogout.locator('body').innerText()).includes(profile.expected),false,
+       'PH10_BROWSER_POST_LOGOUT_PRIVATE_RECORD_LEAK_'+profile.kind);
+     checks++;
+     console.log('PH10_AUTH_CHROMIUM_'+profile.kind.toUpperCase()+'_COOKIE_REVOCATION_PASS');
+    }finally{await afterLogout.close();}
+
 
     // Same real browser route in a fresh unauthenticated context must not
     // reveal any synthetic tenant-private content observed above.
