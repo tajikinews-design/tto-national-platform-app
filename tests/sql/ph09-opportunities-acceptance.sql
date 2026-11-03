@@ -19,11 +19,13 @@ UPDATE tto.ph09_applications SET ai_score=0.01 WHERE opportunity_id='99400000-00
 DO $x$ BEGIN IF NOT EXISTS(SELECT 1 FROM tto.ph09_applications
 WHERE ai_score<0.02 AND status='SUBMITTED') THEN RAISE EXCEPTION 'OPP002_AUTO_REJECT';END IF;END $x$;
 SELECT 'PH09_OPP_AT002_AI_SCORE_NO_AUTO_REJECT_PASS';
+SELECT set_config('ph09.test_application_id',
+(SELECT application_id::text FROM tto.ph09_applications LIMIT 1),true);
 SELECT set_config('tto.actor_id','99100000-0000-4000-8000-000000000003',true);
 SELECT set_config('tto.tenant_id','99000000-0000-4000-8000-000000000002',true);
 SET LOCAL ROLE tto_app;
 DO $x$ BEGIN IF tto.ph09_can_review_application(
-(SELECT application_id FROM tto.ph09_applications LIMIT 1))
+current_setting('ph09.test_application_id')::uuid)
 THEN RAISE EXCEPTION 'OPP003_FOREIGN_REVIEWER';END IF;END $x$;
 RESET ROLE;
 SELECT 'PH09_OPP_AT003_FOREIGN_TENANT_REVIEWER_DENIED_PASS';
