@@ -233,7 +233,8 @@ export function ShareholderWorkspace({
       <div><span className="sw-eyebrow">{initialSectionId} · حوزه مستقل</span>
        <h3>{shareholderNavigation[Number(initialSectionId.slice(4))-1]}</h3>
        <p>{section.description}</p></div>
-      <span className="sw-pill">فقط منابع دارای مجوز · بدون عملیات مالی</span>
+      <span className="sw-pill">{(["NAV-06","NAV-07","NAV-08","NAV-10"] as string[]).includes(initialSectionId)?
+       "فقط منابع دارای مجوز · بدون عملیات مالی":"فاقد منبع عملیاتی تأییدشده"}</span>
      </div>
      {verified&&selected?<ShareholderSourceSection tenantId={selected}
       moduleId={initialSectionId} onSessionInvalidated={onSessionInvalidated}/>:null}
