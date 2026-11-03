@@ -107,6 +107,10 @@ export function TenantScopePicker({surface,moduleId}:{surface:Surface;moduleId?:
   {surface!=="shareholder"&&scopeVerified?<div className="module-status" role="status" aria-label="محدوده تأییدشده و محدودیت عملیات">
     <strong>محدوده بررسی شد؛ عملیات ماژول فعال نیست</strong>
     <span>{moduleId?moduleId+" — ":""}تأیید محدوده جایگزین اختیار حقوقی و تصمیم دسترسی هر عملیات نیست؛ هیچ اطلاعات محرمانه دیگری بارگذاری نمی‌شود.</span>
+    {surface==="cooperative"&&current?<a href={"/tenants/"+encodeURIComponent(current.tenantId)+"/membership-applications"}
+      style={{display:"inline-block",marginTop:12,minHeight:44,padding:"10px 12px"}}>
+      بررسی درخواست‌های عضویت (مجوز مستقل لازم است)
+    </a>:null}
    </div>:null}
   {surface==="shareholder"&&scopeVerified?<div aria-label="اطلاعات اختصاصی تأییدشده">
    <h3>وضعیت عضویت</h3>

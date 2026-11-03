@@ -76,6 +76,9 @@ export default function MyVerifiedRecords(){
   s.status==="unavailable"?"اطلاعات رسمی تأییدشده در دسترس نیست":null;
  return <main dir="rtl" lang="fa" style={{maxWidth:860,margin:"0 auto",padding:"24px",lineHeight:1.9}}>
   <h1>پرونده اختصاصی عضویت و سهام</h1>
+  <p><a href={"/tenants/"+encodeURIComponent(tenantId)+"/membership-application"}>
+    درخواست عضویت در همین تعاونی (با مرجع هویت تأییدشده)
+  </a></p>
   <p>اطلاعات فقط در صورت تأیید منبع رسمی و مجوز مشاهده شخص نمایش داده می‌شود. نبود اطلاعات به معنی صفر سهم نیست.</p>
   <section aria-labelledby="membership-heading">
    <h2 id="membership-heading">وضعیت عضویت</h2>
