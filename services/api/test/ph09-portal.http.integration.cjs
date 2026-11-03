@@ -42,7 +42,7 @@ const p8entitlement='9c700000-0000-4000-8000-000000000001';
 const p8voucher='9c800000-0000-4000-8000-000000000001';
 const p8offer='9c900000-0000-4000-8000-000000000001';
 const p8tender='9ca00000-0000-4000-8000-000000000001';
-let server,stderr='',checks=0;
+let server,nextServer,stderr='',checks=0;
 const port=31677,root='http://127.0.0.1:'+port;
 async function token(uid){
  const raw=randomBytes(48).toString('base64url');
@@ -98,6 +98,62 @@ async function start(){
   await new Promise(resolve=>setTimeout(resolve,220));
  }
  throw Error('PH09_NEST_NOT_READY '+stderr);
+}
+async function startNextCooperative(){
+ const cwd=path.resolve(__dirname,'../../../apps/cooperative-management');
+ const binary=require.resolve('next/dist/bin/next',{paths:[cwd]});
+ const nextPort=31678;
+ let log='';
+ nextServer=spawn(process.execPath,[binary,'start','-p',String(nextPort),'-H','127.0.0.1'],{
+  cwd,env:{...process.env,NODE_ENV:'production',TTO_API_BASE_URL:root,
+    TTO_LOOPBACK_E2E:'1',CI:'true',NEXT_TELEMETRY_DISABLED:'1',
+    PORT:String(nextPort)},stdio:['ignore','pipe','pipe']
+ });
+ for(const stream of [nextServer.stdout,nextServer.stderr])
+  stream.on('data',d=>{log=(log+d.toString()).slice(-3000)});
+ const base='http://127.0.0.1:'+nextPort;
+ for(let i=0;i<100;i++){
+  if(nextServer.exitCode!==null)throw Error('PH10_NEXT_EXIT_'+nextServer.exitCode+' '+log);
+  try{const res=await fetch(base+'/');if(res.status===200)return base;}catch{}
+  await new Promise(ok=>setTimeout(ok,250));
+ }
+ throw Error('PH10_NEXT_NO_READY '+log);
+}
+async function testCooperativeBff(memberToken,managerToken){
+ const base=await startNextCooperative();
+ const url=(nav,t=tenant)=>base+'/api/tenants/'+t+'/ph10/'+nav;
+ async function call(nav,bearer,status,t=tenant,forged=false){
+  const r=await fetch(url(nav,t),{headers:{
+   ...(bearer?{Cookie:'tto_session='+bearer}:{}),
+   ...(forged?{Authorization:'Bearer '+managerToken,'X-Role':'COOPERATIVE_MANAGER'}:{})
+  }});
+  const data=await r.json().catch(()=>null);
+  assert.equal(r.status,status,'PH10_NEXT_BFF_'+nav+' expected '+status+
+   ' got '+r.status+' '+JSON.stringify(data).slice(0,230));
+  assert.match(r.headers.get('cache-control')??'',/no-store/);
+  checks++;
+  return data;
+ }
+ let x=await call('NAV-10',managerToken,200);
+ assert.equal(x.sourceBound,true);assert.equal(x.readOnly,true);
+ assert.equal(x.items.length,1);assert.equal(x.items[0].kind,'ARTICLE129');
+ assert.equal(Object.hasOwn(x.items[0],'encrypted_identity_ref'),false);
+ x=await call('NAV-10',memberToken,200);
+ assert.equal(x.items.length,0);
+ x=await call('NAV-07',memberToken,200);
+ assert.equal(x.items.length,1);assert.equal(x.items[0].seller_kind,'COOPERATIVE');
+ x=await call('NAV-09',memberToken,200);
+ assert.equal(x.items.length,1);
+ x=await call('NAV-08',memberToken,200);
+ assert.equal(x.items.length,1);
+ x=await call('NAV-04',managerToken,200);
+ assert.equal(x.items.length,0);
+ await call('NAV-10',null,401,tenant,true);
+ await call('NAV-07',managerToken,403,foreign);
+ await call('NAV-03',memberToken,404);
+ const invalid=await fetch(base+'/api/tenants/not-uuid/ph10/NAV-10');
+ assert.equal(invalid.status,400);checks++;
+ console.log('PH10_NEXT_BFF_AUTHENTICATED_ROLE_TENANT_SOURCE_INTEGRATION_PASS');
 }
 async function main(){
  await db.connect();await seed();
@@ -190,8 +246,9 @@ async function main(){
  await request('POST',p8+'/benefits/vouchers/'+p8voucher+'/redeem',memberToken,403);
  await request('POST',p8+'/benefits/vouchers/'+p8voucher+'/redeem',managerToken,403);
  console.log('PH10_REAL_HTTP_PH08_VOUCHER_SINGLE_USE_AND_NO_CASH_PASS');
+ await testCooperativeBff(memberToken,managerToken);
  console.log('PH10_REAL_HTTP_TOTAL_PHASE09_PLUS_PHASE08_REQUESTS='+checks);
  console.log('PH09_REAL_NEST_HTTP_REQUESTS_PASS='+checks);
 }
 main().catch(e=>{console.error('PH09_REAL_NEST_HTTP_FAIL',String(e?.message).slice(0,1500));process.exitCode=1;})
-.finally(async()=>{if(server&&server.exitCode===null)server.kill('SIGTERM');await db.end().catch(()=>{})});
+.finally(async()=>{if(nextServer&&nextServer.exitCode===null)nextServer.kill('SIGTERM');if(server&&server.exitCode===null)server.kill('SIGTERM');await db.end().catch(()=>{})});
