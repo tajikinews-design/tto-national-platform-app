@@ -608,6 +608,29 @@ async function main(){
  const verifiedLogin=await serviceDb.query("SELECT session_user AS login,pg_has_role(session_user,'tto_cf02_consumer','MEMBER') AS is_member");
  ok(verifiedLogin.rows[0].login==="tto_cf02_ci_login"&&verifiedLogin.rows[0].is_member,
   "PG17 independent login authenticates as service role, not migration or web principal");
+ // Prove the service (not the fixture admin) can independently re-read and
+ // project the same committed event using only restricted SQL function grants.
+ adapterPorts.readSource=async(id,tenant)=>{
+  await serviceDb.query("BEGIN");
+  try{
+   await serviceDb.query("SET LOCAL ROLE tto_cf02_consumer");
+   await serviceDb.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+   await serviceDb.query("SELECT set_config('tto.tenant_id',$1,true)",[tenant]);
+   const q=await serviceDb.query("SELECT * FROM tto.cf02_consumer_source($1,$2)",[tenant,id]);
+   await serviceDb.query("COMMIT");
+   return q.rowCount?{...q.rows[0],source_version:Number(q.rows[0].source_version)}:null;
+  }catch(e){await serviceDb.query("ROLLBACK");throw e}
+ };
+ adapterPorts.project=async(tenant,id)=>{
+  await serviceDb.query("BEGIN");
+  try{
+   await serviceDb.query("SET LOCAL ROLE tto_cf02_consumer");
+   await serviceDb.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+   await serviceDb.query("SELECT set_config('tto.tenant_id',$1,true)",[tenant]);
+   const q=await serviceDb.query("SELECT tto.cf02_consumer_project($1,$2) AS result",[tenant,id]);
+   await serviceDb.query("COMMIT");return q.rows[0].result;
+  }catch(e){await serviceDb.query("ROLLBACK");throw e}
+ };
  // Durable delivery: source event is claimed with a fenced token, then completed.
  await serviceDb.query("BEGIN");
  let claimedToken;
