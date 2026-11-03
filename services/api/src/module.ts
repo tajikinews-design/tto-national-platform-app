@@ -765,5 +765,52 @@ export class Ph09PortalController {
  }
 }
 
-@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController],providers:[ApiIrSmsOtpProvider]})
+/**
+ * PH10 gap repair: PH08 source-backed read-only integration into the real
+ * authenticated Nest API. No new business operations or automatic approvals.
+ * Controller NEVER selects raw private PH08 tables as tto_app.
+ */
+@Controller("v1/tenants")
+export class Ph10Phase08ReadController {
+ constructor(private readonly db:Database){}
+ private async scoped(tenant:string,authorization:string|undefined,sql:string){
+  const actor=await this.db.sessionActor(authorization);
+  return this.db.inTenant(actor,tenant,async client=>{
+   const r=await client.query(sql);
+   return {items:r.rows,tenantScoped:true,readOnly:true};
+  });
+ }
+ @Get(":tenantId/ph08/projects/disclosures")
+ async projects(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,"SELECT project_id,name FROM tto.ph08_my_project_disclosures()");
+ }
+ @Get(":tenantId/ph08/voice/open-polls")
+ async polls(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,"SELECT poll_id,title,deadline FROM tto.ph10_member_open_polls()");
+ }
+ @Get(":tenantId/ph08/learning/events")
+ async learning(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,"SELECT event_id,course_title,capacity,refund_policy_version FROM tto.ph10_member_training_events()");
+ }
+ @Get(":tenantId/ph08/benefits/my-vouchers")
+ async benefits(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,"SELECT voucher_id,title,expires_at,noncash_units FROM tto.ph10_member_vouchers()");
+ }
+ @Get(":tenantId/ph08/market/offers")
+ async marketplace(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,"SELECT offer_id,title,price_snapshot,seller_kind FROM tto.ph10_member_market_offers()");
+ }
+ @Get(":tenantId/ph08/procurement/tenders")
+ async tenders(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,"SELECT tender_id,deadline,opened_at,criteria_version FROM tto.ph10_manager_procurement_tenders()");
+ }
+}
+
+@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController],providers:[ApiIrSmsOtpProvider]})
 export class AppModule {}
