@@ -471,7 +471,7 @@ jobs:
             sleep 1
           done
           docker exec tto-adaptive-postgres pg_isready -h 127.0.0.1 -U postgres -d tto
-      - name: Apply migrations 0001-0010 plus 0020 private history function to disposable PG17 only
+      - name: Apply migrations 0001-0010 to disposable PG17 only
         if: steps.scope.outputs.suite != 'lite' && env.TTO_W2_NO_DOCKER_BRANCH != 'true'
         run: |
           set -euo pipefail
