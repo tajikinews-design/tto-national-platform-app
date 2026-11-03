@@ -1,5 +1,6 @@
 "use client";
-import {useCallback,useEffect,useParams,useRef,useState} from "react";
+import {useCallback,useEffect,useRef,useState} from "react";
+import {useParams} from "next/navigation";
 import Link from "next/link";
 type Item={applicationId:string;partyId:string;version:number;submittedAt:string};
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
