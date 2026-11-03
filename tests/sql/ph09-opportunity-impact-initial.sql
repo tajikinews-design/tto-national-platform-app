@@ -3,6 +3,10 @@ BEGIN;
 INSERT INTO tto.tenants(tenant_id,slug,display_name,status) VALUES
 ('99000000-0000-4000-8000-000000000001','ph09-test-only','Synthetic PH09','ACTIVE');
 INSERT INTO tto.user_accounts(user_id) VALUES('99100000-0000-4000-8000-000000000001');
+INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code)
+VALUES('99110000-0000-4000-8000-000000000001',
+'99100000-0000-4000-8000-000000000001',
+'99000000-0000-4000-8000-000000000001','MEMBER');
 INSERT INTO tto.evidence_references(evidence_id,tenant_id,source_entity_type,source_entity_id) VALUES
 ('99200000-0000-4000-8000-000000000001','99000000-0000-4000-8000-000000000001','PH09_SYNTHETIC_ONLY','99300000-0000-4000-8000-000000000001');
 INSERT INTO tto.ph09_opportunities(opportunity_id,tenant_id,title,deadline) VALUES
