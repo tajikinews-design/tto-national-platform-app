@@ -42,7 +42,7 @@ const p8entitlement='9c700000-0000-4000-8000-000000000001';
 const p8voucher='9c800000-0000-4000-8000-000000000001';
 const p8offer='9c900000-0000-4000-8000-000000000001';
 const p8tender='9ca00000-0000-4000-8000-000000000001';
-let server,nextServer,stderr='',checks=0;
+let server,nextServer,shareNextServer,stderr='',checks=0;
 const port=31677,root='http://127.0.0.1:'+port;
 async function token(uid){
  const raw=randomBytes(48).toString('base64url');
@@ -155,6 +155,52 @@ async function testCooperativeBff(memberToken,managerToken){
  assert.equal(invalid.status,400);checks++;
  console.log('PH10_NEXT_BFF_AUTHENTICATED_ROLE_TENANT_SOURCE_INTEGRATION_PASS');
 }
+async function testShareholderBff(memberToken,managerToken){
+ const cwd=path.resolve(__dirname,'../../../apps/shareholder');
+ const binary=require.resolve('next/dist/bin/next',{paths:[cwd]});
+ const port=31679;let log='';
+ shareNextServer=spawn(process.execPath,[binary,'start','-p',String(port),'-H','127.0.0.1'],{
+  cwd,env:{...process.env,NODE_ENV:'production',TTO_API_BASE_URL:root,TTO_LOOPBACK_E2E:'1',
+    CI:'true',NEXT_TELEMETRY_DISABLED:'1',PORT:String(port)},stdio:['ignore','pipe','pipe']
+ });
+ for(const stream of [shareNextServer.stdout,shareNextServer.stderr])
+  stream.on('data',d=>{log=(log+String(d)).slice(-4000);});
+ const base='http://127.0.0.1:'+port;
+ let ready=false;
+ for(let i=0;i<120;i++){
+  if(shareNextServer.exitCode!==null)throw Error('SHARE_NEXT_EXIT_'+shareNextServer.exitCode+' '+log);
+  try{if((await fetch(base+'/')).status===200){ready=true;break;}}catch{}
+  await new Promise(ok=>setTimeout(ok,200));
+ }
+ if(!ready)throw Error('SHARE_NEXT_NOT_READY '+log);
+ const route=(nav,t=tenant)=>base+'/api/tenants/'+t+'/ph10/'+nav;
+ async function call(nav,token,status,t=tenant,forged=false){
+  const res=await fetch(route(nav,t),{headers:{
+   ...(token?{Cookie:'tto_session='+token}:{}),
+   ...(forged?{Authorization:'Bearer '+managerToken,'X-Role':'MEMBER'}:{})
+  }});
+  const body=await res.json().catch(()=>null);
+  assert.equal(res.status,status,'PH10_SHAREHOLDER_BFF_'+nav+' expected '+status+
+   ' got '+res.status+' '+JSON.stringify(body).slice(0,230));
+  assert.match(res.headers.get('cache-control')??'',/no-store/);
+  checks++;return body;
+ }
+ let x=await call('NAV-07',memberToken,200);
+ assert.equal(x.items.length,1);assert.equal(x.items[0].title,'Cooperative Product');
+ assert.equal(Object.hasOwn(x.items[0],'seller_bank_account'),false);
+ x=await call('NAV-08',memberToken,200);
+ assert.equal(x.items.length,1);assert.equal(x.items[0].name,'PH10 Approved Project');
+ x=await call('NAV-06',memberToken,200);
+ assert.equal(x.items.length,1);assert.equal(x.items[0].course_title,'Training Course');
+ x=await call('NAV-10',memberToken,200);
+ assert.equal(x.items.length,1);assert.equal(x.items[0].amount,'35');
+ await call('NAV-07',null,401,tenant,true);
+ await call('NAV-08',memberToken,403,foreign);
+ await call('NAV-03',memberToken,404);
+ const malformed=await fetch(base+'/api/tenants/invalid/ph10/NAV-07');
+ assert.equal(malformed.status,400);checks++;
+ console.log('PH10_SHAREHOLDER_BFF_SOURCE_ONLY_CROSS_TENANT_GATES_PASS');
+}
 async function main(){
  await db.connect();await seed();
  const memberToken=await token(user),managerToken=await token(manager),foreignToken=await token(outsider);
@@ -247,8 +293,9 @@ async function main(){
  await request('POST',p8+'/benefits/vouchers/'+p8voucher+'/redeem',managerToken,403);
  console.log('PH10_REAL_HTTP_PH08_VOUCHER_SINGLE_USE_AND_NO_CASH_PASS');
  await testCooperativeBff(memberToken,managerToken);
+ await testShareholderBff(memberToken,managerToken);
  console.log('PH10_REAL_HTTP_TOTAL_PHASE09_PLUS_PHASE08_REQUESTS='+checks);
  console.log('PH09_REAL_NEST_HTTP_REQUESTS_PASS='+checks);
 }
 main().catch(e=>{console.error('PH09_REAL_NEST_HTTP_FAIL',String(e?.message).slice(0,1500));process.exitCode=1;})
-.finally(async()=>{if(nextServer&&nextServer.exitCode===null)nextServer.kill('SIGTERM');if(server&&server.exitCode===null)server.kill('SIGTERM');await db.end().catch(()=>{})});
+.finally(async()=>{if(shareNextServer&&shareNextServer.exitCode===null)shareNextServer.kill('SIGTERM');if(nextServer&&nextServer.exitCode===null)nextServer.kill('SIGTERM');if(server&&server.exitCode===null)server.kill('SIGTERM');await db.end().catch(()=>{})});
