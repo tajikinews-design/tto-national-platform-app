@@ -44,12 +44,14 @@ export default function MyVerifiedRecords(){
  const [member,setMember]=useState<SourceState<Member>>(initial<Member>);
  const [holding,setHolding]=useState<SourceState<Holding>>(initial<Holding>);
  const [busy,setBusy]=useState(false);
+ // A response belongs to one exact tenant route; a navigation cannot display prior-tenant data.
+ const [loadedTenantId,setLoadedTenantId]=useState("");
  const load=useCallback(async()=>{
   active.current?.abort();
   const controller=new AbortController();active.current=controller;
-  setBusy(true);setMember(initial());setHolding(initial());
+  setBusy(true);setLoadedTenantId("");setMember(initial());setHolding(initial());
   if(!UUID.test(tenantId)){
-   setMember(error("unavailable"));setHolding(error("unavailable"));setBusy(false);return;
+   setMember(error("unavailable"));setHolding(error("unavailable"));setLoadedTenantId(tenantId);setBusy(false);return;
   }
   const [m,h]=await Promise.all([
    getSource(tenantId,"member-record",controller.signal,memberRecord),
@@ -61,9 +63,13 @@ export default function MyVerifiedRecords(){
   }else{
    setMember(m);setHolding(h); // independent source approval, not inferred from the other domain
   }
+  setLoadedTenantId(tenantId);
   setBusy(false);
  },[tenantId]);
  useEffect(()=>{void load();return ()=>active.current?.abort()},[load]);
+ // Render-time guard is needed: effects run after render on client-side tenant navigation.
+ const visibleMember=loadedTenantId===tenantId?member:initial<Member>();
+ const visibleHolding=loadedTenantId===tenantId?holding:initial<Holding>();
  const text=(s:SourceState<unknown>)=>
   s.status==="loading"?"در حال بررسی منبع معتبر":
   s.status==="session-required"?"برای مشاهده اطلاعات، ورود معتبر الزامی است":
@@ -73,18 +79,18 @@ export default function MyVerifiedRecords(){
   <p>اطلاعات فقط در صورت تأیید منبع رسمی و مجوز مشاهده شخص نمایش داده می‌شود. نبود اطلاعات به معنی صفر سهم نیست.</p>
   <section aria-labelledby="membership-heading">
    <h2 id="membership-heading">وضعیت عضویت</h2>
-   <p role="status" aria-live="polite">{text(member)}</p>
-   {member.status==="available"&&member.record&&<div>
-    <p>عضویت: فعال</p><p>نوع پرونده: {member.record.partyKind==="PERSON"?"شخص حقیقی":"شخص حقوقی"}</p>
-    <p>نسخه منبع عضویت: {member.record.sourceVersion}</p><p>زمان مرجع عضویت: {member.record.sourceAsOf}</p>
+   <p role="status" aria-live="polite">{text(visibleMember)}</p>
+   {visibleMember.status==="available"&&visibleMember.record&&<div>
+    <p>عضویت: فعال</p><p>نوع پرونده: {visibleMember.record.partyKind==="PERSON"?"شخص حقیقی":"شخص حقوقی"}</p>
+    <p>نسخه منبع عضویت: {visibleMember.record.sourceVersion}</p><p>زمان مرجع عضویت: {visibleMember.record.sourceAsOf}</p>
    </div>}
   </section>
   <section aria-labelledby="holdings-heading">
    <h2 id="holdings-heading">موجودی سهام</h2>
-   <p role="status" aria-live="polite">{text(holding)}</p>
-   {holding.status==="available"&&holding.record&&<div>
-    <p>تعداد سهام ثبت‌شده: {holding.record.shareQuantity}</p>
-    <p>نسخه دفتر سهام: {holding.record.ledgerVersion}</p><p>زمان مرجع دفتر سهام: {holding.record.ledgerAsOf}</p>
+   <p role="status" aria-live="polite">{text(visibleHolding)}</p>
+   {visibleHolding.status==="available"&&visibleHolding.record&&<div>
+    <p>تعداد سهام ثبت‌شده: {visibleHolding.record.shareQuantity}</p>
+    <p>نسخه دفتر سهام: {visibleHolding.record.ledgerVersion}</p><p>زمان مرجع دفتر سهام: {visibleHolding.record.ledgerAsOf}</p>
    </div>}
   </section>
   <button type="button" disabled={busy} onClick={()=>void load()}
