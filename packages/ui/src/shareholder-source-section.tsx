@@ -31,7 +31,28 @@ export function ShareholderSourceSection({tenantId,moduleId,onSessionInvalidated
    });
    if(scopeRef.current!==requestScope)return;
    if(res.status===401){onSessionInvalidated?.();setEnrollmentError("نشست شما منقضی شده است.");return;}
-   if(res.status===409){setEnrollment(previous=>({...previous,[eventId]:"ALREADY_REGISTERED"}));return;}
+   if(res.status===409){
+    // Duplicate response alone does not tell us whether the prior row was
+    // confirmed, waitlisted, or cancelled. Re-read the member's own record.
+    const readback=await fetch("/api/tenants/"+tenantId+"/ph10/NAV-06",{
+     credentials:"same-origin",cache:"no-store"
+    });
+    if(scopeRef.current!==requestScope)return;
+    if(readback.status===401){onSessionInvalidated?.();return;}
+    if(!readback.ok)throw Error("DUPLICATE_READBACK_UNAVAILABLE");
+    const data=await readback.json() as {sourceBound?:unknown;available?:unknown;items?:unknown};
+    if(scopeRef.current!==requestScope)return;
+    if(data.sourceBound!==true||data.available!==true||!Array.isArray(data.items))
+     throw Error("DUPLICATE_READBACK_INVALID");
+    const existing=data.items.find((item:unknown)=>Boolean(item)&&typeof item==="object"&&
+     !Array.isArray(item)&&(item as {event_id?:unknown}).event_id===eventId) as
+     {registration_state?:unknown}|undefined;
+    if(existing?.registration_state==="CONFIRMED"||existing?.registration_state==="WAITLIST"||
+       existing?.registration_state==="CANCELLED")
+     setEnrollment(previous=>({...previous,[eventId]:existing.registration_state as string}));
+    else setEnrollmentError("وضعیت ثبت‌نام قبلی قابل تأیید نیست؛ مجدداً ثبت‌نام نکنید.");
+    return;
+   }
    if(!res.ok){setEnrollmentError("ثبت‌نام انجام نشد. مجوز و ظرفیت رویداد را بررسی کنید.");return;}
    const body=await res.json() as {registered?:unknown;registration?:unknown};
    if(scopeRef.current!==requestScope)return;
