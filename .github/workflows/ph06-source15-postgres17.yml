@@ -41,7 +41,19 @@ jobs:
             sleep 0.5
           done
           test "$ready" = true || { docker logs tto-ph06-isolated; exit 1; }
-          docker exec tto-ph06-isolated createdb -U postgres tto
+          # A transient startup socket can report ready then restart; retry
+          # the disposable-only CREATE DATABASE until PostgreSQL is stable.
+          made=false
+          for attempt in $(seq 1 40); do
+            if docker exec tto-ph06-isolated createdb -U postgres tto >/dev/null 2>&1; then
+              made=true; break
+            fi
+            if docker exec tto-ph06-isolated psql -U postgres -d tto -Atqc 'SELECT 1' >/dev/null 2>&1; then
+              made=true; break
+            fi
+            sleep 1
+          done
+          test "$made" = true || { docker logs tto-ph06-isolated | tail -80; exit 1; }
       - name: Apply baseline migrations and PH06 0020 to disposable PG only
         run: |
           set -euo pipefail
