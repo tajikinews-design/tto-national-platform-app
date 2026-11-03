@@ -493,6 +493,69 @@ async function main(){
   {activationEvidenceId:activationEvidence,expectedVersion:2}),403,
   "revoked activation rule blocks replay despite past success");
 
+ // Issue #154 CF02 projector. NO tto_app EXECUTE / event publisher in this slice.
+ const projectorPrivilege=await db.query("SELECT has_function_privilege('tto_app','tto.cf02_project_child06_relationship_event(uuid,uuid)','EXECUTE') AS has_execute");
+ ok(projectorPrivilege.rows[0].has_execute===false,
+  "app runtime has NO direct projector execute permission");
+ const evForProjection=await db.query("SELECT event_id FROM tto.cooperative_relationship_outbox WHERE tenant_id=$1 AND party_id=$2 AND event_name='MEMBERSHIP_APPROVED'",
+  [A,PENDING_PARTY]);
+ ok(evForProjection.rowCount===1,"one immutable source event available for CF02");
+ const projectionEventId=evForProjection.rows[0].event_id;
+ async function projectAs(projector,tenant,eventId){
+  await db.query("BEGIN");
+  try{
+   await db.query("SELECT set_config('tto.actor_id',$1,true)",[projector]);
+   await db.query("SELECT set_config('tto.tenant_id',$1,true)",[tenant]);
+   const out=await db.query("SELECT tto.cf02_project_child06_relationship_event($1,$2) AS result",
+    [tenant,eventId]);
+   await db.query("COMMIT");return out.rows[0].result;
+  }catch(e){await db.query("ROLLBACK");throw e;}
+ }
+ const beforeProjection=await db.query("SELECT count(*)::int AS n FROM tto.relationship_projections WHERE tenant_id=$1 AND party_id=$2",[A,PENDING_PARTY]);
+ ok(beforeProjection.rows[0].n===0,"Child06 event does not auto-project into CF02");
+ ok(await projectAs(USER,A,projectionEventId)==="DENIED","ordinary applicant cannot run projector");
+ await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'DOCUMENT_REVIEWER')",
+  [randomUUID(),NATIONAL,A]);
+ ok(await projectAs(NATIONAL,A,projectionEventId)==="DENIED","projector role alone never suffices");
+ await db.query("INSERT INTO tto.cf02_relationship_projection_authorizations(tenant_id,projector_id,approved_by,approval_evidence_id,valid_until) VALUES($1,$2,$3,$4,now()+interval '1 hour')",
+  [A,NATIONAL,APPROVER,DEC]);
+ await db.query("INSERT INTO tto.cf02_relationship_projection_rule_gates(tenant_id,rule_snapshot_ref,evidence_id,approved_by,valid_until,enabled) VALUES($1,$2,$3,$4,now()+interval '1 hour',false)",
+  [A,randomUUID(),DEC,APPROVER]);
+ ok(await projectAs(NATIONAL,A,projectionEventId)==="DENIED","disabled rule blocks projected membership");
+ await db.query("UPDATE tto.cf02_relationship_projection_rule_gates SET enabled=true WHERE tenant_id=$1",[A]);
+ ok(await projectAs(NATIONAL,B,projectionEventId)==="DENIED","cross-tenant projector fails closed");
+ ok(await projectAs(NATIONAL,A,randomUUID())==="UNKNOWN_SOURCE_EVENT","unrecognized event never creates a projection");
+ await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'DOCUMENT_REVIEWER')",
+  [randomUUID(),REVIEWER,A]);
+ await db.query("INSERT INTO tto.cf02_relationship_projection_authorizations(tenant_id,projector_id,approved_by,approval_evidence_id,valid_until) VALUES($1,$2,$3,$4,now()+interval '1 hour')",
+  [A,REVIEWER,APPROVER,DEC]);
+ ok(await projectAs(REVIEWER,A,projectionEventId)==="SOURCE_RELATIONSHIP_INVALID",
+  "original membership activator cannot independently project own event");
+ ok(await projectAs(NATIONAL,A,projectionEventId)==="PROJECTED",
+  "independent evidence-gated CF02 projector materializes source-versioned reference");
+ const projectedOnce=await db.query("SELECT membership_status,source_event_id,source_version FROM tto.relationship_projections WHERE tenant_id=$1 AND party_id=$2",
+  [A,PENDING_PARTY]);
+ ok(projectedOnce.rowCount===1&&projectedOnce.rows[0].membership_status==="ACTIVE"&&
+   projectedOnce.rows[0].source_event_id===projectionEventId&&Number(projectedOnce.rows[0].source_version)===1,
+   "CF02 holds only verified Child06 event reference and exact version");
+ ok(await projectAs(NATIONAL,A,projectionEventId)==="ALREADY_PROJECTED",
+  "duplicate projection idempotent under exact source event");
+ const receipts=await db.query("SELECT count(*)::int AS n FROM tto.cf02_relationship_projection_receipts WHERE source_event_id=$1",
+   [projectionEventId]);
+ ok(receipts.rows[0].n===1,"replay did not duplicate immutable CF02 projection receipt");
+ const memberNoSource=await db.query("SELECT count(*)::int AS n FROM tto.member_source_snapshots WHERE tenant_id=$1 AND party_id=$2",
+   [A,PENDING_PARTY]);
+ ok(memberNoSource.rows[0].n===0,"projection does not fabricate official member source snapshot");
+ const memberNoRole=await db.query("SELECT count(*)::int AS n FROM tto.role_assignments WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER' AND revoked_at IS NULL",
+  [USER,A]);
+ ok(memberNoRole.rows[0].n===1,"projection did not add a second MEMBER-role assignment");
+ const projectedNoShares=await db.query("SELECT count(*)::int AS n FROM tto.shareholder_source_accounts WHERE tenant_id=$1 AND party_id=$2",
+  [A,PENDING_PARTY]);
+ ok(projectedNoShares.rows[0].n===0,"projection cannot create shareholder accounts or holdings");
+ await db.query("UPDATE tto.cf02_relationship_projection_rule_gates SET enabled=false WHERE tenant_id=$1",[A]);
+ ok(await projectAs(NATIONAL,A,projectionEventId)==="DENIED","revoked projector rule immediately fails closed");
+
+
 
  // Optional ACTUAL Chromium browser smoke of the two existing portal forms.
  // These are synthetic records, with no operation against real member/ledger sources.
