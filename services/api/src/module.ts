@@ -790,6 +790,46 @@ export class Ph10Phase08ReadController {
   @Headers("authorization") auth?:string){
   return this.scoped(tenant,auth,"SELECT poll_id,title,deadline FROM tto.ph10_member_open_polls()");
  }
+ @Post(":tenantId/ph08/voice/:pollId/respond")
+ async respondPoll(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+ @Param("pollId",new ParseUUIDPipe()) poll:string,
+ @Headers("authorization") auth:string|undefined,
+ @Body() input:Record<string,unknown>){
+  const answer=requireText(input?.answer,1,400);
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const r=await c.query<{accepted:boolean}>(
+     "SELECT tto.ph10_submit_member_poll($1,$2) AS accepted",[poll,answer]);
+   if(r.rows[0]?.accepted!==true)throw new ForbiddenException({code:"POLL_DEADLINE_AUDIENCE_OR_DUPLICATE"});
+   return {recorded:true,legalVote:false};
+  });
+ }
+ @Post(":tenantId/ph08/learning/events/:eventId/enroll")
+ async enroll(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+ @Param("eventId",new ParseUUIDPipe()) event:string,
+ @Headers("authorization") auth?:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const r=await c.query<{outcome:string}>(
+     "SELECT tto.ph10_enroll_training_event($1) AS outcome",[event]);
+   const status=r.rows[0]?.outcome;
+   if(status==="DUPLICATE")throw new ConflictException({code:"EVENT_ALREADY_REGISTERED"});
+   if(status!=="CONFIRMED"&&status!=="WAITLIST")throw new ForbiddenException({code:"EVENT_OR_ROLE_NOT_ALLOWED"});
+   return {registration:status,courseCompleted:false,certificateIssued:false};
+  });
+ }
+ @Post(":tenantId/ph08/benefits/vouchers/:voucherId/redeem")
+ async redeem(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+ @Param("voucherId",new ParseUUIDPipe()) voucher:string,
+ @Headers("authorization") auth?:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const r=await c.query<{redeemed:boolean}>(
+     "SELECT tto.ph10_redeem_member_voucher($1) AS redeemed",[voucher]);
+   if(r.rows[0]?.redeemed!==true)throw new ForbiddenException({code:"NONCASH_VOUCHER_INVALID_USED_OR_FOREIGN"});
+   return {redeemed:true,walletCredit:false,cashTransfer:false};
+  });
+ }
  @Get(":tenantId/ph08/learning/events")
  async learning(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
   @Headers("authorization") auth?:string){
