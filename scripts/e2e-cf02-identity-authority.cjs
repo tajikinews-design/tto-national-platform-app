@@ -169,8 +169,18 @@ async function main(){
    if(expectedMember==="unavailable")await page.getByText("اطلاعات رسمی تأییدشده در دسترس نیست").first().waitFor();
    if(expectedMember==="active")await page.getByText("عضویت: فعال").waitFor();
    if(expectedShares==="unavailable")await page.getByText("اطلاعات رسمی تأییدشده در دسترس نیست").last().waitFor();
-   if(expectedShares==="37")await page.getByText("تعداد سهام ثبت‌شده: 37").waitFor();
-   if(expectedShares==="0")await page.getByText("تعداد سهام ثبت‌شده: 0").waitFor();
+   await page.getByRole("heading",{name:"سوابق نسخه‌های تأییدشده موجودی"}).waitFor();
+   if(expectedShares==="37"){
+    await page.getByText("تعداد سهام ثبت‌شده: 37").waitFor();
+    await page.getByText(/نسخه 1: 37 سهم/).waitFor();
+   }
+   if(expectedShares==="0"){
+    await page.getByText("تعداد سهام ثبت‌شده: 0").waitFor();
+    await page.getByText(/نسخه 2: 0 سهم/).waitFor();
+    await page.getByText(/نسخه 1: 37 سهم/).waitFor();
+   }
+   if(expectedShares==="unavailable")
+    assert.equal(await page.locator('section[aria-labelledby="share-snapshots-heading"] li').count(),0);
    assert.equal(await page.locator("body").evaluate(e=>e.scrollWidth>e.clientWidth+3),false,name+" horizontal scroll "+width);
    assert.equal(await page.locator("html").getAttribute("dir"),"rtl");
    assert.equal(errors.length,0,name+" JS errors "+JSON.stringify(errors));
@@ -180,11 +190,16 @@ async function main(){
  }
  const memberPath="/v1/tenants/"+A+"/me/member-record";
  const sharePath="/v1/tenants/"+A+"/me/shareholding";
+ const historyPath="/v1/tenants/"+A+"/me/shareholding-history";
  const memberBff=sh.origin+"/api/tenants/"+A+"/me/member-record";
  const shareBff=sh.origin+"/api/tenants/"+A+"/me/shareholding";
+ const historyBff=sh.origin+"/api/tenants/"+A+"/me/shareholding-history";
  const cookie={Cookie:"tto_session="+myToken};
  await status(await get(memberPath,myToken),403,"member source unapproved");
  await status(await get(sharePath,myToken),403,"share source unapproved");
+ await status(await get(historyPath,myToken),403,"history source unapproved");
+ await status(await fetch(historyBff,{headers:{Authorization:"Bearer "+myToken,"X-Tenant-Id":A}}),401,
+  "forged browser bearer cannot authorize snapshot history");
  const guest=await fetch(memberBff,{headers:{Authorization:"Bearer "+myToken,"X-Party":PARTY}});
  await status(guest,401,"forged browser bearer cannot read membership");
  const unapprovedResponse=await fetch(memberBff,{headers:cookie});
@@ -214,6 +229,7 @@ async function main(){
  await status(await get(sharePath,myToken),403,"Child07 independent approval still required");
  await db.query("UPDATE tto.source_contract_approvals SET enabled=true WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
  await status(await get(sharePath,myToken),403,"absent ledger entry must not be zero shares");
+ await status(await get(historyPath,myToken),403,"absent history cannot be empty success");
  const absentShares=await status(await fetch(shareBff,{headers:cookie,cache:"no-store"}),403,"BFF unknown holdings not zero");
  assert.deepEqual(absentShares,{available:false,code:"SOURCE_OR_PERMISSION_NOT_APPROVED"});checks++;
  await db.query("INSERT INTO tto.shareholding_source_snapshots(snapshot_id,tenant_id,shareholder_account_id,source_ref,ledger_entry_ref,ledger_version,share_quantity,ledger_as_of) VALUES($1,$2,$3,$4,$5,1,37,now())",
@@ -221,6 +237,12 @@ async function main(){
  const verifiedShare=await status(await get(sharePath,myToken),200,"approved Child07 holding read");
  assert.equal(verifiedShare.record.shareQuantity,"37");checks++;
  assert.equal(verifiedShare.record.ledgerVersion,1);checks++;
+ const firstHistory=await status(await get(historyPath,myToken),200,"first signed source snapshot history");
+ assert.deepEqual(firstHistory.record.items.map(x=>x.shareQuantity),["37"]);checks++;
+ const firstBffHistory=await status(await fetch(historyBff,{headers:cookie}),200,"BFF approved snapshot history");
+ assert.deepEqual(firstBffHistory.record.items.map(x=>x.shareQuantity),["37"]);checks++;
+ ok(/no-store/.test((await fetch(historyBff,{headers:cookie})).headers.get("cache-control")??""),
+  "history BFF cache disabled");
  const privateShare=await fetch(shareBff,{headers:cookie,cache:"no-store"});
  const privateBody=await status(privateShare,200,"BFF exact sourced holdings");
  assert.equal(privateBody.record.shareQuantity,"37");checks++;
@@ -262,6 +284,14 @@ async function main(){
  const zeroSource=await status(await get(sharePath,myToken),200,"explicit sourced zero remains zero");
  assert.equal(zeroSource.record.shareQuantity,"0");checks++;
  assert.equal(zeroSource.record.ledgerVersion,2);checks++;
+ const secondHistory=await status(await get(historyPath,myToken),200,"signed 0 before 37 history");
+ assert.deepEqual(secondHistory.record.items.map(x=>[x.ledgerVersion,x.shareQuantity]),[[2,"0"],[1,"37"]]);checks++;
+ const bffHistory2=await status(await fetch(historyBff,{headers:cookie}),200,"BFF 2-version history");
+ assert.deepEqual(bffHistory2.record.items.map(x=>x.shareQuantity),["0","37"]);checks++;
+ await status(await get("/v1/tenants/"+B+"/me/shareholding-history",myToken),403,
+   "cross cooperative source history denied");
+ await status(await fetch(sh.origin+"/api/tenants/"+B+"/me/shareholding-history",{headers:cookie}),403,
+   "cross cooperative history BFF denied");
  await inspectOwnScreen("EXPLICIT_ZERO","active","0");
  await status(await get("/v1/tenants/"+B+"/me/member-record",myToken),403,"cross cooperative member read denied");
  await status(await get("/v1/tenants/"+B+"/me/shareholding",myToken),403,"cross cooperative holdings read denied");
@@ -338,13 +368,17 @@ async function main(){
 
  await db.query("UPDATE tto.source_contract_approvals SET enabled=false WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
  await status(await get(sharePath,myToken),403,"source revocation hides shares immediately");
+ await status(await get(historyPath,myToken),403,"source revocation hides snapshot history immediately");
+ await status(await fetch(historyBff,{headers:cookie}),403,"BFF revocation hides snapshot history");
  await status(await get(memberPath,myToken),200,"independent member source unaffected");
  await db.query("UPDATE tto.source_contract_approvals SET enabled=true WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
  await db.query("UPDATE tto.source_contract_approvals SET approved_at=now()-interval '3 hours',valid_until=now()-interval '1 hour' WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
  await status(await get(sharePath,myToken),403,"expired holdings source approval blocked");
+ await status(await get(historyPath,myToken),403,"expired approval blocks history");
  await db.query("UPDATE tto.source_contract_approvals SET enabled=false WHERE tenant_id=$1 AND domain='CHILD06_MEMBERSHIP'",[A]);
  await status(await get(memberPath,myToken),403,"membership source revocation immediate");
  await status(await get(sharePath,myToken),403,"holdings depend on active Child06 source");
+ await status(await get(historyPath,myToken),403,"history depends on active Child06 source");
 
 
  // Child06 first practical slice: only PENDING -> reviewed; no activation of relationship or shares.
