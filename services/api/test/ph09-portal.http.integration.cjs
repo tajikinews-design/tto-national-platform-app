@@ -42,7 +42,7 @@ const p8entitlement='9c700000-0000-4000-8000-000000000001';
 const p8voucher='9c800000-0000-4000-8000-000000000001';
 const p8offer='9c900000-0000-4000-8000-000000000001';
 const p8tender='9ca00000-0000-4000-8000-000000000001';
-let server,nextServer,shareNextServer,stderr='',checks=0;
+let server,nextServer,shareNextServer,nationalNextServer,stderr='',checks=0;
 const port=31677,root='http://127.0.0.1:'+port;
 async function token(uid){
  const raw=randomBytes(48).toString('base64url');
@@ -59,6 +59,15 @@ async function request(method,route,bearer,status,payload){
 }
 async function seed(){
  await db.query("ALTER ROLE tto_app LOGIN");
+ // Synthetic JIT is deliberately scoped to DOCUMENT_REVIEW and must never
+ // be interpreted as board approval or live source activation.
+ await db.query("INSERT INTO tto.platform_operator_authorizations(user_id,approved_by,evidence_id,expires_at) VALUES($1,$2,$3,now()+interval '1 hour')",
+ [outsider,manager,evidence]);
+ await db.query("INSERT INTO tto.jit_access_grants(grant_id,tenant_id,requester_id,approver_id,purpose,scope,status,expires_at,decided_at) VALUES($1,$2,$3,$4,'Synthetic published document review','DOCUMENT_REVIEW','APPROVED',now()+interval '1 hour',now())",
+ [randomUUID(),tenant,outsider,manager]);
+ await db.query("INSERT INTO tto.documents(document_id,tenant_id,title,classification,status) VALUES($1,$2,'Synthetic approved-to-display minute','TENANT_INTERNAL','PUBLISHED'),($3,$2,'Highly restricted synthetic','HIGHLY_RESTRICTED','PUBLISHED')",
+ ['9d000000-0000-4000-8000-000000000001',tenant,'9d000000-0000-4000-8000-000000000002']);
+
  await db.query("INSERT INTO tto.legal_authorities(authority_id,holder_id,tenant_id,scope,evidence_id,verified_by,verified_at,valid_until) VALUES($1,$2,$3,'ROLE_MANAGEMENT',$4,$5,now(),now()+interval '1 hour')",
  [randomUUID(),manager,tenant,evidence,user]);
 
@@ -204,6 +213,44 @@ async function testShareholderBff(memberToken,managerToken){
  assert.equal(malformed.status,400);checks++;
  console.log('PH10_SHAREHOLDER_BFF_SOURCE_ONLY_CROSS_TENANT_GATES_PASS');
 }
+async function testNationalJitBff(nationalToken,managerToken){
+ const cwd=path.resolve(__dirname,'../../../apps/national-admin');
+ const binary=require.resolve('next/dist/bin/next',{paths:[cwd]});
+ const port=31680;let log='';
+ nationalNextServer=spawn(process.execPath,[binary,'start','-p',String(port),'-H','127.0.0.1'],{
+  cwd,env:{...process.env,NODE_ENV:'production',TTO_API_BASE_URL:root,TTO_LOOPBACK_E2E:'1',
+   CI:'true',NEXT_TELEMETRY_DISABLED:'1',PORT:String(port)},stdio:['ignore','pipe','pipe']
+ });
+ for(const stream of [nationalNextServer.stdout,nationalNextServer.stderr])
+  stream.on('data',d=>{log=(log+String(d)).slice(-4000);});
+ const base='http://127.0.0.1:'+port;
+ let ready=false;
+ for(let i=0;i<120;i++){
+  if(nationalNextServer.exitCode!==null)throw Error('NATIONAL_NEXT_EXIT_'+log);
+  try{if((await fetch(base+'/')).status===200){ready=true;break;}}catch{}
+  await new Promise(ok=>setTimeout(ok,200));
+ }
+ if(!ready)throw Error('NATIONAL_NEXT_NOT_READY '+log);
+ async function call(nav,token,status,t=tenant){
+  const res=await fetch(base+'/api/tenants/'+t+'/ph10/'+nav,
+   {headers:token?{Cookie:'tto_session='+token}:{}});
+  const body=await res.json().catch(()=>null);
+  assert.equal(res.status,status,'PH10_NATIONAL_BFF_'+nav+' expected '+status+
+    ' got '+res.status+' '+JSON.stringify(body).slice(0,230));
+  checks++;return body;
+ }
+ let x=await call('NAV-09',nationalToken,200);
+ assert.equal(x.scope,'JIT_DOCUMENT_REVIEW_ONLY');
+ assert.equal(x.officialApproval,false);
+ assert.equal(x.items.length,1);
+ assert.equal(x.items[0].title,'Synthetic approved-to-display minute');
+ assert.equal(x.items.some(z=>z.title==='Highly restricted synthetic'),false);
+ await call('NAV-09',managerToken,403);
+ await call('NAV-09',nationalToken,403,foreign);
+ await call('NAV-09',null,401);
+ await call('NAV-03',nationalToken,404);
+ console.log('PH10_NATIONAL_JIT_INDEPENDENT_ROLE_TENANT_CLASSIFICATION_PASS');
+}
 async function testActualAuthenticatedBrowser(memberToken,managerToken){
  if(process.env.PH10_AUTH_CHROMIUM!=='1')return;
  const {chromium}=require('playwright');
@@ -333,9 +380,10 @@ async function main(){
  console.log('PH10_REAL_HTTP_PH08_VOUCHER_SINGLE_USE_AND_NO_CASH_PASS');
  await testCooperativeBff(memberToken,managerToken);
  await testShareholderBff(memberToken,managerToken);
+ await testNationalJitBff(foreignToken,managerToken);
  await testActualAuthenticatedBrowser(memberToken,managerToken);
  console.log('PH10_REAL_HTTP_TOTAL_PHASE09_PLUS_PHASE08_REQUESTS='+checks);
  console.log('PH09_REAL_NEST_HTTP_REQUESTS_PASS='+checks);
 }
 main().catch(e=>{console.error('PH09_REAL_NEST_HTTP_FAIL',String(e?.message).slice(0,1500));process.exitCode=1;})
-.finally(async()=>{if(shareNextServer&&shareNextServer.exitCode===null)shareNextServer.kill('SIGTERM');if(nextServer&&nextServer.exitCode===null)nextServer.kill('SIGTERM');if(server&&server.exitCode===null)server.kill('SIGTERM');await db.end().catch(()=>{})});
+.finally(async()=>{if(nationalNextServer&&nationalNextServer.exitCode===null)nationalNextServer.kill('SIGTERM');if(shareNextServer&&shareNextServer.exitCode===null)shareNextServer.kill('SIGTERM');if(nextServer&&nextServer.exitCode===null)nextServer.kill('SIGTERM');if(server&&server.exitCode===null)server.kill('SIGTERM');await db.end().catch(()=>{})});
