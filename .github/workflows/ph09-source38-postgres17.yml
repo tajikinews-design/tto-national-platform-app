@@ -1,0 +1,105 @@
+name: PH09 38 source-bound checks in disposable PostgreSQL17
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - feat/ph08-six-domains-source36-20261103
+permissions:
+  contents: read
+concurrency:
+  group: ph09-source38-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  six-domain-gates:
+    if: github.head_ref == 'feat/ph09-opportunity-impact-grc-network-data-ops-20261103'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source without persistent credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify frozen 155 and official phase-nine 38 scenarios
+        run: |
+          set -euo pipefail
+          python3 tests/test_ph09_source38_truth.py -v
+          python3 tests/test_ph09_108_47_legacy_traceability.py -v
+          echo "PH09_OPS_AT001_108_REQUIREMENTS_47_TESTS_COMPLETE_SOURCE_MAPPING_PASS"
+      - name: Start disposable isolated PostgreSQL17
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name tto-ph09-proof -e POSTGRES_HOST_AUTH_METHOD=trust -p 127.0.0.1:5432:5432 postgres:17-alpine
+          for n in $(seq 1 100); do
+            if docker exec tto-ph09-proof psql -U postgres -d postgres -Atqc 'SELECT 1' >/dev/null 2>&1; then break; fi
+            sleep 0.5
+          done
+          made=false
+          for n in $(seq 1 50); do
+            if docker exec tto-ph09-proof createdb -U postgres tto >/dev/null 2>&1; then made=true; break; fi
+            sleep 0.5
+          done
+          test "$made" = true || { docker logs tto-ph09-proof; exit 1; }
+      - name: Apply exact-head migrations 0001 through 0039
+        run: |
+          set -euo pipefail
+          for f in database/migrations/[0-9][0-9][0-9][0-9]*.sql; do
+            echo "PH09_MIGRATION=$(basename "$f")"
+            docker exec -i tto-ph09-proof psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" >/dev/null
+          done
+          docker exec -i tto-ph09-proof psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph09-fixture-seed.sql > /dev/null
+          echo "PH09_ALL_MIGRATIONS_APPLIED_AND_SEEDED_PASS"
+      - name: OPP6 Impact6 GRC6 NI6 DG6 source-specific SQL assertions
+        run: |
+          set -euo pipefail
+          for module in opportunities impact grc network-intelligence data-governance; do
+            echo "PH09_SOURCE_MODULE=$module"
+            docker exec -i tto-ph09-proof psql -U postgres -d tto -v ON_ERROR_STOP=1 < "tests/sql/ph09-${module}-acceptance.sql"
+          done
+          echo "PH09_FIVE_MODULES_30_SOURCE_ASSERTIONS_COMPLETE"
+      - name: Real two-session legal-hold versus disposal race
+        run: |
+          set -euo pipefail
+          bash scripts/ci/ph09-legal-hold-vs-disposition-race.sh
+      - name: Operations source checks and 500 cooperative fixture
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph09-proof psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph09-operations-acceptance.sql
+          n="$(docker exec tto-ph09-proof psql -U postgres -d tto -Atqc "SELECT count(*) FROM tto.tenants WHERE slug LIKE 'ph09-scale-%'")"
+          test "$n" = 0 || { echo "PH09_OPS_AT008_ROLLBACK_FAILED_COUNT=$n";exit 1; }
+          echo "PH09_OPS_AT008_ROLLBACK_REHEARSAL_VERIFIED_PASS"
+      - name: Actual PostgreSQL dump and clean restore; verify tenant boundaries
+        run: |
+          set -euo pipefail
+          docker exec tto-ph09-proof pg_dump -U postgres -d tto -Fc -f /tmp/ph09_fixture.dump
+          docker exec tto-ph09-proof createdb -U postgres tto_restore
+          docker exec tto-ph09-proof pg_restore -U postgres -d tto_restore --no-owner --no-privileges /tmp/ph09_fixture.dump
+          before="$(docker exec tto-ph09-proof psql -U postgres -d tto -Atqc "SELECT string_agg(slug||':'||tenant_id::text, ',' ORDER BY slug) FROM tto.tenants WHERE slug LIKE 'ph09-test-%'")"
+          after="$(docker exec tto-ph09-proof psql -U postgres -d tto_restore -Atqc "SELECT string_agg(slug||':'||tenant_id::text, ',' ORDER BY slug) FROM tto.tenants WHERE slug LIKE 'ph09-test-%'")"
+          test -n "$before"
+          test "$before" = "$after" || { echo PH09_OPS_RESTORE_TENANT_MIX;exit 1; }
+          echo "PH09_OPS_AT004_ACTUAL_PG_DUMP_RESTORE_TENANT_ISOLATION_PASS"
+          echo "PH09_OPS_AT005_MIGRATION_AND_RESTORED_TENANT_RECONCILIATION_PASS"
+      - name: Compile Nest API on exact SHA in CI without any deployment
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.18.0
+          pnpm install --frozen-lockfile
+          pnpm --filter @tto/api build
+      - name: Real authenticated Nest HTTP with disposable PG17 and fake data
+        env:
+          CI: "true"
+          TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+          AUTH_CHALLENGE_HMAC_SECRET: PH09_DISPOSABLE_TEST_ONLY_SECRET_32_BYTES_MIN
+          TTO_ENABLE_REAL_SMSOTP_DELIVERY: "false"
+          APIIR_TOKEN: ""
+        run: |
+          set -euo pipefail
+          node services/api/test/ph09-portal.http.integration.cjs
+          echo "PH09_AUTHENTICATED_NEST_HTTP_ALL_DOMAINS_PASS"
+      - name: Preserve mandatory-gate transparency and no real release
+        run: |
+          echo "PH09_SOURCE38_NO_FAKE_PASS_FOR_108_47_LEGACY_MAPPING"
+          echo "PH09_NO_PRODUCTION_MERGE_DEPLOY_OR_REAL_MONEY_OPERATIONS"
+      - name: Delete disposable PostgreSQL
+        if: always()
+        run: docker rm -f tto-ph09-proof || true

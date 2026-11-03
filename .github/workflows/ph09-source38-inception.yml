@@ -1,0 +1,51 @@
+name: PH09 source38 frozen contracts and isolated inception smoke
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - feat/ph08-six-domains-source36-20261103
+permissions:
+  contents: read
+jobs:
+  source38-inception-pg17:
+    if: github.head_ref == 'feat/ph09-opportunity-impact-grc-network-data-ops-20261103'
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - name: Checkout exact SHA
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify immutable 155 and 38 official phase-nine identifiers
+        run: |
+          set -euo pipefail
+          python3 tests/test_ph09_source38_truth.py -v
+          python3 tests/test_ph08_source36_truth.py -v
+      - name: Start disposable PostgreSQL17
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name tto-ph09-ci -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine
+          ready=false
+          for n in $(seq 1 100); do
+            if docker exec tto-ph09-ci psql -U postgres -d postgres -Atqc 'SELECT 1' >/dev/null 2>&1; then ready=true;break;fi
+            sleep 0.5
+          done
+          test "$ready" = true || exit 1
+          made=false
+          for n in $(seq 1 40); do
+            if docker exec tto-ph09-ci createdb -U postgres tto >/dev/null 2>&1; then made=true;break;fi
+            if docker exec tto-ph09-ci psql -U postgres -d tto -Atqc 'SELECT 1' >/dev/null 2>&1; then made=true;break;fi
+            sleep 1
+          done
+          test "$made" = true || exit 1
+      - name: Migrations and OPP/IMPACT smoke
+        run: |
+          set -euo pipefail
+          for f in database/migrations/[0-9][0-9][0-9][0-9]*.sql; do
+            docker exec -i tto-ph09-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" >/dev/null
+          done
+          docker exec -i tto-ph09-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph09-opportunity-impact-initial.sql
+          echo "PH09_INITIAL_TWO_MODULE_SMOKE_PASS_NOT_PHASE_GREEN"
+      - name: Remove disposable database
+        if: always()
+        run: docker rm -f tto-ph09-ci || true
