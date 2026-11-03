@@ -218,6 +218,32 @@ async function testShareholderBff(memberToken,managerToken){
  for(const nav of ['NAV-06','NAV-07','NAV-08','NAV-10']){
   await call(nav,null,401);
  }
+ // Create a second artificial course event only after read assertions above.
+ // Exercise a real UI-facing POST -> scoped BFF -> canonical Nest -> PG17 command.
+ const enrollmentEvent='9c500000-0000-4000-8000-000000000002';
+ await db.query("INSERT INTO tto.ph08_training_events(event_id,course_id,tenant_id,capacity,refund_policy_version) VALUES($1,$2,$3,5,'PH10_REFUND_V1')",
+  [enrollmentEvent,p8course,tenant]);
+ const enrollUrl=base+'/api/tenants/'+tenant+'/ph10/learning/events/'+enrollmentEvent+'/enroll';
+ async function enrollRequest(cookie,status,t=tenant,origin=null){
+  const uri=base+'/api/tenants/'+t+'/ph10/learning/events/'+enrollmentEvent+'/enroll';
+  const headers={...(cookie?{Cookie:'tto_session='+cookie}:{}),...(origin?{Origin:origin}:{})};
+  const res=await fetch(uri,{method:'POST',headers});
+  const body=await res.json().catch(()=>null);
+  assert.equal(res.status,status,'PH10_TRAINING_BFF_ENROLL_'+JSON.stringify(body));
+  assert.match(res.headers.get('cache-control')??'',/no-store/);
+  checks++;return body;
+ }
+ await enrollRequest(null,401);
+ await enrollRequest(managerToken,403);
+ await enrollRequest(memberToken,403,foreign);
+ await enrollRequest(memberToken,403,tenant,'https://untrusted.invalid');
+ let enrollment=await enrollRequest(memberToken,201);
+ assert.equal(enrollment.registered,true);
+ assert.equal(enrollment.registration,'CONFIRMED');
+ assert.equal(enrollment.courseCompleted,false);
+ enrollment=await enrollRequest(memberToken,409);
+ assert.equal(enrollment.code,'ALREADY_REGISTERED');
+ console.log('PH10_REAL_BROWSER_FACING_MEMBER_EVENT_ENROLLMENT_BFF_NEST_POST_PASS');
  console.log('PH10_SHAREHOLDER_ALL_FOUR_ROUTES_REQUIRE_COOKIE_PASS');
  console.log('PH10_SHAREHOLDER_BFF_SOURCE_ONLY_CROSS_TENANT_GATES_PASS');
 }
