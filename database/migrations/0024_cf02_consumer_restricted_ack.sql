@@ -76,8 +76,8 @@ BEGIN
  IF s='ACKED' THEN RETURN 'ACKED'; END IF;
  RETURN 'CONFLICT';
 END $fn$;
-REVOKE ALL ON FUNCTION tto.cf02_consumer_durable_ack(uuid,uuid) FROM PUBLIC,tto_app;
-GRANT EXECUTE ON FUNCTION tto.cf02_consumer_durable_ack(uuid,uuid) TO tto_cf02_consumer;
+-- Never grant bare ACK; a stale worker must present its fenced lease token.
+REVOKE ALL ON FUNCTION tto.cf02_consumer_durable_ack(uuid,uuid) FROM PUBLIC,tto_app,tto_cf02_consumer;
 -- Restricted consumer-facing polling/lease functions. Source outbox remains immutable.
 ALTER TABLE tto.cf02_child06_delivery_state ADD COLUMN attempt_count integer NOT NULL DEFAULT 0 CHECK(attempt_count>=0);
 ALTER TABLE tto.cf02_child06_delivery_state ADD COLUMN next_attempt_at timestamptz;
@@ -128,6 +128,10 @@ BEGIN
  IF p_tenant IS DISTINCT FROM tto.context_tenant_id()
  OR NOT tto.cf02_relationship_projector_authorized(p_tenant)
  OR NOT tto.cf02_consumer_bound(p_tenant) THEN RETURN 'DENIED'; END IF;
+ -- Already-committed immutable delivery is safe to acknowledge on redelivery.
+ IF EXISTS(SELECT 1 FROM tto.cf02_child06_delivery_state
+ WHERE source_event_id=p_event AND tenant_id=p_tenant AND state='ACKED')
+ THEN RETURN 'ACKED'; END IF;
  PERFORM 1 FROM tto.cf02_child06_delivery_leases
  WHERE source_event_id=p_event AND tenant_id=p_tenant AND claim_token=p_token
  AND claimed_until>clock_timestamp() FOR UPDATE;
