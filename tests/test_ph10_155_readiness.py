@@ -54,6 +54,17 @@ class Phase10SourceAudit(unittest.TestCase):
   entries=current_cases()
   self.assertEqual([e["id"] for e in entries],[s["id"] for s in SOURCE])
   self.assertEqual(dict(collections.Counter(x["phase"] for x in entries)),dict(ROUTING))
+ def test_all_155_have_exact_official_scenario_and_expected(self):
+  original=load(BASE+"PH10_OFFICIAL_155_SCENARIOS.json")
+  expected=original["cases"]
+  self.assertEqual(original["sourceCount"],155)
+  self.assertEqual([row["id"] for row in expected],[row["id"] for row in SOURCE])
+  self.assertEqual(len(set(x["id"] for x in expected)),155)
+  for row in expected:
+   with self.subTest(id=row["id"]):
+    self.assertTrue(row["sourceScenario"].strip())
+    self.assertTrue(row["sourceExpected"].strip())
+  self.assertEqual(original["formalOperationalAcceptance"],"NOT_ISSUED")
  def test_no_unearned_green(self):
   for x in current_cases():
    with self.subTest(id=x["id"]):
