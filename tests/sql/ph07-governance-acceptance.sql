@@ -79,13 +79,14 @@ SELECT 'PH07_GOV_AT006_VERIFIED_SYNTHETIC_CHAMBER_LETTER_PASS' AS signal;
 INSERT INTO tto.ph07_publications(publication_id,tenant_id,kind,title,version,status,evidence_id,created_by)
 VALUES('71900000-0000-4000-8000-000000000001',
 '71000000-0000-4000-8000-000000000001','LEGAL_NOTICE',
-'PH07 synthetic official notice',1,'PUBLISHED',
+'PH07 synthetic official notice',1,'DRAFT',
 '71600000-0000-4000-8000-000000000001',
 '71100000-0000-4000-8000-000000000001');
 INSERT INTO tto.ph07_notice_recipients(publication_id,tenant_id,user_id,snapshot_version)
 VALUES('71900000-0000-4000-8000-000000000001',
 '71000000-0000-4000-8000-000000000001',
 '71100000-0000-4000-8000-000000000001',1);
+UPDATE tto.ph07_publications SET status='PUBLISHED' WHERE publication_id='71900000-0000-4000-8000-000000000001';
 INSERT INTO tto.ph07_notice_delivery(publication_id,user_id,channel,provider_event_ref)
 VALUES('71900000-0000-4000-8000-000000000001',
 '71100000-0000-4000-8000-000000000001','SMS','SMS_TEST_EVENT_1');
