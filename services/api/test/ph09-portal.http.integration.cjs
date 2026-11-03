@@ -284,6 +284,19 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
     assert.equal(await page.getByText(profile.expected).count()>0,true);
     assert.equal((await page.locator('body').innerText()).includes('SEALED_SOURCE_IDENTITY'),false);
     await page.screenshot({path:path.join(evidenceDir,'ph10-'+profile.kind+'-authenticated-nav07-mobile.png'),fullPage:true});
+    // Same real browser route in a fresh unauthenticated context must not
+    // reveal any synthetic tenant-private content observed above.
+    const anonymous=await browser.newContext({locale:'fa-IR',viewport:{width:390,height:844}});
+    try{
+     const denied=await anonymous.newPage();
+     const deniedResponse=await denied.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
+     assert.equal(deniedResponse.status(),200);
+     assert.equal((await denied.locator('body').innerText()).includes(profile.expected),false,
+       'PH10_BROWSER_ANONYMOUS_PRIVATE_DATA_LEAK_'+profile.kind);
+     assert.equal(await denied.locator('html').getAttribute('dir'),'rtl');
+     checks++;
+     console.log('PH10_AUTH_CHROMIUM_'+profile.kind.toUpperCase()+'_ANONYMOUS_SOURCE_DENY_PASS');
+    }finally{await anonymous.close();}
     console.log('PH10_AUTH_CHROMIUM_'+profile.kind.toUpperCase()+'_REAL_SOURCE_RENDER_PASS');
    }finally{await context.close();}
   }
