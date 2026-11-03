@@ -152,6 +152,10 @@ jobs:
             docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "tests/sql/ph09-${m}-acceptance.sql"
           done
           echo PH10_PH09_38_SOURCE_SCOPED_ASSERTIONS_PASS
+      - name: Record exact-run SQL-only evidence for 100 of 155 frozen IDs
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/ph10-exact-run-sql-ledger.py
       - name: Install isolated authenticated-browser Chromium
         run: |
           npm install --prefix /tmp/tto-ph10-auth --no-audit --no-fund playwright@1.56.1
@@ -178,7 +182,9 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ph10-authenticated-portal-source-chromium
-          path: ph10-artifacts/ph10-*-authenticated-*.png
+          path: |
+            ph10-artifacts/ph10-*-authenticated-*.png
+            ph10-artifacts/ph10_155_exact_run_sql_ledger.json
           retention-days: 14
           if-no-files-found: warn
       - name: Explicitly preserve the remaining mandatory integration blockers
