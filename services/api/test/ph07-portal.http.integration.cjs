@@ -53,9 +53,10 @@ async function seed(){
  await db.query("INSERT INTO tto.evidence_references(evidence_id,tenant_id,source_entity_type,source_entity_id) VALUES($1,$2,'PH07_REAL_HTTP_SYNTHETIC',$3),($4,$5,'PH07_REAL_HTTP_SYNTHETIC',$6)",
  [ev,a,randomUUID(),randomUUID(),b,randomUUID()]);
  const foreignEvidence=(await db.query("SELECT evidence_id FROM tto.evidence_references WHERE tenant_id=$1 LIMIT 1",[b])).rows[0].evidence_id;
- await db.query("INSERT INTO tto.ph07_publications(publication_id,tenant_id,kind,title,version,status,evidence_id,created_by) VALUES($1,$2,'MEMBER_NOTICE','Own PH07 Notice',1,'PUBLISHED',$3,$4),($5,$6,'MEMBER_NOTICE','Foreign PH07 Notice',1,'PUBLISHED',$7,$8)",
+ await db.query("INSERT INTO tto.ph07_publications(publication_id,tenant_id,kind,title,version,status,evidence_id,created_by) VALUES($1,$2,'MEMBER_NOTICE','Own PH07 Notice',1,'DRAFT',$3,$4),($5,$6,'MEMBER_NOTICE','Foreign PH07 Notice',1,'DRAFT',$7,$8)",
  [notice,a,ev,user,foreignPub,b,foreignEvidence,stranger]);
  await db.query("INSERT INTO tto.ph07_notice_recipients(publication_id,tenant_id,user_id,snapshot_version) VALUES($1,$2,$3,1)",[notice,a,user]);
+ await db.query("UPDATE tto.ph07_publications SET status='PUBLISHED' WHERE publication_id IN ($1,$2)",[notice,foreignPub]);
  await db.query("INSERT INTO tto.ph07_notice_delivery(publication_id,user_id,channel,provider_event_ref) VALUES($1,$2,'SMS','PH07_HTTP_PROVIDER_SYNTHETIC')",[notice,user]);
  await db.query("INSERT INTO tto.ph07_support_tickets(ticket_id,tenant_id,requester_id,issue_key) VALUES($1,$2,$3,'PH07_HTTP_OWN'),($4,$5,$6,'PH07_HTTP_OTHER')",
  [ticket,a,user,otherTicket,a,stranger]);
