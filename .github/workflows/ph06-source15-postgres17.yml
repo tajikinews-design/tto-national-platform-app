@@ -60,6 +60,11 @@ jobs:
           set -euo pipefail
           bash scripts/ci/ph06-concurrent-share-lock.sh
           echo "PH06_SHARE_LOCK_CONCURRENT_INDEPENDENT_SESSIONS_PASS"
+      - name: Positive legal-transfer lab with synthetic board, valuation, cap, SoD and verified payment
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph06-isolated psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph06-positive-legal-transfer-disposable-lab.sql
+          echo "PH06_SYNTHETIC_POSITIVE_FINALIZE_ATOMIC_TEST_PASS_NOT_PRODUCTION"
       - name: Erase only disposable PostgreSQL
         if: always()
         run: docker rm -f tto-ph06-isolated || true
