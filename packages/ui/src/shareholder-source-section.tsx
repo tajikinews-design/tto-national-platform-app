@@ -23,6 +23,7 @@ export function ShareholderSourceSection({tenantId,moduleId,onSessionInvalidated
  async function enroll(eventId:string){
   if(enrolling||!tenantId||moduleId!=="NAV-06")return;
   const requestScope=currentScope;
+  let commandAccepted=false;
   setEnrolling(eventId);setEnrollmentError(null);
   try{
    const res=await fetch("/api/tenants/"+tenantId+"/ph10/learning/events/"+eventId+"/enroll",{
@@ -36,6 +37,7 @@ export function ShareholderSourceSection({tenantId,moduleId,onSessionInvalidated
    if(scopeRef.current!==requestScope)return;
    if(body.registered!==true||(body.registration!=="CONFIRMED"&&body.registration!=="WAITLIST"))
     throw Error("INVALID_ENROLLMENT_RESPONSE");
+   commandAccepted=true;
    // A successful command is not yet proof that the member read model reflects it.
    // Confirm the exact event and state using the canonical tenant-scoped GET.
    const verification=await fetch("/api/tenants/"+tenantId+"/ph10/NAV-06",{
@@ -53,7 +55,9 @@ export function ShareholderSourceSection({tenantId,moduleId,onSessionInvalidated
     {registration_state?:unknown}|undefined;
    if(match?.registration_state!==body.registration)throw Error("ENROLLMENT_NOT_YET_VERIFIED");
    setEnrollment(previous=>({...previous,[eventId]:body.registration as string}));
-  }catch{if(scopeRef.current===requestScope)setEnrollmentError("ارتباط با مرجع ثبت‌نام برقرار نشد.");}
+  }catch{if(scopeRef.current===requestScope)setEnrollmentError(commandAccepted?
+   "درخواست ثبت شد، اما دریافت تأیید نهایی ممکن نبود؛ صفحه را تازه کنید. دوباره ثبت‌نام نکنید.":
+   "ارتباط با مرجع ثبت‌نام برقرار نشد.");}
   finally{if(scopeRef.current===requestScope)setEnrolling(null);}
  }
  useEffect(()=>{
