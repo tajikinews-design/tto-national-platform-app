@@ -18,7 +18,17 @@ class ReadOnlySourceScreen(unittest.TestCase):
   for value in ("memberRecord","holdingRecord",'r.membershipStatus==="ACTIVE"',"SHARE_QTY.test(r.shareQuantity)","Number.isSafeInteger(r.ledgerVersion)","Number.isSafeInteger(r.sourceVersion)","r.status!==200","error(\"session-required\")"):
    self.assertIn(value,text)
   self.assertIn("نبود اطلاعات به معنی صفر سهم نیست",text)
-  self.assertIn("تعداد سهام ثبت‌شده: {holding.record.shareQuantity}",text)
+  self.assertIn("تعداد سهام ثبت‌شده: {visibleHolding.record.shareQuantity}",text)
+ def test_render_is_scoped_to_selected_tenant_before_effect_runs(self):
+  text=PAGE.read_text(encoding="utf-8")
+  self.assertIn('loadedTenantId===tenantId?member:initial<Member>()',text)
+  self.assertIn('loadedTenantId===tenantId?holding:initial<Holding>()',text)
+  self.assertIn('setLoadedTenantId("")',text)
+  self.assertIn('setLoadedTenantId(tenantId)',text)
+  self.assertIn('{visibleMember.status==="available"&&visibleMember.record',text)
+  self.assertIn('{visibleHolding.status==="available"&&visibleHolding.record',text)
+  self.assertNotIn('{member.status==="available"&&member.record',text)
+  self.assertNotIn('{holding.status==="available"&&holding.record',text)
  def test_synthetic_pg_e2e_proves_zero_vs_unavailable_and_revocation(self):
   e2e=(ROOT/"scripts/e2e-cf02-identity-authority.cjs").read_text(encoding="utf-8")
   for phrase in ('"revoked BFF holdings session blocked"','"source revocation hides shares immediately"','"cross cooperative holdings read denied"','"shareholding no-cache"','"0"','"37"'):
