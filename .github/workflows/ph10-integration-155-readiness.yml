@@ -157,6 +157,7 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm --filter @tto/api build
           pnpm --filter @tto/cooperative-management build
+          pnpm --filter @tto/shareholder build
           node services/api/test/ph09-portal.http.integration.cjs
           echo PH10_REAL_NEST_AUTHENTICATED_HTTP_PASS
       - name: Explicitly preserve the remaining mandatory integration blockers
