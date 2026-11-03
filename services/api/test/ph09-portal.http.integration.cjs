@@ -65,7 +65,7 @@ async function seed(){
  [outsider,manager,evidence]);
  await db.query("INSERT INTO tto.jit_access_grants(grant_id,tenant_id,requester_id,approver_id,purpose,scope,status,expires_at,decided_at) VALUES($1,$2,$3,$4,'Synthetic published document review','DOCUMENT_REVIEW','APPROVED',now()+interval '1 hour',now())",
  [randomUUID(),tenant,outsider,manager]);
- await db.query("INSERT INTO tto.documents(document_id,tenant_id,title,classification,status) VALUES($1,$2,'Synthetic approved-to-display minute','TENANT_INTERNAL','PUBLISHED'),($3,$2,'Highly restricted synthetic','HIGHLY_RESTRICTED','PUBLISHED')",
+ await db.query("INSERT INTO tto.documents(document_id,tenant_id,title,classification,status) VALUES($1,$2,'Synthetic approved-to-display minute','RESTRICTED','PUBLISHED'),($3,$2,'Highly restricted synthetic','HIGHLY_RESTRICTED','PUBLISHED')",
  ['9d000000-0000-4000-8000-000000000001',tenant,'9d000000-0000-4000-8000-000000000002']);
 
  await db.query("INSERT INTO tto.legal_authorities(authority_id,holder_id,tenant_id,scope,evidence_id,verified_by,verified_at,valid_until) VALUES($1,$2,$3,'ROLE_MANAGEMENT',$4,$5,now(),now()+interval '1 hour')",
