@@ -357,6 +357,21 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
      assert.equal(await restored.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).count(),0);
      checks++;
      console.log('PH10_SHAREHOLDER_BROWSER_ENROLLMENT_RELOAD_PERSISTENCE_PASS');
+     // Cancellation is an authorized pre-existing DB state, not a browser
+     // mutation or permission to register again. Verify its true read model.
+     await db.query(
+      "UPDATE tto.ph08_event_registrations SET state='CANCELLED' WHERE event_id=$1 AND registered_by=$2",
+      ['9c500000-0000-4000-8000-000000000003',user]);
+     await page.reload({waitUntil:'domcontentloaded',timeout:30000});
+     await page.locator('#sw-tenant').waitFor({state:'visible',timeout:25000});
+     await page.locator('#sw-tenant').selectOption(tenant);
+     await page.getByRole('button',{name:'تأیید محدوده و استعلام'}).click();
+     const cancelledCourse=page.locator('li').filter({hasText:'PH10 Browser Enrollment Course'});
+     await cancelledCourse.getByText('ثبت‌نام قبلی لغو شده است').waitFor({state:'visible',timeout:20000});
+     assert.equal(await cancelledCourse.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).count(),0);
+     checks++;
+     console.log('PH10_SHAREHOLDER_BROWSER_CANCELLED_NO_FALSE_REENROLL_PASS');
+
      console.log('PH10_SHAREHOLDER_REAL_BROWSER_ENROLLMENT_DATABASE_PERSISTENCE_PASS');
     }
 
