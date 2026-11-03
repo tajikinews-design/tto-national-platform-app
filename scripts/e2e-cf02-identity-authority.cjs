@@ -602,12 +602,24 @@ async function main(){
  // not synthesized with SET ROLE or copied from an HTTP user session.
  await db.query("CREATE ROLE tto_cf02_ci_login LOGIN PASSWORD 'ci-throwaway-only-no-production'");
  await db.query("GRANT tto_cf02_consumer TO tto_cf02_ci_login");
- await db.query("INSERT INTO tto.cf02_consumer_login_bindings(login_name,tenant_id,actor_id,approved_by,evidence_id,valid_until) VALUES('tto_cf02_ci_login',$1,$2,$3,$4,now()+interval '1 hour')",[A,NATIONAL,APPROVER,DEC]);
  const serviceDb=new Client({connectionString:"postgresql://tto_cf02_ci_login:ci-throwaway-only-no-production@127.0.0.1:5432/tto"});
  await serviceDb.connect();
  const verifiedLogin=await serviceDb.query("SELECT session_user AS login,pg_has_role(session_user,'tto_cf02_consumer','MEMBER') AS is_member");
  ok(verifiedLogin.rows[0].login==="tto_cf02_ci_login"&&verifiedLogin.rows[0].is_member,
   "PG17 independent login authenticates as service role, not migration or web principal");
+ // A valid database login without separately approved actor binding cannot project.
+ await serviceDb.query("BEGIN");
+ try {
+  await serviceDb.query("SET LOCAL ROLE tto_cf02_consumer");
+  await serviceDb.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+  await serviceDb.query("SELECT set_config('tto.tenant_id',$1,true)",[A]);
+  const denied=await serviceDb.query("SELECT tto.cf02_consumer_project($1,$2) AS result",[A,projectionEventId]);
+  ok(denied.rows[0].result==="DENIED","login membership alone cannot spoof approved projector identity");
+  const invisible=await serviceDb.query("SELECT * FROM tto.cf02_consumer_source($1,$2)",[A,projectionEventId]);
+  ok(invisible.rowCount===0,"unbound independent session cannot read Child06 source");
+  await serviceDb.query("COMMIT");
+ }catch(err){await serviceDb.query("ROLLBACK");throw err}
+ await db.query("INSERT INTO tto.cf02_consumer_login_bindings(login_name,tenant_id,actor_id,approved_by,evidence_id,valid_until) VALUES('tto_cf02_ci_login',$1,$2,$3,$4,now()+interval '1 hour')",[A,NATIONAL,APPROVER,DEC]);
  // Prove the service (not the fixture admin) can independently re-read and
  // project the same committed event using only restricted SQL function grants.
  adapterPorts.readSource=async(id,tenant)=>{
@@ -679,6 +691,13 @@ async function main(){
   "simulated lost ack redelivery safely reuses the durable PG17 receipt");
 
 
+ const revoked=await db.query("UPDATE tto.cf02_consumer_login_bindings SET revoked_at=now() WHERE login_name='tto_cf02_ci_login' AND tenant_id=$1",[A]);
+ ok(revoked.rowCount===1,"independent actor binding can be revoked");
+ const afterRevoked=await adapterPorts.project(A,projectionEventId);
+ ok(afterRevoked==="DENIED","revoked independent identity fails closed on PG17 projector");
+ const {consumeOnce}=require("../services/workers/src/cf02-child06-pg-ports.cjs");
+ const disabledRuntime=await consumeOnce({enable:false});
+ ok(disabledRuntime.status==="DISABLED","production consumer is disabled by default");
  await serviceDb.end();
  const projectedOnce=await db.query("SELECT membership_status,source_event_id,source_version FROM tto.relationship_projections WHERE tenant_id=$1 AND party_id=$2",
   [A,PENDING_PARTY]);
