@@ -35,8 +35,8 @@ WITH CHECK (
 CREATE POLICY national_intake_audit_insert ON tto.national_cooperative_intake_audit FOR INSERT TO tto_app
 WITH CHECK (
  actor_id = nullif(current_setting('tto.actor_id',true),'')::uuid
- AND EXISTS(SELECT 1 FROM tto.national_cooperative_intake intake
-            WHERE intake.intake_id = national_cooperative_intake_audit.intake_id)
+ AND EXISTS(SELECT 1 FROM tto.list_actor_tenant_options() options
+            WHERE options."platformOperator" IS TRUE)
 );
 -- Audit should not be writable without matching intake in one transaction.
 GRANT INSERT ON tto.national_cooperative_intake TO tto_app;
