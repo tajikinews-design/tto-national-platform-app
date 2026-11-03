@@ -228,11 +228,7 @@ export class FoundationCommandsController {
         'SELECT EXISTS (SELECT 1 FROM tto.list_actor_tenant_options() WHERE "platformOperator" IS TRUE) AS allowed'
       );
       if(access.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_PLATFORM_OPERATOR_REQUIRED");
-      const duplicate=await client.query(
-        "SELECT 1 FROM tto.national_cooperative_intake WHERE national_id=$1",[nationalId]
-      );
-      // RLS intentionally hides drafts from broad queries, while UNIQUE also rejects duplicates.
-      if(duplicate.rowCount)throw new ConflictException("NATIONAL_ID_ALREADY_SUBMITTED");
+      // The unique constraint enforces idempotency; broad SELECT is intentionally disallowed by RLS.
       const id=randomUUID();
       try{
         await client.query(
