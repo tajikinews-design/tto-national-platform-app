@@ -93,6 +93,9 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
+      - name: CF02 Child06 isolated consumer unit tests (Issue 154)
+        if: steps.scope.outputs.suite != 'lite'
+        run: node --test services/workers/test/cf02-child06-consumer.test.cjs
       - name: Install once, build all applications once, check TypeScript once
         if: steps.scope.outputs.suite != 'lite'
         run: |
