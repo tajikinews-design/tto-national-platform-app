@@ -51,15 +51,15 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
  SELECT EXISTS(
  SELECT 1 FROM tto.ph07_publications p
  WHERE p.publication_id=p_publication AND p.status='PUBLISHED' AND p.kind='LEGAL_NOTICE'
- AND EXISTS(SELECT 1 FROM tto.ph07_notice_delivery d
- JOIN tto.ph07_notice_recipients r
- ON r.publication_id=d.publication_id AND r.user_id=d.user_id
- WHERE r.publication_id=p.publication_id AND r.tenant_id=p.tenant_id
- AND d.channel='OFFICIAL_PUBLICATION')
- AND EXISTS(SELECT 1 FROM tto.ph07_notice_ack a
- JOIN tto.ph07_notice_recipients r
- ON r.publication_id=a.publication_id AND r.user_id=a.user_id
+ AND EXISTS(SELECT 1 FROM tto.ph07_notice_recipients r
  WHERE r.publication_id=p.publication_id AND r.tenant_id=p.tenant_id)
+ AND NOT EXISTS(SELECT 1 FROM tto.ph07_notice_recipients r
+ WHERE r.publication_id=p.publication_id AND r.tenant_id=p.tenant_id
+ AND (NOT EXISTS(SELECT 1 FROM tto.ph07_notice_delivery d
+ WHERE d.publication_id=r.publication_id AND d.user_id=r.user_id
+ AND d.channel='OFFICIAL_PUBLICATION')
+ OR NOT EXISTS(SELECT 1 FROM tto.ph07_notice_ack a
+ WHERE a.publication_id=r.publication_id AND a.user_id=r.user_id)))
  );
 $f$;
 -- Public member feed never exposes another tenant's publications.
@@ -86,6 +86,49 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
  AND r.tenant_id=tto.context_tenant_id())
  AND tto.has_tenant_role(tto.context_tenant_id(),'MEMBER');
 $f$;
+-- Freeze legal-notice audience at publish: recipients may be added only in DRAFT.
+CREATE FUNCTION tto.ph07_notice_recipient_guard() RETURNS trigger
+LANGUAGE plpgsql SET search_path=pg_catalog,tto AS $f$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM tto.ph07_publications p
+ WHERE p.publication_id=NEW.publication_id AND p.tenant_id=NEW.tenant_id AND p.status='DRAFT')
+ THEN RAISE EXCEPTION 'PH07_NOTICE_SNAPSHOT_FROZEN';END IF;
+ RETURN NEW;
+END $f$;
+CREATE TRIGGER ph07_recipient_frozen_on_publish BEFORE INSERT
+ ON tto.ph07_notice_recipients FOR EACH ROW
+ EXECUTE FUNCTION tto.ph07_notice_recipient_guard();
+CREATE FUNCTION tto.ph07_publication_lifecycle_guard() RETURNS trigger
+LANGUAGE plpgsql SET search_path=pg_catalog,tto AS $f$
+DECLARE own_tenant uuid;
+BEGIN
+ IF OLD.status='PUBLISHED' THEN RAISE EXCEPTION 'PH07_PUBLISHED_NOTICE_IMMUTABLE';END IF;
+ IF NEW.status='PUBLISHED' THEN
+  IF NEW.publication_id<>OLD.publication_id OR NEW.tenant_id<>OLD.tenant_id
+   OR NEW.version<>OLD.version OR NEW.kind<>OLD.kind OR NEW.title<>OLD.title
+   OR NEW.evidence_id IS NULL
+   OR NOT EXISTS(SELECT 1 FROM tto.evidence_references e
+    WHERE e.evidence_id=NEW.evidence_id AND e.tenant_id=NEW.tenant_id)
+   OR (NEW.kind='LEGAL_NOTICE' AND NOT EXISTS(SELECT 1 FROM tto.ph07_notice_recipients r
+    WHERE r.publication_id=NEW.publication_id AND r.tenant_id=NEW.tenant_id))
+  THEN RAISE EXCEPTION 'PH07_NOTICE_PUBLISH_SOURCE_OR_AUDIENCE_INVALID';END IF;
+ END IF;
+ RETURN NEW;
+END $f$;
+CREATE TRIGGER ph07_publication_lifecycle BEFORE UPDATE
+ ON tto.ph07_publications FOR EACH ROW EXECUTE FUNCTION tto.ph07_publication_lifecycle_guard();
+CREATE FUNCTION tto.ph07_ack_evidence_tenant_guard() RETURNS trigger
+LANGUAGE plpgsql SET search_path=pg_catalog,tto AS $f$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM tto.ph07_notice_recipients r
+ JOIN tto.evidence_references e ON e.evidence_id=NEW.acknowledgement_evidence
+ AND e.tenant_id=r.tenant_id
+ WHERE r.publication_id=NEW.publication_id AND r.user_id=NEW.user_id)
+ THEN RAISE EXCEPTION 'PH07_ACK_EVIDENCE_TENANT_MISMATCH';END IF;
+ RETURN NEW;
+END $f$;
+CREATE TRIGGER ph07_ack_source_guard BEFORE INSERT ON tto.ph07_notice_ack
+ FOR EACH ROW EXECUTE FUNCTION tto.ph07_ack_evidence_tenant_guard();
 CREATE TRIGGER ph07_recipient_snapshot_immutable BEFORE UPDATE OR DELETE
  ON tto.ph07_notice_recipients FOR EACH ROW EXECUTE FUNCTION tto.deny_evidence_mutation();
 CREATE TRIGGER ph07_publication_history_immutable BEFORE DELETE
