@@ -72,7 +72,7 @@ export function ShareholderSourceSection({tenantId,moduleId,onSessionInvalidated
    <ul>{state.items.map((row,i)=><li key={moduleId+"-"+i}>
     {spec.fields.map(f=><span style={{display:"block"}} key={f.key}><strong>{f.label}: </strong>{row[f.key]??"ثبت نشده"}</span>)}
     {moduleId==="NAV-06"&&typeof row.event_id==="string" ?
-     <div>{(enrollment[row.event_id]||row.registration_state==="CONFIRMED"||row.registration_state==="WAITLIST") ? <span role="status">{(enrollment[row.event_id]||row.registration_state)==="CONFIRMED"?"ثبت‌نام تأیید شد":(enrollment[row.event_id]||row.registration_state)==="WAITLIST"?"در فهرست انتظار ثبت شد":"قبلاً برای این رویداد ثبت‌نام شده است"}</span> :
+     <div>{(Boolean(enrollment[row.event_id])||row.registration_state==="CONFIRMED"||row.registration_state==="WAITLIST"||row.registration_state==="CANCELLED") ? <span role="status">{(enrollment[row.event_id]||row.registration_state)==="CONFIRMED"?"ثبت‌نام تأیید شد":(enrollment[row.event_id]||row.registration_state)==="WAITLIST"?"در فهرست انتظار ثبت شد":(enrollment[row.event_id]||row.registration_state)==="CANCELLED"?"ثبت‌نام قبلی لغو شده است؛ ثبت‌نام مجدد نیازمند مسیر مجاز مستقل است":"قبلاً برای این رویداد ثبت‌نام شده است"}</span> :
       <button type="button" disabled={enrolling!==null} onClick={()=>void enroll(row.event_id as string)}>
        {enrolling===row.event_id?"در حال ثبت‌نام…":"ثبت‌نام در رویداد آموزشی"}
       </button>}</div>:null}
