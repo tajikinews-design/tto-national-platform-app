@@ -580,6 +580,24 @@ async function main(){
   quarantine:async()=>{throw Error("UNEXPECTED_QUARANTINE");},
   retry:async()=>{throw Error("UNEXPECTED_RETRY");}
  };
+ // Restricted NOLOGIN database principal in disposable PG17; no real credentials issued.
+ const roleInfo=await db.query("SELECT rolcanlogin,rolsuper,rolbypassrls FROM pg_roles WHERE rolname='tto_cf02_consumer'");
+ ok(roleInfo.rowCount===1&&!roleInfo.rows[0].rolcanlogin&&!roleInfo.rows[0].rolsuper&&!roleInfo.rows[0].rolbypassrls,
+   "restricted independent executor cannot login, superuser or bypass RLS");
+ const runtimeRole=await db.query("SELECT has_function_privilege('tto_cf02_consumer','tto.cf02_consumer_durable_ack(uuid,uuid)','EXECUTE') AS role_grant, has_function_privilege('tto_app','tto.cf02_consumer_durable_ack(uuid,uuid)','EXECUTE') AS app_grant");
+ ok(runtimeRole.rows[0].role_grant===true&&runtimeRole.rows[0].app_grant===false,
+   "only designated restricted executor has durable ack execute; tto_app excluded");
+ adapterPorts.ack=async(id,tenant)=>{
+  await db.query("BEGIN");
+  try{
+   await db.query("SET LOCAL ROLE tto_cf02_consumer");
+   await db.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+   await db.query("SELECT set_config('tto.tenant_id',$1,true)",[tenant]);
+   const out=await db.query("SELECT tto.cf02_consumer_durable_ack($1,$2) AS result",[tenant,id]);
+   if(out.rows[0].result!=="ACKED")throw Error("DURABLE_ACK_REJECTED");
+   await db.query("COMMIT");ackCount++;
+  }catch(e){await db.query("ROLLBACK");throw e}
+ };
  const adapterReplay=await consumeCf02Event(adapterSource,{enabled:true,authorized:true,ports:adapterPorts});
  ok(adapterReplay.status==="ACKED_REPLAY"&&ackCount===1,
   "real PG17 CF02 outbox adapter replay acks committed immutable receipt only");
