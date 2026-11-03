@@ -1,0 +1,363 @@
+{
+  "phase": "PH09",
+  "version": "0.1",
+  "sourceUrl": "https://docs.google.com/document/d/1wbnxjxgU_mDynU9Un8BmM1ep8B7BH0kO/edit",
+  "fromLocked155": "docs/analysis/ACCEPTANCE_IDS.json",
+  "total": 38,
+  "counts": {
+    "OPP": 6,
+    "IMPACT": 6,
+    "GRC": 6,
+    "NI": 6,
+    "DG": 6,
+    "OPS": 8
+  },
+  "sourcePhase08Sha": "2aab064b431aa137722fea8249380cbc3f395f53",
+  "ownerTechnicalAuthorization": true,
+  "noRealMoneyOrShares": true,
+  "allPagesAndRolesQa": "DEFERRED_AFTER_PHASE09",
+  "cases": [
+    {
+      "id": "OPP-AT-001",
+      "module": "OPP",
+      "officialScenario": "Late application",
+      "officialExpected": "Reject",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "OPP-AT-002",
+      "module": "OPP",
+      "officialScenario": "AI low score",
+      "officialExpected": "no auto-reject",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "OPP-AT-003",
+      "module": "OPP",
+      "officialScenario": "Reviewer other tenant",
+      "officialExpected": "Reject",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "OPP-AT-004",
+      "module": "OPP",
+      "officialScenario": "Procurement-like opportunity",
+      "officialExpected": "handoff formal sourcing",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "OPP-AT-005",
+      "module": "OPP",
+      "officialScenario": "Interview request",
+      "officialExpected": "Events handoff",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "OPP-AT-006",
+      "module": "OPP",
+      "officialScenario": "Status history",
+      "officialExpected": "preserved",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "IMPACT-AT-001",
+      "module": "IMPACT",
+      "officialScenario": "Project milestone",
+      "officialExpected": "not auto impact claim",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "IMPACT-AT-002",
+      "module": "IMPACT",
+      "officialScenario": "Measurement no source",
+      "officialExpected": "quality fail/block publish",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "IMPACT-AT-003",
+      "module": "IMPACT",
+      "officialScenario": "SROI request",
+      "officialExpected": "auto calculation absent",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "IMPACT-AT-004",
+      "module": "IMPACT",
+      "officialScenario": "Public claim",
+      "officialExpected": "requires approval",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "IMPACT-AT-005",
+      "module": "IMPACT",
+      "officialScenario": "Sensitive beneficiary export",
+      "officialExpected": "restricted",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "IMPACT-AT-006",
+      "module": "IMPACT",
+      "officialScenario": "Historical methodology",
+      "officialExpected": "version preserved",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "GRC-AT-001",
+      "module": "GRC",
+      "officialScenario": "Article129 transaction no workflow",
+      "officialExpected": "finalization blocked",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "GRC-AT-002",
+      "module": "GRC",
+      "officialScenario": "Article132 director loan",
+      "officialExpected": "hard block",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "GRC-AT-003",
+      "module": "GRC",
+      "officialScenario": "Related party alone",
+      "officialExpected": "not automatically prohibited",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "GRC-AT-004",
+      "module": "GRC",
+      "officialScenario": "Whistleblower identity access",
+      "officialExpected": "need-to-know only",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "GRC-AT-005",
+      "module": "GRC",
+      "officialScenario": "Control test evidence",
+      "officialExpected": "immutable",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "GRC-AT-006",
+      "module": "GRC",
+      "officialScenario": "Close finding without verification when required",
+      "officialExpected": "Reject",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "NI-AT-001",
+      "module": "NI",
+      "officialScenario": "No data",
+      "officialExpected": "not rendered as zero",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "NI-AT-002",
+      "module": "NI",
+      "officialScenario": "Small cohort",
+      "officialExpected": "suppressed",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "NI-AT-003",
+      "module": "NI",
+      "officialScenario": "Different metric versions",
+      "officialExpected": "not compared",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "NI-AT-004",
+      "module": "NI",
+      "officialScenario": "Tenant asks peer exact value",
+      "officialExpected": "Reject",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "NI-AT-005",
+      "module": "NI",
+      "officialScenario": "Snapshot rebuild",
+      "officialExpected": "new version",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "NI-AT-006",
+      "module": "NI",
+      "officialScenario": "Estimated value",
+      "officialExpected": "labelled estimated",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "DG-AT-001",
+      "module": "DG",
+      "officialScenario": "Legal hold vs delete race",
+      "officialExpected": "hold blocks disposition",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "DG-AT-002",
+      "module": "DG",
+      "officialScenario": "Archived record",
+      "officialExpected": "not treated as deleted",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "DG-AT-003",
+      "module": "DG",
+      "officialScenario": "Material final record hard delete",
+      "officialExpected": "Reject",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "DG-AT-004",
+      "module": "DG",
+      "officialScenario": "Policy change",
+      "officialExpected": "historical disposition snapshot retained",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "DG-AT-005",
+      "module": "DG",
+      "officialScenario": "Unclassified sensitive export",
+      "officialExpected": "fail closed/review",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "DG-AT-006",
+      "module": "DG",
+      "officialScenario": "Hold release",
+      "officialExpected": "future disposition can resume",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "OPS-AT-001",
+      "module": "OPS",
+      "officialScenario": "108/47 traceability",
+      "officialExpected": "complete mapping",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "OPS-AT-002",
+      "module": "OPS",
+      "officialScenario": "Cross-tenant suite",
+      "officialExpected": "PASS",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "OPS-AT-003",
+      "module": "OPS",
+      "officialScenario": "Wallet regression",
+      "officialExpected": "no cash wallet endpoints/balances",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "OPS-AT-004",
+      "module": "OPS",
+      "officialScenario": "Backup restore",
+      "officialExpected": "tenant data not mixed",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "OPS-AT-005",
+      "module": "OPS",
+      "officialScenario": "Migration dry-run",
+      "officialExpected": "reconciliation zero unexplained",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "OPS-AT-006",
+      "module": "OPS",
+      "officialScenario": "Release with failed mandatory test",
+      "officialExpected": "blocked",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "OPS-AT-007",
+      "module": "OPS",
+      "officialScenario": "500 tenant synthetic isolation",
+      "officialExpected": "no hard tenant cap",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    },
+    {
+      "id": "OPS-AT-008",
+      "module": "OPS",
+      "officialScenario": "Rollback rehearsal",
+      "officialExpected": "documented/verified",
+      "status": "NOT_EXECUTED",
+      "formalAcceptance": "NOT_GREEN",
+      "source": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx"
+    }
+  ]
+}
