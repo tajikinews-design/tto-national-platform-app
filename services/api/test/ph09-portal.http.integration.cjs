@@ -330,7 +330,7 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
      await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).click();
      await course.getByText('ثبت‌نام تأیید شد').waitFor({state:'visible',timeout:25000});
      const persisted=await db.query(
-      "SELECT count(*)::int AS n FROM tto.ph08_event_registrations WHERE event_id=$1 AND user_id=$2",
+      "SELECT count(*)::int AS n FROM tto.ph08_event_registrations WHERE event_id=$1 AND registered_by=$2",
       ['9c500000-0000-4000-8000-000000000003',user]);
      assert.equal(persisted.rows[0]?.n,1);
      checks++;
