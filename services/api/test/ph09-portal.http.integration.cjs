@@ -344,13 +344,21 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
     assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
     assert.equal(await page.getByText(profile.expected).count()>0,true);
     assert.equal((await page.locator('body').innerText()).includes('SEALED_SOURCE_IDENTITY'),false);
-    // Playwright screenshots have no default deadline and may wait forever for
-    // font readiness. A screenshot is required evidence: fail the journey,
-    // never silently skip it, when browser rendering cannot finish.
-    await page.screenshot({
-     path:path.join(evidenceDir,'ph10-'+profile.kind+'-authenticated-nav07-mobile.png'),
-     fullPage:true,animations:'disabled',timeout:15000
-    });
+    // Capture the real rendered page through Chromium CDP, avoiding
+    // Playwright screenshot's font-ready/animation lifecycle wait.
+    // Screenshot evidence is mandatory; errors fail the test.
+    const capture=await context.newCDPSession(page);
+    try{
+     await capture.send('Page.enable');
+     const shot=await capture.send('Page.captureScreenshot',{
+      format:'png',captureBeyondViewport:false,fromSurface:true
+     });
+     assert.ok(typeof shot.data==='string'&&shot.data.length>100,'PH10_EMPTY_CHROMIUM_CAPTURE');
+     fs.writeFileSync(path.join(evidenceDir,'ph10-'+profile.kind+
+      '-authenticated-nav07-mobile.png'),Buffer.from(shot.data,'base64'));
+     console.log('PH10_CHROMIUM_CDP_SCREENSHOT_PASS_'+profile.kind.toUpperCase());
+    }finally{await capture.detach();}
+    console.log('PH10_CHROMIUM_AFTER_SCREENSHOT_'+profile.kind.toUpperCase());
     if(profile.kind==='shareholder'){
      // Real browser button -> Next BFF -> Nest POST -> PostgreSQL, not a mock.
      await page.goto('http://127.0.0.1:'+profile.port+'/modules/nav-06',
