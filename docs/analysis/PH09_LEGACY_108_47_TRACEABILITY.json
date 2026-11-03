@@ -1,0 +1,1320 @@
+{
+  "schema": "PH09_SOURCE_LOCKED_MVP_LEGACY_108_47_V1",
+  "source": "TTO-MVP-BASELINE-RECONCILIATION-v1.0.xlsx",
+  "sourceLibraryId": "libfile_0ea86c89c0508191b33be5ab41d4382d",
+  "sourceTabNames": [
+    "Reconciliation 108",
+    "Reconciliation 47"
+  ],
+  "basis": "Owner locked original version; extracted ID/decision/successor/owner/reason and current expected rule, not a runtime proof of each legacy scenario",
+  "traceabilityType": "DESIGN_RECONCILIATION_ONLY",
+  "countSummary": {
+    "requirements": {
+      "RETAIN": 34,
+      "UPDATE": 62,
+      "REPLACE": 10,
+      "RETIRE": 2
+    },
+    "tests": {
+      "RETAIN": 22,
+      "UPDATE": 13,
+      "REPLACE": 11,
+      "RETIRE": 1
+    },
+    "requirementTotal": 108,
+    "testTotal": 47
+  },
+  "requirements": [
+    {
+      "legacyId": "EST-01",
+      "resolution": "UPDATE",
+      "owner": "Platform Core — Tenant/Organization Registry",
+      "successorRequirement": "TTO-CORE-TENANT",
+      "reason": "اصل باقی است؛ مدل جدید Tenant Registry و جداسازی Business Module/Core Service جای مدل اولیه را می‌گیرد.",
+      "currentRule": "Tenant هویت پایدار مستقل از slug دارد؛ ایجاد tenant به‌تنهایی هیچ دسترسی تجاری ایجاد نمی‌کند."
+    },
+    {
+      "legacyId": "EST-02",
+      "resolution": "UPDATE",
+      "owner": "Member/Shareholder Master + Party Core",
+      "successorRequirement": "TTO-MEMBER-MASTER",
+      "reason": "الزام عضویت حفظ می‌شود؛ مدل هویت به Party + CooperativeRelationship منتقل شده است.",
+      "currentRule": "سه معیار شهرستان و حداقل اولیه منبع‌دار ثبت می‌شوند؛ پلتفرم مرجع احراز قانونی نیست."
+    },
+    {
+      "legacyId": "EST-03",
+      "resolution": "UPDATE",
+      "owner": "Capital & Share Registry",
+      "successorRequirement": "TTO-CAPITAL-OFFER",
+      "reason": "افزایش سرمایه حفظ می‌شود؛ پرداخت از Wallet/دفتر وجوه مستقل حذف شده و شروط عرضه نسخه‌دار می‌ماند.",
+      "currentRule": "عرضه فقط با مصوبه و قاعده قیمت معتبر؛ پرداخت صرفاً به‌عنوان رکورد/مدرک تراکنش ثبت می‌شود."
+    },
+    {
+      "legacyId": "EST-04",
+      "resolution": "RETAIN",
+      "owner": "Share Market / Valuation",
+      "successorRequirement": "TTO-SHARE-VALUATION",
+      "reason": "با Baseline جدید سازگار است؛ ارزش فقط از گزارش رسمی کارشناس اخذ می‌شود.",
+      "currentRule": "TTO ارزش سهم را محاسبه نمی‌کند؛ گزارش رسمی و نسخه/تاریخ اثر منبع حقیقت است."
+    },
+    {
+      "legacyId": "EST-05",
+      "resolution": "UPDATE",
+      "owner": "Projects, Assets & Investment Portfolio",
+      "successorRequirement": "TTO-PROJECT-ASSET",
+      "reason": "الزام/اختیار قانونی حفظ می‌شود و اکنون مالک canonical آن ماژول پروژه/دارایی است.",
+      "currentRule": "Source documents، مجوز، مصوبه و وضعیت Project/Asset ثبت می‌شوند؛ ثبت رکورد اثبات مالکیت یا مجوز نیست."
+    },
+    {
+      "legacyId": "EST-06",
+      "resolution": "UPDATE",
+      "owner": "Projects, Assets & Investment Portfolio",
+      "successorRequirement": "TTO-PROJECT-ASSET",
+      "reason": "الزام/اختیار قانونی حفظ می‌شود و اکنون مالک canonical آن ماژول پروژه/دارایی است.",
+      "currentRule": "Source documents، مجوز، مصوبه و وضعیت Project/Asset ثبت می‌شوند؛ ثبت رکورد اثبات مالکیت یا مجوز نیست."
+    },
+    {
+      "legacyId": "EST-07",
+      "resolution": "UPDATE",
+      "owner": "Governance / Assemblies + External Qualification Evidence",
+      "successorRequirement": "TTO-GOV-QUALIFICATION",
+      "reason": "تصمیم جدید پروژه، نامه رسمی اتاق تعاون استان را ملاک Product برای صلاحیت قرار داده است.",
+      "currentRule": "مدارک به اتاق استان ارسال؛ فقط نامه رسمی منبع‌دار وضعیت Approved/NotApproved را تعیین می‌کند."
+    },
+    {
+      "legacyId": "EST-08",
+      "resolution": "UPDATE",
+      "owner": "Governance + Financial Evidence/Transparency",
+      "successorRequirement": "TTO-GOV-EXTERNAL-PAYMENT-REF",
+      "reason": "پلتفرم کیف پول/حسابداری عمومی ندارد؛ فقط دستور/مکاتبه و مدرک پرداخت مرتبط ثبت می‌شود.",
+      "currentRule": "هیچ برداشت خودکار از وجوه توسط TTO؛ فقط Evidence و status خارجی ثبت می‌شود."
+    },
+    {
+      "legacyId": "EST-09",
+      "resolution": "UPDATE",
+      "owner": "Projects, Assets & Investment Portfolio",
+      "successorRequirement": "TTO-PROJECT-ASSET",
+      "reason": "الزام/اختیار قانونی حفظ می‌شود و اکنون مالک canonical آن ماژول پروژه/دارایی است.",
+      "currentRule": "Source documents، مجوز، مصوبه و وضعیت Project/Asset ثبت می‌شوند؛ ثبت رکورد اثبات مالکیت یا مجوز نیست."
+    },
+    {
+      "legacyId": "EST-10",
+      "resolution": "UPDATE",
+      "owner": "Projects, Assets & Investment Portfolio",
+      "successorRequirement": "TTO-PROJECT-ASSET",
+      "reason": "الزام/اختیار قانونی حفظ می‌شود و اکنون مالک canonical آن ماژول پروژه/دارایی است.",
+      "currentRule": "Source documents، مجوز، مصوبه و وضعیت Project/Asset ثبت می‌شوند؛ ثبت رکورد اثبات مالکیت یا مجوز نیست."
+    },
+    {
+      "legacyId": "EST-11",
+      "resolution": "UPDATE",
+      "owner": "Governance + Transparency",
+      "successorRequirement": "TTO-GOV-REMUNERATION-DISCLOSURE",
+      "reason": "مبنای قانونی حفظ است اما TTO payroll/accounting engine نیست.",
+      "currentRule": "پیشنهاد، مصوبه، مبلغ مصوب و مدرک پرداخت/افشا ثبت می‌شود؛ محاسبه یا پرداخت داخلی انجام نمی‌شود."
+    },
+    {
+      "legacyId": "EST-12",
+      "resolution": "UPDATE",
+      "owner": "GRC + Domain Payments",
+      "successorRequirement": "TTO-GRC-FUNDS-PURPOSE",
+      "reason": "کنترل قانونی حفظ است اما به پرداخت‌هایی که TTO واقعاً ثبت/هماهنگ می‌کند و شواهد منبع‌دار محدود می‌شود.",
+      "currentRule": "Purpose/authority/evidence ثبت می‌شود؛ TTO دفترکل عمومی پرداخت‌های شرکت نیست."
+    },
+    {
+      "legacyId": "EST-13",
+      "resolution": "UPDATE",
+      "owner": "Projects/Assets + Transparency",
+      "successorRequirement": "TTO-INVESTMENT-EXPOSURE",
+      "reason": "سرمایه‌گذاری مالی به‌عنوان Investment Exposure/Disclosure ثبت می‌شود، نه پرتفوی معاملاتی و حسابداری.",
+      "currentRule": "نوع دارایی، مصوبه، منبع و گزارش/ارزش مستند نگهداری می‌شود."
+    },
+    {
+      "legacyId": "EST-14",
+      "resolution": "RETAIN",
+      "owner": "Legal Rule Registry",
+      "successorRequirement": "TTO-CORE-RULES",
+      "reason": "کاملاً با Architecture Decision Register همسو است.",
+      "currentRule": "قواعد ملی نسخه‌دار، تاریخ اثر، Source و عدم بازنویسی گذشته."
+    },
+    {
+      "legacyId": "EST-15",
+      "resolution": "UPDATE",
+      "owner": "Governance / Assemblies",
+      "successorRequirement": "TTO-GOV-RESOLUTION",
+      "reason": "اصل مصوبات حفظ می‌شود؛ Board/Assembly و GRC handoffها اکنون صریح شده‌اند.",
+      "currentRule": "Resolution مالک Governance است و فقط handoffهای صریح به Domainهای اجرایی می‌دهد."
+    },
+    {
+      "legacyId": "BYL-01",
+      "resolution": "UPDATE",
+      "owner": "Tenant/Organization Registry",
+      "successorRequirement": "TTO-CORE-TENANT",
+      "reason": "اطلاعات ثبتی حفظ است؛ فرض «اساسنامه اختصاصی tenant» با Rule Registry ملی و آگهی‌های ثبتی جایگزین شده است.",
+      "currentRule": "متن رسمی ملی + آگهی تأسیس/آخرین تغییرات tenant منبع محصول است."
+    },
+    {
+      "legacyId": "BYL-02",
+      "resolution": "UPDATE",
+      "owner": "Tenant/Organization Registry",
+      "successorRequirement": "TTO-CORE-TENANT",
+      "reason": "اطلاعات ثبتی حفظ است؛ فرض «اساسنامه اختصاصی tenant» با Rule Registry ملی و آگهی‌های ثبتی جایگزین شده است.",
+      "currentRule": "متن رسمی ملی + آگهی تأسیس/آخرین تغییرات tenant منبع محصول است."
+    },
+    {
+      "legacyId": "BYL-03",
+      "resolution": "UPDATE",
+      "owner": "Projects/Assets + GRC + Procurement",
+      "successorRequirement": "TTO-PROJECT-ASSET / TTO-GRC / TTO-PROCUREMENT",
+      "reason": "قاعده حفظ می‌شود ولی بین سه مالک canonical تفکیک می‌شود.",
+      "currentRule": "Project مجوز/مصوبه را ثبت می‌کند؛ آیین‌نامه معاملات در Legal/Policy Registry و Procurement اعمال می‌شود."
+    },
+    {
+      "legacyId": "BYL-04",
+      "resolution": "UPDATE",
+      "owner": "Tenant/Organization Registry",
+      "successorRequirement": "TTO-CORE-TENANT",
+      "reason": "اطلاعات ثبتی حفظ است؛ فرض «اساسنامه اختصاصی tenant» با Rule Registry ملی و آگهی‌های ثبتی جایگزین شده است.",
+      "currentRule": "متن رسمی ملی + آگهی تأسیس/آخرین تغییرات tenant منبع محصول است."
+    },
+    {
+      "legacyId": "BYL-05",
+      "resolution": "UPDATE",
+      "owner": "Tenant/Organization Registry",
+      "successorRequirement": "TTO-CORE-TENANT",
+      "reason": "اطلاعات ثبتی حفظ است؛ فرض «اساسنامه اختصاصی tenant» با Rule Registry ملی و آگهی‌های ثبتی جایگزین شده است.",
+      "currentRule": "متن رسمی ملی + آگهی تأسیس/آخرین تغییرات tenant منبع محصول است."
+    },
+    {
+      "legacyId": "BYL-06",
+      "resolution": "UPDATE",
+      "owner": "Tenant/Organization Registry",
+      "successorRequirement": "TTO-CORE-TENANT",
+      "reason": "اطلاعات ثبتی حفظ است؛ فرض «اساسنامه اختصاصی tenant» با Rule Registry ملی و آگهی‌های ثبتی جایگزین شده است.",
+      "currentRule": "متن رسمی ملی + آگهی تأسیس/آخرین تغییرات tenant منبع محصول است."
+    },
+    {
+      "legacyId": "BYL-07",
+      "resolution": "UPDATE",
+      "owner": "Capital & Share Registry",
+      "successorRequirement": "TTO-CAPITAL-REGISTRY",
+      "reason": "مبنای سرمایه حفظ، اما قواعد مالی و پرداخت از Wallet مستقل حذف می‌شوند.",
+      "currentRule": "سرمایه/تعهد/آورده و مصوبه منبع‌دار؛ Rule version ملی جاری."
+    },
+    {
+      "legacyId": "BYL-08",
+      "resolution": "UPDATE",
+      "owner": "Share Market",
+      "successorRequirement": "TTO-SHARE-MARKET",
+      "reason": "انتقال سهم حفظ می‌شود؛ رزرو پول/Wallet حذف و پرداخت مستقیم خریدار به فروشنده جایگزین می‌شود.",
+      "currentRule": "Share lock + eligibility + payment evidence/verification + register update."
+    },
+    {
+      "legacyId": "BYL-09",
+      "resolution": "UPDATE",
+      "owner": "Share Ownership Ledger + Document Core + Communications",
+      "successorRequirement": "TTO-SHARE-CERTIFICATE",
+      "reason": "اصل گواهی/اعلان حفظ و Coreهای مشترک جدید اعمال می‌شود.",
+      "currentRule": "Certificate نسخه‌دار از Ownership Ledger؛ اعلان ارزش از Communication/Transparency."
+    },
+    {
+      "legacyId": "BYL-10",
+      "resolution": "UPDATE",
+      "owner": "Member/Shareholder Master + Share Registry",
+      "successorRequirement": "TTO-MEMBER-MASTER",
+      "reason": "اصل حفظ؛ سقف ۱٪ و Rule Registry جاری مبناست.",
+      "currentRule": "Membership و Shareholding جدا؛ محدودیت سهم نسخه‌دار."
+    },
+    {
+      "legacyId": "BYL-11",
+      "resolution": "RETAIN",
+      "owner": "Member/Shareholder Master + Governance",
+      "successorRequirement": "TTO-NONMEMBER-SHAREHOLDER",
+      "reason": "با تصمیمات فعلی درباره سهامدار غیرعضو و رأی همسو است.",
+      "currentRule": "Admission/approval و voting rights جدا و fail-closed."
+    },
+    {
+      "legacyId": "BYL-12",
+      "resolution": "UPDATE",
+      "owner": "Member/Shareholder Master + GRC",
+      "successorRequirement": "TTO-MEMBER-LIABILITY",
+      "reason": "اصل حقوقی باقی است؛ مسئولیت اضافی فقط با قرارداد/مدرک مرجع ثبت می‌شود.",
+      "currentRule": "No inferred liability beyond shares without source-backed contract."
+    },
+    {
+      "legacyId": "BYL-13",
+      "resolution": "UPDATE",
+      "owner": "Member Relationship + GRC / Financial Evidence",
+      "successorRequirement": "TTO-MEMBER-OFFSET",
+      "reason": "تهاتر/اخطار حفظ می‌شود اما TTO accounting ledger یا cash wallet ندارد.",
+      "currentRule": "Notice, deadline, authority, amount and evidence are tracked; accounting execution external/reference only."
+    },
+    {
+      "legacyId": "BYL-14",
+      "resolution": "UPDATE",
+      "owner": "Member Relationship + Share Valuation / Transparency",
+      "successorRequirement": "TTO-MEMBER-EXIT",
+      "reason": "خروج و تسویه قانونی حفظ است؛ اجرای پولی داخلی حذف شده و فقط workflow/evidence نگهداری می‌شود.",
+      "currentRule": "Exit/estate/valuation/debt/settlement evidence tracked; no custodial balance."
+    },
+    {
+      "legacyId": "BYL-15",
+      "resolution": "UPDATE",
+      "owner": "Governance + Identity/Authorization Core",
+      "successorRequirement": "TTO-GOV-ROLE-ASSIGNMENT",
+      "reason": "اصل ارکان حفظ؛ role assignment از legal authority جدا و tenant-scoped است.",
+      "currentRule": "Office/term/authority evidence + RBAC projection."
+    },
+    {
+      "legacyId": "BYL-16",
+      "resolution": "UPDATE",
+      "owner": "Assemblies / Notice Assurance",
+      "successorRequirement": "TTO-ASSEMBLY-NOTICE-PROXY",
+      "reason": "قاعده وکالت و مجمع دو مرحله‌ای به Baseline جدید اصلاح شده است.",
+      "currentRule": "تا نظر جدید وزارت: حداکثر ۳ رأی وکالتی؛ >500 عضو در تعاونی توسعه و عمران = مجمع دو مرحله‌ای."
+    },
+    {
+      "legacyId": "BYL-17",
+      "resolution": "RETAIN",
+      "owner": "Assemblies / Voting",
+      "successorRequirement": "TTO-ASSEMBLY-VOTE",
+      "reason": "تفکیک رأی عضو و سهامدار غیرعضو همچنان مبناست.",
+      "currentRule": "Member one-person-one-vote; non-member formula separate/versioned."
+    },
+    {
+      "legacyId": "BYL-18",
+      "resolution": "UPDATE",
+      "owner": "Assemblies / Candidate Qualification",
+      "successorRequirement": "TTO-GOV-QUALIFICATION",
+      "reason": "ملاک Product جدید نامه رسمی اتاق تعاون استان است.",
+      "currentRule": "Candidate final eligibility requires official provincial chamber letter."
+    },
+    {
+      "legacyId": "BYL-19",
+      "resolution": "UPDATE",
+      "owner": "Governance + Approval Core",
+      "successorRequirement": "TTO-GOV-AUTHORITY",
+      "reason": "اصل صلاحیت تصمیم حفظ و اکنون Authority Context مستقل از UI Role است.",
+      "currentRule": "Action requires source-backed authority/resolution/delegation."
+    },
+    {
+      "legacyId": "BYL-20",
+      "resolution": "UPDATE",
+      "owner": "Governance + Authorization Core",
+      "successorRequirement": "TTO-GOV-HANDOVER-SIGNATORY",
+      "reason": "ثبت امضاداران حفظ، اما TTO اختیار امضا را احراز حقوقی نمی‌کند.",
+      "currentRule": "Declared signatory/mandate references + validity dates; no platform legal certification."
+    },
+    {
+      "legacyId": "BYL-21",
+      "resolution": "RETAIN",
+      "owner": "Board Governance",
+      "successorRequirement": "TTO-BOARD-MEETING",
+      "reason": "با ماژول Board Meeting نهایی همسو است.",
+      "currentRule": "Agenda, attendance, quorum, minutes, resolutions and dissent preserved."
+    },
+    {
+      "legacyId": "BYL-22",
+      "resolution": "UPDATE",
+      "owner": "Board Governance / CEO Appointment",
+      "successorRequirement": "TTO-GOV-CEO",
+      "reason": "انتخاب مدیرعامل حفظ؛ صلاحیت/تجربه از نامه اتاق استان/مدارک خارجی، نه محاسبه نرم‌افزار.",
+      "currentRule": "Board selection + external evidence + registration/activation states."
+    },
+    {
+      "legacyId": "BYL-23",
+      "resolution": "RETAIN",
+      "owner": "Governance / Board Lifecycle",
+      "successorRequirement": "TTO-GOV-TERM",
+      "reason": "قواعد دوره، حضور، جایگزینی و موعد دعوت با طراحی Governance سازگارند.",
+      "currentRule": "Term/deadline/attendance events source-backed and versioned."
+    },
+    {
+      "legacyId": "BYL-24",
+      "resolution": "RETAIN",
+      "owner": "Governance / Board Lifecycle",
+      "successorRequirement": "TTO-GOV-TERM",
+      "reason": "قواعد دوره، حضور، جایگزینی و موعد دعوت با طراحی Governance سازگارند.",
+      "currentRule": "Term/deadline/attendance events source-backed and versioned."
+    },
+    {
+      "legacyId": "BYL-25",
+      "resolution": "RETAIN",
+      "owner": "Governance / Board Lifecycle",
+      "successorRequirement": "TTO-GOV-TERM",
+      "reason": "قواعد دوره، حضور، جایگزینی و موعد دعوت با طراحی Governance سازگارند.",
+      "currentRule": "Term/deadline/attendance events source-backed and versioned."
+    },
+    {
+      "legacyId": "BYL-26",
+      "resolution": "RETAIN",
+      "owner": "Governance / Board Lifecycle",
+      "successorRequirement": "TTO-GOV-TERM",
+      "reason": "قواعد دوره، حضور، جایگزینی و موعد دعوت با طراحی Governance سازگارند.",
+      "currentRule": "Term/deadline/attendance events source-backed and versioned."
+    },
+    {
+      "legacyId": "BYL-27",
+      "resolution": "RETAIN",
+      "owner": "GRC + Governance",
+      "successorRequirement": "TTO-GRC-CONFLICT",
+      "reason": "تفکیک ماده ۱۲۹ از ۱۳۲ در متن قدیمی درست و با Baseline نهایی همسو است.",
+      "currentRule": "Article 129 workflow; Article 132 prohibited loans/guarantees hard-blocked where applicable."
+    },
+    {
+      "legacyId": "BYL-28",
+      "resolution": "UPDATE",
+      "owner": "Assemblies / Inspector Qualification",
+      "successorRequirement": "TTO-GOV-INSPECTOR",
+      "reason": "قواعد جدید ۱۴۰۴ و Rule Registry باید اعمال شود.",
+      "currentRule": "Inspector type/professional qualification evidence versioned."
+    },
+    {
+      "legacyId": "BYL-29",
+      "resolution": "RETAIN",
+      "owner": "GRC / Inspector Conflict",
+      "successorRequirement": "TTO-GRC-CONFLICT",
+      "reason": "با GRC نهایی همسو است.",
+      "currentRule": "Conflict disclosure + recusal/restriction."
+    },
+    {
+      "legacyId": "BYL-30",
+      "resolution": "UPDATE",
+      "owner": "GRC + Transparency + Governance",
+      "successorRequirement": "TTO-GRC-ASSURANCE / TTO-TRANSPARENCY",
+      "reason": "وظایف بازرسی حفظ می‌شوند اما بین Assurance، Transparency و Assembly handoff تفکیک می‌شوند.",
+      "currentRule": "Inspector/audit source docs remain canonical evidence; Transparency only publishes approved projection."
+    },
+    {
+      "legacyId": "BYL-31",
+      "resolution": "UPDATE",
+      "owner": "GRC + Transparency + Governance",
+      "successorRequirement": "TTO-GRC-ASSURANCE / TTO-TRANSPARENCY",
+      "reason": "وظایف بازرسی حفظ می‌شوند اما بین Assurance، Transparency و Assembly handoff تفکیک می‌شوند.",
+      "currentRule": "Inspector/audit source docs remain canonical evidence; Transparency only publishes approved projection."
+    },
+    {
+      "legacyId": "BYL-32",
+      "resolution": "UPDATE",
+      "owner": "GRC + Transparency + Governance",
+      "successorRequirement": "TTO-GRC-ASSURANCE / TTO-TRANSPARENCY",
+      "reason": "وظایف بازرسی حفظ می‌شوند اما بین Assurance، Transparency و Assembly handoff تفکیک می‌شوند.",
+      "currentRule": "Inspector/audit source docs remain canonical evidence; Transparency only publishes approved projection."
+    },
+    {
+      "legacyId": "BYL-33",
+      "resolution": "UPDATE",
+      "owner": "GRC + Transparency + Governance",
+      "successorRequirement": "TTO-GRC-ASSURANCE / TTO-TRANSPARENCY",
+      "reason": "وظایف بازرسی حفظ می‌شوند اما بین Assurance، Transparency و Assembly handoff تفکیک می‌شوند.",
+      "currentRule": "Inspector/audit source docs remain canonical evidence; Transparency only publishes approved projection."
+    },
+    {
+      "legacyId": "BYL-34",
+      "resolution": "UPDATE",
+      "owner": "GRC + Transparency + Governance",
+      "successorRequirement": "TTO-GRC-ASSURANCE / TTO-TRANSPARENCY",
+      "reason": "وظایف بازرسی حفظ می‌شوند اما بین Assurance، Transparency و Assembly handoff تفکیک می‌شوند.",
+      "currentRule": "Inspector/audit source docs remain canonical evidence; Transparency only publishes approved projection."
+    },
+    {
+      "legacyId": "BYL-35",
+      "resolution": "RETAIN",
+      "owner": "Tenant Registry + Governance Calendar",
+      "successorRequirement": "TTO-FISCAL-CALENDAR",
+      "reason": "سال مالی/تقویم همچنان داده پایه مشترک است.",
+      "currentRule": "Fiscal period is tenant data referenced by reports and deadlines."
+    },
+    {
+      "legacyId": "BYL-36",
+      "resolution": "UPDATE",
+      "owner": "Transparency + Governance Calendar",
+      "successorRequirement": "TTO-TRANSPARENCY-FINANCIAL-PACK",
+      "reason": "بسته مالی و موعدها حفظ؛ TTO حسابداری عمومی تولید نمی‌کند.",
+      "currentRule": "Store/publish source-backed financial statement package and delivery timeline; no ledger close engine."
+    },
+    {
+      "legacyId": "BYL-37",
+      "resolution": "RETAIN",
+      "owner": "Document Core + GRC/Transparency",
+      "successorRequirement": "TTO-DOCUMENT-REQUEST",
+      "reason": "درخواست مدرک و access control حفظ می‌شود.",
+      "currentRule": "Document request/access audited and classification-aware."
+    },
+    {
+      "legacyId": "BYL-38",
+      "resolution": "REPLACE",
+      "owner": "Transparency + External Accounting Reference",
+      "successorRequirement": "TTO-TRANSPARENCY-FIN-REF",
+      "reason": "دفترکل/حساب تفکیکی داخلی خارج از Scope پلتفرم است.",
+      "currentRule": "TTO stores source financial reports, activity tags and external accounting references; does not reconcile a general ledger."
+    },
+    {
+      "legacyId": "BYL-39",
+      "resolution": "UPDATE",
+      "owner": "Tenant Financial Profile + Payment Core",
+      "successorRequirement": "TTO-BANK-ACCOUNT-REFERENCE",
+      "reason": "ثبت حساب بانکی لازم است اما Wallet/برداشت داخلی حذف شده است.",
+      "currentRule": "Approved cooperative account references can be used as payment destinations; platform does not certify signatory authority."
+    },
+    {
+      "legacyId": "BYL-40",
+      "resolution": "REPLACE",
+      "owner": "Transparency + Governance",
+      "successorRequirement": "TTO-DIVIDEND-DISCLOSURE",
+      "reason": "محاسبه/پرداخت سود به‌عنوان Accounting Engine خارج از Scope است.",
+      "currentRule": "Record proposed/approved/distributed amounts from source documents; no automated statutory profit computation or withdrawable balance."
+    },
+    {
+      "legacyId": "BYL-41",
+      "resolution": "UPDATE",
+      "owner": "GRC + Domain-specific Payment Records",
+      "successorRequirement": "TTO-GRC-PAYMENT-PURPOSE",
+      "reason": "کنترل قانونی حفظ ولی فقط روی پرداخت‌های ثبت‌شده/مربوط به ماژول‌های TTO و شواهد واردشده اعمال می‌شود.",
+      "currentRule": "Purpose/authority/document reference required; no enterprise-wide payment ledger."
+    },
+    {
+      "legacyId": "BYL-42",
+      "resolution": "UPDATE",
+      "owner": "GRC + Transparency + Governance",
+      "successorRequirement": "TTO-GRC-CAPITAL-LOSS",
+      "reason": "Trigger از صورت‌های مالی منبع‌دار می‌آید؛ TTO نتیجه حسابداری را محاسبه نمی‌کند.",
+      "currentRule": "Approved source indicates threshold → create governance action; system never decides dissolution."
+    },
+    {
+      "legacyId": "BYL-43",
+      "resolution": "REPLACE",
+      "owner": "Transparency + Projects/Assets + GRC",
+      "successorRequirement": "TTO-FUNDING-DISCLOSURE",
+      "reason": "مدیریت عملیاتی تسهیلات/دفتر بدهی خارج از Scope حسابداری است.",
+      "currentRule": "Store financing contract/source/obligation references and disclosures; actual accounting/installment servicing remains external."
+    },
+    {
+      "legacyId": "BYL-44",
+      "resolution": "REPLACE",
+      "owner": "Transparency + Projects/Assets + GRC",
+      "successorRequirement": "TTO-FUNDING-DISCLOSURE",
+      "reason": "مدیریت عملیاتی تسهیلات/دفتر بدهی خارج از Scope حسابداری است.",
+      "currentRule": "Store financing contract/source/obligation references and disclosures; actual accounting/installment servicing remains external."
+    },
+    {
+      "legacyId": "BYL-45",
+      "resolution": "RETAIN",
+      "owner": "Governance Calendar",
+      "successorRequirement": "TTO-GOV-DEADLINE",
+      "reason": "قاعده موعد و هشدار با معماری جدید سازگار است.",
+      "currentRule": "Deadline/action only; no automatic legal conclusion."
+    },
+    {
+      "legacyId": "BYL-46",
+      "resolution": "UPDATE",
+      "owner": "Candidate Qualification",
+      "successorRequirement": "TTO-GOV-QUALIFICATION",
+      "reason": "شرط تخصصی نرم‌افزاری کنار گذاشته شده؛ نامه رسمی اتاق تعاون استان ملاک Product است.",
+      "currentRule": "Official provincial chamber letter drives Approved/NotApproved/Pending."
+    },
+    {
+      "legacyId": "BYL-47",
+      "resolution": "RETAIN",
+      "owner": "GRC",
+      "successorRequirement": "TTO-GRC-CONFLICT",
+      "reason": "با GRC نهایی همسو است.",
+      "currentRule": "Conflict/role incompatibility declaration and review."
+    },
+    {
+      "legacyId": "BYL-48",
+      "resolution": "UPDATE",
+      "owner": "Member/Shareholder Master + Document Core",
+      "successorRequirement": "TTO-MEMBER-DOCUMENT",
+      "reason": "پرونده عضو حفظ و به Party/Relationship + Document Core منتقل می‌شود.",
+      "currentRule": "No hard delete; verified/controlled changes and document references."
+    },
+    {
+      "legacyId": "BYL-49",
+      "resolution": "UPDATE",
+      "owner": "Transparency / Legal Library",
+      "successorRequirement": "TTO-LEGAL-DOCUMENT-ACCESS",
+      "reason": "فرض اساسنامه اختصاصی tenant کنار گذاشته شده است.",
+      "currentRule": "Member gets current national standard articles/rules and tenant-specific registered notices/resolutions where applicable."
+    },
+    {
+      "legacyId": "BYL-50",
+      "resolution": "UPDATE",
+      "owner": "Governance + GRC + Retention / Projects Assets",
+      "successorRequirement": "TTO-GOV-CORPORATE-CHANGE",
+      "reason": "قواعد ادغام/انحلال/رضایت/دارایی حفظ، اما با Retention و Rule Registry جدید اجرا می‌شوند.",
+      "currentRule": "No physical deletion; required approvals/evidence and legal hold respected."
+    },
+    {
+      "legacyId": "BYL-51",
+      "resolution": "UPDATE",
+      "owner": "Governance + GRC + Retention / Projects Assets",
+      "successorRequirement": "TTO-GOV-CORPORATE-CHANGE",
+      "reason": "قواعد ادغام/انحلال/رضایت/دارایی حفظ، اما با Retention و Rule Registry جدید اجرا می‌شوند.",
+      "currentRule": "No physical deletion; required approvals/evidence and legal hold respected."
+    },
+    {
+      "legacyId": "BYL-52",
+      "resolution": "UPDATE",
+      "owner": "Governance + GRC + Retention / Projects Assets",
+      "successorRequirement": "TTO-GOV-CORPORATE-CHANGE",
+      "reason": "قواعد ادغام/انحلال/رضایت/دارایی حفظ، اما با Retention و Rule Registry جدید اجرا می‌شوند.",
+      "currentRule": "No physical deletion; required approvals/evidence and legal hold respected."
+    },
+    {
+      "legacyId": "BYL-53",
+      "resolution": "UPDATE",
+      "owner": "Governance + GRC + Retention / Projects Assets",
+      "successorRequirement": "TTO-GOV-CORPORATE-CHANGE",
+      "reason": "قواعد ادغام/انحلال/رضایت/دارایی حفظ، اما با Retention و Rule Registry جدید اجرا می‌شوند.",
+      "currentRule": "No physical deletion; required approvals/evidence and legal hold respected."
+    },
+    {
+      "legacyId": "BYL-54",
+      "resolution": "RETAIN",
+      "owner": "Legal Rule Registry",
+      "successorRequirement": "TTO-CORE-RULES",
+      "reason": "کاملاً همسو با تصمیم معماری Rule Registry است.",
+      "currentRule": "National rule hierarchy/versioning; tenant cannot override law."
+    },
+    {
+      "legacyId": "COOP-01",
+      "resolution": "UPDATE",
+      "owner": "Member/Shareholder Master",
+      "successorRequirement": "TTO-MEMBER-MASTER",
+      "reason": "مدل Party/Relationship و Rule Registry جدید اعمال می‌شود.",
+      "currentRule": "Application + source-backed eligibility; no silent legal inference."
+    },
+    {
+      "legacyId": "COOP-02",
+      "resolution": "RETAIN",
+      "owner": "Transparency / Member Access",
+      "successorRequirement": "TTO-TRANSPARENCY",
+      "reason": "با Hub شفافیت و دسترسی عضو همسو است.",
+      "currentRule": "Member sees authorized source-backed disclosures; no cross-member leakage."
+    },
+    {
+      "legacyId": "COOP-03",
+      "resolution": "UPDATE",
+      "owner": "Member Relationship",
+      "successorRequirement": "TTO-MEMBER-EXIT",
+      "reason": "خروج حفظ؛ تسویه صرفاً evidence/reference است نه Wallet/payment engine.",
+      "currentRule": "Exit request, deadlines, valuation and settlement evidence tracked."
+    },
+    {
+      "legacyId": "COOP-04",
+      "resolution": "RETAIN",
+      "owner": "Capital & Share Registry",
+      "successorRequirement": "TTO-CAPITAL-OFFER",
+      "reason": "با قواعد عرضه سرمایه سازگار است.",
+      "currentRule": "Allocation tied to resolution and versioned rule."
+    },
+    {
+      "legacyId": "COOP-05",
+      "resolution": "UPDATE",
+      "owner": "Tenant Setup / Registration Evidence",
+      "successorRequirement": "TTO-TENANT-SETUP",
+      "reason": "برای تعاونی‌های موجود بیشتر به migration/setup evidence تبدیل می‌شود؛ TTO مرجع ثبت نیست.",
+      "currentRule": "Record registration/capital evidence; no platform legal formation."
+    },
+    {
+      "legacyId": "COOP-06",
+      "resolution": "UPDATE",
+      "owner": "Share Market",
+      "successorRequirement": "TTO-SHARE-MARKET",
+      "reason": "انتقال حفظ ولی تسویه پول مستقیم بین طرفین و بدون Wallet است.",
+      "currentRule": "Payment evidence/verification separate from ownership transfer."
+    },
+    {
+      "legacyId": "COOP-07",
+      "resolution": "RETAIN",
+      "owner": "Member/Shareholder Master + GRC",
+      "successorRequirement": "TTO-MEMBER-LIABILITY",
+      "reason": "قاعده مسئولیت همچنان معتبر است.",
+      "currentRule": "No inferred liability beyond shares without contract."
+    },
+    {
+      "legacyId": "COOP-08",
+      "resolution": "REPLACE",
+      "owner": "Transparency + Governance",
+      "successorRequirement": "TTO-DIVIDEND-DISCLOSURE",
+      "reason": "محاسبه و پرداخت داخلی سود خارج از Scope حسابداری است.",
+      "currentRule": "Store approved financial statement/dividend resolution and disclosed distribution status only."
+    },
+    {
+      "legacyId": "COOP-09",
+      "resolution": "RETAIN",
+      "owner": "Assemblies / Voting",
+      "successorRequirement": "TTO-ASSEMBLY-VOTE",
+      "reason": "قاعده یک عضو یک رأی حفظ است.",
+      "currentRule": "Member and non-member vote engines remain separate."
+    },
+    {
+      "legacyId": "COOP-10",
+      "resolution": "UPDATE",
+      "owner": "Assemblies",
+      "successorRequirement": "TTO-ASSEMBLY-MODE",
+      "reason": "قاعده جدید پروژه الزام دو مرحله‌ای برای بیش از ۵۰۰ عضو است؛ پراکندگی شرط Product نیست.",
+      "currentRule": ">500 members = TWO_STAGE; <=500 = ONE_STAGE under current project legal baseline."
+    },
+    {
+      "legacyId": "COOP-11",
+      "resolution": "RETAIN",
+      "owner": "Assemblies / Governance",
+      "successorRequirement": "TTO-ASSEMBLY-TYPE",
+      "reason": "نوع مجمع و دستورجلسه با طراحی نهایی سازگار است.",
+      "currentRule": "Agenda restricted to legal competence; versioned rules."
+    },
+    {
+      "legacyId": "COOP-12",
+      "resolution": "UPDATE",
+      "owner": "Governance",
+      "successorRequirement": "TTO-GOV-BOARD-TERM",
+      "reason": "عبارت «اساسنامه tenant» با Rule Registry ملی جایگزین می‌شود.",
+      "currentRule": "Seat count/term from current national rule + tenant resolutions/data."
+    },
+    {
+      "legacyId": "COOP-13",
+      "resolution": "UPDATE",
+      "owner": "Candidate Qualification",
+      "successorRequirement": "TTO-GOV-QUALIFICATION",
+      "reason": "ملاک Product اکنون نامه رسمی اتاق تعاون استان است.",
+      "currentRule": "Official chamber letter is authoritative product evidence; platform does not calculate qualification."
+    },
+    {
+      "legacyId": "ASM-01",
+      "resolution": "UPDATE",
+      "owner": "Assemblies + External Integration",
+      "successorRequirement": "TTO-ASSEMBLY-ELECTRONIC-HANDOFF",
+      "reason": "مجمع الکترونیکی داخل TTO فعال نیست؛ integration/handoff رسمی آینده.",
+      "currentRule": "TTO handles prep/evidence; legal e-voting only official cooperative system."
+    },
+    {
+      "legacyId": "ASM-02",
+      "resolution": "REPLACE",
+      "owner": "Assemblies",
+      "successorRequirement": "TTO-ASSEMBLY-MODE",
+      "reason": "قاعده optional+dispersion با baseline اختصاصی توسعه و عمران جایگزین شد.",
+      "currentRule": ">500 members mandatory TWO_STAGE; <=500 ONE_STAGE."
+    },
+    {
+      "legacyId": "ASM-03",
+      "resolution": "RETAIN",
+      "owner": "Governance Calendar / Assemblies",
+      "successorRequirement": "TTO-GOV-DEADLINE",
+      "reason": "موعدهای مجامع/انتخابات با معماری جدید سازگارند.",
+      "currentRule": "Versioned deadlines, actions, evidence."
+    },
+    {
+      "legacyId": "ASM-04",
+      "resolution": "RETAIN",
+      "owner": "Governance Calendar / Assemblies",
+      "successorRequirement": "TTO-GOV-DEADLINE",
+      "reason": "موعدهای مجامع/انتخابات با معماری جدید سازگارند.",
+      "currentRule": "Versioned deadlines, actions, evidence."
+    },
+    {
+      "legacyId": "PRD-01",
+      "resolution": "RETAIN",
+      "owner": "Platform SaaS Core",
+      "successorRequirement": "TTO-PLATFORM-SAAS",
+      "reason": "با مدل SaaS و tenant isolation نهایی همسو است.",
+      "currentRule": "Public ordering, configurable commercial model, strict tenant isolation."
+    },
+    {
+      "legacyId": "PRD-02",
+      "resolution": "RETAIN",
+      "owner": "Platform SaaS Core",
+      "successorRequirement": "TTO-PLATFORM-SAAS",
+      "reason": "با مدل SaaS و tenant isolation نهایی همسو است.",
+      "currentRule": "Public ordering, configurable commercial model, strict tenant isolation."
+    },
+    {
+      "legacyId": "PRD-03",
+      "resolution": "RETAIN",
+      "owner": "Platform SaaS Core",
+      "successorRequirement": "TTO-PLATFORM-SAAS",
+      "reason": "با مدل SaaS و tenant isolation نهایی همسو است.",
+      "currentRule": "Public ordering, configurable commercial model, strict tenant isolation."
+    },
+    {
+      "legacyId": "PRD-04",
+      "resolution": "UPDATE",
+      "owner": "Identity/Auth + Party/Authorization Core",
+      "successorRequirement": "TTO-CORE-IDENTITY",
+      "reason": "هویت/Party/Relationship/Authority اکنون تفکیک صریح دارند.",
+      "currentRule": "USER_ACCOUNT != PARTY; authorization uses tenant, role, authority, resource/state."
+    },
+    {
+      "legacyId": "PRD-05",
+      "resolution": "RETAIN",
+      "owner": "Tenant Registry + Legal Rule Registry",
+      "successorRequirement": "TTO-TENANT-REGISTRATION",
+      "reason": "با تصمیم نهایی مدارک ثبتی و Rule Registry ملی سازگار است.",
+      "currentRule": "Registration notices are tenant evidence; platform does not legally verify."
+    },
+    {
+      "legacyId": "PRD-06",
+      "resolution": "UPDATE",
+      "owner": "Experience Composition Layer",
+      "successorRequirement": "TTO-SHAREHOLDER-DASHBOARD",
+      "reason": "پنل اکنون از همه ماژول‌ها compose می‌شود و Wallet حذف شده است.",
+      "currentRule": "Dashboard is projection; shows shares, payments history, notices, events, benefits, etc."
+    },
+    {
+      "legacyId": "PRD-07",
+      "resolution": "UPDATE",
+      "owner": "Manager Experience Composition Layer",
+      "successorRequirement": "TTO-MANAGER-DASHBOARD",
+      "reason": "دامنه مدیر اکنون تمام Business Moduleها را compose می‌کند؛ حسابداری عمومی حذف است.",
+      "currentRule": "Unified actions/calendar + module summaries; no duplicate source of truth."
+    },
+    {
+      "legacyId": "PRD-08",
+      "resolution": "RETIRE",
+      "owner": "—",
+      "successorRequirement": null,
+      "reason": "Cash Wallet, wallet ledger, stored user balance and custody explicitly removed from product scope.",
+      "currentRule": "No WalletAccount/WalletJournal/top-up/withdrawal."
+    },
+    {
+      "legacyId": "PRD-09",
+      "resolution": "REPLACE",
+      "owner": "Payment Core + Share Market",
+      "successorRequirement": "TTO-PAYMENT-EVIDENCE",
+      "reason": "Top-up/BankMatch wallet behavior removed; replaced by direct payment evidence/verification.",
+      "currentRule": "Share price buyer→seller; fees payer→cooperative; TTO records evidence/status only."
+    },
+    {
+      "legacyId": "PRD-10",
+      "resolution": "RETIRE",
+      "owner": "—",
+      "successorRequirement": null,
+      "reason": "Withdrawal from a TTO-held cash balance no longer exists.",
+      "currentRule": "No withdrawal request feature."
+    },
+    {
+      "legacyId": "PRD-11",
+      "resolution": "REPLACE",
+      "owner": "Share Market",
+      "successorRequirement": "TTO-SHARE-SETTLEMENT",
+      "reason": "Wallet fund reservation removed; share transfer uses direct external payment.",
+      "currentRule": "Share lock + buyer eligibility + direct payment verification + ownership ledger update."
+    },
+    {
+      "legacyId": "PRD-12",
+      "resolution": "REPLACE",
+      "owner": "Share Transaction History + Transparency / Audit",
+      "successorRequirement": "TTO-TRANSACTION-HISTORY",
+      "reason": "Wallet-centric financial report replaced with read-only transaction/payment history and source-backed disclosures.",
+      "currentRule": "No cash balance; history of buys/sales/fees/evidence/status."
+    },
+    {
+      "legacyId": "PRD-13",
+      "resolution": "UPDATE",
+      "owner": "Integration Adapter Layer",
+      "successorRequirement": "TTO-CORE-INTEGRATIONS",
+      "reason": "Adapters retained but scope now includes Payment, SMS, official systems, e-signature future; no accounting dependency assumed.",
+      "currentRule": "Provider-independent adapters; gated activation; no raw cross-tenant data."
+    },
+    {
+      "legacyId": "PRD-14",
+      "resolution": "RETAIN",
+      "owner": "Audit Core / Platform Operations",
+      "successorRequirement": "TTO-CORE-AUDIT",
+      "reason": "کاملاً با معماری جدید همسو است.",
+      "currentRule": "Append-only audit; JIT purpose-limited platform support."
+    },
+    {
+      "legacyId": "PRD-15",
+      "resolution": "RETAIN",
+      "owner": "Audit Core / Platform Operations",
+      "successorRequirement": "TTO-CORE-AUDIT",
+      "reason": "کاملاً با معماری جدید همسو است.",
+      "currentRule": "Append-only audit; JIT purpose-limited platform support."
+    },
+    {
+      "legacyId": "PRD-16",
+      "resolution": "UPDATE",
+      "owner": "Assemblies + Notice Assurance",
+      "successorRequirement": "TTO-ASSEMBLIES",
+      "reason": "قواعد Proxy, >500 two-stage, provincial chamber qualification و official e-assembly handoff اکنون قفل شده‌اند.",
+      "currentRule": "Governance workflow must enforce current project legal baseline."
+    },
+    {
+      "legacyId": "PRD-17",
+      "resolution": "RETAIN",
+      "owner": "Experience Layer",
+      "successorRequirement": "TTO-UX-BASE",
+      "reason": "اصل RTL و نقش‌محوری حفظ است؛ جزئیات UI در UI/UX Spec.",
+      "currentRule": "Persian RTL, responsive, role-aware composition."
+    },
+    {
+      "legacyId": "PRD-18",
+      "resolution": "REPLACE",
+      "owner": "Payment Core + Share Market",
+      "successorRequirement": "TTO-PAYMENT-STATUS",
+      "reason": "وضعیت‌های Wallet/payment داخلی جای خود را به report/verify/business-finalization داده‌اند.",
+      "currentRule": "PAYMENT_REPORTED != PAYMENT_VERIFIED != SHARE_TRANSFERRED."
+    },
+    {
+      "legacyId": "PRD-19",
+      "resolution": "RETAIN",
+      "owner": "Legal Rule Core / Tenant Setup / Platform Operations",
+      "successorRequirement": "TTO-CORE",
+      "reason": "با تصمیمات نهایی سازگار است.",
+      "currentRule": "Versioned rules; setup-only coordinator; minimal registration evidence; no hard tenant cap."
+    },
+    {
+      "legacyId": "PRD-20",
+      "resolution": "RETAIN",
+      "owner": "Legal Rule Core / Tenant Setup / Platform Operations",
+      "successorRequirement": "TTO-CORE",
+      "reason": "با تصمیمات نهایی سازگار است.",
+      "currentRule": "Versioned rules; setup-only coordinator; minimal registration evidence; no hard tenant cap."
+    },
+    {
+      "legacyId": "PRD-21",
+      "resolution": "RETAIN",
+      "owner": "Legal Rule Core / Tenant Setup / Platform Operations",
+      "successorRequirement": "TTO-CORE",
+      "reason": "با تصمیمات نهایی سازگار است.",
+      "currentRule": "Versioned rules; setup-only coordinator; minimal registration evidence; no hard tenant cap."
+    },
+    {
+      "legacyId": "PRD-22",
+      "resolution": "RETAIN",
+      "owner": "Legal Rule Core / Tenant Setup / Platform Operations",
+      "successorRequirement": "TTO-CORE",
+      "reason": "با تصمیمات نهایی سازگار است.",
+      "currentRule": "Versioned rules; setup-only coordinator; minimal registration evidence; no hard tenant cap."
+    }
+  ],
+  "tests": [
+    {
+      "legacyId": "AT-TNT-01",
+      "resolution": "RETAIN",
+      "successorTest": "AT-TNT-01",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "هیچ رکورد، فایل، نتیجه جست‌وجو یا metadata از ب برنمی‌گردد؛ رویداد منع دسترسی ثبت می‌شود.",
+      "owner": "پلتفرم"
+    },
+    {
+      "legacyId": "AT-TNT-02",
+      "resolution": "RETAIN",
+      "successorTest": "AT-TNT-02",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "خروجی فقط داده tenant الف دارد و با شناسه درخواست قابل audit است.",
+      "owner": "پلتفرم"
+    },
+    {
+      "legacyId": "AT-TNT-03",
+      "resolution": "RETAIN",
+      "successorTest": "AT-TNT-03",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "سفارش پیگیری‌پذیر ساخته می‌شود؛ هیچ نقش/دسترسی/اطلاعات تعاونی ایجاد نمی‌شود.",
+      "owner": "فروش پلتفرم"
+    },
+    {
+      "legacyId": "AT-TNT-04",
+      "resolution": "UPDATE",
+      "successorTest": "AT-TNT-04-R1",
+      "successorExplicit": true,
+      "reason": "setup-only حفظ است؛ عبارت دسترسی مالی باید با دامنه جدید بدون Wallet/Accounting عمومی همسان شود.",
+      "currentExpected": "تا ثبت authority داخلی معتبر، دسترسی به Share Market، payment records و سایر عملیات حساس رد و audit شود.",
+      "owner": "Platform/Tenant Administration"
+    },
+    {
+      "legacyId": "AT-TNT-05",
+      "resolution": "RETAIN",
+      "successorTest": "AT-TNT-05",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "آگهی تأسیس و آخرین تغییرات در tenant ذخیره می‌شوند؛ نبود اساسنامه جداگانه مانع setup نیست و برچسب تأیید حقوقی پلتفرم نمایش داده نمی‌شود.",
+      "owner": "هماهنگ‌کننده راه‌اندازی"
+    },
+    {
+      "legacyId": "AT-SCALE-01",
+      "resolution": "RETAIN",
+      "successorTest": "AT-SCALE-01",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "هیچ داده tenant دیگری برنمی‌گردد و تنظیم نرم‌افزار سقف ۵۰۰ ندارد؛ معیار throughput/RTO/RPO جداگانه پیش از تولید تصویب می‌شود.",
+      "owner": "راهبری فنی"
+    },
+    {
+      "legacyId": "AT-AUTH-01",
+      "resolution": "UPDATE",
+      "successorTest": "AT-AUTH-01-R1",
+      "successorExplicit": true,
+      "reason": "مدل جدید Party/User/Relationship/Authority از RBAC ساده فراتر است.",
+      "currentExpected": "دسترسی فقط با user account + tenant context + role + authority/resource/state معتبر اعمال شود؛ بازرس read-only بماند.",
+      "owner": "Identity/Authorization Core"
+    },
+    {
+      "legacyId": "AT-MEM-01",
+      "resolution": "UPDATE",
+      "successorTest": "AT-MEM-01-R1",
+      "successorExplicit": true,
+      "reason": "قصد تست حفظ، ولی مدل داده به Party + CooperativeRelationship منتقل شده است.",
+      "currentExpected": "سه معیار شهرستان جدا ثبت و تصمیم به تعاونی/مرجع منبع‌دار نسبت داده شود.",
+      "owner": "Member Master"
+    },
+    {
+      "legacyId": "AT-MEM-02",
+      "resolution": "RETAIN",
+      "successorTest": "AT-MEM-02",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "سامانه صرف عضویت دیگر را مانع نمی‌داند؛ قاعده خاص ماده ۲ محفوظ است.",
+      "owner": "مسئول عضویت"
+    },
+    {
+      "legacyId": "AT-MEM-03",
+      "resolution": "RETAIN",
+      "successorTest": "AT-MEM-03",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "سیستم فقط به این علت عضویت را خودکار باطل نمی‌کند.",
+      "owner": "مسئول عضویت"
+    },
+    {
+      "legacyId": "AT-SHR-01",
+      "resolution": "UPDATE",
+      "successorTest": "AT-SHR-01-R1",
+      "successorExplicit": true,
+      "reason": "انتقال سهم حفظ است؛ payment flow اکنون direct external payment است.",
+      "currentExpected": "Ownership فقط پس از share lock/eligibility/approval/payment verification/register update تغییر کند؛ پرداخت به‌تنهایی کافی نیست.",
+      "owner": "Share Market"
+    },
+    {
+      "legacyId": "AT-SHR-02",
+      "resolution": "UPDATE",
+      "successorTest": "AT-SHR-02-R1",
+      "successorExplicit": true,
+      "reason": "قصد تست حفظ؛ Rule Registry و سقف ۱٪ باید صریح شود.",
+      "currentExpected": "Transaction خارج از limit جاری fail-closed شود و rule version/amount مبنا ثبت گردد.",
+      "owner": "Share Market/Rule Registry"
+    },
+    {
+      "legacyId": "AT-SHR-03",
+      "resolution": "UPDATE",
+      "successorTest": "AT-SHR-03-R1",
+      "successorExplicit": true,
+      "reason": "قصد تست حفظ؛ admission/voting state سهامدار غیرعضو باید با Governance handoff صریح شود.",
+      "currentExpected": "تا approval لازم، shareholder non-member فعال/دارای رأی نشود و سقف/مصوبه منبع‌دار ثبت گردد.",
+      "owner": "Member Master/Governance"
+    },
+    {
+      "legacyId": "AT-SHR-04",
+      "resolution": "RETAIN",
+      "successorTest": "AT-SHR-04",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "گواهی تعداد/ارزش اسمی/مالک و شماره ترتیب را دارد و سابقه صدور/ابطال نگهداری می‌شود.",
+      "owner": "مسئول سهام"
+    },
+    {
+      "legacyId": "AT-SHR-05",
+      "resolution": "RETAIN",
+      "successorTest": "AT-SHR-05",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "ارزش قابل ردیابی به سند و تاریخ است؛ سامانه بدون ورودی/تأیید رسمی عدد قانونی نمی‌سازد.",
+      "owner": "امور مالی/کارشناس"
+    },
+    {
+      "legacyId": "AT-CAP-01",
+      "resolution": "UPDATE",
+      "successorTest": "AT-CAP-01-R1",
+      "successorExplicit": true,
+      "reason": "عرضه سرمایه حفظ است؛ payment wallet assumptions حذف می‌شود.",
+      "currentExpected": "دو درخواست هم‌شرط از همان resolution/rule version استفاده کنند؛ پرداخت فقط record/evidence خارجی است.",
+      "owner": "Capital Registry"
+    },
+    {
+      "legacyId": "AT-CAP-02",
+      "resolution": "RETAIN",
+      "successorTest": "AT-CAP-02",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "هر معامله با نسخه قواعد زمان ثبت باقی می‌ماند؛ تاریخچه و تاریخ اجرا قابل مشاهده است.",
+      "owner": "راهبری ملی"
+    },
+    {
+      "legacyId": "AT-VOTE-01",
+      "resolution": "RETAIN",
+      "successorTest": "AT-VOTE-01",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "هر عضو یک رأی دارد؛ سهم بالاتر وزن رأی اعضا را بالا نمی‌برد.",
+      "owner": "دبیر مجمع"
+    },
+    {
+      "legacyId": "AT-VOTE-02",
+      "resolution": "REPLACE",
+      "successorTest": "AT-VOTE-02-R1",
+      "successorExplicit": true,
+      "reason": "قاعده قدیمی رد وکالت دوم با Baseline جدید تعارض دارد.",
+      "currentExpected": "یک شخص تا سه رأی وکالتی معتبر می‌تواند داشته باشد؛ وکالت چهارم رد شود؛ rule version ثبت گردد.",
+      "owner": "Assemblies"
+    },
+    {
+      "legacyId": "AT-VOTE-03",
+      "resolution": "REPLACE",
+      "successorTest": "AT-VOTE-03-R1",
+      "successorExplicit": true,
+      "reason": "پراکندگی جغرافیایی از Baseline اختصاصی پروژه حذف شده؛ >500 عضو الزام دو مرحله‌ای است.",
+      "currentExpected": "Members <=500 → one-stage؛ Members >500 → mandatory two-stage; tenant count irrelevant.",
+      "owner": "Assemblies"
+    },
+    {
+      "legacyId": "AT-GA-01",
+      "resolution": "UPDATE",
+      "successorTest": "AT-GA-01-R1",
+      "successorExplicit": true,
+      "reason": "Notice Assurance و legal channel completion اکنون صریح شده‌اند.",
+      "currentExpected": "تمام کانال‌های قانونی و evidence لازم ثبت شوند؛ SMS/in-app به‌تنهایی LEGAL_NOTICE_COMPLETE نسازد.",
+      "owner": "Assemblies/Notice Assurance"
+    },
+    {
+      "legacyId": "AT-GA-02",
+      "resolution": "RETAIN",
+      "successorTest": "AT-GA-02",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "قابلیت مجمع/رأی برخط داخل MVP فعال نیست. محصول فقط می‌تواند شناسه یا مدرک اجرای رسمی در سامانه ملی را ثبت کند و جلسه آنلاین داخل پلتفرم را مجمع قانونی اعلام نمی‌کند.",
+      "owner": "تیم مجامع"
+    },
+    {
+      "legacyId": "AT-GA-03",
+      "resolution": "RETAIN",
+      "successorTest": "AT-GA-03",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "موعد حداکثر چهارماه و موعدهای انتخاب مدیر/بازرس به عنوان اقدام قابل پیگیری ظاهر می‌شود.",
+      "owner": "دبیر مجمع"
+    },
+    {
+      "legacyId": "AT-FIN-01",
+      "resolution": "REPLACE",
+      "successorTest": "AT-PAY-01",
+      "successorExplicit": true,
+      "reason": "Wallet top-up حذف شده است.",
+      "currentExpected": "Buyer payment price is direct to seller; report/evidence creates PAYMENT_REPORTED only; verification needed before settlement progression.",
+      "owner": "Share Market/Payment Evidence"
+    },
+    {
+      "legacyId": "AT-FIN-02",
+      "resolution": "REPLACE",
+      "successorTest": "AT-PAY-02",
+      "successorExplicit": true,
+      "reason": "Bank top-up/pending wallet balance حذف شده است.",
+      "currentExpected": "Uploaded receipt or bank transfer claim remains PENDING_VERIFICATION and cannot finalize share transfer until verified.",
+      "owner": "Share Market/Payment Evidence"
+    },
+    {
+      "legacyId": "AT-FIN-03",
+      "resolution": "REPLACE",
+      "successorTest": "AT-PAY-03",
+      "successorExplicit": true,
+      "reason": "idempotency مهم است اما wallet credit حذف شده است.",
+      "currentExpected": "تکرار callback/verification برای payment or fee reference نباید verification یا business effect تکراری ایجاد کند.",
+      "owner": "Payment Core"
+    },
+    {
+      "legacyId": "AT-FIN-04",
+      "resolution": "REPLACE",
+      "successorTest": "AT-SHR-06",
+      "successorExplicit": true,
+      "reason": "Buyer fund reservation inside TTO removed.",
+      "currentExpected": "Concurrent sell/order flow cannot allocate the same locked shares twice; seller share lock/concurrency protection is authoritative.",
+      "owner": "Share Market"
+    },
+    {
+      "legacyId": "AT-FIN-05",
+      "resolution": "REPLACE",
+      "successorTest": "AT-SHR-07",
+      "successorExplicit": true,
+      "reason": "Wallet reservation release removed.",
+      "currentExpected": "On rejection/cancel/expiry, share lock is released with audited transition; any external payment case follows exception/refund evidence workflow, not wallet credit.",
+      "owner": "Share Market"
+    },
+    {
+      "legacyId": "AT-FIN-06",
+      "resolution": "RETIRE",
+      "successorTest": "AT-FIN-06",
+      "successorExplicit": false,
+      "reason": "Cash wallet withdrawal feature removed from product scope.",
+      "currentExpected": "No withdrawal from TTO-held balance exists.",
+      "owner": "—"
+    },
+    {
+      "legacyId": "AT-FIN-07",
+      "resolution": "REPLACE",
+      "successorTest": "AT-PAY-04",
+      "successorExplicit": true,
+      "reason": "Wallet ledger no longer exists.",
+      "currentExpected": "Platform SaaS billing, cooperative payment records and share ownership ledger remain separate; no automatic transfer or merged balance.",
+      "owner": "Platform Billing/Payment Core/Share Ledger"
+    },
+    {
+      "legacyId": "AT-FIN-08",
+      "resolution": "UPDATE",
+      "successorTest": "AT-TRN-02",
+      "successorExplicit": true,
+      "reason": "TTO محاسبه سود/مانده قابل برداشت انجام نمی‌دهد؛ فقط source-backed disclosure.",
+      "currentExpected": "قبل از مصوبه، مقدار فقط proposed نمایش داده شود؛ approved/distributed فقط از سند/مصوبه/مدرک منبع‌دار؛ هیچ withdrawable balance ساخته نشود.",
+      "owner": "Transparency/Governance"
+    },
+    {
+      "legacyId": "AT-FIN-09",
+      "resolution": "REPLACE",
+      "successorTest": "AT-TRN-01",
+      "successorExplicit": true,
+      "reason": "General ledger/activity accounting is out of scope.",
+      "currentExpected": "TTO displays source-backed financial statements/activity disclosures and external accounting references; it does not reconcile or generate a general ledger.",
+      "owner": "Transparency"
+    },
+    {
+      "legacyId": "AT-WDR-01",
+      "resolution": "UPDATE",
+      "successorTest": "AT-MEM-EXIT-01",
+      "successorExplicit": true,
+      "reason": "خروج عضو و موعد قانونی حفظ می‌شود، ولی settlement داخلی/Wallet حذف است.",
+      "currentExpected": "Exit/estate case، valuation, debt/claim, deadline و payment evidence/reference قابل پیگیری باشد؛ TTO وجه نگهداری نکند.",
+      "owner": "Member Master"
+    },
+    {
+      "legacyId": "AT-WDR-02",
+      "resolution": "UPDATE",
+      "successorTest": "AT-MEM-OFFSET-01",
+      "successorExplicit": true,
+      "reason": "اخطار و مهلت قانونی حفظ می‌شود؛ accounting execution خارجی است.",
+      "currentExpected": "قبل از expiry تهاتر نهایی نشود؛ notice delivery/evidence/authority و external settlement reference ثبت شود.",
+      "owner": "Member Master/GRC"
+    },
+    {
+      "legacyId": "AT-ROLE-01",
+      "resolution": "REPLACE",
+      "successorTest": "AT-ROLE-01-R1",
+      "successorExplicit": true,
+      "reason": "Product baseline now uses official provincial Cooperative Chamber letter as qualification evidence.",
+      "currentExpected": "Without official chamber letter candidate stays PENDING_EXTERNAL_REVIEW; listed approved person becomes APPROVED; TTO never computes qualification.",
+      "owner": "Governance/Candidate Qualification"
+    },
+    {
+      "legacyId": "AT-ROLE-02",
+      "resolution": "RETAIN",
+      "successorTest": "AT-ROLE-02",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "نقش به تاریخ/مصوبه و دسترسی جاری وابسته است؛ دوره قدیمی بی‌دلیل تمدید نمی‌شود.",
+      "owner": "مدیر tenant"
+    },
+    {
+      "legacyId": "AT-COI-01",
+      "resolution": "RETAIN",
+      "successorTest": "AT-COI-01",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "ذی‌نفع در رأی مربوط شرکت نمی‌کند؛ اجازه هیئت‌مدیره، اطلاع فوری بازرس و گزارش به مجمع در صورت انجام ماده ۱۲۹ ثبت می‌شود. معامله بدون مجوز و بدون تصویب مجمع به پرونده بررسی درخواست ابطال قضایی وصل می‌شود؛ سامانه خودکار بطلان اعلام نمی‌کند. وام/اعتبار/تضمین دیون و معاملات رقابتی مسدود هستند.",
+      "owner": "هیئت‌مدیره/بازرس"
+    },
+    {
+      "legacyId": "AT-AUD-01",
+      "resolution": "RETAIN",
+      "successorTest": "AT-AUD-01",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "مشاهده مجاز و audit می‌شود؛ ویرایش دفتر/تراکنش ممنوع است.",
+      "owner": "بازرس/پلتفرم"
+    },
+    {
+      "legacyId": "AT-AUD-02",
+      "resolution": "UPDATE",
+      "successorTest": "AT-TRN-03",
+      "successorExplicit": true,
+      "reason": "صورت مالی و گزارش بازرس باید در Transparency/Governance به‌صورت source-backed package کنترل شوند.",
+      "currentExpected": "نبود inspector report در checklist آشکار باشد و approval/published status بدون سند معتبر ایجاد نشود.",
+      "owner": "Transparency/Governance"
+    },
+    {
+      "legacyId": "AT-GOV-01",
+      "resolution": "RETAIN",
+      "successorTest": "AT-GOV-01",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "مرجع اختیار خالی می‌ماند و مورد در وضعیت نیازمند تصمیم/بازبینی است.",
+      "owner": "مدیر tenant"
+    },
+    {
+      "legacyId": "AT-GOV-02",
+      "resolution": "RETAIN",
+      "successorTest": "AT-GOV-02",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "گزارش تاریخ گذشته از نسخه قبلی استفاده می‌کند؛ نسخه جدید فقط برای بازه/رویداد واجد شرایط اعمال می‌شود.",
+      "owner": "راهبری ملی"
+    },
+    {
+      "legacyId": "AT-GOV-03",
+      "resolution": "REPLACE",
+      "successorTest": "AT-BANK-01",
+      "successorExplicit": true,
+      "reason": "Bank account is no longer withdrawal destination for Wallet.",
+      "currentExpected": "Approved cooperative account may be registered as payment destination for fees; resolution/signatory evidence stored but platform does not legally certify signatory authority.",
+      "owner": "Tenant Financial Profile/Payment Core"
+    },
+    {
+      "legacyId": "AT-OPS-01",
+      "resolution": "RETAIN",
+      "successorTest": "AT-OPS-01",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "دفتر فرعی از فعالیت مستقل تفکیک می‌شود و مورد نیاز بررسی با منبع قانونی قابل مشاهده است.",
+      "owner": "مدیر پروژه"
+    },
+    {
+      "legacyId": "AT-OPS-02",
+      "resolution": "RETAIN",
+      "successorTest": "AT-OPS-02",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "دسترسی زمان‌دار و audit می‌شود و پس از انقضا خودکار بسته می‌شود.",
+      "owner": "راهبری فنی"
+    },
+    {
+      "legacyId": "AT-OPS-03",
+      "resolution": "RETAIN",
+      "successorTest": "AT-OPS-03",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "حداقل ۰٫۵٪ و وضعیت تأیید به مرجع/داده واردشده وصل می‌شود؛ سامانه جمعیت یا تأیید مرجع را حدس نمی‌زند.",
+      "owner": "تعاونی/اداره تعاون"
+    },
+    {
+      "legacyId": "AT-OPS-04",
+      "resolution": "UPDATE",
+      "successorTest": "AT-AUD-03",
+      "successorExplicit": true,
+      "reason": "اصل append-only حفظ است؛ عبارت مالی باید با no-general-accounting boundary همسو شود.",
+      "currentExpected": "Material share/payment/document/governance records hard-delete نشوند؛ correction/supersession با audit و reason ثبت شود.",
+      "owner": "Audit/Retention Core"
+    },
+    {
+      "legacyId": "AT-OPS-05",
+      "resolution": "RETAIN",
+      "successorTest": "AT-OPS-05",
+      "successorExplicit": false,
+      "reason": "سناریو با Baseline نهایی تعارض ندارد؛ فقط در Child Implementation Spec جزئیات فنی آن تکمیل می‌شود.",
+      "currentExpected": "وضعیت مجوز/مرجع قابل مشاهده است و سامانه مجوز را صادر/تأیید نمی‌کند.",
+      "owner": "مدیر پروژه"
+    }
+  ],
+  "unresolved": 0,
+  "fullOperationalAcceptance": "NOT_ISSUED"
+}
