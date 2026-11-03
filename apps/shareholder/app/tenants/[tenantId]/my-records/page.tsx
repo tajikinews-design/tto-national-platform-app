@@ -123,7 +123,7 @@ export default function MyVerifiedRecords(){
     </li>)}
    </ol>}
   </section>
-  <button type="button" disabled={busy} onClick={()=>void load()
+  <button type="button" disabled={busy} onClick={()=>void load()}
    style={{minHeight:44,padding:"8px 16px",font:"inherit",cursor:"pointer"}}>
    بررسی مجدد اطلاعات
   </button>
