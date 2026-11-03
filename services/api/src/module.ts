@@ -683,5 +683,87 @@ export class Ph07PortalController {
  }
 }
 
-@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController],providers:[ApiIrSmsOtpProvider]})
+/**
+ * PH09 source-only API. All operations require a real bearer session, and all
+ * DB functions enforce the current tenant and role; no raw table SELECTs as
+ * tto_app. No automatic AI rejection, wallet, official governance, or deploy.
+ */
+@Controller("v1/tenants")
+export class Ph09PortalController {
+ constructor(private readonly db:Database){}
+ private async scoped<T>(tenant:string,auth:string|undefined,fn:(c:PoolClient)=>Promise<T>):Promise<T>{
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,fn);
+ }
+ @Get(":tenantId/ph09/opportunities")
+ async opportunities(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+ @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,async c=>({items:(await c.query(
+   "SELECT opportunity_id,title,deadline FROM tto.ph09_my_open_opportunities()"
+  )).rows}));
+ }
+ @Post(":tenantId/ph09/opportunities/:opportunityId/apply")
+ async apply(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+ @Param("opportunityId",new ParseUUIDPipe()) opportunity:string,
+ @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,async c=>{
+   const r=await c.query<{allowed:boolean}>("SELECT tto.ph09_apply($1) AS allowed",[opportunity]);
+   if(r.rows[0]?.allowed!==true)throw new ForbiddenException({code:"OPPORTUNITY_NOT_ELIGIBLE"});
+   return {submitted:true,legalDecision:false};
+  });
+ }
+ @Get(":tenantId/ph09/impact/approved")
+ async impact(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+ @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,async c=>({items:(await c.query(
+   "SELECT claim_id,measurement_id,amount FROM tto.ph09_my_approved_impact()"
+  )).rows,sourceStatus:"APPROVED_ONLY"}));
+ }
+ @Get(":tenantId/ph09/grc/cases")
+ async cases(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+ @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,async c=>({items:(await c.query(
+   "SELECT case_id,kind,status FROM tto.ph09_my_grc_case_summary()"
+  )).rows}));
+ }
+ @Get(":tenantId/ph09/grc/:caseId/can-finalize")
+ async grc(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+ @Param("caseId",new ParseUUIDPipe()) caseId:string,
+ @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,async c=>{
+   const r=await c.query<{allowed:boolean}>("SELECT tto.ph09_grc_can_finalize($1) AS allowed",[caseId]);
+   return {allowed:r.rows[0]?.allowed===true,decisionIsLegalApproval:false};
+  });
+ }
+ @Get(":tenantId/ph09/network/metrics/:snapshotId")
+ async metric(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+ @Param("snapshotId",new ParseUUIDPipe()) snapshot:string,
+ @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,async c=>{
+   const r=await c.query<{display_value:string|null,display_label:string}>(
+   "SELECT display_value,display_label FROM tto.ph09_metric_display($1,5)",[snapshot]);
+   if(r.rows.length!==1)throw new ForbiddenException({code:"METRIC_SCOPE_DENIED"});
+   return {value:r.rows[0].display_value,label:r.rows[0].display_label};
+  });
+ }
+ @Get(":tenantId/ph09/data-governance/records")
+ async retention(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+ @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,async c=>({items:(await c.query(
+   "SELECT record_id,classification,state FROM tto.ph09_my_retention_summary()"
+  )).rows}));
+ }
+ @Post(":tenantId/ph09/data-governance/records/:recordId/dispose")
+ async dispose(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+ @Param("recordId",new ParseUUIDPipe()) record:string,
+ @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,async c=>{
+   const r=await c.query<{allowed:boolean}>("SELECT tto.ph09_dispose_record($1) AS allowed",[record]);
+   if(r.rows[0]?.allowed!==true)throw new ForbiddenException({code:"RETENTION_OR_LEGAL_HOLD_DENIED"});
+   return {disposed:true};
+  });
+ }
+}
+
+@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController],providers:[ApiIrSmsOtpProvider]})
 export class AppModule {}
