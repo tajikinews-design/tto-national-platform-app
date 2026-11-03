@@ -344,7 +344,13 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
     assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
     assert.equal(await page.getByText(profile.expected).count()>0,true);
     assert.equal((await page.locator('body').innerText()).includes('SEALED_SOURCE_IDENTITY'),false);
-    await page.screenshot({path:path.join(evidenceDir,'ph10-'+profile.kind+'-authenticated-nav07-mobile.png'),fullPage:true});
+    // Playwright screenshots have no default deadline and may wait forever for
+    // font readiness. A screenshot is required evidence: fail the journey,
+    // never silently skip it, when browser rendering cannot finish.
+    await page.screenshot({
+     path:path.join(evidenceDir,'ph10-'+profile.kind+'-authenticated-nav07-mobile.png'),
+     fullPage:true,animations:'disabled',timeout:15000
+    });
     if(profile.kind==='shareholder'){
      // Real browser button -> Next BFF -> Nest POST -> PostgreSQL, not a mock.
      await page.goto('http://127.0.0.1:'+profile.port+'/modules/nav-06',
