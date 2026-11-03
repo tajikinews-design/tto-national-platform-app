@@ -1,0 +1,80 @@
+name: TTO Child06-07 one-shot Chromium + PG17 synthetic review (NO DEPLOY)
+on:
+  push:
+    branches:
+      - ci/tto-child06-forms-browser-v2-20261103
+    paths:
+      - .github/workflows/tto-child06-forms-browser-v2-once.yml
+permissions:
+  contents: read
+concurrency:
+  group: tto-child06-forms-browser-v2-once
+  cancel-in-progress: true
+jobs:
+  private-chromium-owner-read:
+    if: github.ref == 'refs/heads/ci/tto-child06-forms-browser-v2-20261103'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      TTO_PCS014_BROWSER: '1'
+      TEST_ADMIN_DATABASE_URL: 'postgresql://postgres@127.0.0.1:5432/tto'
+      APIIR_TOKEN: ''
+      VERCEL: ''
+      DATABASE_URL: ''
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - name: Read-only exact snapshot checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Assert base source SHA and one workflow-only overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = '849fd914ef8f183e0012676a775beae096c72f4b'
+          test "$(git diff --name-only HEAD^ HEAD)" = '.github/workflows/tto-child06-forms-browser-v2-once.yml'
+          echo 'TTO_CHILD06_07_BROWSER_SOURCE_SHA=849fd914ef8f183e0012676a775beae096c72f4b'
+      - name: Node22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Source/patch guards, frozen install and Next/Nest builds
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/check_source_baseline.py
+          python3 -m unittest discover -s tests -p 'test_child*py' -v
+          npm install -g pnpm@10.18.0 --no-audit --no-fund
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm check
+      - name: Install isolated Chromium for real mobile and desktop own-record tests
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/tto-pcs014-browser --no-audit --no-fund playwright@1.56.1
+          node /tmp/tto-pcs014-browser/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Launch disposable local PostgreSQL17 (no hosted database)
+        run: |
+          set -euo pipefail
+          docker run -d --name tto-adaptive-postgres --rm -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto -p 127.0.0.1:5432:5432 postgres:17
+          for i in $(seq 1 50); do
+            if docker exec tto-adaptive-postgres pg_isready -h 127.0.0.1 -U postgres -d tto >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec tto-adaptive-postgres pg_isready -h 127.0.0.1 -U postgres -d tto
+          for m in database/migrations/00{01,02,03,04,05,06,07,08,09,10}_*.sql; do
+            test -f "$m"
+            docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$m"
+          done
+          docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0021_child06_membership_application_review.sql
+      - name: Browser + real Next Nest PostgreSQL synthetic source scenarios, width390 and 1440
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=5s 260s node scripts/e2e-cf02-identity-authority.cjs
+          echo 'TTO_CHILD06_07_REAL_CHROMIUM_PG17_SOURCE_SCENARIOS_PASS'
+      - name: Destroy disposable PostgreSQL even on failure
+        if: always()
+        run: docker stop tto-adaptive-postgres >/dev/null 2>&1 || true
