@@ -246,6 +246,10 @@ async function testShareholderBff(memberToken,managerToken){
   'PH10_TRAINING_ENROLLMENT_MUST_SURVIVE_SOURCE_RELOAD');
  enrollment=await enrollRequest(memberToken,409);
  assert.equal(enrollment.code,'ALREADY_REGISTERED');
+ await db.query("UPDATE tto.ph08_event_registrations SET state='CANCELLED' WHERE event_id=$1 AND registered_by=$2",[enrollmentEvent,user]);
+ const cancelled=await call('NAV-06',memberToken,200);
+ assert.equal(cancelled.items.find(v=>v.event_id===enrollmentEvent)?.registration_state,'CANCELLED');
+ console.log('PH10_TRAINING_CANCELLED_STATE_PERSISTED_READ_PASS');
  console.log('PH10_REAL_BROWSER_FACING_MEMBER_EVENT_ENROLLMENT_BFF_NEST_POST_PASS');
  console.log('PH10_SHAREHOLDER_ALL_FOUR_ROUTES_REQUIRE_COOKIE_PASS');
  console.log('PH10_SHAREHOLDER_BFF_SOURCE_ONLY_CROSS_TENANT_GATES_PASS');
