@@ -241,6 +241,9 @@ async function testShareholderBff(memberToken,managerToken){
  assert.equal(enrollment.registered,true);
  assert.equal(enrollment.registration,'CONFIRMED');
  assert.equal(enrollment.courseCompleted,false);
+ const stored=await call('NAV-06',memberToken,200);
+ assert.equal(stored.items.find(v=>v.event_id===enrollmentEvent)?.registration_state,'CONFIRMED',
+  'PH10_TRAINING_ENROLLMENT_MUST_SURVIVE_SOURCE_RELOAD');
  enrollment=await enrollRequest(memberToken,409);
  assert.equal(enrollment.code,'ALREADY_REGISTERED');
  console.log('PH10_REAL_BROWSER_FACING_MEMBER_EVENT_ENROLLMENT_BFF_NEST_POST_PASS');
