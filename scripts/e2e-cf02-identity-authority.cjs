@@ -369,8 +369,10 @@ async function main(){
   body:JSON.stringify({partyId:PENDING_PARTY,evidenceId:REQ})}),401,"browser bearer forgery denied");
  await status(await fetch(ownBff,{method:"POST",headers:{...ownerCookie,Origin:"https://invalid.example"},
   body:JSON.stringify({partyId:PENDING_PARTY,evidenceId:REQ})}),403,"member CSRF denied");
- const submitted=await status(await fetch(ownBff,{method:"POST",headers:ownerCookie,
-  body:JSON.stringify({partyId:PENDING_PARTY,evidenceId:REQ})}),201,"submitted member workflow through shareholder BFF");
+ const attempted=await fetch(ownBff,{method:"POST",headers:ownerCookie,
+  body:JSON.stringify({partyId:PENDING_PARTY,evidenceId:REQ})});
+ if(attempted.status!==201)console.error("TTO_CHILD06_DENIAL_DIAG",attempted.status,await attempted.clone().text());
+ const submitted=await status(attempted,201,"submitted member workflow through shareholder BFF");
  ok(submitted.status==="PENDING"&&submitted.version===1,"new versioned application pending");
  const applicationPath=membershipPath+"/"+submitted.applicationId;
  const ownApplicationBff=ownBff+"/"+submitted.applicationId;
