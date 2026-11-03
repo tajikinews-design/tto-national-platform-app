@@ -310,10 +310,15 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
   ];
   for(const profile of profiles){
    const context=await browser.newContext({locale:'fa-IR',viewport:{width:390,height:844}});
+   // Never let an unbounded click/action consume the whole 40-minute CI job.
+   // Timeouts fail the real user journey; they do not skip or mark it PASS.
+   context.setDefaultTimeout(12000);
+   context.setDefaultNavigationTimeout(30000);
    try{
     await context.addCookies([{name:'tto_session',value:profile.token,domain:'127.0.0.1',
      path:'/',httpOnly:true,secure:false,sameSite:'Lax'}]);
     const page=await context.newPage();
+    console.log('PH10_CHROMIUM_START_'+profile.kind.toUpperCase());
     const url='http://127.0.0.1:'+profile.port+'/modules/'+profile.route;
     const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
     assert.equal(response.status(),200);
