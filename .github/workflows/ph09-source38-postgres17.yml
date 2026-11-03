@@ -23,6 +23,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 tests/test_ph09_source38_truth.py -v
+          python3 tests/test_ph09_108_47_legacy_traceability.py -v
+          echo "PH09_OPS_AT001_108_REQUIREMENTS_47_TESTS_COMPLETE_SOURCE_MAPPING_PASS"
       - name: Start disposable isolated PostgreSQL17
         run: |
           set -euo pipefail
