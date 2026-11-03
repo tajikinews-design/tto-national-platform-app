@@ -13,7 +13,7 @@ const A=randomUUID(),B=randomUUID(),PARTY=randomUUID(),PARTY2=randomUUID();
 const USER=randomUUID(),MANAGER=randomUUID(),NATIONAL=randomUUID(),REVIEWER=randomUUID(),APPROVER=randomUUID();
 const REQ=randomUUID(),DEC=randomUUID();
 const API="http://127.0.0.1:31997";
-const running=[];let checks=0;
+const running=[];let checks=0;let startedBrowser=null;
 const tokenMap=new Map();
 function ok(value,label){assert.ok(value,label);checks++;}
 async function status(response,expected,label){
@@ -156,6 +156,7 @@ async function main(){
  // Child06/07: never infer membership or share balance from successful login/Party link.
  const browserEnabled=process.env.TTO_PCS014_BROWSER==="1";
  const browser=browserEnabled?await require("/tmp/tto-pcs014-browser/node_modules/playwright").chromium.launch({headless:true}):null;
+ startedBrowser=browser;
  async function inspectOwnScreen(name, expectedMember, expectedShares) {
   if(!browser)return;
   for(const width of [390,1440]){
@@ -454,7 +455,9 @@ async function main(){
     managerPage.once("dialog",dialog=>void dialog.accept());
     await item.getByRole("button",{name:"تأیید درخواست"}).click();
     await managerPage.getByText("درخواست مجازِ در انتظار بررسی وجود ندارد.").waitFor();
-    const review=await db.query("SELECT status,version FROM tto.membership_applications WHERE tenant_id=$1 AND party_id=$2",[A,formParty]);
+    const review=await db.query("SELECT status,version,application_id FROM tto.membership_applications WHERE tenant_id=$1 AND party_id=$2",[A,formParty]);
+    console.log("TTO_CHILD06_FORM_DECISION_DIAG",JSON.stringify(review.rows),
+     "UI=",await managerPage.locator('p[role="status"]').allTextContents());
     ok(review.rowCount===1&&review.rows[0].status==="APPROVED"&&review.rows[0].version===2,
      "browser manager approval persisted once and advanced version");
     await userPage.getByRole("button",{name:"استعلام وضعیت جدید"}).click();
@@ -507,4 +510,4 @@ async function main(){
  console.log("TTO_CF02_NO_REAL_IDENTITIES_NO_SHARE_LEDGER_NO_HOSTED_MIGRATION");
 }
 main().catch(e=>{console.error("TTO_CF02_E2E_FAIL",e?.stack??String(e));process.exitCode=1})
-.finally(async()=>{for(const proc of running)if(proc.exitCode===null)proc.kill("SIGTERM");await db.end().catch(()=>{});});
+.finally(async()=>{await startedBrowser?.close().catch(()=>{});for(const proc of running)if(proc.exitCode===null)proc.kill("SIGTERM");await db.end().catch(()=>{});});
