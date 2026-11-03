@@ -104,7 +104,7 @@ BEGIN
  OR NOT tto.cf02_consumer_bound(p_tenant)
  THEN RETURN; END IF;
  SELECT o.event_id INTO e FROM tto.cooperative_relationship_outbox o
- LEFT JOIN tto.cf02_child06_delivery_state d ON d.source_event_id=o.event_id AND d.state='ACKED'
+ LEFT JOIN tto.cf02_child06_delivery_state d ON d.source_event_id=o.event_id AND d.state IN('ACKED','QUARANTINED')
  LEFT JOIN tto.cf02_child06_delivery_leases l ON l.source_event_id=o.event_id
  WHERE o.tenant_id=p_tenant AND d.source_event_id IS NULL
  AND (l.source_event_id IS NULL OR (l.claimed_until<clock_timestamp() AND l.available_at<=clock_timestamp()))
@@ -157,6 +157,32 @@ REVOKE ALL ON FUNCTION tto.cf02_consumer_claim(uuid,integer),
 GRANT EXECUTE ON FUNCTION tto.cf02_consumer_claim(uuid,integer),
  tto.cf02_consumer_complete(uuid,uuid,uuid),
  tto.cf02_consumer_retry(uuid,uuid,uuid,integer) TO tto_cf02_consumer;
+-- A permanent invalid event is fenced and quarantined durably, never re-polled.
+CREATE FUNCTION tto.cf02_consumer_quarantine(p_tenant uuid,p_event uuid,p_token uuid,p_reason text)
+RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
+DECLARE e tto.cooperative_relationship_outbox%ROWTYPE;
+BEGIN
+ IF p_tenant IS DISTINCT FROM tto.context_tenant_id()
+ OR NOT tto.cf02_relationship_projector_authorized(p_tenant)
+ OR NOT tto.cf02_consumer_bound(p_tenant)
+ OR p_reason NOT IN ('SOURCE_MISMATCH','UNKNOWN_SOURCE_EVENT','SOURCE_RELATIONSHIP_INVALID',
+ 'SOURCE_DECISION_INVALID','STALE_OR_CONFLICTING_SOURCE_VERSION','SOURCE_VERSION_GAP',
+ 'LEGACY_OR_ACTIVE_PROJECTION_CONFLICT')
+ THEN RETURN 'DENIED'; END IF;
+ PERFORM 1 FROM tto.cf02_child06_delivery_leases
+ WHERE source_event_id=p_event AND tenant_id=p_tenant AND claim_token=p_token
+ AND claimed_until>clock_timestamp() FOR UPDATE;
+ IF NOT FOUND THEN RETURN 'STALE_CLAIM'; END IF;
+ SELECT * INTO e FROM tto.cooperative_relationship_outbox WHERE event_id=p_event AND tenant_id=p_tenant;
+ IF NOT FOUND THEN RETURN 'UNKNOWN_SOURCE_EVENT'; END IF;
+ INSERT INTO tto.cf02_child06_delivery_state(source_event_id,tenant_id,processed_version,state,reason)
+ VALUES(p_event,p_tenant,e.source_version,'QUARANTINED',p_reason)
+ ON CONFLICT(source_event_id) DO NOTHING;
+ DELETE FROM tto.cf02_child06_delivery_leases WHERE source_event_id=p_event;
+ RETURN 'QUARANTINED';
+END $f$;
+REVOKE ALL ON FUNCTION tto.cf02_consumer_quarantine(uuid,uuid,uuid,text) FROM PUBLIC,tto_app;
+GRANT EXECUTE ON FUNCTION tto.cf02_consumer_quarantine(uuid,uuid,uuid,text) TO tto_cf02_consumer;
 CREATE FUNCTION tto.cf02_consumer_source(p_tenant uuid,p_event uuid)
 RETURNS TABLE(event_id uuid,tenant_id uuid,party_id uuid,relationship_id uuid,source_version bigint,event_name text)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
