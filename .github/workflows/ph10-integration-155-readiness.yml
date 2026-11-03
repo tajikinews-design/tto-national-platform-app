@@ -148,10 +148,16 @@ jobs:
             docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "tests/sql/ph09-${m}-acceptance.sql"
           done
           echo PH10_PH09_38_SOURCE_SCOPED_ASSERTIONS_PASS
+      - name: Install isolated authenticated-browser Chromium
+        run: |
+          npm install --prefix /tmp/tto-ph10-auth --no-audit --no-fund playwright@1.56.1
+          node /tmp/tto-ph10-auth/node_modules/playwright/cli.js install --with-deps chromium
       - name: Build and exercise actual Nest HTTP in same database
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
           AUTH_CHALLENGE_HMAC_SECRET: PH10_EPHEMERAL_TEST_ONLY_SECRET_32_CHAR_MINIMUM
+          PH10_AUTH_CHROMIUM: "1"
+          NODE_PATH: /tmp/tto-ph10-auth/node_modules
         run: |
           set -euo pipefail
           npm install -g pnpm@10.18.0
@@ -161,6 +167,15 @@ jobs:
           pnpm --filter @tto/shareholder build
           node services/api/test/ph09-portal.http.integration.cjs
           echo PH10_REAL_NEST_AUTHENTICATED_HTTP_PASS
+          echo PH10_BROWSER_BOTH_PORTALS_REAL_SOURCE_RENDER_PASS
+      - name: Upload authenticated mobile browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ph10-authenticated-portal-source-chromium
+          path: ph10-artifacts/ph10-*-authenticated-*.png
+          retention-days: 14
+          if-no-files-found: warn
       - name: Explicitly preserve the remaining mandatory integration blockers
         run: |
           echo PH10_ALL155_FULL_USER_JOURNEYS_NOT_YET_PROVEN
