@@ -263,7 +263,9 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
    {kind:'cooperative',port:31678,token:managerToken,route:'nav-07',
     select:'#tto-select-cooperative',button:'بررسی مجوز محدوده',expected:'Cooperative Product'},
    {kind:'shareholder',port:31679,token:memberToken,route:'nav-07',
-    select:'#sw-tenant',button:'تأیید محدوده و استعلام',expected:'Cooperative Product'}
+    select:'#sw-tenant',button:'تأیید محدوده و استعلام',expected:'Cooperative Product'},
+   {kind:'national',port:31680,token:await token(outsider),route:'nav-09',
+    select:'#tto-select-national',button:'بررسی مجوز محدوده',expected:'Synthetic approved-to-display minute'}
   ];
   for(const profile of profiles){
    const context=await browser.newContext({locale:'fa-IR',viewport:{width:390,height:844}});
