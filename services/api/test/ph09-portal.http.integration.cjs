@@ -284,6 +284,27 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
     assert.equal(await page.getByText(profile.expected).count()>0,true);
     assert.equal((await page.locator('body').innerText()).includes('SEALED_SOURCE_IDENTITY'),false);
     await page.screenshot({path:path.join(evidenceDir,'ph10-'+profile.kind+'-authenticated-nav07-mobile.png'),fullPage:true});
+    // The authenticated session must navigate through every valid module URL,
+    // not just the one source-backed showcase. This is navigation/RTL coverage,
+    // not evidence that each domain workflow is implemented.
+    for(let nav=2;nav<=11;nav++){
+     const slot='nav-'+String(nav).padStart(2,'0');
+     const tab=await context.newPage();
+     try{
+      const response=await tab.goto('http://127.0.0.1:'+profile.port+'/modules/'+slot,
+        {waitUntil:'domcontentloaded',timeout:30000});
+      assert.equal(response.status(),200,
+       'PH10_AUTHENTICATED_MODULE_STATUS_'+profile.kind+'_'+slot);
+      assert.equal(await tab.locator('html').getAttribute('dir'),'rtl');
+      const text=await tab.locator('body').innerText();
+      assert.ok(text.length>0,'PH10_AUTHENTICATED_BLANK_MODULE_'+profile.kind+'_'+slot);
+      assert.equal(text.includes('SEALED_SOURCE_IDENTITY'),false);
+      checks++;
+     }finally{await tab.close();}
+    }
+    console.log('PH10_AUTH_CHROMIUM_'+profile.kind.toUpperCase()+
+      '_TEN_MODULE_NAVIGATION_RTL_PASS_NOT_ALL_WORKFLOWS');
+
     // Same real browser route in a fresh unauthenticated context must not
     // reveal any synthetic tenant-private content observed above.
     const anonymous=await browser.newContext({locale:'fa-IR',viewport:{width:390,height:844}});
