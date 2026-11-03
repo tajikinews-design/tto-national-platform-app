@@ -4,6 +4,7 @@ import {useParams} from "next/navigation";
 
 type Member={membershipStatus:"ACTIVE";partyKind:"PERSON"|"ORGANIZATION";sourceVersion:number;sourceAsOf:string};
 type Holding={shareQuantity:string;ledgerVersion:number;ledgerAsOf:string};
+type History={items:Holding[]};
 type State="loading"|"available"|"unavailable"|"session-required";
 type SourceState<T>={status:State;record:T|null};
 const initial=<T,>():SourceState<T>=>({status:"loading",record:null});
@@ -25,7 +26,18 @@ function holdingRecord(value:unknown):value is Holding{
   Number.isSafeInteger(r.ledgerVersion)&&Number(r.ledgerVersion)>0&&
   typeof r.ledgerAsOf==="string"&&Number.isFinite(Date.parse(r.ledgerAsOf));
 }
-async function getSource<T>(tenantId:string,domain:"member-record"|"shareholding",
+function historyRecord(value:unknown):value is History{
+ if(!value||typeof value!=="object"||Array.isArray(value))return false;
+ const items=(value as Record<string,unknown>).items;
+ if(!Array.isArray(items)||items.length<1||items.length>20)return false;
+ let previous=Number.MAX_SAFE_INTEGER;
+ for(const v of items){
+  if(!holdingRecord(v)||v.ledgerVersion>=previous)return false;
+  previous=v.ledgerVersion;
+ }
+ return true;
+}
+async function getSource<T>(tenantId:string,domain:"member-record"|"shareholding"|"shareholding-history",
  signal:AbortSignal,validate:(value:unknown)=>value is T):Promise<SourceState<T>>{
  try{
   const r=await fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/me/"+domain,{
@@ -43,25 +55,32 @@ export default function MyVerifiedRecords(){
  const active=useRef<AbortController|null>(null);
  const [member,setMember]=useState<SourceState<Member>>(initial<Member>);
  const [holding,setHolding]=useState<SourceState<Holding>>(initial<Holding>);
+ const [history,setHistory]=useState<SourceState<History>>(initial<History>);
  const [busy,setBusy]=useState(false);
  // A response belongs to one exact tenant route; a navigation cannot display prior-tenant data.
  const [loadedTenantId,setLoadedTenantId]=useState("");
  const load=useCallback(async()=>{
   active.current?.abort();
   const controller=new AbortController();active.current=controller;
-  setBusy(true);setLoadedTenantId("");setMember(initial());setHolding(initial());
+  setBusy(true);setLoadedTenantId("");setMember(initial());setHolding(initial());setHistory(initial());
   if(!UUID.test(tenantId)){
-   setMember(error("unavailable"));setHolding(error("unavailable"));setLoadedTenantId(tenantId);setBusy(false);return;
+   setMember(error("unavailable"));setHolding(error("unavailable"));setHistory(error("unavailable"));setLoadedTenantId(tenantId);setBusy(false);return;
   }
-  const [m,h]=await Promise.all([
+  const [m,h,snapshots]=await Promise.all([
    getSource(tenantId,"member-record",controller.signal,memberRecord),
-   getSource(tenantId,"shareholding",controller.signal,holdingRecord)
+   getSource(tenantId,"shareholding",controller.signal,holdingRecord),
+   getSource(tenantId,"shareholding-history",controller.signal,historyRecord)
   ]);
   if(controller.signal.aborted)return; // never render a late response from an old tenant/session
-  if(m.status==="session-required"||h.status==="session-required"){
-   setMember(error("session-required"));setHolding(error("session-required"));
+  if(m.status==="session-required"||h.status==="session-required"||snapshots.status==="session-required"){
+   setMember(error("session-required"));setHolding(error("session-required"));setHistory(error("session-required"));
   }else{
    setMember(m);setHolding(h); // independent source approval, not inferred from the other domain
+   // A history read from a different source version is unavailable, never mixed with current holdings.
+   const sameLatest=h.status==="available"&&h.record&&snapshots.status==="available"&&
+     snapshots.record&&snapshots.record.items[0].ledgerVersion===h.record.ledgerVersion&&
+     snapshots.record.items[0].shareQuantity===h.record.shareQuantity;
+   setHistory(sameLatest?snapshots:error("unavailable"));
   }
   setLoadedTenantId(tenantId);
   setBusy(false);
@@ -70,6 +89,7 @@ export default function MyVerifiedRecords(){
  // Render-time guard is needed: effects run after render on client-side tenant navigation.
  const visibleMember=loadedTenantId===tenantId?member:initial<Member>();
  const visibleHolding=loadedTenantId===tenantId?holding:initial<Holding>();
+ const visibleHistory=loadedTenantId===tenantId?history:initial<History>();
  const text=(s:SourceState<unknown>)=>
   s.status==="loading"?"در حال بررسی منبع معتبر":
   s.status==="session-required"?"برای مشاهده اطلاعات، ورود معتبر الزامی است":
@@ -95,6 +115,16 @@ export default function MyVerifiedRecords(){
     <p>تعداد سهام ثبت‌شده: {visibleHolding.record.shareQuantity}</p>
     <p>نسخه دفتر سهام: {visibleHolding.record.ledgerVersion}</p><p>زمان مرجع دفتر سهام: {visibleHolding.record.ledgerAsOf}</p>
    </div>}
+  </section>
+  <section aria-labelledby="share-snapshots-heading">
+   <h2 id="share-snapshots-heading">سوابق نسخه‌های تأییدشده موجودی</h2>
+   <p>این سوابق، نسخه‌های ثبت‌شده از موجودی سهام هستند؛ دفتر معاملات یا سوابق انتقال سهام نیستند.</p>
+   <p role="status" aria-live="polite">{text(visibleHistory)}</p>
+   {visibleHolding.status==="available"&&visibleHistory.status==="available"&&visibleHistory.record&&<ol>
+    {visibleHistory.record.items.map(item=><li key={item.ledgerVersion}>
+     نسخه {item.ledgerVersion}: {item.shareQuantity} سهم — زمان مرجع: {item.ledgerAsOf}
+    </li>)}
+   </ol>}
   </section>
   <button type="button" disabled={busy} onClick={()=>void load()}
    style={{minHeight:44,padding:"8px 16px",font:"inherit",cursor:"pointer"}}>

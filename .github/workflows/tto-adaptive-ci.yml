@@ -479,6 +479,8 @@ jobs:
             test -f "$migration"
             docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$migration"
           done
+          test -f database/migrations/0020_child07_approved_snapshot_history.sql
+          docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0020_child07_approved_snapshot_history.sql
           test -f database/migrations/0021_child06_membership_application_review.sql
           docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0021_child06_membership_application_review.sql
           test -f database/migrations/0022_child06_activate_relationship.sql
