@@ -205,6 +205,53 @@ export class FoundationCommandsController {
     });
   }
 
+  @Post("national/cooperative-intakes")
+  @HttpCode(201)
+  async createNationalCooperativeIntake(
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>
+  ){
+    // Preview DB must be explicitly confirmed disposable. This is NOT tenant creation.
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ISOLATED_DEMO_DATABASE_REQUIRED");
+    const name=requireText(input?.name,8,180).trim();
+    const registrationNumber=requireText(input?.registrationNumber,1,20).trim();
+    const nationalId=requireText(input?.nationalId,11,11).trim();
+    const province=requireText(input?.province,2,120).trim();
+    const county=requireText(input?.county,2,120).trim();
+    const address=requireText(input?.address,4,300).trim();
+    const representative=requireText(input?.representative,2,120).trim();
+    if(!/^[0-9]{11}$/.test(nationalId)||!/^[0-9]{1,20}$/.test(registrationNumber))
+      throw new BadRequestException("INVALID_COMPANY_IDENTIFIERS");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const access=await client.query<{allowed:boolean}>(
+        'SELECT EXISTS (SELECT 1 FROM tto.list_actor_tenant_options() WHERE "platformOperator" IS TRUE) AS allowed'
+      );
+      if(access.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_PLATFORM_OPERATOR_REQUIRED");
+      const duplicate=await client.query(
+        "SELECT 1 FROM tto.national_cooperative_intake WHERE national_id=$1",[nationalId]
+      );
+      // RLS intentionally hides drafts from broad queries, while UNIQUE also rejects duplicates.
+      if(duplicate.rowCount)throw new ConflictException("NATIONAL_ID_ALREADY_SUBMITTED");
+      const id=randomUUID();
+      try{
+        await client.query(
+          "INSERT INTO tto.national_cooperative_intake (intake_id,national_id,registration_number,legal_name,province,county,legal_address,representative,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+          [id,nationalId,registrationNumber,name,province,county,address,representative,actor]
+        );
+        await client.query(
+          "INSERT INTO tto.national_cooperative_intake_audit (intake_id,actor_id,event_type) VALUES ($1,$2,'INTAKE_CREATED')",
+          [id,actor]
+        );
+      }catch(e){
+        if((e as {code?:string}).code==="23505")
+          throw new ConflictException("NATIONAL_ID_ALREADY_SUBMITTED");
+        throw e;
+      }
+      return {intakeId:id,status:"PENDING_VERIFICATION",created:true,tenantCreated:false};
+    });
+  }
+
   @Post("tenants/:tenantId/lifecycle/transition")
   async transitionTenant(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
     @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
