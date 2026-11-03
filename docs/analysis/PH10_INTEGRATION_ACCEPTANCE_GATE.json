@@ -20,32 +20,32 @@
     {
       "id": "G0",
       "name": "immutable source155 & legacy108/47 traceability",
-      "state": "NOT_EXECUTED_CURRENT_SHA"
+      "state": "CI_SCOPED_PASS_NOT_FORMAL155_E2E"
     },
     {
       "id": "G1",
       "name": "clean PostgreSQL17 migration, exact source-bound phase suites, negative/race",
-      "state": "NOT_EXECUTED_CURRENT_SHA"
+      "state": "CI_SCOPED_PASS_PG17_CURRENT_SHA"
     },
     {
       "id": "G2",
       "name": "authenticated real Nest HTTP all module endpoints and legal guardrails",
-      "state": "BLOCKED_KNOWN_GAP_PHASE08_API"
+      "state": "PARTIAL_AUTHENTICATED_HTTP_PHASE08_FULL_COVERAGE_BLOCKED"
     },
     {
       "id": "G3",
       "name": "3 portal all pages/roles true browser end-to-end",
-      "state": "BLOCKED_KNOWN_GAP_PORTAL_MODULE_SHELLS"
+      "state": "PARTIAL_THREE_PORTAL_BROWSER_NOT_ALL_PAGES_ROLES"
     },
     {
       "id": "G4",
       "name": "cross-phase real synthetic workflows + source-backed legal decisions",
-      "state": "BLOCKED_UNPROVEN_CONNECTED_USER_JOURNEYS"
+      "state": "BLOCKED_FULL_USER_JOURNEYS_UNPROVEN"
     },
     {
       "id": "G5",
       "name": "security, recovery, performance, release dry-run, QA acceptance",
-      "state": "NOT_YET_RUN_FULL_PLATFORM"
+      "state": "BLOCKED_FULL_PLATFORM_RELEASE_PROOF_MISSING"
     }
   ],
   "knownIssues": [
@@ -97,8 +97,41 @@
     }
   ],
   "releaseGate": "BLOCKED",
-  "scopedTechnicalGate": "PENDING",
+  "scopedTechnicalGate": "PARTIAL_CI_GREEN_NOT_FULL_INTEGRATION",
   "full155UserJourneyGate": "NOT_PASSED",
   "formalOperationalGreen": "NOT_ISSUED",
-  "nextStep": "Record executable coverage evidence; run actual cross-phase PG and all-three-portal Chromium audit; fix concrete failures and retest."
+  "nextStep": "Synthetic-only: enumerate each portal page -> canonical API -> authorization role -> 155 source acceptance IDs; implement missing PH08 API/real page journeys; rerun full isolated CI plus browser and security; real-data verification strictly later.",
+  "testDataPolicy": {
+    "currentStage": "SYNTHETIC_ONLY",
+    "legalEntity": "fictional cooperative; no real company identifier, manager identity, shareholding, bank details or authoritative records",
+    "fixtures": "isolated deterministic, disposable, tagged synthetic; redact screenshots and logs",
+    "nextStage": "REAL_DATA_VALIDATION_AFTER_ALL_UI_API_AND_TECHNICAL_GATES_GREEN",
+    "realDataPrerequisites": [
+      "complete pages-to-canonical-API integration with evidence",
+      "all 155 source scenarios traced, with required journeys genuinely tested",
+      "independent source owner and authorization verified for each cooperative",
+      "approved operational connection and independent external verification"
+    ],
+    "prohibitedBeforeApproval": [
+      "live source imports",
+      "production tenant data",
+      "live share ownership mutations",
+      "live payments",
+      "merge or deploy from this QA PR"
+    ]
+  },
+  "ciEvidence": {
+    "commitSha": "cf2a0aa9dfe8fe4142bf4e9bf9883330072ab3bd",
+    "integrationRunId": 41614687994,
+    "integrationConclusion": "success",
+    "securityRunId": 41614687971,
+    "securityConclusion": "success",
+    "scope": "CI workflow passed for source-census tests, isolated PG17 schema and PH05-PH09 scoped SQL, authenticated Nest HTTP slices and three-portal Chromium checks; NOT all 155 end-to-end journeys",
+    "runJobs": [
+      "frozen155-and-three-portals",
+      "source-sql-and-actual-api",
+      "identity-source-core-real-http"
+    ],
+    "executionContext": "GitHub-hosted ephemeral CI; PostgreSQL17 Docker container only inside CI, removed after test; no local or hosted DB change"
+  }
 }
