@@ -25,7 +25,7 @@ export function ShareholderSourceSection({tenantId,moduleId,onSessionInvalidated
     method:"POST",credentials:"same-origin",cache:"no-store"
    });
    if(res.status===401){onSessionInvalidated?.();setEnrollmentError("نشست شما منقضی شده است.");return;}
-   if(res.status===409){setEnrollmentError("برای این رویداد قبلاً ثبت‌نام شده است.");return;}
+   if(res.status===409){setEnrollment(previous=>({...previous,[eventId]:"ALREADY_REGISTERED"}));return;}
    if(!res.ok){setEnrollmentError("ثبت‌نام انجام نشد. مجوز و ظرفیت رویداد را بررسی کنید.");return;}
    const body=await res.json() as {registered?:unknown;registration?:unknown};
    if(body.registered!==true||(body.registration!=="CONFIRMED"&&body.registration!=="WAITLIST"))
@@ -65,7 +65,7 @@ export function ShareholderSourceSection({tenantId,moduleId,onSessionInvalidated
    <ul>{state.items.map((row,i)=><li key={moduleId+"-"+i}>
     {spec.fields.map(f=><span style={{display:"block"}} key={f.key}><strong>{f.label}: </strong>{row[f.key]??"ثبت نشده"}</span>)}
     {moduleId==="NAV-06"&&typeof row.event_id==="string" ?
-     <div>{enrollment[row.event_id] ? <span role="status">{enrollment[row.event_id]==="CONFIRMED"?"ثبت‌نام تأیید شد":"در فهرست انتظار ثبت شد"}</span> :
+     <div>{enrollment[row.event_id] ? <span role="status">{enrollment[row.event_id]==="CONFIRMED"?"ثبت‌نام تأیید شد":enrollment[row.event_id]==="WAITLIST"?"در فهرست انتظار ثبت شد":"قبلاً برای این رویداد ثبت‌نام شده است"}</span> :
       <button type="button" disabled={enrolling!==null} onClick={()=>void enroll(row.event_id as string)}>
        {enrolling===row.event_id?"در حال ثبت‌نام…":"ثبت‌نام در رویداد آموزشی"}
       </button>}</div>:null}
