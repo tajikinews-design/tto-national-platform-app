@@ -76,9 +76,12 @@ export function ShareholderSourceSection({tenantId,moduleId,onSessionInvalidated
     {registration_state?:unknown}|undefined;
    if(match?.registration_state!==body.registration)throw Error("ENROLLMENT_NOT_YET_VERIFIED");
    setEnrollment(previous=>({...previous,[eventId]:body.registration as string}));
-  }catch{if(scopeRef.current===requestScope)setEnrollmentError(commandAccepted?
-   "درخواست ثبت شد، اما دریافت تأیید نهایی ممکن نبود؛ صفحه را تازه کنید. دوباره ثبت‌نام نکنید.":
-   "ارتباط با مرجع ثبت‌نام برقرار نشد.");}
+  }catch{if(scopeRef.current===requestScope){
+   if(commandAccepted)setEnrollment(previous=>({...previous,[eventId]:"PENDING_VERIFICATION"}));
+   setEnrollmentError(commandAccepted?
+    "درخواست ثبت شد، اما دریافت تأیید نهایی ممکن نبود؛ صفحه را تازه کنید. دوباره ثبت‌نام نکنید.":
+    "ارتباط با مرجع ثبت‌نام برقرار نشد.");
+  }}
   finally{if(scopeRef.current===requestScope)setEnrolling(null);}
  }
  useEffect(()=>{
@@ -113,7 +116,7 @@ export function ShareholderSourceSection({tenantId,moduleId,onSessionInvalidated
    <ul>{state.items.map((row,i)=><li key={moduleId+"-"+i}>
     {spec.fields.map(f=><span style={{display:"block"}} key={f.key}><strong>{f.label}: </strong>{row[f.key]??"ثبت نشده"}</span>)}
     {moduleId==="NAV-06"&&typeof row.event_id==="string" ?
-     <div>{(Boolean(enrollment[row.event_id])||row.registration_state==="CONFIRMED"||row.registration_state==="WAITLIST"||row.registration_state==="CANCELLED") ? <span role="status">{(enrollment[row.event_id]||row.registration_state)==="CONFIRMED"?"ثبت‌نام تأیید شد":(enrollment[row.event_id]||row.registration_state)==="WAITLIST"?"در فهرست انتظار ثبت شد":(enrollment[row.event_id]||row.registration_state)==="CANCELLED"?"ثبت‌نام قبلی لغو شده است؛ ثبت‌نام مجدد نیازمند مسیر مجاز مستقل است":"قبلاً برای این رویداد ثبت‌نام شده است"}</span> :
+     <div>{(Boolean(enrollment[row.event_id])||row.registration_state==="CONFIRMED"||row.registration_state==="WAITLIST"||row.registration_state==="CANCELLED") ? <span role="status">{(enrollment[row.event_id]||row.registration_state)==="CONFIRMED"?"ثبت‌نام تأیید شد":(enrollment[row.event_id]||row.registration_state)==="WAITLIST"?"در فهرست انتظار ثبت شد":(enrollment[row.event_id]||row.registration_state)==="CANCELLED"?"ثبت‌نام قبلی لغو شده است؛ ثبت‌نام مجدد نیازمند مسیر مجاز مستقل است":(enrollment[row.event_id]||row.registration_state)==="PENDING_VERIFICATION"?"در انتظار تأیید نهایی؛ برای جلوگیری از ثبت تکراری صفحه را تازه کنید":"قبلاً برای این رویداد ثبت‌نام شده است"}</span> :
       <button type="button" disabled={enrolling!==null} onClick={()=>void enroll(row.event_id as string)}>
        {enrolling===row.event_id?"در حال ثبت‌نام…":"ثبت‌نام در رویداد آموزشی"}
       </button>}</div>:null}
