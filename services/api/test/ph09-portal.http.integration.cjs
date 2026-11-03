@@ -327,8 +327,14 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
      await page.getByRole('button',{name:'تأیید محدوده و استعلام'}).click();
      const course=page.locator('li').filter({hasText:'PH10 Browser Enrollment Course'});
      await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).waitFor({state:'visible',timeout:25000});
+     const enrollResponsePromise=page.waitForResponse(r=>r.request().method()==='POST'&&
+       r.url().includes('/ph10/learning/events/'),{timeout:25000});
      await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).click();
-     await course.getByText('ثبت‌نام تأیید شد').waitFor({state:'visible',timeout:25000});
+     const enrollResponse=await enrollResponsePromise;
+     assert.equal(enrollResponse.status(),201,
+      'PH10_BROWSER_TRAINING_POST_STATUS_'+enrollResponse.status()+' '+
+      (await enrollResponse.text()).slice(0,300));
+     await course.getByText('ثبت‌نام تأیید شد').waitFor({state:'visible',timeout:10000});
      const persisted=await db.query(
       "SELECT count(*)::int AS n FROM tto.ph08_event_registrations WHERE event_id=$1 AND registered_by=$2",
       ['9c500000-0000-4000-8000-000000000003',user]);
