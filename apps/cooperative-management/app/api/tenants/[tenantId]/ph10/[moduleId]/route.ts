@@ -45,8 +45,20 @@ export async function GET(request:NextRequest,
    return deny(503,"BACKEND_UNAVAILABLE");
  }catch{return deny(503,"BACKEND_UNAVAILABLE");}
  try{
-  const res=await fetch(url,{method:"GET",
-   headers:{Authorization:"Bearer "+token,...trustedBackendHeaders(request)},
+  // An empty private result is NOT proof of a valid tenant scope. The Nest
+  // tenant context endpoint uses FORCE RLS and must succeed first; otherwise
+  // a guessed cross-tenant URL is rejected rather than returning 200 + [].
+  const safeHeaders={Authorization:"Bearer "+token,...trustedBackendHeaders(request)};
+  const contextUrl=new URL("/v1/tenants/"+tenantId+"/context",base);
+  const scoped=await fetch(contextUrl,{method:"GET",headers:safeHeaders,
+   cache:"no-store",redirect:"error",signal:AbortSignal.timeout(9000)});
+  if(scoped.status===401)return deny(401,"SESSION_REQUIRED");
+  if(scoped.status===403||scoped.status===404)return deny(403,"TENANT_ACCESS_DENIED");
+  if(scoped.status!==200)return deny(503,"TENANT_GATE_UNAVAILABLE");
+  const checked=await scoped.json() as {tenant_id?:unknown;status?:unknown};
+  if(checked.tenant_id!==tenantId||checked.status!=="ACTIVE")
+   return deny(403,"TENANT_ACCESS_DENIED");
+  const res=await fetch(url,{method:"GET",headers:safeHeaders,
    cache:"no-store",redirect:"error",signal:AbortSignal.timeout(9000)});
   if(res.status===401)return deny(401,"SESSION_REQUIRED");
   if(res.status===403||res.status===404)return deny(403,"SOURCE_AUTHORITY_DENIED");
