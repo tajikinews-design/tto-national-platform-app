@@ -37,6 +37,7 @@ export function ShareholderSourceSection({tenantId,moduleId,onSessionInvalidated
  useEffect(()=>{
   if(!spec||!tenantId){setState({kind:"denied",items:[]});return;}
   const controller=new AbortController();
+  setEnrollment({});setEnrollmentError(null);
   setState({kind:"loading",items:[]});
   fetch("/api/tenants/"+tenantId+"/ph10/"+moduleId,{
    credentials:"same-origin",cache:"no-store",signal:controller.signal
