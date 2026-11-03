@@ -260,8 +260,8 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
  const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
  try{
   const profiles=[
-   {kind:'cooperative',port:31678,token:managerToken,route:'nav-07',
-    select:'#tto-select-cooperative',button:'بررسی مجوز محدوده',expected:'Cooperative Product'},
+   {kind:'cooperative',port:31678,token:managerToken,route:'nav-10',
+    select:'#tto-select-cooperative',button:'بررسی مجوز محدوده',expected:'ARTICLE129'},
    {kind:'shareholder',port:31679,token:memberToken,route:'nav-07',
     select:'#sw-tenant',button:'تأیید محدوده و استعلام',expected:'Cooperative Product'},
    {kind:'national',port:31680,token:await token(outsider),route:'nav-09',
