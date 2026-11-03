@@ -281,7 +281,7 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
     await page.getByRole('button',{name:profile.button}).click();
     await page.getByText(profile.expected).waitFor({state:'visible',timeout:25000});
     assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
-    assert.equal(await page.getByText('Cooperative Product').count()>0,true);
+    assert.equal(await page.getByText(profile.expected).count()>0,true);
     assert.equal((await page.locator('body').innerText()).includes('SEALED_SOURCE_IDENTITY'),false);
     await page.screenshot({path:path.join(evidenceDir,'ph10-'+profile.kind+'-authenticated-nav07-mobile.png'),fullPage:true});
     console.log('PH10_AUTH_CHROMIUM_'+profile.kind.toUpperCase()+'_REAL_SOURCE_RENDER_PASS');
