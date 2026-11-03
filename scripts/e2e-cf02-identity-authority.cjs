@@ -567,6 +567,26 @@ async function main(){
   "original membership activator cannot independently project own event");
  ok(await projectAs(NATIONAL,A,projectionEventId)==="PROJECTED",
   "independent evidence-gated CF02 projector materializes source-versioned reference");
+ // Issue #154: PostgreSQL-backed adapter integration on the existing isolated fixture.
+ // This validates durable replay receipt; no actual broker or operational service principal.
+ const {consumeOne:consumeCf02Event}=require("../services/workers/src/cf02-child06-consumer.cjs");
+ const adapterSource=(await db.query("SELECT event_id,tenant_id,party_id,relationship_id,source_version,event_name FROM tto.cooperative_relationship_outbox WHERE event_id=$1",[projectionEventId])).rows[0];
+ adapterSource.source_version=Number(adapterSource.source_version);
+ let ackCount=0;
+ const adapterPorts={
+  readSource:async(id,tenant)=>{const q=await db.query("SELECT event_id,tenant_id,party_id,relationship_id,source_version,event_name FROM tto.cooperative_relationship_outbox WHERE event_id=$1 AND tenant_id=$2",[id,tenant]);return q.rowCount?{...q.rows[0],source_version:Number(q.rows[0].source_version)}:null;},
+  project:async(tenant,id)=>projectAs(NATIONAL,tenant,id),
+  ack:async()=>{ackCount++;},
+  quarantine:async()=>{throw Error("UNEXPECTED_QUARANTINE");},
+  retry:async()=>{throw Error("UNEXPECTED_RETRY");}
+ };
+ const adapterReplay=await consumeCf02Event(adapterSource,{enabled:true,authorized:true,ports:adapterPorts});
+ ok(adapterReplay.status==="ACKED_REPLAY"&&ackCount===1,
+  "real PG17 CF02 outbox adapter replay acks committed immutable receipt only");
+ const adapterNoAccess=await consumeCf02Event(adapterSource,{enabled:true,authorized:false,ports:adapterPorts});
+ ok(adapterNoAccess.status==="DISABLED"&&ackCount===1,
+  "disabled consumer authority never acknowledges or projects");
+
  const projectedOnce=await db.query("SELECT membership_status,source_event_id,source_version FROM tto.relationship_projections WHERE tenant_id=$1 AND party_id=$2",
   [A,PENDING_PARTY]);
  ok(projectedOnce.rowCount===1&&projectedOnce.rows[0].membership_status==="ACTIVE"&&
