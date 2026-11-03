@@ -10,7 +10,7 @@ REVOKE ALL ON SCHEMA tto FROM tto_cf02_consumer;
 GRANT USAGE ON SCHEMA tto TO tto_cf02_consumer;
 -- Existing projector validates tenant, verified Party, approval, evidence, separation
 -- and source monotonic version in a single PostgreSQL transaction.
-GRANT EXECUTE ON FUNCTION tto.cf02_project_child06_relationship_event(uuid,uuid) TO tto_cf02_consumer;
+-- No direct projector EXECUTE for consumer; use bound wrapper.
 CREATE TABLE tto.cf02_child06_delivery_state (
  source_event_id uuid PRIMARY KEY REFERENCES tto.cooperative_relationship_outbox(event_id),
  tenant_id uuid NOT NULL REFERENCES tto.tenants(tenant_id),
@@ -23,6 +23,35 @@ CREATE TABLE tto.cf02_child06_delivery_state (
 REVOKE ALL ON tto.cf02_child06_delivery_state FROM PUBLIC,tto_app,tto_cf02_consumer;
 ALTER TABLE tto.cf02_child06_delivery_state ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tto.cf02_child06_delivery_state FORCE ROW LEVEL SECURITY;
+CREATE TABLE tto.cf02_consumer_login_bindings(
+ login_name name NOT NULL,tenant_id uuid NOT NULL REFERENCES tto.tenants(tenant_id),
+ actor_id uuid NOT NULL REFERENCES tto.user_accounts(user_id),
+ approved_by uuid NOT NULL REFERENCES tto.user_accounts(user_id),
+ evidence_id uuid NOT NULL REFERENCES tto.evidence_references(evidence_id),
+ valid_until timestamptz NOT NULL,revoked_at timestamptz,
+ PRIMARY KEY(login_name,tenant_id),CHECK(actor_id<>approved_by));
+REVOKE ALL ON tto.cf02_consumer_login_bindings FROM PUBLIC,tto_app,tto_cf02_consumer;
+ALTER TABLE tto.cf02_consumer_login_bindings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tto.cf02_consumer_login_bindings FORCE ROW LEVEL SECURITY;
+CREATE FUNCTION tto.cf02_consumer_bound(p_tenant uuid) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
+ SELECT COALESCE(session_user NOT IN ('postgres','tto_app','tto_cf02_consumer')
+ AND pg_has_role(session_user,'tto_cf02_consumer','MEMBER')
+ AND p_tenant=tto.context_tenant_id()
+ AND EXISTS(SELECT 1 FROM tto.cf02_consumer_login_bindings b WHERE b.login_name=session_user
+ AND b.tenant_id=p_tenant AND b.actor_id=tto.context_actor_id()
+ AND b.valid_until>clock_timestamp() AND b.revoked_at IS NULL
+ AND tto.valid_identity_evidence(p_tenant,b.evidence_id)),false) $f$;
+REVOKE ALL ON FUNCTION tto.cf02_consumer_bound(uuid) FROM PUBLIC,tto_app;
+REVOKE EXECUTE ON FUNCTION tto.cf02_project_child06_relationship_event(uuid,uuid) FROM tto_cf02_consumer;
+CREATE FUNCTION tto.cf02_consumer_project(p_tenant uuid,p_event uuid)
+RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
+BEGIN
+ IF NOT tto.cf02_consumer_bound(p_tenant) THEN RETURN 'DENIED'; END IF;
+ RETURN tto.cf02_project_child06_relationship_event(p_tenant,p_event);
+END $f$;
+REVOKE ALL ON FUNCTION tto.cf02_consumer_project(uuid,uuid) FROM PUBLIC,tto_app;
+GRANT EXECUTE ON FUNCTION tto.cf02_consumer_project(uuid,uuid) TO tto_cf02_consumer;
 -- One source-owned committed event can be ACKED only after its immutable receipt exists.
 CREATE FUNCTION tto.cf02_consumer_durable_ack(p_tenant uuid,p_event uuid)
 RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,tto AS $fn$
@@ -30,6 +59,7 @@ DECLARE e tto.cooperative_relationship_outbox%ROWTYPE; s text;
 BEGIN
  IF p_tenant IS DISTINCT FROM tto.context_tenant_id()
     OR NOT tto.cf02_relationship_projector_authorized(p_tenant)
+ OR NOT tto.cf02_consumer_bound(p_tenant)
  THEN RETURN 'DENIED'; END IF;
  SELECT * INTO e FROM tto.cooperative_relationship_outbox
  WHERE event_id=p_event AND tenant_id=p_tenant;
@@ -71,6 +101,7 @@ DECLARE e uuid; v uuid:=gen_random_uuid();
 BEGIN
  IF p_lease_seconds<1 OR p_lease_seconds>300 OR p_tenant IS DISTINCT FROM tto.context_tenant_id()
  OR NOT tto.cf02_relationship_projector_authorized(p_tenant)
+ OR NOT tto.cf02_consumer_bound(p_tenant)
  THEN RETURN; END IF;
  SELECT o.event_id INTO e FROM tto.cooperative_relationship_outbox o
  LEFT JOIN tto.cf02_child06_delivery_state d ON d.source_event_id=o.event_id AND d.state='ACKED'
@@ -95,7 +126,8 @@ RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,tto AS
 DECLARE ret text;
 BEGIN
  IF p_tenant IS DISTINCT FROM tto.context_tenant_id()
- OR NOT tto.cf02_relationship_projector_authorized(p_tenant) THEN RETURN 'DENIED'; END IF;
+ OR NOT tto.cf02_relationship_projector_authorized(p_tenant)
+ OR NOT tto.cf02_consumer_bound(p_tenant) THEN RETURN 'DENIED'; END IF;
  PERFORM 1 FROM tto.cf02_child06_delivery_leases
  WHERE source_event_id=p_event AND tenant_id=p_tenant AND claim_token=p_token
  AND claimed_until>clock_timestamp() FOR UPDATE;
@@ -109,6 +141,7 @@ RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,tto AS
 BEGIN
  IF p_tenant IS DISTINCT FROM tto.context_tenant_id()
  OR NOT tto.cf02_relationship_projector_authorized(p_tenant)
+ OR NOT tto.cf02_consumer_bound(p_tenant)
  OR p_backoff_seconds<1 OR p_backoff_seconds>3600 THEN RETURN 'DENIED'; END IF;
  UPDATE tto.cf02_child06_delivery_leases
  SET claimed_until=clock_timestamp()-interval '1 second',
@@ -131,6 +164,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
  FROM tto.cooperative_relationship_outbox o WHERE o.tenant_id=p_tenant
  AND o.event_id=p_event AND p_tenant=tto.context_tenant_id()
  AND tto.cf02_relationship_projector_authorized(p_tenant)
+ AND tto.cf02_consumer_bound(p_tenant)
 $f$;
 REVOKE ALL ON FUNCTION tto.cf02_consumer_source(uuid,uuid) FROM PUBLIC,tto_app;
 GRANT EXECUTE ON FUNCTION tto.cf02_consumer_source(uuid,uuid) TO tto_cf02_consumer;
