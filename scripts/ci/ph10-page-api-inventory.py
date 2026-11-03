@@ -27,7 +27,7 @@ def classified_upstreams(portal, route_file):
     text = route_file.read_text(encoding="utf-8")
     found = []
     for nav, downstream in re.findall(
-        r'"(NAV-\\d{2})"\\s*:\\s*\\{path:\\s*"([^"]+)"', text
+        r'"(NAV-\d{2})"\s*:\s*\{path:\s*"([^"]+)"', text
     ):
         found.append({"moduleId": nav, "method": "GET",
                       "upstreamTemplate": "/v1/tenants/{tenantId}/" + downstream,
