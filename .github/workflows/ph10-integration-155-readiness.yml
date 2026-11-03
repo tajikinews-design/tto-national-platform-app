@@ -165,6 +165,7 @@ jobs:
           pnpm --filter @tto/api build
           pnpm --filter @tto/cooperative-management build
           pnpm --filter @tto/shareholder build
+          pnpm --filter @tto/national-admin build
           node services/api/test/ph09-portal.http.integration.cjs
           echo PH10_REAL_NEST_AUTHENTICATED_HTTP_PASS
           echo PH10_BROWSER_BOTH_PORTALS_REAL_SOURCE_RENDER_PASS
