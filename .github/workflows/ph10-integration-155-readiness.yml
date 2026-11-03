@@ -93,7 +93,17 @@ jobs:
             sleep 0.5
           done
           test "$ok" = true
-          docker exec tto-ph10-ci createdb -U postgres tto
+          created=false
+          for attempt in $(seq 1 45); do
+            if docker exec tto-ph10-ci createdb -U postgres tto >/dev/null 2>&1; then
+              created=true;break
+            fi
+            if docker exec tto-ph10-ci psql -U postgres -d tto -Atqc 'SELECT 1' >/dev/null 2>&1; then
+              created=true;break
+            fi
+            sleep 1
+          done
+          test "$created" = true || { docker logs tto-ph10-ci | tail -70; exit 1; }
       - name: Apply all migrations to PG17 from exact PR head
         run: |
           set -euo pipefail
