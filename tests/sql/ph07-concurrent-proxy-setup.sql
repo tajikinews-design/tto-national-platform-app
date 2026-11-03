@@ -1,0 +1,25 @@
+-- PH07 genuine two-session proxy cap race in disposable database only.
+\set ON_ERROR_STOP on
+BEGIN;
+INSERT INTO tto.tenants(tenant_id,slug,display_name,status)
+VALUES('76000000-0000-4000-8000-000000000001','ph07-proxy-race','Proxy race tenant','ACTIVE');
+INSERT INTO tto.parties(party_id,party_kind,display_label) VALUES
+('76100000-0000-4000-8000-000000000001','PERSON','Proxy actor'),
+('76100000-0000-4000-8000-000000000002','PERSON','Represented one'),
+('76100000-0000-4000-8000-000000000003','PERSON','Represented two'),
+('76100000-0000-4000-8000-000000000004','PERSON','Represented three'),
+('76100000-0000-4000-8000-000000000005','PERSON','Represented four');
+INSERT INTO tto.ph07_assemblies(assembly_id,tenant_id,title,eligible_member_count)
+VALUES('76200000-0000-4000-8000-000000000001',
+'76000000-0000-4000-8000-000000000001','Test proxy race',500);
+INSERT INTO tto.ph07_proxy_grants(grant_id,assembly_id,representative_party_id,represented_party_id)
+VALUES
+('76300000-0000-4000-8000-000000000001',
+'76200000-0000-4000-8000-000000000001',
+'76100000-0000-4000-8000-000000000001',
+'76100000-0000-4000-8000-000000000002'),
+('76300000-0000-4000-8000-000000000002',
+'76200000-0000-4000-8000-000000000001',
+'76100000-0000-4000-8000-000000000001',
+'76100000-0000-4000-8000-000000000003');
+COMMIT;
