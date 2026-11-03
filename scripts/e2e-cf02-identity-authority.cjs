@@ -345,11 +345,88 @@ async function main(){
  await status(await get(memberPath,myToken),403,"membership source revocation immediate");
  await status(await get(sharePath,myToken),403,"holdings depend on active Child06 source");
 
+
+ // Child06 first practical slice: only PENDING -> reviewed; no activation of relationship or shares.
+ const PENDING_PARTY=randomUUID(),CANDIDATE_REJECT=randomUUID();
+ for(const party of [PENDING_PARTY,CANDIDATE_REJECT]){
+  await db.query("INSERT INTO tto.parties(party_id,party_kind,display_label) VALUES($1,'PERSON','Synthetic applicant only')",[party]);
+  await db.query("INSERT INTO tto.user_party_links(user_id,party_id,verified_at) VALUES($1,$2,now())",[USER,party]);
+  await db.query("INSERT INTO tto.identity_link_cases(case_id,tenant_id,user_id,party_id,request_evidence_id,requested_by,status,decided_at,decided_by,decision_evidence_id,version) VALUES($1,$2,$3,$4,$5,$3,'APPROVED',now(),$6,$7,2)",
+  [randomUUID(),A,USER,party,REQ,REVIEWER,DEC]);
+ }
+ const membershipPath="/v1/tenants/"+A+"/membership-applications",memberManager=tokenMap.get(MANAGER);
+ const ownBff=sh.origin+"/api/tenants/"+A+"/me/membership-applications";
+ const manageBff=cm.origin+"/api/tenants/"+A+"/membership-applications";
+ const ownerCookie={Cookie:"tto_session="+myToken,Origin:sh.origin,"Content-Type":"application/json"};
+ const managerCookie={Cookie:"tto_session="+memberManager,Origin:cm.origin,"Content-Type":"application/json"};
+ await status(await post(membershipPath,myToken,{partyId:PARTY,evidenceId:REQ}),403,
+  "already active membership relation may not be re-applied");
+ await status(await post(membershipPath,myToken,{partyId:PENDING_PARTY,evidenceId:randomUUID()}),403,
+  "unpublished source evidence cannot submit membership");
+ await status(await post("/v1/tenants/"+B+"/membership-applications",myToken,
+  {partyId:PENDING_PARTY,evidenceId:REQ}),403,"cross-tenant membership request denied");
+ await status(await fetch(ownBff,{method:"POST",headers:{Origin:sh.origin,"Content-Type":"application/json",Authorization:"Bearer "+myToken},
+  body:JSON.stringify({partyId:PENDING_PARTY,evidenceId:REQ})}),401,"browser bearer forgery denied");
+ await status(await fetch(ownBff,{method:"POST",headers:{...ownerCookie,Origin:"https://invalid.example"},
+  body:JSON.stringify({partyId:PENDING_PARTY,evidenceId:REQ})}),403,"member CSRF denied");
+ const attempted=await fetch(ownBff,{method:"POST",headers:ownerCookie,
+  body:JSON.stringify({partyId:PENDING_PARTY,evidenceId:REQ})});
+ if(attempted.status!==201)console.error("TTO_CHILD06_DENIAL_DIAG",attempted.status,await attempted.clone().text());
+ const submitted=await status(attempted,201,"submitted member workflow through shareholder BFF");
+ ok(submitted.status==="PENDING"&&submitted.version===1,"new versioned application pending");
+ const applicationPath=membershipPath+"/"+submitted.applicationId;
+ const ownApplicationBff=ownBff+"/"+submitted.applicationId;
+ await status(await post(membershipPath,myToken,{partyId:PENDING_PARTY,evidenceId:REQ}),403,
+  "duplicate pending membership denied");
+ const ownPending=await status(await fetch(ownApplicationBff,{headers:ownerCookie}),200,
+  "applicant sees own application status");
+ ok(ownPending.record.status==="PENDING"&&ownPending.record.version===1,"own pending status version");
+ await status(await get("/v1/tenants/"+A+"/me/membership-applications/"+submitted.applicationId,memberManager),403,
+  "manager cannot use applicant owner-only query");
+ await status(await post(applicationPath+"/decision",myToken,
+  {approve:true,expectedVersion:1,decisionEvidenceId:DEC}),403,"self decision forbidden");
+ await db.query("UPDATE tto.role_assignments SET revoked_at=NULL WHERE user_id=$1 AND tenant_id=$2 AND role_code='COOPERATIVE_MANAGER'",[MANAGER,A]);
+ await status(await get(membershipPath+"/pending",memberManager),403,"role alone never authorizes manager review");
+ await db.query("INSERT INTO tto.membership_review_authorizations(tenant_id,reviewer_id,approved_by,evidence_id,valid_until) VALUES($1,$2,$3,$4,now()+interval '1 hour')",[A,MANAGER,APPROVER,DEC]);
+ await db.query("INSERT INTO tto.membership_review_rule_gates(tenant_id,rule_snapshot_ref,evidence_id,approved_by,valid_until,enabled) VALUES($1,$2,$3,$4,now()+interval '1 hour',false)",[A,randomUUID(),DEC,APPROVER]);
+ await status(await get(membershipPath+"/pending",memberManager),403,"disabled rule gate keeps manager out");
+ await db.query("UPDATE tto.membership_review_rule_gates SET enabled=true WHERE tenant_id=$1",[A]);
+ const pending=await status(await fetch(manageBff+"/pending",{headers:managerCookie}),200,"manager BFF review tray");
+ ok(pending.items.some(x=>x.applicationId===submitted.applicationId),"manager sees one pending case");
+ await status(await post(applicationPath+"/decision",memberManager,
+  {approve:true,expectedVersion:2,decisionEvidenceId:DEC}),409,"stale version fails closed");
+ await status(await post(applicationPath+"/decision",memberManager,
+  {approve:true,expectedVersion:1,decisionEvidenceId:REQ}),403,"same applicant evidence fails SoD");
+ await status(await fetch(manageBff+"/"+submitted.applicationId+"/decision",{method:"POST",
+  headers:{...managerCookie,Origin:"https://invalid.example"},body:JSON.stringify({approve:true,expectedVersion:1,decisionEvidenceId:DEC})}),403,"manager review CSRF denied");
+ const accepted=await status(await fetch(manageBff+"/"+submitted.applicationId+"/decision",{
+  method:"POST",headers:managerCookie,body:JSON.stringify({approve:true,expectedVersion:1,decisionEvidenceId:DEC})}),201,
+  "manager BFF records source-evidenced decision");
+ assert.deepEqual(accepted,{recorded:true,status:"APPROVED",alreadyApplied:false});checks++;
+ const repeat=await status(await post(applicationPath+"/decision",memberManager,
+  {approve:true,expectedVersion:1,decisionEvidenceId:DEC}),201,"same decision retry idempotent");
+ assert.deepEqual(repeat,{recorded:true,status:"APPROVED",alreadyApplied:true});checks++;
+ await status(await post(applicationPath+"/decision",memberManager,
+  {approve:false,expectedVersion:1,decisionEvidenceId:DEC}),409,"conflicting decision blocked");
+ const finalRecord=await status(await fetch(ownApplicationBff,{headers:ownerCookie}),200,"applicant sees reviewed version");
+ ok(finalRecord.record.version===2&&finalRecord.record.status==="APPROVED","applicant sees reviewed decision");
+ const events=await db.query("SELECT count(*)::int AS n FROM tto.membership_application_outbox WHERE application_id=$1",[submitted.applicationId]);
+ ok(events.rows[0].n===2,"one submitted and one reviewed transactional outbox row");
+ const notActivated=await db.query("SELECT (SELECT count(*)::int FROM tto.relationship_projections WHERE tenant_id=$1 AND party_id=$2) AS relations,(SELECT count(*)::int FROM tto.shareholder_source_accounts WHERE tenant_id=$1 AND party_id=$2) AS accounts",[A,PENDING_PARTY]);
+ ok(notActivated.rows[0].relations===0&&notActivated.rows[0].accounts===0,
+  "decision never creates relationship/Party role/ownership account");
+ const second=await status(await post(membershipPath,myToken,{partyId:CANDIDATE_REJECT,evidenceId:REQ}),201,"second candidate pending");
+ const rejected=await status(await post(membershipPath+"/"+second.applicationId+"/decision",memberManager,
+  {approve:false,expectedVersion:1,decisionEvidenceId:DEC}),201,"member review rejection");
+ ok(rejected.status==="REJECTED"&&!rejected.alreadyApplied,"reject branch is terminal");
+ await db.query("UPDATE tto.membership_review_rule_gates SET enabled=false WHERE tenant_id=$1",[A]);
+ await status(await get(membershipPath+"/pending",memberManager),403,"revoked policy fails closed");
+ await db.query("UPDATE tto.role_assignments SET revoked_at=now() WHERE user_id=$1 AND tenant_id=$2 AND role_code='COOPERATIVE_MANAGER'",[MANAGER,A]);
  const app=new Client({connectionString:"postgresql://tto_app@127.0.0.1:5432/tto"});await app.connect();
  try{
   await assert.rejects(()=>app.query("SELECT * FROM tto.identity_link_cases"),e=>e.code==="42501");checks++;
   await assert.rejects(()=>app.query("SELECT * FROM tto.identity_review_authorizations"),e=>e.code==="42501");checks++;
-  for(const tbl of ["source_contract_approvals","member_source_snapshots","shareholder_source_accounts","shareholding_source_snapshots","source_import_batches","source_import_claims"]){
+  for(const tbl of ["source_contract_approvals","member_source_snapshots","shareholder_source_accounts","shareholding_source_snapshots","source_import_batches","source_import_claims","membership_applications","membership_review_authorizations","membership_review_rule_gates","membership_application_outbox"]){
    await assert.rejects(()=>app.query("SELECT * FROM tto."+tbl),e=>e.code==="42501");checks++;
   }
   await assert.rejects(()=>app.query("SELECT tto.assess_source_import_claim($1)",[claimReady]),e=>e.code==="42501");checks++;
@@ -359,6 +436,7 @@ async function main(){
  await status(await get(memberPath,myToken),401,"revoked member session blocked");
  await status(await get(sharePath,myToken),401,"revoked holdings session blocked");
  await status(await fetch(memberBff,{headers:cookie}),401,"revoked BFF member session blocked");
+ await status(await fetch(ownApplicationBff,{headers:ownerCookie}),401,"revoked application owner view blocked");
  await status(await fetch(shareBff,{headers:cookie}),401,"revoked BFF holdings session blocked");
  for(const domain of ["trade-requests","notices"]){
   await status(await get("/v1/tenants/"+A+"/me/"+domain,myToken),401,
