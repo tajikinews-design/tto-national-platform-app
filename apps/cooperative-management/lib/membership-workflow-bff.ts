@@ -18,7 +18,7 @@ export async function membershipBff(req:NextRequest,tenantId:string,suffix:strin
   // Next test loopback may reconstruct req.url with a different internal host/port.
   // Never enable the Host fallback outside isolated CI with an explicit loopback flag.
   const localTest=process.env.CI==="true"&&process.env.TTO_LOOPBACK_E2E==="1"&&
-    !process.env.VERCEL&&/^127\\.0\\.0\\.1:[0-9]{4,5}$/.test(host);
+    !process.env.VERCEL&&/^127\.0\.0\.1:[0-9]{4,5}$/.test(host);
   const ciOrigin=localTest?"http://"+host:null;
   if(!origin||(origin!==requestOrigin&&origin!==ciOrigin))
     return denial(403,"ORIGIN_DENIED");
