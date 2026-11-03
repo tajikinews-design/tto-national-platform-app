@@ -586,6 +586,29 @@ async function main(){
  const adapterNoAccess=await consumeCf02Event(adapterSource,{enabled:true,authorized:false,ports:adapterPorts});
  ok(adapterNoAccess.status==="DISABLED"&&ackCount===1,
   "disabled consumer authority never acknowledges or projects");
+ // Multi-connection PG17 contention and crash-before-ack simulation, disposable only.
+ const contenders=await Promise.all(Array.from({length:3},async()=>{
+  const client=new Client({connectionString:url});await client.connect();
+  try{
+   await client.query("BEGIN");
+   await client.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+   await client.query("SELECT set_config('tto.tenant_id',$1,true)",[A]);
+   const result=await client.query("SELECT tto.cf02_project_child06_relationship_event($1,$2) AS result",[A,projectionEventId]);
+   await client.query("COMMIT");
+   return result.rows[0].result;
+  }catch(err){await client.query("ROLLBACK");throw err}
+  finally{await client.end()}
+ }));
+ ok(contenders.every(v=>v==="ALREADY_PROJECTED"),
+  "three independent PG17 connections safely replay same immutable receipt");
+ const receiptAfterContention=await db.query("SELECT count(*)::int AS n FROM tto.cf02_relationship_projection_receipts WHERE source_event_id=$1",[projectionEventId]);
+ ok(receiptAfterContention.rows[0].n===1,"PG17 concurrent replay keeps exactly one immutable receipt");
+ const noAckPorts={...adapterPorts,ack:async()=>{throw Error("SIMULATED_ACK_LOSS")}};
+ await assert.rejects(()=>consumeCf02Event(adapterSource,{enabled:true,authorized:true,ports:noAckPorts}),/SIMULATED_ACK_LOSS/);
+ const recovered=await consumeCf02Event(adapterSource,{enabled:true,authorized:true,ports:adapterPorts});
+ ok(recovered.status==="ACKED_REPLAY"&&ackCount===2,
+  "simulated lost ack redelivery safely reuses the durable PG17 receipt");
+
 
  const projectedOnce=await db.query("SELECT membership_status,source_event_id,source_version FROM tto.relationship_projections WHERE tenant_id=$1 AND party_id=$2",
   [A,PENDING_PARTY]);
