@@ -37,6 +37,10 @@ jobs:
           python3 tests/test_ph07_source26_truth.py -v
           python3 tests/test_ph08_source36_truth.py -v
           python3 tests/test_ph09_source38_truth.py -v
+      - name: Enumerate every portal page and BFF route without claiming integration GREEN
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/ph10-page-api-inventory.py
       - name: Build three Next portals plus Nest API on checked-out source
         run: |
           set -euo pipefail
