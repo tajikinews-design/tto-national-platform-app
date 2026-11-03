@@ -296,15 +296,16 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
      assert.equal(await denied.locator('html').getAttribute('dir'),'rtl');
      checks++;
      console.log('PH10_AUTH_CHROMIUM_'+profile.kind.toUpperCase()+'_ANONYMOUS_SOURCE_DENY_PASS');
-    // Verify all eleven contracted module navigation pages render without
-    // exposing the authenticated synthetic record to an anonymous visitor.
+    // NAV-01 is the dashboard/root slot, not a /modules/[id] page. Assert it
+    // is rejected rather than weakening route validation. NAV-02..11 render.
     for(let nav=1;nav<=11;nav++){
      const slot='nav-'+String(nav).padStart(2,'0');
      const publicRoute='http://127.0.0.1:'+profile.port+'/modules/'+slot;
      const pageResponse=await anonymous.newPage();
      try{
       const reply=await pageResponse.goto(publicRoute,{waitUntil:'domcontentloaded',timeout:30000});
-      assert.equal(reply.status(),200,'PH10_ANONYMOUS_NAV_HTTP_'+profile.kind+'_'+slot);
+      assert.equal(reply.status(),nav===1?404:200,
+       'PH10_ANONYMOUS_NAV_HTTP_'+profile.kind+'_'+slot);
       assert.equal(await pageResponse.locator('html').getAttribute('dir'),'rtl');
       assert.equal((await pageResponse.locator('body').innerText()).includes(profile.expected),false,
        'PH10_ANONYMOUS_NAV_PRIVATE_RECORD_LEAK_'+profile.kind+'_'+slot);
