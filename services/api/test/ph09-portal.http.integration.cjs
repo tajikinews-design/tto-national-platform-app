@@ -165,6 +165,10 @@ async function testCooperativeBff(memberToken,managerToken){
  await call('NAV-03',memberToken,404);
  const invalid=await fetch(base+'/api/tenants/not-uuid/ph10/NAV-10');
  assert.equal(invalid.status,400);checks++;
+ for(const nav of ['NAV-04','NAV-05','NAV-07','NAV-08','NAV-09','NAV-10']){
+  await call(nav,null,401);
+ }
+ console.log('PH10_NEXT_BFF_ALL_SIX_ROUTES_REQUIRE_COOKIE_PASS');
  console.log('PH10_NEXT_BFF_AUTHENTICATED_ROLE_TENANT_SOURCE_INTEGRATION_PASS');
 }
 async function testShareholderBff(memberToken,managerToken){
@@ -211,6 +215,10 @@ async function testShareholderBff(memberToken,managerToken){
  await call('NAV-03',memberToken,404);
  const malformed=await fetch(base+'/api/tenants/invalid/ph10/NAV-07');
  assert.equal(malformed.status,400);checks++;
+ for(const nav of ['NAV-06','NAV-07','NAV-08','NAV-10']){
+  await call(nav,null,401);
+ }
+ console.log('PH10_SHAREHOLDER_ALL_FOUR_ROUTES_REQUIRE_COOKIE_PASS');
  console.log('PH10_SHAREHOLDER_BFF_SOURCE_ONLY_CROSS_TENANT_GATES_PASS');
 }
 async function testNationalJitBff(nationalToken,managerToken){
