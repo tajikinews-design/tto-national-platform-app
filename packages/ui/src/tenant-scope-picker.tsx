@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useState} from "react";
 import {CooperativeSourceReadPanel} from "./cooperative-source-read-panel";
+import {NationalJitDocuments} from "./national-jit-documents";
 type Surface="shareholder"|"cooperative"|"national";
 type Candidate={tenantId:string;displayName:string;evidenceStatus:"MEMBERSHIP_EVIDENCE"|"ROLE_AUTHORITY_EVIDENCE"|"JIT_DOCUMENT_REVIEW_ONLY"|"EVIDENCE_PENDING"};
 const titles={
@@ -111,6 +112,8 @@ export function TenantScopePicker({surface,moduleId}:{surface:Surface;moduleId?:
    </div>:null}
   {surface==="cooperative"&&scopeVerified&&moduleId&&selected?
     <CooperativeSourceReadPanel key={selected+"-"+moduleId} tenantId={selected} moduleId={moduleId}/>:null}
+  {surface==="national"&&scopeVerified&&moduleId&&selected?
+    <NationalJitDocuments key={selected+"-"+moduleId} tenantId={selected} moduleId={moduleId}/>:null}
   {surface==="shareholder"&&scopeVerified?<div aria-label="اطلاعات اختصاصی تأییدشده">
    <h3>وضعیت عضویت</h3>
    {member?<p role="status">عضویت: فعال | نوع شخص: {member.partyKind==="PERSON"?"حقیقی":"حقوقی"} | نسخه منبع: {member.sourceVersion}</p>:
