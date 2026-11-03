@@ -50,8 +50,8 @@ async function token(uid){
  [randomUUID(),uid,createHash('sha256').update(raw).digest()]);
  return raw;
 }
-async function request(method,route,bearer,status){
- const resp=await fetch(root+route,{method,headers:bearer?{authorization:'Bearer '+bearer}:{}});
+async function request(method,route,bearer,status,payload){
+ const resp=await fetch(root+route,{method,headers:bearer?{authorization:'Bearer '+bearer,...(payload?{'content-type':'application/json'}:{})}:{},...(payload?{body:payload}:{})});
  const body=await resp.json().catch(()=>null);
  assert.equal(resp.status,status,method+' '+route+' expected '+status+' got '+resp.status+
  ' '+JSON.stringify(body).slice(0,220));
@@ -175,6 +175,21 @@ async function main(){
  y=await request('GET',p8+'/procurement/tenders',memberToken,200);
  assert.equal(y.items.length,0);
  console.log('PH10_REAL_HTTP_PH08_MANAGER_TENDER_METADATA_ONLY_PASS');
+ y=await request('POST',p8+'/voice/'+p8poll+'/respond',memberToken,201,'{"answer":"support"}');
+ assert.equal(y.recorded,true);assert.equal(y.legalVote,false);
+ await request('POST',p8+'/voice/'+p8poll+'/respond',memberToken,403,'{"answer":"duplicate"}');
+ await request('POST',p8+'/voice/'+p8poll+'/respond',managerToken,403,'{"answer":"not audience"}');
+ console.log('PH10_REAL_HTTP_PH08_POLL_DUPLICATE_AND_AUDIENCE_PASS');
+ y=await request('POST',p8+'/learning/events/'+p8event+'/enroll',memberToken,201);
+ assert.equal(y.registration,'CONFIRMED');assert.equal(y.courseCompleted,false);
+ await request('POST',p8+'/learning/events/'+p8event+'/enroll',memberToken,409);
+ await request('POST',p8+'/learning/events/'+p8event+'/enroll',managerToken,403);
+ console.log('PH10_REAL_HTTP_PH08_ENROLL_CAPACITY_DUPLICATE_ROLE_PASS');
+ y=await request('POST',p8+'/benefits/vouchers/'+p8voucher+'/redeem',memberToken,201);
+ assert.equal(y.redeemed,true);assert.equal(y.walletCredit,false);assert.equal(y.cashTransfer,false);
+ await request('POST',p8+'/benefits/vouchers/'+p8voucher+'/redeem',memberToken,403);
+ await request('POST',p8+'/benefits/vouchers/'+p8voucher+'/redeem',managerToken,403);
+ console.log('PH10_REAL_HTTP_PH08_VOUCHER_SINGLE_USE_AND_NO_CASH_PASS');
  console.log('PH10_REAL_HTTP_TOTAL_PHASE09_PLUS_PHASE08_REQUESTS='+checks);
  console.log('PH09_REAL_NEST_HTTP_REQUESTS_PASS='+checks);
 }
