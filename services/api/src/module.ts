@@ -205,6 +205,39 @@ export class FoundationCommandsController {
     });
   }
 
+  @Post("national/cooperative-workspaces")
+  @HttpCode(201)
+  async reserveCooperativeWorkspace(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    // This is an address reservation, NOT legal registration, Tenant activation or role grant.
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ISOLATED_DEMO_DATABASE_REQUIRED");
+    const slug=typeof input?.slug==="string"?input.slug:"";
+    if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       new Set(["admin","login","api","auth","demo","national","shareholder","manager","system","www"]).has(slug))
+      throw new BadRequestException("INVALID_WORKSPACE_SLUG");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const role=await client.query<{allowed:boolean}>(
+        'SELECT EXISTS(SELECT 1 FROM tto.list_actor_tenant_options() WHERE "platformOperator" IS TRUE) AS allowed'
+      );
+      if(role.rows[0]?.allowed!==true)
+        throw new ForbiddenException("NATIONAL_PLATFORM_OPERATOR_REQUIRED");
+      const workspaceId=randomUUID();
+      try{
+       await client.query(
+        "INSERT INTO tto.cooperative_workspace_addresses(workspace_id,slug,created_by) VALUES ($1,$2,$3)",
+        [workspaceId,slug,actor]);
+      }catch(e){
+       if((e as {code?:string}).code==="23505")
+        throw new ConflictException("WORKSPACE_ADDRESS_TAKEN");
+       throw e;
+      }
+      return {workspaceId,slug,address:"https://www.ttoir.ir/c/"+slug,
+       state:"RESERVED",managementAccessGranted:false};
+    });
+  }
+
   @Post("national/cooperative-intakes")
   @HttpCode(201)
   async createNationalCooperativeIntake(
