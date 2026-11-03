@@ -187,10 +187,10 @@ jobs:
       - name: Launch disposable independent PG17
         run: |
           set -euo pipefail
-          docker run -d --rm --name tto-ph10-identity -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto -p 127.0.0.1:5432:5432 postgres:17
+          docker run -d --rm --name tto-adaptive-postgres -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto -p 127.0.0.1:5432:5432 postgres:17
           ok=false
           for i in $(seq 1 100); do
-            if docker exec tto-ph10-identity psql -U postgres -d tto -Atqc 'SELECT 1' >/dev/null 2>&1;then ok=true;break;fi
+            if docker exec tto-adaptive-postgres psql -U postgres -d tto -Atqc 'SELECT 1' >/dev/null 2>&1;then ok=true;break;fi
             sleep 0.5
           done
           test "$ok" = true
@@ -216,4 +216,4 @@ jobs:
           if-no-files-found: warn
       - name: Remove temporary identity Postgres
         if: always()
-        run: docker rm -f tto-ph10-identity || true
+        run: docker rm -f tto-adaptive-postgres || true
