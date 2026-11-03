@@ -32,7 +32,7 @@ async function consumeOnce({databaseUrl,tenantId,actorId,enable=false,clientFact
   // Contractual source event always re-read under its own dedicated DB session.
   const ports={
    readSource:async(id,tenant)=>transact(async()=>{
-    const q=await db.query("SELECT event_id,tenant_id,party_id,relationship_id,source_version,event_name FROM tto.cooperative_relationship_outbox WHERE event_id=$1 AND tenant_id=$2",[id,tenant]);
+    const q=await db.query("SELECT * FROM tto.cf02_consumer_source($2,$1)",[id,tenant]);
     return q.rowCount?{...q.rows[0],source_version:Number(q.rows[0].source_version)}:null;
    }),
    project:async(tenant,id)=>transact(async()=>{
