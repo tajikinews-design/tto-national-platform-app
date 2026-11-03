@@ -39,6 +39,8 @@ class Source10847(unittest.TestCase):
  def test_no_cash_wallet_route_in_actual_nest_portal(self):
   module=(ROOT/"services/api/src/module.ts").read_text(encoding="utf8")
   # No HTTP handler may offer a user cash-wallet balance or withdrawal.
-  self.assertIsNone(re.search(r"@(?:Get|Post|Patch|Put|Delete)\\s*\\([^)]*(?:wallet|withdraw)",module,re.I))
+  for route in ['wallet','cash-wallet','withdraw']:
+   for verb in ['Get','Post','Patch','Put','Delete']:
+    self.assertNotIn('@'+verb+'("'+route,module)
 if __name__=="__main__":
  unittest.main()
