@@ -36,6 +36,8 @@ DO $t$ BEGIN
  '74100000-0000-4000-8000-000000000002');
  RAISE EXCEPTION 'TRN001_NO_SOURCE_PUBLISHED';
  EXCEPTION WHEN check_violation THEN NULL;
+ WHEN raise_exception THEN
+ IF SQLERRM<>'DISCLOSURE_SOURCE_TENANT_INVALID' THEN RAISE;END IF;
  END;
  BEGIN
  INSERT INTO tto.ph07_disclosure_versions(version_id,package_id,version_num,period_start,period_end,
