@@ -36,6 +36,22 @@ export function ShareholderSourceSection({tenantId,moduleId,onSessionInvalidated
    if(scopeRef.current!==requestScope)return;
    if(body.registered!==true||(body.registration!=="CONFIRMED"&&body.registration!=="WAITLIST"))
     throw Error("INVALID_ENROLLMENT_RESPONSE");
+   // A successful command is not yet proof that the member read model reflects it.
+   // Confirm the exact event and state using the canonical tenant-scoped GET.
+   const verification=await fetch("/api/tenants/"+tenantId+"/ph10/NAV-06",{
+    credentials:"same-origin",cache:"no-store"
+   });
+   if(scopeRef.current!==requestScope)return;
+   if(verification.status===401){onSessionInvalidated?.();return;}
+   if(!verification.ok)throw Error("ENROLLMENT_READBACK_UNAVAILABLE");
+   const confirmed=await verification.json() as {sourceBound?:unknown;available?:unknown;items?:unknown};
+   if(scopeRef.current!==requestScope)return;
+   if(confirmed.sourceBound!==true||confirmed.available!==true||!Array.isArray(confirmed.items))
+    throw Error("ENROLLMENT_READBACK_INVALID");
+   const match=confirmed.items.find((item:unknown)=>Boolean(item)&&typeof item==="object"&&
+    !Array.isArray(item)&&(item as {event_id?:unknown}).event_id===eventId) as
+    {registration_state?:unknown}|undefined;
+   if(match?.registration_state!==body.registration)throw Error("ENROLLMENT_NOT_YET_VERIFIED");
    setEnrollment(previous=>({...previous,[eventId]:body.registration as string}));
   }catch{if(scopeRef.current===requestScope)setEnrollmentError("ارتباط با مرجع ثبت‌نام برقرار نشد.");}
   finally{if(scopeRef.current===requestScope)setEnrolling(null);}
