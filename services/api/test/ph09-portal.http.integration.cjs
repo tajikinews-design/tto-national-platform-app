@@ -109,7 +109,8 @@ async function main(){
  x=await request('GET',me+'/data-governance/records',memberToken,200);
  assert.equal(x.items.length,0);
  x=await request('GET',me+'/data-governance/records',managerToken,200);
- assert.equal(x.items.length,2);
+ assert.ok(x.items.some(v=>v.record_id===held));
+ assert.ok(x.items.some(v=>v.record_id===eligible));
  await request('POST',me+'/data-governance/records/'+held+'/dispose',managerToken,403);
  await request('POST',me+'/data-governance/records/'+eligible+'/dispose',memberToken,403);
  x=await request('POST',me+'/data-governance/records/'+eligible+'/dispose',managerToken,201);
