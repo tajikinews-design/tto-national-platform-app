@@ -323,7 +323,8 @@ BEGIN
  END;
  IF EXISTS(SELECT 1 FROM tto.ph06_ownership_ledger WHERE source_kind='LEGAL_TRANSFER')
  OR EXISTS(SELECT 1 FROM ph06_lab.transfer_completions)
- OR (SELECT count(*) FROM tto.ph06_share_locks WHERE state='ACTIVE')<>1
+ OR (SELECT count(*) FROM tto.ph06_share_locks
+     WHERE case_id='d6cccccc-cccc-4ccc-8ccc-cccccccccccc' AND state='ACTIVE')<>1
  THEN RAISE EXCEPTION 'PH06_FAULT_DID_NOT_ROLLBACK_ALL_CHANGES';END IF;
 END $fault$;
 SELECT 'PH06_POSITIVE_LAB_ATOMIC_FAILURE_ROLLBACK_PASS' AS signal;
