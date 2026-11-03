@@ -22,6 +22,22 @@ def source_refs(text):
     # Static source-code signals only; do not mistake these for runtime evidence.
     return sorted(set(re.findall(r"""(?:fetch\s*\(|apiBaseUrl\s*\+|TTO_API_BASE_URL|/v1/tenants|/api/tenants|module-status)""", text)))
 
+def classified_upstreams(portal, route_file):
+    """Static BFF route mapping only. Never means the HTTP authorization passed."""
+    text = route_file.read_text(encoding="utf-8")
+    found = []
+    for nav, downstream in re.findall(
+        r'"(NAV-\\d{2})"\\s*:\\s*\\{path:\\s*"([^"]+)"', text
+    ):
+        found.append({"moduleId": nav, "method": "GET",
+                      "upstreamTemplate": "/v1/tenants/{tenantId}/" + downstream,
+                      "classification": "DECLARED_STATIC_UPSTREAM_NOT_RUNTIME_VERIFIED"})
+    if portal == "national-admin" and route_file.parts[-3:-1] == ("ph10", "[moduleId]"):
+        found.append({"moduleId": "NAV-09", "method": "GET",
+                      "upstreamTemplate": "/v1/tenants/{tenantId}/documents",
+                      "classification": "DECLARED_STATIC_JIT_REVIEW_NOT_RUNTIME_VERIFIED"})
+    return found
+
 def main():
     entries = []
     for portal in PORTALS:
@@ -51,6 +67,7 @@ def main():
                 "routeSource": str(route.relative_to(ROOT)),
                 "kind": "BFF_API_ROUTE",
                 "integrationSignals": source_refs(source),
+                "declaredUpstreamMappings": classified_upstreams(portal, route),
                 "canonicalNestEndpoint": None,
                 "tenantScopedAuthorizationVerified": False,
                 "requiredRoleVerified": False,
@@ -69,6 +86,7 @@ def main():
         "fullIntegrationGreen": False,
         "routeCount": len(entries),
         "unknownCanonicalEndpointCount": len(entries),
+        "staticDeclaredMappingCount": sum(len(e.get("declaredUpstreamMappings", [])) for e in entries),
         "pages": entries
     }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("PH10_A_STATIC_ROUTE_INVENTORY_PASS",
