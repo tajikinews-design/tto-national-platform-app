@@ -1,5 +1,6 @@
 "use client";
-import {useEffect,useParams,useRef,useState,type FormEvent} from "react";
+import {useEffect,useRef,useState,type FormEvent} from "react";
+import {useParams} from "next/navigation";
 import Link from "next/link";
 
 type Case={applicationId:string;status:"PENDING"|"APPROVED"|"REJECTED";version:number;
