@@ -833,7 +833,7 @@ export class Ph10Phase08ReadController {
  @Get(":tenantId/ph08/learning/events")
  async learning(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
   @Headers("authorization") auth?:string){
-  return this.scoped(tenant,auth,"SELECT event_id,course_title,capacity,refund_policy_version FROM tto.ph10_member_training_events()");
+  return this.scoped(tenant,auth,"SELECT event_id,course_title,capacity,refund_policy_version,registration_state FROM tto.ph10_member_training_events()");
  }
  @Get(":tenantId/ph08/benefits/my-vouchers")
  async benefits(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
