@@ -1,0 +1,65 @@
+name: PH08 official 36 acceptance PostgreSQL17 (NO DEPLOY)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - feat/ph07-governance-notice-support-transparency-20261103
+permissions:
+  contents: read
+concurrency:
+  group: ph08-source36-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  six-domains-postgres17:
+    if: github.head_ref == 'feat/ph08-six-domains-source36-20261103'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify immutable 155 source IDs and 36 phase-eight executable assertions
+        run: |
+          set -euo pipefail
+          python3 tests/test_ph08_source36_truth.py -v
+      - name: Start disposable isolated PG17 database
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name tto-ph08-ci -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine
+          for n in $(seq 1 120); do
+            if docker exec tto-ph08-ci psql -U postgres -d postgres -Atqc 'SELECT 1' >/dev/null 2>&1; then break; fi
+            sleep 0.5
+          done
+          made=false
+          for n in $(seq 1 40); do
+            if docker exec tto-ph08-ci createdb -U postgres tto >/dev/null 2>&1; then made=true;break;fi
+            if docker exec tto-ph08-ci psql -U postgres -d tto -Atqc 'SELECT 1' >/dev/null 2>&1; then made=true;break;fi
+            sleep 1
+          done
+          test "$made" = true || { docker logs tto-ph08-ci; exit 1; }
+      - name: Apply every checked-in migration to disposable PG17
+        run: |
+          set -euo pipefail
+          for f in database/migrations/[0-9][0-9][0-9][0-9]*.sql; do
+            echo "PH08_MIGRATION=$(basename "$f")"
+            docker exec -i tto-ph08-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" >/dev/null
+          done
+          docker exec -i tto-ph08-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph08-fixture-seed.sql
+          echo "PH08_ALL_MIGRATIONS_IN_ISOLATED_PG_PASS"
+      - name: Execute 36 exact-source cases across six modules
+        run: |
+          set -euo pipefail
+          for file in projects member-voice academy-events member-benefits marketplace procurement; do
+            echo "PH08_SOURCE_MODULE=$file"
+            docker exec -i tto-ph08-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "tests/sql/ph08-${file}-acceptance.sql"
+          done
+          echo "PH08_36_36_SQL_ASSERTIONS_PASS_ROLLBACK_ONLY"
+      - name: Prove two real PostgreSQL-session races for Academy and Projects
+        run: |
+          set -euo pipefail
+          bash scripts/ci/ph08-two-session-races.sh
+          echo "PH08_PROJECT_AND_ACADEMY_REAL_CONCURRENCY_PASS"
+      - name: Destroy synthetic database
+        if: always()
+        run: docker rm -f tto-ph08-ci || true
