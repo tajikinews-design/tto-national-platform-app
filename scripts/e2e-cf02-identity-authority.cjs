@@ -588,34 +588,44 @@ async function main(){
  ok(runtimeRole.rows[0].role_grant===true&&runtimeRole.rows[0].app_grant===false,
    "only designated restricted executor has durable ack execute; tto_app excluded");
  adapterPorts.ack=async(id,tenant)=>{
-  await db.query("BEGIN");
+  await serviceDb.query("BEGIN");
   try{
-   await db.query("SET LOCAL ROLE tto_cf02_consumer");
-   await db.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
-   await db.query("SELECT set_config('tto.tenant_id',$1,true)",[tenant]);
-   const out=await db.query("SELECT tto.cf02_consumer_durable_ack($1,$2) AS result",[tenant,id]);
+   await serviceDb.query("SET LOCAL ROLE tto_cf02_consumer");
+   await serviceDb.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+   await serviceDb.query("SELECT set_config('tto.tenant_id',$1,true)",[tenant]);
+   const out=await serviceDb.query("SELECT tto.cf02_consumer_durable_ack($1,$2) AS result",[tenant,id]);
    if(out.rows[0].result!=="ACKED")throw Error("DURABLE_ACK_REJECTED");
-   await db.query("COMMIT");ackCount++;
-  }catch(e){await db.query("ROLLBACK");throw e}
+   await serviceDb.query("COMMIT");ackCount++;
+  }catch(e){await serviceDb.query("ROLLBACK");throw e}
  };
+ // Disposable independent login: session_user is authenticated by PostgreSQL,
+ // not synthesized with SET ROLE or copied from an HTTP user session.
+ await db.query("CREATE ROLE tto_cf02_ci_login LOGIN PASSWORD 'ci-throwaway-only-no-production'");
+ await db.query("GRANT tto_cf02_consumer TO tto_cf02_ci_login");
+ await db.query("INSERT INTO tto.cf02_consumer_login_bindings(login_name,tenant_id,actor_id,approved_by,evidence_id,valid_until) VALUES('tto_cf02_ci_login',$1,$2,$3,$4,now()+interval '1 hour')",[A,NATIONAL,APPROVER,DEC]);
+ const serviceDb=new Client({connectionString:"postgresql://tto_cf02_ci_login:ci-throwaway-only-no-production@127.0.0.1:5432/tto"});
+ await serviceDb.connect();
+ const verifiedLogin=await serviceDb.query("SELECT session_user AS login,pg_has_role(session_user,'tto_cf02_consumer','MEMBER') AS is_member");
+ ok(verifiedLogin.rows[0].login==="tto_cf02_ci_login"&&verifiedLogin.rows[0].is_member,
+  "PG17 independent login authenticates as service role, not migration or web principal");
  // Durable delivery: source event is claimed with a fenced token, then completed.
- await db.query("BEGIN");
+ await serviceDb.query("BEGIN");
  let claimedToken;
  try {
-  await db.query("SET LOCAL ROLE tto_cf02_consumer");
-  await db.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
-  await db.query("SELECT set_config('tto.tenant_id',$1,true)",[A]);
-  const leased=await db.query("SELECT * FROM tto.cf02_consumer_claim($1,$2)",[A,30]);
+  await serviceDb.query("SET LOCAL ROLE tto_cf02_consumer");
+  await serviceDb.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+  await serviceDb.query("SELECT set_config('tto.tenant_id',$1,true)",[A]);
+  const leased=await serviceDb.query("SELECT * FROM tto.cf02_consumer_claim($1,$2)",[A,30]);
   ok(leased.rowCount===1&&leased.rows[0].event_id===projectionEventId,"PG17 dedicated consumer leased existing unacked event");
   claimedToken=leased.rows[0].claim_token;
-  const duplicate=await db.query("SELECT * FROM tto.cf02_consumer_claim($1,$2)",[A,30]);
+  const duplicate=await serviceDb.query("SELECT * FROM tto.cf02_consumer_claim($1,$2)",[A,30]);
   ok(duplicate.rowCount===0,"PG17 source claim is not concurrently duplicated");
-  const stale=await db.query("SELECT tto.cf02_consumer_complete($1,$2,$3) AS result",[A,projectionEventId,randomUUID()]);
+  const stale=await serviceDb.query("SELECT tto.cf02_consumer_complete($1,$2,$3) AS result",[A,projectionEventId,randomUUID()]);
   ok(stale.rows[0].result==="STALE_CLAIM","incorrect lease token cannot complete delivery");
-  const completed=await db.query("SELECT tto.cf02_consumer_complete($1,$2,$3) AS result",[A,projectionEventId,claimedToken]);
+  const completed=await serviceDb.query("SELECT tto.cf02_consumer_complete($1,$2,$3) AS result",[A,projectionEventId,claimedToken]);
   ok(completed.rows[0].result==="ACKED","valid lease completes only committed CF02 projection");
-  await db.query("COMMIT");
- } catch(err){await db.query("ROLLBACK");throw err}
+  await serviceDb.query("COMMIT");
+ } catch(err){await serviceDb.query("ROLLBACK");throw err}
  const adapterReplay=await consumeCf02Event(adapterSource,{enabled:true,authorized:true,ports:adapterPorts});
  ok(adapterReplay.status==="ACKED_REPLAY"&&ackCount===1,
   "real PG17 CF02 outbox adapter replay acks committed immutable receipt only");
@@ -646,6 +656,7 @@ async function main(){
   "simulated lost ack redelivery safely reuses the durable PG17 receipt");
 
 
+ await serviceDb.end();
  const projectedOnce=await db.query("SELECT membership_status,source_event_id,source_version FROM tto.relationship_projections WHERE tenant_id=$1 AND party_id=$2",
   [A,PENDING_PARTY]);
  ok(projectedOnce.rowCount===1&&projectedOnce.rows[0].membership_status==="ACTIVE"&&
