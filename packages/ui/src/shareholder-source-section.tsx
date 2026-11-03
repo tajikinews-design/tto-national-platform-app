@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useState} from "react";
+import {useEffect,useRef,useState} from "react";
 import type {ShareholderSectionId} from "./shareholder-section-config";
 const SOURCE_VIEWS:Record<string,{title:string;fields:readonly {key:string;label:string}[]}>={
  "NAV-06":{title:"دوره‌های آموزشی دارای مجوز نمایش",fields:[{key:"course_title",label:"دوره"},{key:"capacity",label:"ظرفیت"}]},
@@ -13,31 +13,37 @@ export function ShareholderSourceSection({tenantId,moduleId,onSessionInvalidated
  tenantId:string;moduleId:ShareholderSectionId;onSessionInvalidated?:()=>void;
 }){
  const spec=SOURCE_VIEWS[moduleId];
+ const currentScope=tenantId+":"+moduleId;
+ const scopeRef=useRef(currentScope);
+ scopeRef.current=currentScope;
  const [state,setState]=useState<State>({kind:"loading",items:[]});
  const [enrolling,setEnrolling]=useState<string|null>(null);
  const [enrollment,setEnrollment]=useState<Record<string,string>>({});
  const [enrollmentError,setEnrollmentError]=useState<string|null>(null);
  async function enroll(eventId:string){
   if(enrolling||!tenantId||moduleId!=="NAV-06")return;
+  const requestScope=currentScope;
   setEnrolling(eventId);setEnrollmentError(null);
   try{
    const res=await fetch("/api/tenants/"+tenantId+"/ph10/learning/events/"+eventId+"/enroll",{
     method:"POST",credentials:"same-origin",cache:"no-store"
    });
+   if(scopeRef.current!==requestScope)return;
    if(res.status===401){onSessionInvalidated?.();setEnrollmentError("نشست شما منقضی شده است.");return;}
    if(res.status===409){setEnrollment(previous=>({...previous,[eventId]:"ALREADY_REGISTERED"}));return;}
    if(!res.ok){setEnrollmentError("ثبت‌نام انجام نشد. مجوز و ظرفیت رویداد را بررسی کنید.");return;}
    const body=await res.json() as {registered?:unknown;registration?:unknown};
+   if(scopeRef.current!==requestScope)return;
    if(body.registered!==true||(body.registration!=="CONFIRMED"&&body.registration!=="WAITLIST"))
     throw Error("INVALID_ENROLLMENT_RESPONSE");
    setEnrollment(previous=>({...previous,[eventId]:body.registration as string}));
-  }catch{setEnrollmentError("ارتباط با مرجع ثبت‌نام برقرار نشد.");}
-  finally{setEnrolling(null);}
+  }catch{if(scopeRef.current===requestScope)setEnrollmentError("ارتباط با مرجع ثبت‌نام برقرار نشد.");}
+  finally{if(scopeRef.current===requestScope)setEnrolling(null);}
  }
  useEffect(()=>{
   if(!spec||!tenantId){setState({kind:"denied",items:[]});return;}
   const controller=new AbortController();
-  setEnrollment({});setEnrollmentError(null);
+  setEnrollment({});setEnrollmentError(null);setEnrolling(null);
   setState({kind:"loading",items:[]});
   fetch("/api/tenants/"+tenantId+"/ph10/"+moduleId,{
    credentials:"same-origin",cache:"no-store",signal:controller.signal
