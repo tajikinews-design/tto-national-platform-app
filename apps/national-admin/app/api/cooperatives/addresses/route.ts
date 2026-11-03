@@ -32,6 +32,6 @@ export async function POST(req:NextRequest){
   if(up.status!==201)return fail(503,"WORKSPACE_RESERVATION_UNAVAILABLE");
   const result=await up.json() as {workspaceId?:unknown;address?:unknown;state?:unknown};
   if(typeof result.workspaceId!=="string"||typeof result.address!=="string"||result.state!=="RESERVED")return fail(503,"INVALID_RESULT");
-  return NextResponse.json(result,{status:201,headers});
+  return NextResponse.json({...result,address:new URL("/c/"+slug,req.url).toString()},{status:201,headers});
  }catch{return fail(503,"WORKSPACE_RESERVATION_UNAVAILABLE");}
 }
