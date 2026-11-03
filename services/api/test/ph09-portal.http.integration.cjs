@@ -292,6 +292,16 @@ async function testNationalJitBff(nationalToken,managerToken){
  await call('NAV-03',nationalToken,404);
  console.log('PH10_NATIONAL_JIT_INDEPENDENT_ROLE_TENANT_CLASSIFICATION_PASS');
 }
+async function browserCleanupWithDeadline(operation,label){
+ let timer;
+ try{
+  return await Promise.race([
+   operation(),
+   new Promise((_,reject)=>{timer=setTimeout(
+    ()=>reject(Error('PH10_BROWSER_CLEANUP_TIMEOUT_'+label)),12000);})
+  ]);
+ }finally{clearTimeout(timer);}
+}
 async function testActualAuthenticatedBrowser(memberToken,managerToken){
  if(process.env.PH10_AUTH_CHROMIUM!=='1')return;
  const {chromium}=require('playwright');
@@ -457,11 +467,15 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
      }finally{await pageResponse.close();}
     }
 
-    }finally{await anonymous.close();}
+    }finally{await browserCleanupWithDeadline(()=>anonymous.close(),profile.kind+'_ANONYMOUS');}
     console.log('PH10_AUTH_CHROMIUM_'+profile.kind.toUpperCase()+'_REAL_SOURCE_RENDER_PASS');
-   }finally{await context.close();}
+   }finally{
+    console.log('PH10_CHROMIUM_CLOSING_'+profile.kind.toUpperCase());
+    await browserCleanupWithDeadline(()=>context.close(),profile.kind+'_AUTH_CONTEXT');
+    console.log('PH10_CHROMIUM_CLOSED_'+profile.kind.toUpperCase());
+   }
   }
- }finally{await browser.close();}
+ }finally{await browserCleanupWithDeadline(()=>browser.close(),'BROWSER');}
 }
 async function main(){
  await db.connect();await seed();
