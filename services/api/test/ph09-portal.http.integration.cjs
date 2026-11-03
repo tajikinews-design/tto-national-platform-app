@@ -342,7 +342,17 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
       "SELECT count(*)::int AS n FROM tto.ph08_event_registrations WHERE event_id=$1 AND registered_by=$2",
       ['9c500000-0000-4000-8000-000000000003',user]);
      assert.equal(persisted.rows[0]?.n,1);
+     // A page reload must display the server-persisted registration, not the
+     // local React success state or another user's registration.
+     await page.reload({waitUntil:'domcontentloaded',timeout:30000});
+     await page.locator('#sw-tenant').waitFor({state:'visible',timeout:25000});
+     await page.locator('#sw-tenant').selectOption(tenant);
+     await page.getByRole('button',{name:'تأیید محدوده و استعلام'}).click();
+     const restored=page.locator('li').filter({hasText:'PH10 Browser Enrollment Course'});
+     await restored.getByText('ثبت‌نام تأیید شد').waitFor({state:'visible',timeout:20000});
+     assert.equal(await restored.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).count(),0);
      checks++;
+     console.log('PH10_SHAREHOLDER_BROWSER_ENROLLMENT_RELOAD_PERSISTENCE_PASS');
      console.log('PH10_SHAREHOLDER_REAL_BROWSER_ENROLLMENT_DATABASE_PERSISTENCE_PASS');
     }
 
