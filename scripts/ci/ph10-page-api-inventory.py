@@ -77,6 +77,11 @@ def main():
             })
     if not entries or not all(any(e["portal"] == p for e in entries) for p in PORTALS):
         raise SystemExit("All three portals must have indexed routes")
+    declared = sum(len(e.get("declaredUpstreamMappings", [])) for e in entries)
+    # Three PH10 BFF contracts: shareholder 4, cooperative 6, national JIT 1.
+    # This asserts static contract discovery, not authenticated runtime success.
+    if declared < 11:
+        raise SystemExit("PH10_A_DECLARED_UPSTREAM_MAPPING_INCOMPLETE: " + str(declared))
     OUTPUT.parent.mkdir(exist_ok=True)
     OUTPUT.write_text(json.dumps({
         "phase": "PH10-A", "schemaVersion": "1.0",
