@@ -1,0 +1,274 @@
+{
+  "schema": "TTO_PH10_LEGAL_BASELINE_IMPLEMENTATION_INDEX_V1",
+  "sourceDocument": "TTO-CONSOLIDATED-LEGAL-GATE-REGISTER v1.0",
+  "sourceUrl": "https://docs.google.com/document/d/1wPkljvZlD2z6u2tGgeLWvSZLk6Ji5qkX/edit",
+  "sourceDate": "October 2026",
+  "sourceApproval": "LEGAL BASELINE APPROVED FOR IMPLEMENTATION SPECIFICATION",
+  "distinguish": "Project-approved normative legal decisions are not per-tenant operational data-source authorizations or human legal signoffs",
+  "sourceGateCount": 42,
+  "projectGlobalP0ImplementationBlockers": "NONE_IN_SOURCE",
+  "liveSourceApproval": "NOT_INFERRED_FROM_BASELINE",
+  "noGeneralAccountingOrCashCustody": true,
+  "officialVotingOnlyViaAuthorizedExternalSystem": true,
+  "lawBasedShareTransfersRequireAuthoritativeProof": true,
+  "requirements": [
+    "Every legal-effectful transaction must retain effective rule ID and version",
+    "Unknown tenant-specific evidence must be denied by default",
+    "No wallet or escrow funds",
+    "Seller payment confirmation does not change share ownership until ledger finalization"
+  ],
+  "entries": [
+    {
+      "legalGateId": "LG-SHR-01",
+      "topic": "انتقال قانونی سهم",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-SHR-02",
+      "topic": "ارزش واقعی سهم",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-SHR-03",
+      "topic": "اعتبار زمانی ارزش‌گذاری",
+      "projectBaselineStatus": "CONFIGURABLE",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-SHR-04",
+      "topic": "تعهد پرداخت‌نشده سرمایه",
+      "projectBaselineStatus": "RESOLVED / TENANT-CONFIGURABLE",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-SHR-05",
+      "topic": "سقف مالکیت عضو",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-SHR-06",
+      "topic": "سهامدار غیرعضو",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-SHR-07",
+      "topic": "رأی سهامداران غیرعضو",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-SHR-08",
+      "topic": "سهامداران غیرایرانی",
+      "projectBaselineStatus": "DEFERRED",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-SHR-09",
+      "topic": "خرید سهام توسط خود تعاونی",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "CONFIGURABLE"
+    },
+    {
+      "legalGateId": "LG-PAY-01",
+      "topic": "عدم وجود کیف پول نقدی و عدم نگهداری وجوه",
+      "projectBaselineStatus": "RESOLVED — NOT APPLICABLE AS REGULATED WALLET",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-GOV-01",
+      "topic": "سقف آرای وکالتی",
+      "projectBaselineStatus": "RESOLVED BY PROJECT LEGAL BASELINE",
+      "documentedBehavior": "FAIL_CLOSED + VERSIONED RULE"
+    },
+    {
+      "legalGateId": "LG-GOV-02",
+      "topic": "مجامع دو‌مرحله‌ای توسعه و عمران",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-GOV-03",
+      "topic": "مجمع عمومی الکترونیکی",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "DEFERRED TO OFFICIAL SYSTEM"
+    },
+    {
+      "legalGateId": "LG-GOV-04",
+      "topic": "دعوت قانونی مجامع",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-GOV-05",
+      "topic": "صلاحیت تخصصی و تجربی",
+      "projectBaselineStatus": "RESOLVED BY PROJECT OPERATIONAL LEGAL BASELINE",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-GOV-06",
+      "topic": "شروع تصدی هیئت‌مدیره",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-GOV-07",
+      "topic": "انتخاب مدیرعامل",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-GOV-08",
+      "topic": "ماده ۱۲۹ — معامله مدیر یا مدیرعامل با تعاونی",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-GOV-09",
+      "topic": "وام و اعتبار مدیران",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-GOV-10",
+      "topic": "فعالیت رقابتی مدیران",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "FAIL_CLOSED / GRC REVIEW"
+    },
+    {
+      "legalGateId": "LG-BEN-01",
+      "topic": "اصل عدم تبعیض",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": "FAIL_CLOSED / CONFIGURABLE"
+    },
+    {
+      "legalGateId": "LG-BEN-02",
+      "topic": "Reward ≠ Dividend",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-BEN-03",
+      "topic": "Benefit Wallet",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-MKT-01",
+      "topic": "Member Supplier",
+      "projectBaselineStatus": "CONFIGURABLE",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-MKT-02",
+      "topic": "Seller رسمی در MVP",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-MKT-03",
+      "topic": "پرداخت فروشگاه",
+      "projectBaselineStatus": "RESOLVED FOR MVP",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-MKT-04",
+      "topic": "Return / Refund",
+      "projectBaselineStatus": "CONFIGURABLE",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-EVT-01",
+      "topic": "Event پولی",
+      "projectBaselineStatus": "CONFIGURABLE",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-EVT-02",
+      "topic": "Attendance Certificate",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-OPP-01",
+      "topic": "نوع رابطه کاری",
+      "projectBaselineStatus": "CONFIGURABLE / FAIL-CLOSED AT HANDOFF",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-OPP-02",
+      "topic": "Internship",
+      "projectBaselineStatus": "CONFIGURABLE",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-OPP-03",
+      "topic": "Background Check",
+      "projectBaselineStatus": "DEFERRED",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-GRC-01",
+      "topic": "Related Party",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-GRC-02",
+      "topic": "ماده ۱۲۹",
+      "projectBaselineStatus": null,
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-GRC-03",
+      "topic": "ماده ۱۳۲",
+      "projectBaselineStatus": null,
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-GRC-04",
+      "topic": "Whistleblowing محرمانه",
+      "projectBaselineStatus": "RESOLVED FOR CAPABILITY",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-GRC-05",
+      "topic": "Whistleblowing ناشناس",
+      "projectBaselineStatus": "DEFERRED",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-EVD-01",
+      "topic": "داده‌پیام و Evidence",
+      "projectBaselineStatus": "RESOLVED IN PRINCIPLE",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-EVD-02",
+      "topic": "Acknowledgement ≠ Legal E-signature",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-EVD-03",
+      "topic": "امضای الکترونیکی رسمی",
+      "projectBaselineStatus": "DEFERRED",
+      "documentedBehavior": "FAIL_CLOSED"
+    },
+    {
+      "legalGateId": "LG-ADS-01",
+      "topic": "تبلیغات سیاسی",
+      "projectBaselineStatus": "DEFERRED / PLATFORM POLICY",
+      "documentedBehavior": null
+    },
+    {
+      "legalGateId": "LG-ADS-02",
+      "topic": "Sponsored Content",
+      "projectBaselineStatus": "RESOLVED",
+      "documentedBehavior": null
+    }
+  ]
+}
