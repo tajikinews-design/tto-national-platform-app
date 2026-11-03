@@ -36,7 +36,7 @@ async function consumeOnce({databaseUrl,tenantId,actorId,enable=false,clientFact
     return q.rowCount?{...q.rows[0],source_version:Number(q.rows[0].source_version)}:null;
    }),
    project:async(tenant,id)=>transact(async()=>{
-    const q=await db.query("SELECT tto.cf02_project_child06_relationship_event($1,$2) AS result",[tenant,id]);
+    const q=await db.query("SELECT tto.cf02_consumer_project($1,$2) AS result",[tenant,id]);
     return q.rows[0].result;
    }),
    ack:async(id,tenant)=>transact(async()=>{
