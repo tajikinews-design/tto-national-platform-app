@@ -341,7 +341,21 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
      assert.equal(enrollResponse.status(),201,
       'PH10_BROWSER_TRAINING_POST_STATUS_'+enrollResponse.status()+' '+
       (await enrollResponse.text()).slice(0,300));
-     await course.getByText('ثبت‌نام تأیید شد').waitFor({state:'visible',timeout:10000});
+     // If a browser result disagrees with POST, retain response and visible UI
+     // evidence rather than hiding the actual failed functional journey.
+     try{
+      await course.getByText('ثبت‌نام تأیید شد').waitFor({state:'visible',timeout:10000});
+     }catch(err){
+      const visible=(await course.innerText().catch(()=>'<course removed>')).slice(0,1200);
+      const readback=await page.request.get(
+       'http://127.0.0.1:'+profile.port+'/api/tenants/'+tenant+'/ph10/NAV-06'
+      );
+      const content=(await readback.text().catch(()=>'<body unavailable>')).slice(0,1400);
+      throw Error('PH10_BROWSER_ENROLLMENT_CONFIRMATION_FAILED '+
+       'post='+enrollResponse.status()+
+       ' source='+readback.status()+' '+content+
+       ' visible='+visible+' cause='+String(err?.message).slice(0,180));
+     }
      const persisted=await db.query(
       "SELECT count(*)::int AS n FROM tto.ph08_event_registrations WHERE event_id=$1 AND registered_by=$2",
       ['9c500000-0000-4000-8000-000000000003',user]);
