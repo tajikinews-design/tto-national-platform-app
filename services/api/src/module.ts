@@ -331,6 +331,53 @@ export class FoundationCommandsController {
     if(!record)throw new ForbiddenException("Verified shareholding unavailable");
     return {record};
   }
+
+  // Child06 workflow commands, NOT membership activation or share ownership.
+  @Post("tenants/:tenantId/membership-applications")
+  async submitMembershipApplication(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    const party=requireId(input?.partyId),evidence=requireId(input?.evidenceId);
+    const applicationId=await this.run<string|null>(tenant,auth,
+      "SELECT tto.submit_membership_application($1,$2,$3) AS out",[tenant,party,evidence]);
+    if(!applicationId)throw new ForbiddenException("Membership application denied");
+    return {applicationId,status:"PENDING",version:1};
+  }
+  @Get("tenants/:tenantId/membership-applications/pending")
+  async listPendingMembershipApplications(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Headers("authorization") auth?:string){
+    const items=await this.run<Array<Record<string,unknown>>|null>(tenant,auth,
+      "SELECT tto.list_pending_membership_applications($1) AS out",[tenant]);
+    if(!Array.isArray(items))throw new ForbiddenException("Membership review denied");
+    return {items};
+  }
+  @Get("tenants/:tenantId/me/membership-applications/:applicationId")
+  async ownMembershipApplicationStatus(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Param("applicationId",new ParseUUIDPipe()) application:string,
+    @Headers("authorization") auth?:string){
+    const record=await this.run<Record<string,unknown>|null>(tenant,auth,
+      "SELECT tto.my_membership_application_status($1,$2) AS out",[tenant,application]);
+    if(!record)throw new ForbiddenException("Application unavailable");
+    return {record};
+  }
+  @Post("tenants/:tenantId/membership-applications/:applicationId/decision")
+  async decideMembershipApplication(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Param("applicationId",new ParseUUIDPipe()) application:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    const evidence=requireId(input?.decisionEvidenceId);
+    if(typeof input?.approve!=="boolean")throw new BadRequestException("Approval decision required");
+    const expected=input?.expectedVersion;
+    if(!Number.isSafeInteger(expected)||Number(expected)<1)
+      throw new BadRequestException("Expected version required");
+    const result=await this.run<string>(tenant,auth,
+      "SELECT tto.record_membership_decision($1,$2,$3,$4,$5) AS out",
+      [tenant,application,evidence,input.approve,expected]);
+    if(result==="STALE_VERSION")throw new ConflictException("Membership application version mismatch");
+    if(!["APPROVED","REJECTED","ALREADY_APPLIED"].includes(result))
+      throw new ForbiddenException("Membership decision denied");
+    return {recorded:true,status:result==="ALREADY_APPLIED"?
+      (input.approve?"APPROVED":"REJECTED"):result,alreadyApplied:result==="ALREADY_APPLIED"};
+  }
+
   @Post("auth/challenges/request")
   @HttpCode(202)
   async requestSmsLogin(@Body() payload:Record<string,unknown>,@Req() req:{ip?:string}){
