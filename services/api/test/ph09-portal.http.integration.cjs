@@ -318,6 +318,25 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
     assert.equal(await page.getByText(profile.expected).count()>0,true);
     assert.equal((await page.locator('body').innerText()).includes('SEALED_SOURCE_IDENTITY'),false);
     await page.screenshot({path:path.join(evidenceDir,'ph10-'+profile.kind+'-authenticated-nav07-mobile.png'),fullPage:true});
+    if(profile.kind==='shareholder'){
+     // Real browser button -> Next BFF -> Nest POST -> PostgreSQL, not a mock.
+     await page.goto('http://127.0.0.1:'+profile.port+'/modules/nav-06',
+       {waitUntil:'domcontentloaded',timeout:30000});
+     await page.locator('#sw-tenant').waitFor({state:'visible',timeout:25000});
+     await page.locator('#sw-tenant').selectOption(tenant);
+     await page.getByRole('button',{name:'تأیید محدوده و استعلام'}).click();
+     const course=page.locator('li').filter({hasText:'PH10 Browser Enrollment Course'});
+     await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).waitFor({state:'visible',timeout:25000});
+     await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).click();
+     await course.getByText('ثبت‌نام تأیید شد').waitFor({state:'visible',timeout:25000});
+     const persisted=await db.query(
+      "SELECT count(*)::int AS n FROM tto.ph08_event_registrations WHERE event_id=$1 AND user_id=$2",
+      ['9c500000-0000-4000-8000-000000000003',user]);
+     assert.equal(persisted.rows[0]?.n,1);
+     checks++;
+     console.log('PH10_SHAREHOLDER_REAL_BROWSER_ENROLLMENT_DATABASE_PERSISTENCE_PASS');
+    }
+
     // The authenticated session must navigate through every valid module URL,
     // not just the one source-backed showcase. This is navigation/RTL coverage,
     // not evidence that each domain workflow is implemented.
@@ -484,6 +503,11 @@ async function main(){
  await testCooperativeBff(memberToken,managerToken);
  await testShareholderBff(memberToken,managerToken);
  await testNationalJitBff(foreignToken,managerToken);
+ // Independent browser-only artificial event, distinct from API/BFF tests.
+ await db.query("INSERT INTO tto.ph08_courses(course_id,tenant_id,title,status) VALUES($1,$2,'PH10 Browser Enrollment Course','ACTIVE')",
+  ['9c400000-0000-4000-8000-000000000003',tenant]);
+ await db.query("INSERT INTO tto.ph08_training_events(event_id,course_id,tenant_id,capacity,refund_policy_version) VALUES($1,$2,$3,5,'PH10_REFUND_V1')",
+  ['9c500000-0000-4000-8000-000000000003','9c400000-0000-4000-8000-000000000003',tenant]);
  await testActualAuthenticatedBrowser(memberToken,managerToken);
  console.log('PH10_REAL_HTTP_TOTAL_PHASE09_PLUS_PHASE08_REQUESTS='+checks);
  console.log('PH09_REAL_NEST_HTTP_REQUESTS_PASS='+checks);
