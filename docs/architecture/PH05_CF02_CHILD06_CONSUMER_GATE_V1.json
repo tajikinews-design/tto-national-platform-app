@@ -1,0 +1,103 @@
+{
+  "schema_version": "CF02_CHILD06_CONSUMER_GATE_V1",
+  "status": "PROPOSED_NOT_APPROVED_NOT_ENABLED",
+  "source_sha": "5eb6be8edfbb61f2eca740a42c30f572b493f023",
+  "baseline_ph05_sha": "1755089071bdef9a40cd8a5a10df3b459eb17c25",
+  "owner": {
+    "source": "CHILD-06",
+    "read_model": "CF02"
+  },
+  "permitted_events": [
+    "MEMBERSHIP_APPROVED"
+  ],
+  "blocked_events_until_contract": [
+    "MEMBERSHIP_ENDED"
+  ],
+  "default_enabled": false,
+  "principal": {
+    "approved": false,
+    "type": "DEDICATED_NONINTERACTIVE_SERVICE",
+    "reject_web_app_identity": true,
+    "reject_migration_owner_runtime": true,
+    "allowed_runtime_grants": [],
+    "authorization_contract_pending": true
+  },
+  "delivery": {
+    "source": "CHILD06_COMMITTED_OUTBOX",
+    "guarantee": "AT_LEAST_ONCE",
+    "ack_after_durable_commit": true,
+    "broker_metadata_trusted": false,
+    "queue_and_lease_implementation_approved": false
+  },
+  "projection": {
+    "tenant_and_party_verified": true,
+    "source_version_monotonic": true,
+    "event_id_idempotent": true,
+    "receipt_and_audit_same_transaction": true,
+    "stale_conflict_gap": "FAIL_CLOSED",
+    "unknown_event": "QUARANTINE_NO_MUTATION"
+  },
+  "non_effects": [
+    "CF01_ROLE_ASSIGNMENT",
+    "CF01_MEMBER_GRANT",
+    "CHILD07_ACCOUNT",
+    "SHARE_OWNERSHIP_LEDGER",
+    "PAYMENTS",
+    "PUBLIC_TENANT_DIRECTORY"
+  ],
+  "test_cases": [
+    {
+      "id": "CONS-01",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "CONS-02",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "CONS-03",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "CONS-04",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "CONS-05",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "CONS-06",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "CONS-07",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "CONS-08",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "CONS-09",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "CONS-10",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "CONS-11",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "CONS-12",
+      "status": "NOT_RUN"
+    }
+  ],
+  "canonical_acceptance": {
+    "member": "NOT_RUN",
+    "share": "NOT_RUN"
+  },
+  "runtime_ready": false
+}

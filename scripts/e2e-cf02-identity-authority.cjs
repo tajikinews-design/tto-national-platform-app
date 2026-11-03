@@ -13,7 +13,7 @@ const A=randomUUID(),B=randomUUID(),PARTY=randomUUID(),PARTY2=randomUUID();
 const USER=randomUUID(),MANAGER=randomUUID(),NATIONAL=randomUUID(),REVIEWER=randomUUID(),APPROVER=randomUUID();
 const REQ=randomUUID(),DEC=randomUUID();
 const API="http://127.0.0.1:31997";
-const running=[];let checks=0;
+const running=[];let checks=0;let startedBrowser=null;
 const tokenMap=new Map();
 function ok(value,label){assert.ok(value,label);checks++;}
 async function status(response,expected,label){
@@ -156,6 +156,7 @@ async function main(){
  // Child06/07: never infer membership or share balance from successful login/Party link.
  const browserEnabled=process.env.TTO_PCS014_BROWSER==="1";
  const browser=browserEnabled?await require("/tmp/tto-pcs014-browser/node_modules/playwright").chromium.launch({headless:true}):null;
+ startedBrowser=browser;
  async function inspectOwnScreen(name, expectedMember, expectedShares) {
   if(!browser)return;
   for(const width of [390,1440]){
@@ -168,8 +169,18 @@ async function main(){
    if(expectedMember==="unavailable")await page.getByText("اطلاعات رسمی تأییدشده در دسترس نیست").first().waitFor();
    if(expectedMember==="active")await page.getByText("عضویت: فعال").waitFor();
    if(expectedShares==="unavailable")await page.getByText("اطلاعات رسمی تأییدشده در دسترس نیست").last().waitFor();
-   if(expectedShares==="37")await page.getByText("تعداد سهام ثبت‌شده: 37").waitFor();
-   if(expectedShares==="0")await page.getByText("تعداد سهام ثبت‌شده: 0").waitFor();
+   await page.getByRole("heading",{name:"سوابق نسخه‌های تأییدشده موجودی"}).waitFor();
+   if(expectedShares==="37"){
+    await page.getByText("تعداد سهام ثبت‌شده: 37").waitFor();
+    await page.getByText(/نسخه 1: 37 سهم/).waitFor();
+   }
+   if(expectedShares==="0"){
+    await page.getByText("تعداد سهام ثبت‌شده: 0").waitFor();
+    await page.getByText(/نسخه 2: 0 سهم/).waitFor();
+    await page.getByText(/نسخه 1: 37 سهم/).waitFor();
+   }
+   if(expectedShares==="unavailable")
+    assert.equal(await page.locator('section[aria-labelledby="share-snapshots-heading"] li').count(),0);
    assert.equal(await page.locator("body").evaluate(e=>e.scrollWidth>e.clientWidth+3),false,name+" horizontal scroll "+width);
    assert.equal(await page.locator("html").getAttribute("dir"),"rtl");
    assert.equal(errors.length,0,name+" JS errors "+JSON.stringify(errors));
@@ -179,11 +190,16 @@ async function main(){
  }
  const memberPath="/v1/tenants/"+A+"/me/member-record";
  const sharePath="/v1/tenants/"+A+"/me/shareholding";
+ const historyPath="/v1/tenants/"+A+"/me/shareholding-history";
  const memberBff=sh.origin+"/api/tenants/"+A+"/me/member-record";
  const shareBff=sh.origin+"/api/tenants/"+A+"/me/shareholding";
+ const historyBff=sh.origin+"/api/tenants/"+A+"/me/shareholding-history";
  const cookie={Cookie:"tto_session="+myToken};
  await status(await get(memberPath,myToken),403,"member source unapproved");
  await status(await get(sharePath,myToken),403,"share source unapproved");
+ await status(await get(historyPath,myToken),403,"history source unapproved");
+ await status(await fetch(historyBff,{headers:{Authorization:"Bearer "+myToken,"X-Tenant-Id":A}}),401,
+  "forged browser bearer cannot authorize snapshot history");
  const guest=await fetch(memberBff,{headers:{Authorization:"Bearer "+myToken,"X-Party":PARTY}});
  await status(guest,401,"forged browser bearer cannot read membership");
  const unapprovedResponse=await fetch(memberBff,{headers:cookie});
@@ -213,6 +229,7 @@ async function main(){
  await status(await get(sharePath,myToken),403,"Child07 independent approval still required");
  await db.query("UPDATE tto.source_contract_approvals SET enabled=true WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
  await status(await get(sharePath,myToken),403,"absent ledger entry must not be zero shares");
+ await status(await get(historyPath,myToken),403,"absent history cannot be empty success");
  const absentShares=await status(await fetch(shareBff,{headers:cookie,cache:"no-store"}),403,"BFF unknown holdings not zero");
  assert.deepEqual(absentShares,{available:false,code:"SOURCE_OR_PERMISSION_NOT_APPROVED"});checks++;
  await db.query("INSERT INTO tto.shareholding_source_snapshots(snapshot_id,tenant_id,shareholder_account_id,source_ref,ledger_entry_ref,ledger_version,share_quantity,ledger_as_of) VALUES($1,$2,$3,$4,$5,1,37,now())",
@@ -220,6 +237,12 @@ async function main(){
  const verifiedShare=await status(await get(sharePath,myToken),200,"approved Child07 holding read");
  assert.equal(verifiedShare.record.shareQuantity,"37");checks++;
  assert.equal(verifiedShare.record.ledgerVersion,1);checks++;
+ const firstHistory=await status(await get(historyPath,myToken),200,"first signed source snapshot history");
+ assert.deepEqual(firstHistory.record.items.map(x=>x.shareQuantity),["37"]);checks++;
+ const firstBffHistory=await status(await fetch(historyBff,{headers:cookie}),200,"BFF approved snapshot history");
+ assert.deepEqual(firstBffHistory.record.items.map(x=>x.shareQuantity),["37"]);checks++;
+ ok(/no-store/.test((await fetch(historyBff,{headers:cookie})).headers.get("cache-control")??""),
+  "history BFF cache disabled");
  const privateShare=await fetch(shareBff,{headers:cookie,cache:"no-store"});
  const privateBody=await status(privateShare,200,"BFF exact sourced holdings");
  assert.equal(privateBody.record.shareQuantity,"37");checks++;
@@ -261,6 +284,14 @@ async function main(){
  const zeroSource=await status(await get(sharePath,myToken),200,"explicit sourced zero remains zero");
  assert.equal(zeroSource.record.shareQuantity,"0");checks++;
  assert.equal(zeroSource.record.ledgerVersion,2);checks++;
+ const secondHistory=await status(await get(historyPath,myToken),200,"signed 0 before 37 history");
+ assert.deepEqual(secondHistory.record.items.map(x=>[x.ledgerVersion,x.shareQuantity]),[[2,"0"],[1,"37"]]);checks++;
+ const bffHistory2=await status(await fetch(historyBff,{headers:cookie}),200,"BFF 2-version history");
+ assert.deepEqual(bffHistory2.record.items.map(x=>x.shareQuantity),["0","37"]);checks++;
+ await status(await get("/v1/tenants/"+B+"/me/shareholding-history",myToken),403,
+   "cross cooperative source history denied");
+ await status(await fetch(sh.origin+"/api/tenants/"+B+"/me/shareholding-history",{headers:cookie}),403,
+   "cross cooperative history BFF denied");
  await inspectOwnScreen("EXPLICIT_ZERO","active","0");
  await status(await get("/v1/tenants/"+B+"/me/member-record",myToken),403,"cross cooperative member read denied");
  await status(await get("/v1/tenants/"+B+"/me/shareholding",myToken),403,"cross cooperative holdings read denied");
@@ -337,19 +368,436 @@ async function main(){
 
  await db.query("UPDATE tto.source_contract_approvals SET enabled=false WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
  await status(await get(sharePath,myToken),403,"source revocation hides shares immediately");
+ await status(await get(historyPath,myToken),403,"source revocation hides snapshot history immediately");
+ await status(await fetch(historyBff,{headers:cookie}),403,"BFF revocation hides snapshot history");
  await status(await get(memberPath,myToken),200,"independent member source unaffected");
  await db.query("UPDATE tto.source_contract_approvals SET enabled=true WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
  await db.query("UPDATE tto.source_contract_approvals SET approved_at=now()-interval '3 hours',valid_until=now()-interval '1 hour' WHERE tenant_id=$1 AND domain='CHILD07_HOLDINGS'",[A]);
  await status(await get(sharePath,myToken),403,"expired holdings source approval blocked");
+ await status(await get(historyPath,myToken),403,"expired approval blocks history");
  await db.query("UPDATE tto.source_contract_approvals SET enabled=false WHERE tenant_id=$1 AND domain='CHILD06_MEMBERSHIP'",[A]);
  await status(await get(memberPath,myToken),403,"membership source revocation immediate");
  await status(await get(sharePath,myToken),403,"holdings depend on active Child06 source");
+ await status(await get(historyPath,myToken),403,"history depends on active Child06 source");
 
+
+ // Child06 first practical slice: only PENDING -> reviewed; no activation of relationship or shares.
+ const PENDING_PARTY=randomUUID(),CANDIDATE_REJECT=randomUUID();
+ for(const party of [PENDING_PARTY,CANDIDATE_REJECT]){
+  await db.query("INSERT INTO tto.parties(party_id,party_kind,display_label) VALUES($1,'PERSON','Synthetic applicant only')",[party]);
+  await db.query("INSERT INTO tto.user_party_links(user_id,party_id,verified_at) VALUES($1,$2,now())",[USER,party]);
+  await db.query("INSERT INTO tto.identity_link_cases(case_id,tenant_id,user_id,party_id,request_evidence_id,requested_by,status,decided_at,decided_by,decision_evidence_id,version) VALUES($1,$2,$3,$4,$5,$3,'APPROVED',now(),$6,$7,2)",
+  [randomUUID(),A,USER,party,REQ,REVIEWER,DEC]);
+ }
+ const membershipPath="/v1/tenants/"+A+"/membership-applications",memberManager=tokenMap.get(MANAGER);
+ const ownBff=sh.origin+"/api/tenants/"+A+"/me/membership-applications";
+ const manageBff=cm.origin+"/api/tenants/"+A+"/membership-applications";
+ const ownerCookie={Cookie:"tto_session="+myToken,Origin:sh.origin,"Content-Type":"application/json"};
+ const managerCookie={Cookie:"tto_session="+memberManager,Origin:cm.origin,"Content-Type":"application/json"};
+ await status(await post(membershipPath,myToken,{partyId:PARTY,evidenceId:REQ}),403,
+  "already active membership relation may not be re-applied");
+ await status(await post(membershipPath,myToken,{partyId:PENDING_PARTY,evidenceId:randomUUID()}),403,
+  "unpublished source evidence cannot submit membership");
+ await status(await post("/v1/tenants/"+B+"/membership-applications",myToken,
+  {partyId:PENDING_PARTY,evidenceId:REQ}),403,"cross-tenant membership request denied");
+ await status(await fetch(ownBff,{method:"POST",headers:{Origin:sh.origin,"Content-Type":"application/json",Authorization:"Bearer "+myToken},
+  body:JSON.stringify({partyId:PENDING_PARTY,evidenceId:REQ})}),401,"browser bearer forgery denied");
+ await status(await fetch(ownBff,{method:"POST",headers:{...ownerCookie,Origin:"https://invalid.example"},
+  body:JSON.stringify({partyId:PENDING_PARTY,evidenceId:REQ})}),403,"member CSRF denied");
+ const attempted=await fetch(ownBff,{method:"POST",headers:ownerCookie,
+  body:JSON.stringify({partyId:PENDING_PARTY,evidenceId:REQ})});
+ if(attempted.status!==201)console.error("TTO_CHILD06_DENIAL_DIAG",attempted.status,await attempted.clone().text());
+ const submitted=await status(attempted,201,"submitted member workflow through shareholder BFF");
+ ok(submitted.status==="PENDING"&&submitted.version===1,"new versioned application pending");
+ const applicationPath=membershipPath+"/"+submitted.applicationId;
+ const ownApplicationBff=ownBff+"/"+submitted.applicationId;
+ await status(await post(membershipPath,myToken,{partyId:PENDING_PARTY,evidenceId:REQ}),403,
+  "duplicate pending membership denied");
+ const ownPending=await status(await fetch(ownApplicationBff,{headers:ownerCookie}),200,
+  "applicant sees own application status");
+ ok(ownPending.record.status==="PENDING"&&ownPending.record.version===1,"own pending status version");
+ await status(await get("/v1/tenants/"+A+"/me/membership-applications/"+submitted.applicationId,memberManager),403,
+  "manager cannot use applicant owner-only query");
+ await status(await post(applicationPath+"/decision",myToken,
+  {approve:true,expectedVersion:1,decisionEvidenceId:DEC}),403,"self decision forbidden");
+ await db.query("UPDATE tto.role_assignments SET revoked_at=NULL WHERE user_id=$1 AND tenant_id=$2 AND role_code='COOPERATIVE_MANAGER'",[MANAGER,A]);
+ await status(await get(membershipPath+"/pending",memberManager),403,"role alone never authorizes manager review");
+ await db.query("INSERT INTO tto.membership_review_authorizations(tenant_id,reviewer_id,approved_by,evidence_id,valid_until) VALUES($1,$2,$3,$4,now()+interval '1 hour')",[A,MANAGER,APPROVER,DEC]);
+ await db.query("INSERT INTO tto.membership_review_rule_gates(tenant_id,rule_snapshot_ref,evidence_id,approved_by,valid_until,enabled) VALUES($1,$2,$3,$4,now()+interval '1 hour',false)",[A,randomUUID(),DEC,APPROVER]);
+ await status(await get(membershipPath+"/pending",memberManager),403,"disabled rule gate keeps manager out");
+ await db.query("UPDATE tto.membership_review_rule_gates SET enabled=true WHERE tenant_id=$1",[A]);
+ const pending=await status(await fetch(manageBff+"/pending",{headers:managerCookie}),200,"manager BFF review tray");
+ ok(pending.items.some(x=>x.applicationId===submitted.applicationId),"manager sees one pending case");
+ await status(await post(applicationPath+"/decision",memberManager,
+  {approve:true,expectedVersion:2,decisionEvidenceId:DEC}),409,"stale version fails closed");
+ await status(await post(applicationPath+"/decision",memberManager,
+  {approve:true,expectedVersion:1,decisionEvidenceId:REQ}),403,"same applicant evidence fails SoD");
+ await status(await fetch(manageBff+"/"+submitted.applicationId+"/decision",{method:"POST",
+  headers:{...managerCookie,Origin:"https://invalid.example"},body:JSON.stringify({approve:true,expectedVersion:1,decisionEvidenceId:DEC})}),403,"manager review CSRF denied");
+ const accepted=await status(await fetch(manageBff+"/"+submitted.applicationId+"/decision",{
+  method:"POST",headers:managerCookie,body:JSON.stringify({approve:true,expectedVersion:1,decisionEvidenceId:DEC})}),201,
+  "manager BFF records source-evidenced decision");
+ assert.deepEqual(accepted,{recorded:true,status:"APPROVED",alreadyApplied:false});checks++;
+ const repeat=await status(await post(applicationPath+"/decision",memberManager,
+  {approve:true,expectedVersion:1,decisionEvidenceId:DEC}),201,"same decision retry idempotent");
+ assert.deepEqual(repeat,{recorded:true,status:"APPROVED",alreadyApplied:true});checks++;
+ await status(await post(applicationPath+"/decision",memberManager,
+  {approve:false,expectedVersion:1,decisionEvidenceId:DEC}),409,"conflicting decision blocked");
+ const finalRecord=await status(await fetch(ownApplicationBff,{headers:ownerCookie}),200,"applicant sees reviewed version");
+ ok(finalRecord.record.version===2&&finalRecord.record.status==="APPROVED","applicant sees reviewed decision");
+ const events=await db.query("SELECT count(*)::int AS n FROM tto.membership_application_outbox WHERE application_id=$1",[submitted.applicationId]);
+ ok(events.rows[0].n===2,"one submitted and one reviewed transactional outbox row");
+ const notActivated=await db.query("SELECT (SELECT count(*)::int FROM tto.relationship_projections WHERE tenant_id=$1 AND party_id=$2) AS relations,(SELECT count(*)::int FROM tto.shareholder_source_accounts WHERE tenant_id=$1 AND party_id=$2) AS accounts",[A,PENDING_PARTY]);
+ ok(notActivated.rows[0].relations===0&&notActivated.rows[0].accounts===0,
+  "decision never creates relationship/Party role/ownership account");
+ const second=await status(await post(membershipPath,myToken,{partyId:CANDIDATE_REJECT,evidenceId:REQ}),201,"second candidate pending");
+ const rejected=await status(await post(membershipPath+"/"+second.applicationId+"/decision",memberManager,
+  {approve:false,expectedVersion:1,decisionEvidenceId:DEC}),201,"member review rejection");
+ ok(rejected.status==="REJECTED"&&!rejected.alreadyApplied,"reject branch is terminal");
+
+ // Child06 independent ActivateRelationship command. The prior APPROVED decision
+ // must NOT have materialized a relationship; only the third-party activation may.
+ const activationPath=membershipPath+"/"+submitted.applicationId+"/activate";
+ const activationBff=manageBff+"/"+submitted.applicationId+"/activate";
+ const activationEvidence=randomUUID();
+ await db.query("INSERT INTO tto.evidence_references(evidence_id,tenant_id,document_id,source_entity_type,source_entity_id) SELECT $1,tenant_id,document_id,'CI_CHILD06_ACTIVATION',$3 FROM tto.evidence_references WHERE evidence_id=$2",
+  [activationEvidence,DEC,randomUUID()]);
+ const activatedBefore=await db.query("SELECT count(*)::int AS n FROM tto.cooperative_relationships WHERE tenant_id=$1 AND party_id=$2",[A,PENDING_PARTY]);
+ ok(activatedBefore.rows[0].n===0,"reviewed application must not activate relationship");
+ await status(await post(activationPath,myToken,{activationEvidenceId:activationEvidence,expectedVersion:2}),
+  403,"applicant cannot activate relationship");
+ await status(await post(activationPath,memberManager,{activationEvidenceId:activationEvidence,expectedVersion:2}),
+  403,"decision reviewer must not activate own decision");
+ await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'COOPERATIVE_MANAGER')",
+  [randomUUID(),REVIEWER,A]);
+ const activatorToken=tokenMap.get(REVIEWER);
+ const activatorCookie={Cookie:"tto_session="+activatorToken,Origin:cm.origin,"Content-Type":"application/json"};
+ await status(await post(activationPath,activatorToken,{activationEvidenceId:activationEvidence,expectedVersion:2}),
+  403,"manager role alone lacks activation authority");
+ await db.query("INSERT INTO tto.membership_activation_authorizations(tenant_id,activator_id,approved_by,evidence_id,valid_until) VALUES($1,$2,$3,$4,now()+interval '1 hour')",
+  [A,REVIEWER,APPROVER,DEC]);
+ await db.query("INSERT INTO tto.membership_activation_rule_gates(tenant_id,rule_snapshot_ref,evidence_id,approved_by,valid_until,enabled) VALUES($1,$2,$3,$4,now()+interval '1 hour',false)",
+  [A,randomUUID(),DEC,APPROVER]);
+ await status(await post(activationPath,activatorToken,{activationEvidenceId:activationEvidence,expectedVersion:2}),
+  403,"separately authorized activator still requires active rule snapshot gate");
+ await db.query("UPDATE tto.membership_activation_rule_gates SET enabled=true WHERE tenant_id=$1",[A]);
+ await status(await post(activationPath,activatorToken,{activationEvidenceId:DEC,expectedVersion:2}),
+  403,"activation must not reuse approval-decision evidence");
+ await status(await post(activationPath,activatorToken,{activationEvidenceId:activationEvidence,expectedVersion:1}),
+  409,"activation rejects stale version");
+ await status(await post("/v1/tenants/"+B+"/membership-applications/"+submitted.applicationId+"/activate",
+  activatorToken,{activationEvidenceId:activationEvidence,expectedVersion:2}),
+  403,"activation strictly tenant-bound");
+ await status(await fetch(activationBff,{method:"POST",headers:{
+  Authorization:"Bearer "+activatorToken,Origin:cm.origin,"Content-Type":"application/json"},
+  body:JSON.stringify({activationEvidenceId:activationEvidence,expectedVersion:2})}),401,
+  "forged browser bearer cannot activate relationship");
+ await status(await fetch(activationBff,{method:"POST",
+  headers:{...activatorCookie,Origin:"https://evil.example"},
+  body:JSON.stringify({activationEvidenceId:activationEvidence,expectedVersion:2})}),403,
+  "activation BFF must enforce CSRF protection");
+ const activation=await status(await fetch(activationBff,{method:"POST",headers:activatorCookie,
+  body:JSON.stringify({activationEvidenceId:activationEvidence,expectedVersion:2})}),201,
+  "third-party actor activates only the approved Child06 relationship");
+ assert.deepEqual(activation,{recorded:true,status:"ACTIVATED",alreadyActivated:false});checks++;
+ const activationReplay=await status(await post(activationPath,activatorToken,
+  {activationEvidenceId:activationEvidence,expectedVersion:2}),201,
+  "identical activation is idempotent");
+ assert.deepEqual(activationReplay,{recorded:true,status:"ACTIVATED",alreadyActivated:true});checks++;
+ const storedRelationship=await db.query("SELECT relationship_status,source_version,activated_by FROM tto.cooperative_relationships WHERE tenant_id=$1 AND party_id=$2",
+  [A,PENDING_PARTY]);
+ ok(storedRelationship.rowCount===1&&storedRelationship.rows[0].relationship_status==="ACTIVE"&&
+  Number(storedRelationship.rows[0].source_version)===1&&storedRelationship.rows[0].activated_by===REVIEWER,
+  "Child06 source-owned relationship committed at monotonic v1");
+ const sourceEvents=await db.query("SELECT count(*)::int AS n FROM tto.cooperative_relationship_outbox WHERE tenant_id=$1 AND party_id=$2 AND event_name='MEMBERSHIP_APPROVED'",
+  [A,PENDING_PARTY]);
+ ok(sourceEvents.rows[0].n===1,"activation replays do not duplicate monotonic outbox event");
+ const projected=await db.query("SELECT count(*)::int AS n FROM tto.relationship_projections WHERE tenant_id=$1 AND party_id=$2",[A,PENDING_PARTY]);
+ ok(projected.rows[0].n===0,"CF02 projection not rewritten without separate projector");
+ const noAccount=await db.query("SELECT count(*)::int AS n FROM tto.shareholder_source_accounts WHERE tenant_id=$1 AND party_id=$2",[A,PENDING_PARTY]);
+ ok(noAccount.rows[0].n===0,"activation never manufactures shareholder account or shares");
+ const ownRelation=await status(await get("/v1/tenants/"+A+"/me/membership-applications/"+submitted.applicationId+"/relationship",myToken),
+  200,"member applicant can read own activated source-relationship reference");
+ ok(ownRelation.record.status==="ACTIVE"&&Number(ownRelation.record.sourceVersion)===1,
+  "private relationship status is source-versioned");
+ await status(await get("/v1/tenants/"+A+"/me/membership-applications/"+submitted.applicationId+"/relationship",memberManager),
+  403,"reviewer cannot inspect another applicant's relationship");
+ await db.query("UPDATE tto.membership_activation_rule_gates SET enabled=false WHERE tenant_id=$1",[A]);
+ await status(await post(activationPath,activatorToken,
+  {activationEvidenceId:activationEvidence,expectedVersion:2}),403,
+  "revoked activation rule blocks replay despite past success");
+
+ // Issue #154 CF02 projector. NO tto_app EXECUTE / event publisher in this slice.
+ const projectorPrivilege=await db.query("SELECT has_function_privilege('tto_app','tto.cf02_project_child06_relationship_event(uuid,uuid)','EXECUTE') AS has_execute");
+ ok(projectorPrivilege.rows[0].has_execute===false,
+  "app runtime has NO direct projector execute permission");
+ const evForProjection=await db.query("SELECT event_id FROM tto.cooperative_relationship_outbox WHERE tenant_id=$1 AND party_id=$2 AND event_name='MEMBERSHIP_APPROVED'",
+  [A,PENDING_PARTY]);
+ ok(evForProjection.rowCount===1,"one immutable source event available for CF02");
+ const projectionEventId=evForProjection.rows[0].event_id;
+ async function projectAs(projector,tenant,eventId){
+  await db.query("BEGIN");
+  try{
+   await db.query("SELECT set_config('tto.actor_id',$1,true)",[projector]);
+   await db.query("SELECT set_config('tto.tenant_id',$1,true)",[tenant]);
+   const out=await db.query("SELECT tto.cf02_project_child06_relationship_event($1,$2) AS result",
+    [tenant,eventId]);
+   await db.query("COMMIT");return out.rows[0].result;
+  }catch(e){await db.query("ROLLBACK");throw e;}
+ }
+ const beforeProjection=await db.query("SELECT count(*)::int AS n FROM tto.relationship_projections WHERE tenant_id=$1 AND party_id=$2",[A,PENDING_PARTY]);
+ ok(beforeProjection.rows[0].n===0,"Child06 event does not auto-project into CF02");
+ ok(await projectAs(USER,A,projectionEventId)==="DENIED","ordinary applicant cannot run projector");
+ await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'DOCUMENT_REVIEWER')",
+  [randomUUID(),NATIONAL,A]);
+ ok(await projectAs(NATIONAL,A,projectionEventId)==="DENIED","projector role alone never suffices");
+ await db.query("INSERT INTO tto.cf02_relationship_projection_authorizations(tenant_id,projector_id,approved_by,approval_evidence_id,valid_until) VALUES($1,$2,$3,$4,now()+interval '1 hour')",
+  [A,NATIONAL,APPROVER,DEC]);
+ await db.query("INSERT INTO tto.cf02_relationship_projection_rule_gates(tenant_id,rule_snapshot_ref,evidence_id,approved_by,valid_until,enabled) VALUES($1,$2,$3,$4,now()+interval '1 hour',false)",
+  [A,randomUUID(),DEC,APPROVER]);
+ ok(await projectAs(NATIONAL,A,projectionEventId)==="DENIED","disabled rule blocks projected membership");
+ await db.query("UPDATE tto.cf02_relationship_projection_rule_gates SET enabled=true WHERE tenant_id=$1",[A]);
+ ok(await projectAs(NATIONAL,B,projectionEventId)==="DENIED","cross-tenant projector fails closed");
+ ok(await projectAs(NATIONAL,A,randomUUID())==="UNKNOWN_SOURCE_EVENT","unrecognized event never creates a projection");
+ await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'DOCUMENT_REVIEWER')",
+  [randomUUID(),REVIEWER,A]);
+ await db.query("INSERT INTO tto.cf02_relationship_projection_authorizations(tenant_id,projector_id,approved_by,approval_evidence_id,valid_until) VALUES($1,$2,$3,$4,now()+interval '1 hour')",
+  [A,REVIEWER,APPROVER,DEC]);
+ ok(await projectAs(REVIEWER,A,projectionEventId)==="SOURCE_RELATIONSHIP_INVALID",
+  "original membership activator cannot independently project own event");
+ ok(await projectAs(NATIONAL,A,projectionEventId)==="PROJECTED",
+  "independent evidence-gated CF02 projector materializes source-versioned reference");
+ // Issue #154: PostgreSQL-backed adapter integration on the existing isolated fixture.
+ // This validates durable replay receipt; no actual broker or operational service principal.
+ const {consumeOne:consumeCf02Event}=require("../services/workers/src/cf02-child06-consumer.cjs");
+ const adapterSource=(await db.query("SELECT event_id,tenant_id,party_id,relationship_id,source_version,event_name FROM tto.cooperative_relationship_outbox WHERE event_id=$1",[projectionEventId])).rows[0];
+ adapterSource.source_version=Number(adapterSource.source_version);
+ let ackCount=0;
+ const adapterPorts={
+  readSource:async(id,tenant)=>{const q=await db.query("SELECT event_id,tenant_id,party_id,relationship_id,source_version,event_name FROM tto.cooperative_relationship_outbox WHERE event_id=$1 AND tenant_id=$2",[id,tenant]);return q.rowCount?{...q.rows[0],source_version:Number(q.rows[0].source_version)}:null;},
+  project:async(tenant,id)=>projectAs(NATIONAL,tenant,id),
+  ack:async()=>{ackCount++;},
+  quarantine:async()=>{throw Error("UNEXPECTED_QUARANTINE");},
+  retry:async()=>{throw Error("UNEXPECTED_RETRY");}
+ };
+ // Restricted NOLOGIN database principal in disposable PG17; no real credentials issued.
+ const roleInfo=await db.query("SELECT rolcanlogin,rolsuper,rolbypassrls FROM pg_roles WHERE rolname='tto_cf02_consumer'");
+ ok(roleInfo.rowCount===1&&!roleInfo.rows[0].rolcanlogin&&!roleInfo.rows[0].rolsuper&&!roleInfo.rows[0].rolbypassrls,
+   "restricted independent executor cannot login, superuser or bypass RLS");
+ const runtimeRole=await db.query("SELECT has_function_privilege('tto_cf02_consumer','tto.cf02_consumer_durable_ack(uuid,uuid)','EXECUTE') AS role_grant, has_function_privilege('tto_app','tto.cf02_consumer_durable_ack(uuid,uuid)','EXECUTE') AS app_grant");
+ ok(runtimeRole.rows[0].role_grant===false&&runtimeRole.rows[0].app_grant===false,
+   "both web and service roles are denied direct ACK; fenced completion required");
+ adapterPorts.ack=async(id,tenant)=>{
+  await serviceDb.query("BEGIN");
+  try{
+   await serviceDb.query("SET LOCAL ROLE tto_cf02_consumer");
+   await serviceDb.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+   await serviceDb.query("SELECT set_config('tto.tenant_id',$1,true)",[tenant]);
+   const out=await serviceDb.query("SELECT tto.cf02_consumer_complete($1,$2,$3) AS result",[tenant,id,claimedToken]);
+   if(out.rows[0].result!=="ACKED")throw Error("DURABLE_ACK_REJECTED");
+   await serviceDb.query("COMMIT");ackCount++;
+  }catch(e){await serviceDb.query("ROLLBACK");throw e}
+ };
+ // Disposable independent login: session_user is authenticated by PostgreSQL,
+ // not synthesized with SET ROLE or copied from an HTTP user session.
+ await db.query("CREATE ROLE tto_cf02_ci_login LOGIN PASSWORD 'ci-throwaway-only-no-production'");
+ await db.query("GRANT tto_cf02_consumer TO tto_cf02_ci_login");
+ const serviceDb=new Client({connectionString:"postgresql://tto_cf02_ci_login:ci-throwaway-only-no-production@127.0.0.1:5432/tto"});
+ await serviceDb.connect();
+ const verifiedLogin=await serviceDb.query("SELECT session_user AS login,pg_has_role(session_user,'tto_cf02_consumer','MEMBER') AS is_member");
+ ok(verifiedLogin.rows[0].login==="tto_cf02_ci_login"&&verifiedLogin.rows[0].is_member,
+  "PG17 independent login authenticates as service role, not migration or web principal");
+ // A valid database login without separately approved actor binding cannot project.
+ await serviceDb.query("BEGIN");
+ try {
+  await serviceDb.query("SET LOCAL ROLE tto_cf02_consumer");
+  await serviceDb.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+  await serviceDb.query("SELECT set_config('tto.tenant_id',$1,true)",[A]);
+  const denied=await serviceDb.query("SELECT tto.cf02_consumer_project($1,$2) AS result",[A,projectionEventId]);
+  ok(denied.rows[0].result==="DENIED","login membership alone cannot spoof approved projector identity");
+  const invisible=await serviceDb.query("SELECT * FROM tto.cf02_consumer_source($1,$2)",[A,projectionEventId]);
+  ok(invisible.rowCount===0,"unbound independent session cannot read Child06 source");
+  await serviceDb.query("COMMIT");
+ }catch(err){await serviceDb.query("ROLLBACK");throw err}
+ await db.query("INSERT INTO tto.cf02_consumer_login_bindings(login_name,tenant_id,actor_id,approved_by,evidence_id,valid_until) VALUES('tto_cf02_ci_login',$1,$2,$3,$4,now()+interval '1 hour')",[A,NATIONAL,APPROVER,DEC]);
+ // Prove the service (not the fixture admin) can independently re-read and
+ // project the same committed event using only restricted SQL function grants.
+ adapterPorts.readSource=async(id,tenant)=>{
+  await serviceDb.query("BEGIN");
+  try{
+   await serviceDb.query("SET LOCAL ROLE tto_cf02_consumer");
+   await serviceDb.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+   await serviceDb.query("SELECT set_config('tto.tenant_id',$1,true)",[tenant]);
+   const q=await serviceDb.query("SELECT * FROM tto.cf02_consumer_source($1,$2)",[tenant,id]);
+   await serviceDb.query("COMMIT");
+   return q.rowCount?{...q.rows[0],source_version:Number(q.rows[0].source_version)}:null;
+  }catch(e){await serviceDb.query("ROLLBACK");throw e}
+ };
+ adapterPorts.project=async(tenant,id)=>{
+  await serviceDb.query("BEGIN");
+  try{
+   await serviceDb.query("SET LOCAL ROLE tto_cf02_consumer");
+   await serviceDb.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+   await serviceDb.query("SELECT set_config('tto.tenant_id',$1,true)",[tenant]);
+   const q=await serviceDb.query("SELECT tto.cf02_consumer_project($1,$2) AS result",[tenant,id]);
+   await serviceDb.query("COMMIT");return q.rows[0].result;
+  }catch(e){await serviceDb.query("ROLLBACK");throw e}
+ };
+ // Durable delivery: source event is claimed with a fenced token, then completed.
+ await serviceDb.query("BEGIN");
+ let claimedToken;
+ try {
+  await serviceDb.query("SET LOCAL ROLE tto_cf02_consumer");
+  await serviceDb.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+  await serviceDb.query("SELECT set_config('tto.tenant_id',$1,true)",[A]);
+  const leased=await serviceDb.query("SELECT * FROM tto.cf02_consumer_claim($1,$2)",[A,30]);
+  ok(leased.rowCount===1&&leased.rows[0].event_id===projectionEventId,"PG17 dedicated consumer leased existing unacked event");
+  claimedToken=leased.rows[0].claim_token;
+  const duplicate=await serviceDb.query("SELECT * FROM tto.cf02_consumer_claim($1,$2)",[A,30]);
+  ok(duplicate.rowCount===0,"PG17 source claim is not concurrently duplicated");
+  const stale=await serviceDb.query("SELECT tto.cf02_consumer_complete($1,$2,$3) AS result",[A,projectionEventId,randomUUID()]);
+  ok(stale.rows[0].result==="STALE_CLAIM","incorrect lease token cannot complete delivery");
+  // Simulate a worker crashing without ACK after a committed claim.
+  await serviceDb.query("COMMIT");
+ } catch(err){await serviceDb.query("ROLLBACK");throw err}
+ await db.query("UPDATE tto.cf02_child06_delivery_leases SET claimed_until=clock_timestamp()-interval '1 second',available_at=clock_timestamp()-interval '1 second' WHERE source_event_id=$1",[projectionEventId]);
+ await serviceDb.query("BEGIN");
+ try {
+  await serviceDb.query("SET LOCAL ROLE tto_cf02_consumer");
+  await serviceDb.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+  await serviceDb.query("SELECT set_config('tto.tenant_id',$1,true)",[A]);
+  const reclaimed=await serviceDb.query("SELECT * FROM tto.cf02_consumer_claim($1,$2)",[A,30]);
+  ok(reclaimed.rowCount===1&&reclaimed.rows[0].event_id===projectionEventId&&reclaimed.rows[0].claim_token!==claimedToken,
+    "expired durable PG17 lease recovers a claimed event with a new fencing token");
+  const oldAttempt=await serviceDb.query("SELECT tto.cf02_consumer_complete($1,$2,$3) AS result",[A,projectionEventId,claimedToken]);
+  ok(oldAttempt.rows[0].result==="STALE_CLAIM","recovered event cannot be completed using the old lease token");
+  const completed=await serviceDb.query("SELECT tto.cf02_consumer_complete($1,$2,$3) AS result",[A,projectionEventId,reclaimed.rows[0].claim_token]);
+  ok(completed.rows[0].result==="ACKED","recovered delivery completes only once with valid claim");
+  await serviceDb.query("COMMIT");
+ }catch(err){await serviceDb.query("ROLLBACK");throw err}
+ const adapterReplay=await consumeCf02Event(adapterSource,{enabled:true,authorized:true,ports:adapterPorts});
+ ok(adapterReplay.status==="ACKED_REPLAY"&&ackCount===1,
+  "real PG17 CF02 outbox adapter replay acks committed immutable receipt only");
+ const adapterNoAccess=await consumeCf02Event(adapterSource,{enabled:true,authorized:false,ports:adapterPorts});
+ ok(adapterNoAccess.status==="DISABLED"&&ackCount===1,
+  "disabled consumer authority never acknowledges or projects");
+ // Multi-connection PG17 contention and crash-before-ack simulation, disposable only.
+ const contenders=await Promise.all(Array.from({length:3},async()=>{
+  const client=new Client({connectionString:url});await client.connect();
+  try{
+   await client.query("BEGIN");
+   await client.query("SELECT set_config('tto.actor_id',$1,true)",[NATIONAL]);
+   await client.query("SELECT set_config('tto.tenant_id',$1,true)",[A]);
+   const result=await client.query("SELECT tto.cf02_project_child06_relationship_event($1,$2) AS result",[A,projectionEventId]);
+   await client.query("COMMIT");
+   return result.rows[0].result;
+  }catch(err){await client.query("ROLLBACK");throw err}
+  finally{await client.end()}
+ }));
+ ok(contenders.every(v=>v==="ALREADY_PROJECTED"),
+  "three independent PG17 connections safely replay same immutable receipt");
+ const receiptAfterContention=await db.query("SELECT count(*)::int AS n FROM tto.cf02_relationship_projection_receipts WHERE source_event_id=$1",[projectionEventId]);
+ ok(receiptAfterContention.rows[0].n===1,"PG17 concurrent replay keeps exactly one immutable receipt");
+ const noAckPorts={...adapterPorts,ack:async()=>{throw Error("SIMULATED_ACK_LOSS")}};
+ await assert.rejects(()=>consumeCf02Event(adapterSource,{enabled:true,authorized:true,ports:noAckPorts}),/SIMULATED_ACK_LOSS/);
+ const recovered=await consumeCf02Event(adapterSource,{enabled:true,authorized:true,ports:adapterPorts});
+ ok(recovered.status==="ACKED_REPLAY"&&ackCount===2,
+  "simulated lost ack redelivery safely reuses the durable PG17 receipt");
+
+
+ const revoked=await db.query("UPDATE tto.cf02_consumer_login_bindings SET revoked_at=now() WHERE login_name='tto_cf02_ci_login' AND tenant_id=$1",[A]);
+ ok(revoked.rowCount===1,"independent actor binding can be revoked");
+ const afterRevoked=await adapterPorts.project(A,projectionEventId);
+ ok(afterRevoked==="DENIED","revoked independent identity fails closed on PG17 projector");
+ const {consumeOnce}=require("../services/workers/src/cf02-child06-pg-ports.cjs");
+ const disabledRuntime=await consumeOnce({enable:false});
+ ok(disabledRuntime.status==="DISABLED","production consumer is disabled by default");
+ await serviceDb.end();
+ const projectedOnce=await db.query("SELECT membership_status,source_event_id,source_version FROM tto.relationship_projections WHERE tenant_id=$1 AND party_id=$2",
+  [A,PENDING_PARTY]);
+ ok(projectedOnce.rowCount===1&&projectedOnce.rows[0].membership_status==="ACTIVE"&&
+   projectedOnce.rows[0].source_event_id===projectionEventId&&Number(projectedOnce.rows[0].source_version)===1,
+   "CF02 holds only verified Child06 event reference and exact version");
+ ok(await projectAs(NATIONAL,A,projectionEventId)==="ALREADY_PROJECTED",
+  "duplicate projection idempotent under exact source event");
+ const receipts=await db.query("SELECT count(*)::int AS n FROM tto.cf02_relationship_projection_receipts WHERE source_event_id=$1",
+   [projectionEventId]);
+ ok(receipts.rows[0].n===1,"replay did not duplicate immutable CF02 projection receipt");
+ const memberNoSource=await db.query("SELECT count(*)::int AS n FROM tto.member_source_snapshots WHERE tenant_id=$1 AND party_id=$2",
+   [A,PENDING_PARTY]);
+ ok(memberNoSource.rows[0].n===0,"projection does not fabricate official member source snapshot");
+ const memberNoRole=await db.query("SELECT count(*)::int AS n FROM tto.role_assignments WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER' AND revoked_at IS NULL",
+  [USER,A]);
+ ok(memberNoRole.rows[0].n===1,"projection did not add a second MEMBER-role assignment");
+ const projectedNoShares=await db.query("SELECT count(*)::int AS n FROM tto.shareholder_source_accounts WHERE tenant_id=$1 AND party_id=$2",
+  [A,PENDING_PARTY]);
+ ok(projectedNoShares.rows[0].n===0,"projection cannot create shareholder accounts or holdings");
+ await db.query("UPDATE tto.cf02_relationship_projection_rule_gates SET enabled=false WHERE tenant_id=$1",[A]);
+ ok(await projectAs(NATIONAL,A,projectionEventId)==="DENIED","revoked projector rule immediately fails closed");
+
+
+
+ // Optional ACTUAL Chromium browser smoke of the two existing portal forms.
+ // These are synthetic records, with no operation against real member/ledger sources.
+ if(browser){
+  const formParty=randomUUID();
+  await db.query("INSERT INTO tto.parties(party_id,party_kind,display_label) VALUES($1,'PERSON','CI form-only applicant')",[formParty]);
+  await db.query("INSERT INTO tto.user_party_links(user_id,party_id,verified_at) VALUES($1,$2,now())",[USER,formParty]);
+  await db.query("INSERT INTO tto.identity_link_cases(case_id,tenant_id,user_id,party_id,request_evidence_id,requested_by,status,decided_at,decided_by,decision_evidence_id,version) VALUES($1,$2,$3,$4,$5,$3,'APPROVED',now(),$6,$7,2)",[randomUUID(),A,USER,formParty,REQ,REVIEWER,DEC]);
+  for(const width of [390,1440]){
+   const userCtx=await browser.newContext({viewport:{width,height:900},locale:"fa-IR",serviceWorkers:"block"});
+   await userCtx.addCookies([{name:"tto_session",value:myToken,url:sh.origin,httpOnly:true,sameSite:"Lax"}]);
+   const userPage=await userCtx.newPage();const errors=[];
+   userPage.on("pageerror",e=>errors.push(e.message));
+   await userPage.goto(sh.origin+"/tenants/"+A+"/membership-application",{waitUntil:"domcontentloaded",timeout:20000});
+   await userPage.getByRole("heading",{name:"درخواست عضویت در تعاونی"}).waitFor();
+   if(width===390){
+    await userPage.getByLabel("شناسه مرجع هویت تأییدشده (Party)").fill(formParty);
+    await userPage.getByLabel("شناسه سند و شاهد معتبر").fill(REQ);
+    await userPage.getByRole("button",{name:"ثبت درخواست برای بررسی"}).click();
+    await userPage.getByText("درخواست ثبت شد؛ در صف بررسی مدیر تعاونی است. هنوز هیچ عضویت یا سهمی فعال نشده است.").waitFor();
+    await userPage.getByRole("heading",{name:"پیگیری درخواست"}).waitFor();
+   }
+   const managerCtx=await browser.newContext({viewport:{width,height:900},locale:"fa-IR",serviceWorkers:"block"});
+   await managerCtx.addCookies([{name:"tto_session",value:memberManager,url:cm.origin,httpOnly:true,sameSite:"Lax"}]);
+   const managerPage=await managerCtx.newPage();
+   managerPage.on("pageerror",e=>errors.push(e.message));
+   await managerPage.goto(cm.origin+"/tenants/"+A+"/membership-applications",{waitUntil:"domcontentloaded",timeout:20000});
+   await managerPage.getByRole("heading",{name:"بررسی درخواست‌های عضویت"}).waitFor();
+   if(width===390){
+    const item=managerPage.locator("li").filter({hasText:formParty});
+    await item.waitFor();
+    await item.getByLabel("شناسه سند مستقل تصمیم مدیر").fill(DEC);
+    managerPage.once("dialog",dialog=>void dialog.accept());
+    await item.getByRole("button",{name:"تأیید درخواست"}).click();
+    await managerPage.getByText("درخواست مجازِ در انتظار بررسی وجود ندارد.").waitFor();
+    const review=await db.query("SELECT status,version,application_id FROM tto.membership_applications WHERE tenant_id=$1 AND party_id=$2",[A,formParty]);
+    ok(review.rowCount===1&&review.rows[0].status==="APPROVED"&&Number(review.rows[0].version)===2,
+     "browser manager approval persisted once and advanced version");
+    await userPage.getByRole("button",{name:"استعلام وضعیت جدید"}).click();
+    await userPage.getByText("وضعیت: درخواست تأیید شده؛ عضویت هنوز فعال نشده است").waitFor();
+   }else{
+    // The same case must not reappear on a second viewport; UI is stable at desktop widths.
+    await managerPage.getByText("درخواست مجازِ در انتظار بررسی وجود ندارد.").waitFor();
+   }
+   ok(!errors.length,"no client page errors on membership forms "+width);
+   ok(await userPage.locator("html").getAttribute("dir")==="rtl","shareholder form RTL "+width);
+   ok(await managerPage.locator("html").getAttribute("dir")==="rtl","cooperative review form RTL "+width);
+   for(const page of [userPage,managerPage])
+    ok(await page.locator("body").evaluate(e=>e.scrollWidth<=e.clientWidth+3),"no horizontal overflow "+width);
+   console.log("TTO_CHILD06_REAL_BROWSER_FORMS_"+width+"=PASS");
+   await userCtx.close();await managerCtx.close();
+  }
+ }
+
+ await db.query("UPDATE tto.membership_review_rule_gates SET enabled=false WHERE tenant_id=$1",[A]);
+ await status(await get(membershipPath+"/pending",memberManager),403,"revoked policy fails closed");
+ await db.query("UPDATE tto.role_assignments SET revoked_at=now() WHERE user_id=$1 AND tenant_id=$2 AND role_code='COOPERATIVE_MANAGER'",[MANAGER,A]);
  const app=new Client({connectionString:"postgresql://tto_app@127.0.0.1:5432/tto"});await app.connect();
  try{
   await assert.rejects(()=>app.query("SELECT * FROM tto.identity_link_cases"),e=>e.code==="42501");checks++;
   await assert.rejects(()=>app.query("SELECT * FROM tto.identity_review_authorizations"),e=>e.code==="42501");checks++;
-  for(const tbl of ["source_contract_approvals","member_source_snapshots","shareholder_source_accounts","shareholding_source_snapshots","source_import_batches","source_import_claims"]){
+  for(const tbl of ["source_contract_approvals","member_source_snapshots","shareholder_source_accounts","shareholding_source_snapshots","source_import_batches","source_import_claims","membership_applications","membership_review_authorizations","membership_review_rule_gates","membership_application_outbox","cooperative_relationships","membership_activation_authorizations","membership_activation_rule_gates","cooperative_relationship_outbox"]){
    await assert.rejects(()=>app.query("SELECT * FROM tto."+tbl),e=>e.code==="42501");checks++;
   }
   await assert.rejects(()=>app.query("SELECT tto.assess_source_import_claim($1)",[claimReady]),e=>e.code==="42501");checks++;
@@ -359,6 +807,7 @@ async function main(){
  await status(await get(memberPath,myToken),401,"revoked member session blocked");
  await status(await get(sharePath,myToken),401,"revoked holdings session blocked");
  await status(await fetch(memberBff,{headers:cookie}),401,"revoked BFF member session blocked");
+ await status(await fetch(ownApplicationBff,{headers:ownerCookie}),401,"revoked application owner view blocked");
  await status(await fetch(shareBff,{headers:cookie}),401,"revoked BFF holdings session blocked");
  for(const domain of ["trade-requests","notices"]){
   await status(await get("/v1/tenants/"+A+"/me/"+domain,myToken),401,
@@ -375,4 +824,4 @@ async function main(){
  console.log("TTO_CF02_NO_REAL_IDENTITIES_NO_SHARE_LEDGER_NO_HOSTED_MIGRATION");
 }
 main().catch(e=>{console.error("TTO_CF02_E2E_FAIL",e?.stack??String(e));process.exitCode=1})
-.finally(async()=>{for(const proc of running)if(proc.exitCode===null)proc.kill("SIGTERM");await db.end().catch(()=>{});});
+.finally(async()=>{await startedBrowser?.close().catch(()=>{});for(const proc of running)if(proc.exitCode===null)proc.kill("SIGTERM");await db.end().catch(()=>{});});

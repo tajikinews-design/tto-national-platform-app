@@ -93,6 +93,9 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
+      - name: CF02 Child06 isolated consumer unit tests (Issue 154)
+        if: steps.scope.outputs.suite != 'lite'
+        run: node --test services/workers/test/cf02-child06-consumer.test.cjs
       - name: Install once, build all applications once, check TypeScript once
         if: steps.scope.outputs.suite != 'lite'
         run: |
@@ -479,6 +482,15 @@ jobs:
             test -f "$migration"
             docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$migration"
           done
+          test -f database/migrations/0020_child07_approved_snapshot_history.sql
+          docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0020_child07_approved_snapshot_history.sql
+          test -f database/migrations/0021_child06_membership_application_review.sql
+          docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0021_child06_membership_application_review.sql
+          test -f database/migrations/0022_child06_activate_relationship.sql
+          docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0022_child06_activate_relationship.sql
+          test -f database/migrations/0023_cf02_child06_relationship_projector_lab.sql
+          docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0023_cf02_child06_relationship_projector_lab.sql
+          docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0024_cf02_consumer_restricted_ack.sql
       - name: PCS-010 real session/manager tenant role and PostgreSQL fictional approval audit
         if: github.event_name == 'pull_request' && (github.head_ref == 'feat/tto-pcs-010-nest-pg-validated-fixtures-20261101' || github.head_ref == 'feat/tto-pcs-011-manager-real-pg-bff-20261101' || github.head_ref == 'feat/tto-pcs-012-manager-audit-browser-20261101')
         env:
@@ -512,6 +524,21 @@ jobs:
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
         run: bash scripts/ci/release-regression.sh
+      - name: PH05 signed provider HMAC sandbox — 8 exact source-ID tests (NO BANK)
+        if: github.event_name == 'pull_request' && github.head_ref == 'feat/ph05-core-foundation-evidence-gates-20261102'
+        run: |
+          set -euo pipefail
+          node --test scripts/ci/ph05-signed-provider-sandbox.test.cjs
+          echo "PH05_CF05_EIGHT_SANDBOX_PROTOCOL_TESTS_PASS_NOT_REAL_PROVIDER"
+      - name: PH05 exact-head synthetic source checks and historical HTTP regression
+        if: github.event_name == 'pull_request' && github.head_ref == 'feat/ph05-core-foundation-evidence-gates-20261102' && steps.scope.outputs.suite != 'lite' && env.TTO_W2_NO_DOCKER_BRANCH != 'true'
+        env:
+          TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+          APIIR_TOKEN: ""
+        run: |
+          set -euo pipefail
+          bash scripts/ci/release-regression.sh
+          echo "TTO_PH05_CF03_CF04_CF05_SOURCE_NEGATIVE_EXACT_HEAD_PASS"
       - name: Validate Arvan manifests without deployment (offline; no deploy)
         if: steps.scope.outputs.suite == 'release'
         run: |
