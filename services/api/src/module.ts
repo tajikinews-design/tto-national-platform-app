@@ -331,6 +331,17 @@ export class FoundationCommandsController {
     if(!record)throw new ForbiddenException("Verified shareholding unavailable");
     return {record};
   }
+  // Source-approved Child07 historical snapshots are NOT transaction history.
+  // Current owner-only holding entitlement must still be valid at query time.
+  @Get("tenants/:tenantId/me/shareholding-history")
+  async ownShareholdingHistory(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+    @Headers("authorization") auth?:string){
+    const history=await this.run<Array<Record<string,unknown>>|null>(tenant,auth,
+      "SELECT tto.my_shareholding_history_from_source($1) AS out",[tenant]);
+    if(!Array.isArray(history)||history.length===0)
+      throw new ForbiddenException("Verified snapshot history unavailable");
+    return {record:{items:history}};
+  }
   @Post("auth/challenges/request")
   @HttpCode(202)
   async requestSmsLogin(@Body() payload:Record<string,unknown>,@Req() req:{ip?:string}){
