@@ -82,6 +82,14 @@ def main():
     # This asserts static contract discovery, not authenticated runtime success.
     if declared < 11:
         raise SystemExit("PH10_A_DECLARED_UPSTREAM_MAPPING_INCOMPLETE: " + str(declared))
+    nest_source = (ROOT / "services/api/src/module.ts").read_text(encoding="utf-8")
+    for entry in entries:
+        for mapping in entry.get("declaredUpstreamMappings", []):
+            upstream = mapping["upstreamTemplate"].split("/{tenantId}/", 1)[-1]
+            if upstream not in nest_source and upstream != "documents":
+                raise SystemExit("PH10_A_UNRESOLVED_NEST_UPSTREAM: " + upstream)
+            mapping["nestSourcePath"] = "services/api/src/module.ts"
+            mapping["nestEvidenceClass"] = "STATIC_PATH_LITERAL_FOUND_NOT_HTTP_VERIFIED"
     OUTPUT.parent.mkdir(exist_ok=True)
     OUTPUT.write_text(json.dumps({
         "phase": "PH10-A", "schemaVersion": "1.0",
