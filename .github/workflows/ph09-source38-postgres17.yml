@@ -56,6 +56,10 @@ jobs:
             docker exec -i tto-ph09-proof psql -U postgres -d tto -v ON_ERROR_STOP=1 < "tests/sql/ph09-${module}-acceptance.sql"
           done
           echo "PH09_FIVE_MODULES_30_SOURCE_ASSERTIONS_COMPLETE"
+      - name: Real two-session legal-hold versus disposal race
+        run: |
+          set -euo pipefail
+          bash scripts/ci/ph09-legal-hold-vs-disposition-race.sh
       - name: Operations source checks and 500 cooperative fixture
         run: |
           set -euo pipefail
