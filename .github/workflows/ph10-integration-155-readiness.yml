@@ -29,6 +29,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 tests/test_ph10_155_readiness.py -v
+          python3 tests/test_ph10_legal_baseline_source.py -v
           python3 tests/test_ph09_108_47_legacy_traceability.py -v
           python3 tests/test_ph04_155_execution_truth.py -v
           python3 tests/test_ph05_24_runnable_map.py -v
