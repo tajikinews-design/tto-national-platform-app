@@ -168,8 +168,18 @@ async function main(){
    if(expectedMember==="unavailable")await page.getByText("اطلاعات رسمی تأییدشده در دسترس نیست").first().waitFor();
    if(expectedMember==="active")await page.getByText("عضویت: فعال").waitFor();
    if(expectedShares==="unavailable")await page.getByText("اطلاعات رسمی تأییدشده در دسترس نیست").last().waitFor();
-   if(expectedShares==="37")await page.getByText("تعداد سهام ثبت‌شده: 37").waitFor();
-   if(expectedShares==="0")await page.getByText("تعداد سهام ثبت‌شده: 0").waitFor();
+   await page.getByRole("heading",{name:"سوابق نسخه‌های تأییدشده موجودی"}).waitFor();
+   if(expectedShares==="37"){
+    await page.getByText("تعداد سهام ثبت‌شده: 37").waitFor();
+    await page.getByText(/نسخه 1: 37 سهم/).waitFor();
+   }
+   if(expectedShares==="0"){
+    await page.getByText("تعداد سهام ثبت‌شده: 0").waitFor();
+    await page.getByText(/نسخه 2: 0 سهم/).waitFor();
+    await page.getByText(/نسخه 1: 37 سهم/).waitFor();
+   }
+   if(expectedShares==="unavailable")
+    assert.equal(await page.locator('section[aria-labelledby="share-snapshots-heading"] li').count(),0);
    assert.equal(await page.locator("body").evaluate(e=>e.scrollWidth>e.clientWidth+3),false,name+" horizontal scroll "+width);
    assert.equal(await page.locator("html").getAttribute("dir"),"rtl");
    assert.equal(errors.length,0,name+" JS errors "+JSON.stringify(errors));
