@@ -41,8 +41,10 @@ export async function GET(request:NextRequest){
     });
     if(upstream.status===401||upstream.status===403)return noSession(true);
     if(upstream.status!==200)return unavailable();
-    const data=await upstream.json() as {authenticated?:unknown;nationalRoot?:unknown};
+    const data=await upstream.json() as {authenticated?:unknown;nationalRoot?:unknown;mustChangeCredentials?:unknown};
     if(data.authenticated!==true||data.nationalRoot!==true)return noSession(true);
-    return NextResponse.json({authenticated:true,nationalRoot:true},{status:200,headers:HEADERS});
+    if(typeof data.mustChangeCredentials!=="boolean")return unavailable();
+    return NextResponse.json({authenticated:true,nationalRoot:true,
+      mustChangeCredentials:data.mustChangeCredentials},{status:200,headers:HEADERS});
   }catch{return unavailable();}
 }
