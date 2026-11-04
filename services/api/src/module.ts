@@ -76,6 +76,20 @@ export class Database {
     );
     return r.rows[0]?.ok===true;
   }
+  async beginMobileRegistration(mobile:string,id:string,hash:Buffer):Promise<boolean>{
+    const r=await this.pool.query<{ok:boolean}>(
+      "SELECT tto.begin_mobile_registration($1,$2,$3,clock_timestamp()+interval '4 minutes') AS ok",
+      [mobile,id,hash]
+    );
+    return r.rows[0]?.ok===true;
+  }
+  async consumeMobileRegistration(challengeId:string,verifier:Buffer,sessionHash:Buffer):Promise<boolean>{
+    const r=await this.pool.query<{user_id:string|null}>(
+      "SELECT tto.consume_mobile_registration($1,$2,$3) AS user_id",
+      [challengeId,verifier,sessionHash]
+    );
+    return typeof r.rows[0]?.user_id==="string";
+  }
   async consumeChallenge(challengeId:string, verifier:Buffer, sessionHash:Buffer): Promise<boolean> {
     const result=await this.pool.query<{user_id:string|null}>(
       "SELECT tto.consume_challenge($1,$2,$3) AS user_id",[challengeId,verifier,sessionHash]);
@@ -422,6 +436,69 @@ export class FoundationCommandsController {
     if(!record)throw new ForbiddenException("Verified shareholding unavailable");
     return {record};
   }
+  /** Preview-only enrollment. A verified mobile creates an ordinary user,
+   * NEVER a national operator, manager or tenant assignment. */
+  @Post("auth/registration/request")
+  @HttpCode(202)
+  async requestMobileRegistration(@Body() input:Record<string,unknown>,@Req() req:{ip?:string}){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true" ||
+       process.env.TTO_ENABLE_MOBILE_REGISTRATION!=="true")
+      throw new ServiceUnavailableException("REGISTRATION_NOT_ENABLED");
+    const mobile=input?.mobile;
+    if(typeof mobile!=="string" || !/^09[0-9]{9}$/.test(mobile))
+      throw new BadRequestException("INVALID_MOBILE");
+    const pepper=process.env.AUTH_CHALLENGE_HMAC_SECRET;
+    const guard=process.env.AUTH_ABUSE_HMAC_SECRET;
+    const ip=req?.ip;
+    if(!pepper||Buffer.byteLength(pepper)<32 ||
+       !guard||Buffer.byteLength(guard)<32 ||
+       typeof ip!=="string"||ip.length<3||ip.length>64)
+      throw new ServiceUnavailableException("AUTH_CAPACITY_UNAVAILABLE");
+    const synthetic=process.env.NODE_ENV==="test" &&
+       process.env.TTO_MOCK_SMSOTP_PROVIDER==="true";
+    if(!synthetic &&
+      (process.env.TTO_ENABLE_REAL_SMSOTP_DELIVERY!=="true" ||
+       !process.env.APIIR_TOKEN || process.env.APIIR_TOKEN.length<12))
+      throw new ServiceUnavailableException("SMS_DELIVERY_UNAVAILABLE");
+    const requestId=randomUUID();
+    const ipKey=createHmac("sha256",guard).update("ip:v1:"+ip).digest();
+    const mobileKey=createHmac("sha256",guard).update("mobile:v1:"+mobile).digest();
+    let allowed=false;
+    try{allowed=await this.db.reservePublicOtpRequest(ipKey,mobileKey)}
+    catch{throw new ServiceUnavailableException("AUTH_CAPACITY_UNAVAILABLE")}
+    if(!allowed)return {requestId,status:"ACCEPTED"};
+    const code=synthetic?"111222":String(randomInt(100000,1000000));
+    const hash=createHmac("sha256",pepper).update(requestId+":"+code).digest();
+    const created=await this.db.beginMobileRegistration(mobile,requestId,hash);
+    if(created){
+      let sent=false;
+      try{sent=await this.sms.send(mobile,code)}catch{sent=false}
+      await this.db.attestSmsDelivery(requestId,sent);
+    }
+    // Do not reveal whether this mobile already exists or is throttled.
+    return {requestId,status:"ACCEPTED"};
+  }
+
+  @Post("auth/registration/verify")
+  @HttpCode(200)
+  async verifyMobileRegistration(@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true" ||
+       process.env.TTO_ENABLE_MOBILE_REGISTRATION!=="true")
+      throw new ServiceUnavailableException("REGISTRATION_NOT_ENABLED");
+    const id=requireId(input?.challengeId);
+    if(typeof input?.otp!=="string"||!/^[0-9]{6}$/.test(input.otp))
+      throw new BadRequestException("INVALID_CODE");
+    const pepper=process.env.AUTH_CHALLENGE_HMAC_SECRET;
+    if(!pepper||Buffer.byteLength(pepper)<32)
+      throw new ServiceUnavailableException("AUTH_UNAVAILABLE");
+    const digest=createHmac("sha256",pepper).update(id+":"+input.otp).digest();
+    const accessToken=randomBytes(48).toString("base64url");
+    const sessionHash=createHash("sha256").update(accessToken).digest();
+    const accepted=await this.db.consumeMobileRegistration(id,digest,sessionHash);
+    if(!accepted)throw new UnauthorizedException("INVALID_OR_EXPIRED_CODE");
+    return {accessToken,tokenType:"Bearer",nationalOperator:false};
+  }
+
   @Post("auth/challenges/request")
   @HttpCode(202)
   async requestSmsLogin(@Body() payload:Record<string,unknown>,@Req() req:{ip?:string}){
