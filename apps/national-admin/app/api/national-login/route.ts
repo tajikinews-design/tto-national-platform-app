@@ -1,5 +1,5 @@
 import {NextRequest,NextResponse} from "next/server";
-import {trustedBackendHeaders} from "../../../../lib/trusted-backend";
+import {trustedBackendHeaders} from "../../../lib/trusted-backend";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 const noStore={"Cache-Control":"no-store, private","Vary":"Cookie"};
