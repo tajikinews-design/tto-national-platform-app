@@ -559,7 +559,8 @@ export class FoundationCommandsController {
     const encoded="scrypt$v1$"+salt+"$"+digest;
     const changed=await this.db.withActor(actor,async client=>{
       const response=await client.query<{changed:boolean}>(
-       "SELECT tto.rotate_national_root_credentials($1,$2) AS changed",[username,encoded]);
+       "SELECT tto.rotate_national_root_credentials($1,$2,$3::bigint,$4) AS changed",
+       [username,encoded,state.credentials_version,this.db.sessionDigest(auth)]);
       return response.rows[0]?.changed===true;
     });
     if(!changed)throw new ForbiddenException("NATIONAL_ROOT_CREDENTIAL_CHANGE_DENIED");
