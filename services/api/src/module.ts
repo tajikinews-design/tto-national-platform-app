@@ -234,7 +234,7 @@ export class FoundationCommandsController {
     const actor=await this.db.sessionActor(auth);
     return this.db.withActor(actor,async client=>{
       const role=await client.query<{allowed:boolean}>(
-        'SELECT EXISTS(SELECT 1 FROM tto.list_actor_tenant_options() WHERE "platformOperator" IS TRUE) AS allowed'
+        'SELECT tto.has_platform_operator() AS allowed'
       );
       if(role.rows[0]?.allowed!==true)
         throw new ForbiddenException("NATIONAL_PLATFORM_OPERATOR_REQUIRED");
