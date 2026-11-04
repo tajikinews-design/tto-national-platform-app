@@ -30,7 +30,7 @@ export async function GET(request:NextRequest){
   try{
     if(!base||(!base.startsWith("https://")&&!loopback&&!testOnly))
       return unavailable();
-    url=new URL("/v1/auth/session",base);
+    url=new URL("/v1/national/root/session",base);
     if(url.username||url.password||(url.protocol!=="https:"&&!loopback&&!testOnly))
       return unavailable();
   }catch{return unavailable();}
@@ -39,10 +39,10 @@ export async function GET(request:NextRequest){
       method:"GET",headers:{Authorization:`Bearer ${token}`,...trustedBackendHeaders(request)},
       cache:"no-store",redirect:"error",signal:AbortSignal.timeout(9500)
     });
-    if(upstream.status===401)return noSession(true);
+    if(upstream.status===401||upstream.status===403)return noSession(true);
     if(upstream.status!==200)return unavailable();
-    const data=await upstream.json() as {authenticated?:unknown};
-    if(data.authenticated!==true)return unavailable();
-    return NextResponse.json({authenticated:true},{status:200,headers:HEADERS});
+    const data=await upstream.json() as {authenticated?:unknown;nationalRoot?:unknown};
+    if(data.authenticated!==true||data.nationalRoot!==true)return noSession(true);
+    return NextResponse.json({authenticated:true,nationalRoot:true},{status:200,headers:HEADERS});
   }catch{return unavailable();}
 }
