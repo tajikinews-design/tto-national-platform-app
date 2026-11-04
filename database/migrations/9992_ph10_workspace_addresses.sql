@@ -12,4 +12,9 @@ ALTER TABLE tto.cooperative_workspace_addresses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tto.cooperative_workspace_addresses FORCE ROW LEVEL SECURITY;
 CREATE POLICY workspace_write ON tto.cooperative_workspace_addresses FOR INSERT TO tto_app
  WITH CHECK (created_by::text = current_setting('tto.actor_id', true));
-GRANT INSERT ON tto.cooperative_workspace_addresses TO tto_app;
+GRANT INSERT, SELECT ON tto.cooperative_workspace_addresses TO tto_app;
+-- Slugs are public routing identifiers; only the slug/status fields may be returned
+-- by the Nest read endpoint. This policy does not expose membership or company data.
+CREATE POLICY workspace_read ON tto.cooperative_workspace_addresses
+ FOR SELECT TO tto_app USING (state = 'RESERVED');
+
