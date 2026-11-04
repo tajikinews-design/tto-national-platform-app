@@ -49,6 +49,13 @@ export class Database {
     }
   }
   async onModuleDestroy(): Promise<void> { await this.pool.end(); }
+  async workspaceExists(slug:string):Promise<boolean>{
+    const result=await this.pool.query(
+      "SELECT 1 FROM tto.cooperative_workspace_addresses WHERE slug=$1 AND state='RESERVED' LIMIT 1",
+      [slug]
+    );
+    return (result.rowCount??0)>0;
+  }
   async isReady(): Promise<void> { await this.pool.query("SELECT 1 FROM tto.tenants LIMIT 0"); }
   async prepareSmsLogin(mobile:string, id:string, hash:Buffer):Promise<boolean>{
     const r=await this.pool.query<{ok:boolean}>(
@@ -203,6 +210,14 @@ export class FoundationCommandsController {
       const data=await c.query<{out:T}>(sql,values);
       return data.rows[0].out;
     });
+  }
+
+  @Get("national/cooperative-workspaces/:slug")
+  async findWorkspace(@Param("slug") slug:string){
+    if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
+      throw new BadRequestException("INVALID_WORKSPACE_SLUG");
+    // Return only public routing identifiers, never identity, owner or company data.
+    return this.db.workspaceExists(slug).then(exists=>({exists,slug}));
   }
 
   @Post("national/cooperative-workspaces")
