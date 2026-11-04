@@ -1,6 +1,6 @@
 import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
-import { createHash, createHmac, randomBytes, randomUUID, randomInt } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
 
 @Injectable()
@@ -75,6 +75,16 @@ export class Database {
       "SELECT tto.complete_smsotp_delivery($1,$2) AS ok",[id,accepted]
     );
     return r.rows[0]?.ok===true;
+  }
+  async reserveNationalRootAttempt(key:Buffer):Promise<boolean>{
+    const result=await this.pool.query<{allowed:boolean}>(
+      "SELECT tto.reserve_national_root_attempt($1) AS allowed",[key]);
+    return result.rows[0]?.allowed===true;
+  }
+  async issueNationalRootSession(hash:Buffer):Promise<boolean>{
+    const result=await this.pool.query<{issued:boolean}>(
+      "SELECT tto.issue_national_root_session($1) AS issued",[hash]);
+    return result.rows[0]?.issued===true;
   }
   async beginMobileRegistration(mobile:string,id:string,hash:Buffer):Promise<boolean>{
     const r=await this.pool.query<{ok:boolean}>(
@@ -438,6 +448,65 @@ export class FoundationCommandsController {
   }
   /** Preview-only enrollment. A verified mobile creates an ordinary user,
    * NEVER a national operator, manager or tenant assignment. */
+  /**
+   * Owner-authenticated national root login, separate from SMS OTP.
+   * Guarded by branch-scoped Preview secrets and Postgres rate limits.
+   * A valid credential alone cannot create or approve any other root.
+   */
+  @Post("national/root/login")
+  @HttpCode(200)
+  async loginNationalRoot(@Body() input:Record<string,unknown>,@Req() req:{ip?:string}){
+    if(process.env.TTO_NATIONAL_ROOT_LOGIN_ENABLED!=="true" ||
+       process.env.TTO_ISOLATED_DEMO_DB!=="true" ||
+       (process.env.VERCEL==="1" && process.env.VERCEL_ENV!=="preview"))
+      throw new ServiceUnavailableException("NATIONAL_LOGIN_UNAVAILABLE");
+    const username=input?.username;
+    const password=input?.password;
+    if(typeof username!=="string" || username.length>64 ||
+       typeof password!=="string" || password.length>128)
+      throw new BadRequestException("INVALID_CREDENTIAL_REQUEST");
+    const secret=process.env.TTO_NATIONAL_ROOT_ATTEMPT_SECRET;
+    const storedUser=process.env.TTO_NATIONAL_ROOT_USERNAME;
+    const storedHash=process.env.TTO_NATIONAL_ROOT_PASSWORD_SCRYPT;
+    const ip=req?.ip;
+    if(!secret||Buffer.byteLength(secret)<32||!storedUser||!storedHash ||
+       typeof ip!=="string"||ip.length<3||ip.length>64)
+      throw new ServiceUnavailableException("NATIONAL_LOGIN_UNAVAILABLE");
+    const fingerprint=createHmac("sha256",secret).update("national-login-ip:"+ip).digest();
+    const globalKey=createHmac("sha256",secret).update("national-login-global").digest();
+    if(!await this.db.reserveNationalRootAttempt(fingerprint) ||
+       !await this.db.reserveNationalRootAttempt(globalKey))
+      throw new ForbiddenException("LOGIN_RATE_LIMITED");
+    const parts=storedHash.split("$");
+    if(parts.length!==4 || parts[0]!=="scrypt"||parts[1]!=="v1" ||
+       !/^[a-f0-9]{32}$/.test(parts[2]) || !/^[a-f0-9]{128}$/.test(parts[3]))
+      throw new ServiceUnavailableException("NATIONAL_LOGIN_UNAVAILABLE");
+    const attempt=scryptSync(password,Buffer.from(parts[2],"hex"),64,{N:16384,r:8,p:1,maxmem:64*1024*1024});
+    const expected=Buffer.from(parts[3],"hex");
+    const okPassword=timingSafeEqual(attempt,expected);
+    const attemptName=createHash("sha256").update(username).digest();
+    const expectedName=createHash("sha256").update(storedUser).digest();
+    if(!timingSafeEqual(attemptName,expectedName)||!okPassword)
+      throw new UnauthorizedException("INVALID_CREDENTIALS");
+    const token=randomBytes(48).toString("base64url");
+    const tokenHash=createHash("sha256").update(token).digest();
+    const created=await this.db.issueNationalRootSession(tokenHash);
+    if(!created)throw new ServiceUnavailableException("NATIONAL_ROOT_NOT_PROVISIONED");
+    return {accessToken:token,tokenType:"Bearer",nationalRoot:true};
+  }
+
+  @Get("national/root/session")
+  async nationalRootSession(@Headers("authorization") auth?:string){
+    const actor=await this.db.sessionActor(auth);
+    const valid=await this.db.withActor(actor,async client=>{
+      const result=await client.query<{allowed:boolean}>(
+        "SELECT tto.has_national_root() AS allowed");
+      return result.rows[0]?.allowed===true;
+    });
+    if(!valid)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+    return {authenticated:true,nationalRoot:true};
+  }
+
   @Post("auth/registration/request")
   @HttpCode(202)
   async requestMobileRegistration(@Body() input:Record<string,unknown>,@Req() req:{ip?:string}){
