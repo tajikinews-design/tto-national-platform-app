@@ -37,11 +37,11 @@ export async function POST(req:NextRequest){
   if(up.status===401)return NextResponse.json({error:"INVALID_CREDENTIALS"},{status:401,headers:noStore});
   if(up.status===403)return NextResponse.json({error:"RATE_LIMITED"},{status:429,headers:noStore});
   if(up.status!==200)return NextResponse.json({error:"NATIONAL_LOGIN_UNAVAILABLE"},{status:503,headers:noStore});
-  const data=await up.json() as {accessToken?:unknown;nationalRoot?:unknown};
-  if(data.nationalRoot!==true||typeof data.accessToken!=="string"||
+  const data=await up.json() as {accessToken?:unknown;nationalRoot?:unknown;mustChangeCredentials?:unknown};
+  if(data.nationalRoot!==true||typeof data.mustChangeCredentials!=="boolean"||typeof data.accessToken!=="string"||
      !/^[A-Za-z0-9_-]{32,256}$/.test(data.accessToken))
    return NextResponse.json({error:"INVALID_RESPONSE"},{status:503,headers:noStore});
-  const out=NextResponse.json({authenticated:true,nationalRoot:true},{status:200,headers:noStore});
+  const out=NextResponse.json({authenticated:true,nationalRoot:true,mustChangeCredentials:data.mustChangeCredentials},{status:200,headers:noStore});
   out.cookies.set("tto_session",data.accessToken,
     {httpOnly:true,secure:true,sameSite:"lax",path:"/",maxAge:900});
   return out;
