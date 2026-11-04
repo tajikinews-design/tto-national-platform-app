@@ -81,9 +81,17 @@ export class Database {
       "SELECT tto.reserve_national_root_attempt($1) AS allowed",[key]);
     return result.rows[0]?.allowed===true;
   }
-  async issueNationalRootSession(hash:Buffer):Promise<boolean>{
+  async nationalRootCredentialState():Promise<{
+    username:string|null;password_scrypt:string|null;must_change_credentials:boolean;credentials_version:string
+  }|null>{
+    const r=await this.pool.query<{
+      username:string|null;password_scrypt:string|null;must_change_credentials:boolean;credentials_version:string
+    }>("SELECT username,password_scrypt,must_change_credentials,credentials_version FROM tto.national_root_credential_state()");
+    return r.rows[0]??null;
+  }
+  async issueNationalRootSession(hash:Buffer,version:string):Promise<boolean>{
     const result=await this.pool.query<{issued:boolean}>(
-      "SELECT tto.issue_national_root_session($1) AS issued",[hash]);
+      "SELECT tto.issue_national_root_session($1,$2::bigint) AS issued",[hash,version]);
     return result.rows[0]?.issued===true;
   }
   async beginMobileRegistration(mobile:string,id:string,hash:Buffer):Promise<boolean>{
@@ -215,6 +223,15 @@ export class HealthController {
 }
 
 /** Tenant commands are routed only through verified session -> transaction-local identity context. */
+function verifyNationalPassword(password:string,encoded:string):boolean{
+  const parts=encoded.split("$");
+  if(parts.length!==4||parts[0]!=="scrypt"||parts[1]!=="v1"||
+     !/^[a-f0-9]{32}$/.test(parts[2])||!/^[a-f0-9]{128}$/.test(parts[3]))
+    throw new ServiceUnavailableException("NATIONAL_CREDENTIAL_HASH_INVALID");
+  const actual=scryptSync(password,Buffer.from(parts[2],"hex"),64,
+    {N:16384,r:8,p:1,maxmem:64*1024*1024});
+  return timingSafeEqual(actual,Buffer.from(parts[3],"hex"));
+}
 const uuidPattern=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 function requireId(value:unknown):string {
   if(typeof value!=="string" || !uuidPattern.test(value))throw new BadRequestException("Invalid identifier");
@@ -466,10 +483,10 @@ export class FoundationCommandsController {
        typeof password!=="string" || password.length>128)
       throw new BadRequestException("INVALID_CREDENTIAL_REQUEST");
     const secret=process.env.TTO_NATIONAL_ROOT_ATTEMPT_SECRET;
-    const storedUser=process.env.TTO_NATIONAL_ROOT_USERNAME;
-    const storedHash=process.env.TTO_NATIONAL_ROOT_PASSWORD_SCRYPT;
+    const initialUsername=process.env.TTO_NATIONAL_ROOT_USERNAME;
+    const initialHash=process.env.TTO_NATIONAL_ROOT_PASSWORD_SCRYPT;
     const ip=req?.ip;
-    if(!secret||Buffer.byteLength(secret)<32||!storedUser||!storedHash ||
+    if(!secret||Buffer.byteLength(secret)<32||
        typeof ip!=="string"||ip.length<3||ip.length>64)
       throw new ServiceUnavailableException("NATIONAL_LOGIN_UNAVAILABLE");
     const fingerprint=createHmac("sha256",secret).update("national-login-ip:"+ip).digest();
@@ -477,34 +494,77 @@ export class FoundationCommandsController {
     if(!await this.db.reserveNationalRootAttempt(fingerprint) ||
        !await this.db.reserveNationalRootAttempt(globalKey))
       throw new ForbiddenException("LOGIN_RATE_LIMITED");
-    const parts=storedHash.split("$");
-    if(parts.length!==4 || parts[0]!=="scrypt"||parts[1]!=="v1" ||
-       !/^[a-f0-9]{32}$/.test(parts[2]) || !/^[a-f0-9]{128}$/.test(parts[3]))
+    const state=await this.db.nationalRootCredentialState();
+    if(!state)throw new ServiceUnavailableException("NATIONAL_ROOT_NOT_PROVISIONED");
+    // Once a new credential is stored, the original bootstrap secret is permanently retired.
+    const effectiveUsername=state.password_scrypt?state.username:initialUsername;
+    const effectiveHash=state.password_scrypt??initialHash;
+    if(!effectiveUsername || !effectiveHash)
       throw new ServiceUnavailableException("NATIONAL_LOGIN_UNAVAILABLE");
-    const attempt=scryptSync(password,Buffer.from(parts[2],"hex"),64,{N:16384,r:8,p:1,maxmem:64*1024*1024});
-    const expected=Buffer.from(parts[3],"hex");
-    const okPassword=timingSafeEqual(attempt,expected);
-    const attemptName=createHash("sha256").update(username).digest();
-    const expectedName=createHash("sha256").update(storedUser).digest();
-    if(!timingSafeEqual(attemptName,expectedName)||!okPassword)
+    if(!verifyNationalPassword(password,effectiveHash) ||
+       !timingSafeEqual(createHash("sha256").update(username).digest(),
+        createHash("sha256").update(effectiveUsername).digest()))
       throw new UnauthorizedException("INVALID_CREDENTIALS");
     const token=randomBytes(48).toString("base64url");
     const tokenHash=createHash("sha256").update(token).digest();
-    const created=await this.db.issueNationalRootSession(tokenHash);
-    if(!created)throw new ServiceUnavailableException("NATIONAL_ROOT_NOT_PROVISIONED");
-    return {accessToken:token,tokenType:"Bearer",nationalRoot:true};
+    const created=await this.db.issueNationalRootSession(tokenHash,state.credentials_version);
+    if(!created)throw new ServiceUnavailableException("NATIONAL_LOGIN_RETRY_REQUIRED");
+    return {accessToken:token,tokenType:"Bearer",nationalRoot:true,
+      mustChangeCredentials:state.must_change_credentials};
   }
 
   @Get("national/root/session")
   async nationalRootSession(@Headers("authorization") auth?:string){
     const actor=await this.db.sessionActor(auth);
-    const valid=await this.db.withActor(actor,async client=>{
-      const result=await client.query<{allowed:boolean}>(
-        "SELECT tto.has_national_root() AS allowed");
-      return result.rows[0]?.allowed===true;
+    const status=await this.db.withActor(actor,async client=>{
+      const r=await client.query<{principal:boolean;must_change:boolean}>(
+        "SELECT tto.is_national_root_principal() AS principal,tto.national_root_requires_change() AS must_change");
+      return r.rows[0];
     });
-    if(!valid)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
-    return {authenticated:true,nationalRoot:true};
+    if(status?.principal!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+    return {authenticated:true,nationalRoot:true,
+      mustChangeCredentials:status.must_change===true};
+  }
+
+  @Post("national/root/change-credentials")
+  @HttpCode(200)
+  async changeNationalRootCredentials(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    if(process.env.TTO_NATIONAL_ROOT_LOGIN_ENABLED!=="true" ||
+       process.env.TTO_ISOLATED_DEMO_DB!=="true" ||
+       (process.env.VERCEL==="1" && process.env.VERCEL_ENV!=="preview"))
+      throw new ServiceUnavailableException("NATIONAL_LOGIN_UNAVAILABLE");
+    const username=input?.newUsername;
+    const password=input?.newPassword;
+    const current=input?.currentPassword;
+    if(typeof username!=="string"||!/^[A-Za-z0-9._-]{5,64}$/.test(username)||
+       typeof password!=="string"||password.length<14||password.length>128||
+       Buffer.byteLength(password)>256||/^\\d+$/.test(password)||
+       typeof current!=="string"||current.length<1||current.length>128)
+      throw new BadRequestException("WEAK_NEW_CREDENTIALS");
+    const actor=await this.db.sessionActor(auth);
+    const state=await this.db.nationalRootCredentialState();
+    const currentUser=state?.password_scrypt?state.username:process.env.TTO_NATIONAL_ROOT_USERNAME;
+    const currentHash=state?.password_scrypt??process.env.TTO_NATIONAL_ROOT_PASSWORD_SCRYPT;
+    if(!state||!currentUser||!currentHash)
+      throw new ServiceUnavailableException("NATIONAL_LOGIN_UNAVAILABLE");
+    if(username===currentUser||password===current||
+       password.includes(currentUser)||password.includes(username))
+      throw new BadRequestException("NEW_CREDENTIALS_MUST_DIFFER");
+    if(!verifyNationalPassword(current,currentHash))
+      throw new UnauthorizedException("INVALID_CREDENTIALS");
+    const salt=randomBytes(16).toString("hex");
+    const digest=scryptSync(password,Buffer.from(salt,"hex"),64,
+      {N:16384,r:8,p:1,maxmem:64*1024*1024}).toString("hex");
+    const encoded="scrypt$v1$"+salt+"$"+digest;
+    const changed=await this.db.withActor(actor,async client=>{
+      const response=await client.query<{changed:boolean}>(
+       "SELECT tto.rotate_national_root_credentials($1,$2) AS changed",[username,encoded]);
+      return response.rows[0]?.changed===true;
+    });
+    if(!changed)throw new ForbiddenException("NATIONAL_ROOT_CREDENTIAL_CHANGE_DENIED");
+    // PostgreSQL revokes every existing root session, including this request's cookie.
+    return {changed:true,sessionsRevoked:true,loginRequired:true};
   }
 
   @Post("auth/registration/request")
