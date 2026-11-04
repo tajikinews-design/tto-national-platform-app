@@ -16,7 +16,7 @@ ALTER TABLE tto.national_root_accounts
      OR (username IS NOT NULL AND password_scrypt IS NOT NULL));
 ALTER TABLE tto.national_root_accounts
  ADD CONSTRAINT national_root_scrypt_format
- CHECK(password_scrypt IS NULL OR password_scrypt ~ '^scrypt\\$v1\\$[a-f0-9]{32}\\$[a-f0-9]{128}$');
+ CHECK(password_scrypt IS NULL OR password_scrypt ~ '^scrypt[$]v1[$][a-f0-9]{32}[$][a-f0-9]{128}$');
 
 -- Only the TTO backend database role may retrieve server-side password verification data.
 CREATE OR REPLACE FUNCTION tto.national_root_credential_state()
@@ -68,7 +68,7 @@ BEGIN
  IF NOT tto.is_national_root_principal()
    OR p_username IS NULL OR p_username !~ '^[A-Za-z0-9._-]{5,64}$'
    OR p_password_scrypt IS NULL
-   OR p_password_scrypt !~ '^scrypt\\$v1\\$[a-f0-9]{32}\\$[a-f0-9]{128}$'
+   OR p_password_scrypt !~ '^scrypt[$]v1[$][a-f0-9]{32}[$][a-f0-9]{128}$'
  THEN RETURN false; END IF;
  SELECT r.user_id,r.username INTO v_user,v_old_username
  FROM tto.national_root_accounts r
