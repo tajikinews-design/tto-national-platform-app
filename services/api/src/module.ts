@@ -438,6 +438,34 @@ export class FoundationCommandsController {
     });
   }
 
+  // PH10.8 manager-only, session-bound historical self-report read. No approval.
+  @Get("tenants/:tenantId/governance/manual-official-notices")
+  async listManualOfficialGovernanceNotices(
+    @Param("tenantId",new ParseUUIDPipe()) tenantId:string,
+    @Headers("authorization") auth:string|undefined
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("MANUAL_GAZETTE_REGISTRY_NOT_RELEASED");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.inTenant(actor,tenantId,async client=>{
+      try{
+        const result=await client.query<{out:Record<string,unknown>}>(
+          "SELECT tto.list_manual_official_governance_claims($1::uuid,$2::bytea) AS out",
+          [tenantId,this.db.sessionDigest(auth)]);
+        const value=result.rows[0]?.out;
+        if(!value||value.selfReportedOnly!==true||value.officiallyVerified!==false||
+           value.legalApproval!==false||value.roleGranted!==false||
+           !Array.isArray(value.items))
+          throw new ServiceUnavailableException("GAZETTE_HISTORY_UNAVAILABLE");
+        return {tenantId,...value};
+      }catch(e){
+        if((e as {code?:string}).code==="42501")
+          throw new ForbiddenException("MANAGER_LEGAL_AUTHORITY_REQUIRED");
+        throw e;
+      }
+    });
+  }
+
   @Post("tenants/:tenantId/governance/manual-official-notices")
   @HttpCode(201)
   async reportManualOfficialGovernanceNotice(
