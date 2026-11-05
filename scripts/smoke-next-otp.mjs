@@ -279,7 +279,16 @@ for (let idx=0;idx<slugs.length;idx++){
    const response=await fetch("http://127.0.0.1:"+port+route,{
     method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mobile:"09123456789",otp:"123456"})
    });
-   if(response.status!==503)throw Error(slug+" "+route+" unexpectedly returned "+response.status);
+   if(slug==="national-admin"){
+    // The national root login is password-only. OTP requests and verification
+    // MUST be forbidden even if the backend is unavailable; never relax 403.
+    if(response.status!==403)throw Error(slug+" "+route+" must deny OTP with 403; got "+response.status);
+    const denied=await response.json();
+    if(denied.error!=="NATIONAL_ROOT_CREDENTIALS_ONLY")
+     throw Error("national root OTP endpoint did not fail closed");
+   }else if(response.status!==503){
+    throw Error(slug+" "+route+" unexpectedly returned "+response.status);
+   }
    checks++;
   }
  }finally{server.kill("SIGTERM");}
