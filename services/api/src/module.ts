@@ -3,6 +3,44 @@ import { Pool, PoolClient } from "pg";
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
 import { scanQuarantineBytes } from "./clamd-evidence";
+// Opaque, authenticated, session- and tenant-bound short-lived keyset cursor.
+// The only secret is the existing revocable session digest (never sent to clients).
+function ph109CursorKey(sessionDigest:Buffer):Buffer{
+ return createHmac("sha256",sessionDigest).update("TTO_PH10_9_GAZETTE_KEYSET_V1").digest();
+}
+function ph109EncodeCursor(sessionDigest:Buffer,tenant:string,kind:string,
+ createdAt:string,id:string):string{
+ const nonce=randomBytes(12);
+ const cipher=createCipheriv("aes-256-gcm",ph109CursorKey(sessionDigest),nonce);
+ cipher.setAAD(Buffer.from("TTO_GAZETTE_CURSOR:"+kind+":"+tenant));
+ const bytes=Buffer.concat([cipher.update(JSON.stringify({
+  at:createdAt,id,expires:Date.now()+15*60*1000}),"utf8"),cipher.final()]);
+ return Buffer.concat([nonce,cipher.getAuthTag(),bytes]).toString("base64url");
+}
+function ph109DecodeCursor(token:string|undefined,sessionDigest:Buffer,tenant:string,kind:string):
+ {beforeCreated:string|null;beforeId:string|null}{
+ if(!token)return {beforeCreated:null,beforeId:null};
+ if(!/^[A-Za-z0-9_-]{32,512}$/.test(token))
+  throw new BadRequestException("INVALID_GAZETTE_CURSOR");
+ try{
+  const bytes=Buffer.from(token,"base64url");
+  if(bytes.length<30)throw Error("short");
+  const decipher=createDecipheriv("aes-256-gcm",ph109CursorKey(sessionDigest),bytes.subarray(0,12));
+  decipher.setAAD(Buffer.from("TTO_GAZETTE_CURSOR:"+kind+":"+tenant));
+  decipher.setAuthTag(bytes.subarray(12,28));
+  const payload=JSON.parse(Buffer.concat([decipher.update(bytes.subarray(28)),decipher.final()])
+   .toString("utf8")) as {at?:unknown;id?:unknown;expires?:unknown};
+  if(typeof payload.at!=="string"||payload.at.length>40||
+     !Number.isFinite(Date.parse(payload.at))||
+     typeof payload.id!=="string"||
+     !/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(payload.id)||
+     typeof payload.expires!=="number"||payload.expires<Date.now()||
+     payload.expires>Date.now()+15*60*1000)
+   throw Error("payload");
+  return {beforeCreated:payload.at,beforeId:payload.id};
+ }catch{throw new BadRequestException("INVALID_GAZETTE_CURSOR");}
+}
+
 
 @Injectable()
 export class Database {
@@ -442,24 +480,22 @@ export class FoundationCommandsController {
   async pagedGazetteHistory(
     @Param("tenantId",new ParseUUIDPipe()) tenantId:string,
     @Headers("authorization") auth:string|undefined,
-    @Query("beforeCreated") beforeCreated?:string,
-    @Query("beforeId") beforeId?:string,
+    @Query("cursor") cursor?:string,
     @Query("limit") limitText?:string
   ){
     if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
       throw new ServiceUnavailableException("GAZETTE_HISTORY_NOT_RELEASED");
-    if((beforeCreated&&!beforeId)||(!beforeCreated&&beforeId)||
-      (beforeCreated&&(!Number.isFinite(Date.parse(beforeCreated))||beforeCreated.length>40))||
-      (beforeId&&!/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(beforeId))||
-      (limitText!==undefined&&!/^(?:[1-9]|[1-9][0-9]|100)$/.test(limitText)))
+    if(limitText!==undefined&&!/^(?:[1-9]|[1-9][0-9]|100)$/.test(limitText))
       throw new BadRequestException("INVALID_GAZETTE_CURSOR");
     const limit=limitText===undefined?50:Number(limitText);
+    const digest=this.db.sessionDigest(auth);
+    const {beforeCreated,beforeId}=ph109DecodeCursor(cursor,digest,tenantId,"claims");
     const actor=await this.db.sessionActor(auth);
     return this.db.inTenant(actor,tenantId,async client=>{
       try{
         const result=await client.query<{out:Record<string,unknown>}>(
           "SELECT tto.list_manual_official_governance_claims_page($1::uuid,$2::bytea,$3::timestamptz,$4::uuid,$5::integer) AS out",
-          [tenantId,this.db.sessionDigest(auth),beforeCreated??null,beforeId??null,limit]);
+          [tenantId,digest,beforeCreated,beforeId,limit]);
         const value=result.rows[0]?.out;
         if(!value||!Array.isArray(value.items)||value.items.length>limit||
            value.officiallyVerified!==false||value.legalApproval!==false||
@@ -467,7 +503,7 @@ export class FoundationCommandsController {
           throw new ServiceUnavailableException("GAZETTE_HISTORY_UNAVAILABLE");
         const last=value.items.at(-1) as {createdAt?:string;claimId?:string}|undefined;
         return {tenantId,...value,
-          nextCursor:value.hasMore===true&&last?{beforeCreated:last.createdAt,beforeId:last.claimId}:null};
+          nextCursor:value.hasMore===true&&last?ph109EncodeCursor(digest,tenantId,"claims",last.createdAt!,last.claimId!):null};
       }catch(e){
         const code=(e as {code?:string}).code;
         if(code==="42501")throw new ForbiddenException("MANAGER_LEGAL_AUTHORITY_REQUIRED");
@@ -482,24 +518,22 @@ export class FoundationCommandsController {
   async listGazetteReviewFindings(
     @Param("tenantId",new ParseUUIDPipe()) tenantId:string,
     @Headers("authorization") auth:string|undefined,
-    @Query("beforeCreated") beforeCreated?:string,
-    @Query("beforeId") beforeId?:string,
+    @Query("cursor") cursor?:string,
     @Query("limit") limitText?:string
   ){
     if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
       throw new ServiceUnavailableException("GAZETTE_REVIEW_HISTORY_NOT_RELEASED");
-    if((beforeCreated&&!beforeId)||(!beforeCreated&&beforeId)||
-      (beforeCreated&&(!Number.isFinite(Date.parse(beforeCreated))||beforeCreated.length>40))||
-      (beforeId&&!/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(beforeId))||
-      (limitText!==undefined&&!/^(?:[1-9]|[1-9][0-9]|100)$/.test(limitText)))
-      throw new BadRequestException("INVALID_REVIEW_HISTORY_CURSOR");
+    if(limitText!==undefined&&!/^(?:[1-9]|[1-9][0-9]|100)$/.test(limitText))
+      throw new BadRequestException("INVALID_GAZETTE_CURSOR");
     const limit=limitText===undefined?50:Number(limitText);
+    const digest=this.db.sessionDigest(auth);
+    const {beforeCreated,beforeId}=ph109DecodeCursor(cursor,digest,tenantId,"findings");
     const actor=await this.db.sessionActor(auth);
     return this.db.inTenant(actor,tenantId,async client=>{
       try{
         const result=await client.query<{out:Record<string,unknown>}>(
           "SELECT tto.list_manual_gazette_review_findings_page($1::uuid,$2::bytea,$3::timestamptz,$4::uuid,$5::integer) AS out",
-          [tenantId,this.db.sessionDigest(auth),beforeCreated??null,beforeId??null,limit]);
+          [tenantId,digest,beforeCreated,beforeId,limit]);
         const value=result.rows[0]?.out;
         if(!value||!Array.isArray(value.items)||value.items.length>limit||
            typeof value.hasMore!=="boolean"||value.officiallyVerified!==false||
@@ -508,7 +542,7 @@ export class FoundationCommandsController {
           throw new ServiceUnavailableException("INVALID_REVIEW_HISTORY_UPSTREAM");
         const last=value.items.at(-1) as {createdAt?:string;findingId?:string}|undefined;
         return {...value,nextCursor:value.hasMore===true&&last?
-          {beforeCreated:last.createdAt,beforeId:last.findingId}:null};
+          ph109EncodeCursor(digest,tenantId,"findings",last.createdAt!,last.findingId!):null};
       }catch(e){
         const code=(e as {code?:string}).code;
         if(code==="42501")throw new ForbiddenException("REVIEW_HISTORY_MANAGER_REQUIRED");
