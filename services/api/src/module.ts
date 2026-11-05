@@ -477,6 +477,37 @@ export class FoundationCommandsController {
     });
   }
 
+  @Post("national/governance/gazette-claims/:claimId/reviews")
+  @HttpCode(201)
+  async reviewGazette(@Param("claimId",new ParseUUIDPipe()) claimId:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("GAZETTE_REVIEW_NOT_RELEASED");
+    const key=requireId(input?.requestKey);
+    const reference=requireText(input?.sourceReference,8,240);
+    const rationale=requireText(input?.rationale,10,1500);
+    const hash=input?.sourceHashHex,outcome=input?.outcome;
+    if(typeof hash!=="string"||!/^[a-fA-F0-9]{64}$/.test(hash)||
+      typeof outcome!=="string"||
+      !["MATCH_REPORTED_UNVERIFIED","MISMATCH_REPORTED","INCONCLUSIVE"].includes(outcome))
+      throw new BadRequestException("INVALID_GAZETTE_REVIEW");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      try {
+        const result=await client.query<{out:Record<string,unknown>}>(
+          "SELECT tto.record_independent_gazette_finding($1::uuid,$2::uuid,$3::text,$4::bytea,$5::text,$6::text,$7::bytea) AS out",
+          [claimId,key,reference,Buffer.from(hash,"hex"),outcome,rationale,this.db.sessionDigest(auth)]);
+        return {claimId,...result.rows[0].out};
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("INDEPENDENT_GAZETTE_REVIEWER_REQUIRED");
+        if(code==="23505")throw new ConflictException("GAZETTE_REVIEW_REPLAY_CONFLICT");
+        if(code==="22023")throw new BadRequestException("INVALID_GAZETTE_REVIEW");
+        throw e;
+      }
+    });
+  }
+
   // PH10.8 manager-only, session-bound historical self-report read. No approval.
   @Get("tenants/:tenantId/governance/manual-official-notices")
   async listManualOfficialGovernanceNotices(
