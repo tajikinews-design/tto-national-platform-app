@@ -47,13 +47,13 @@ export default function OfficialRecordsPage(){
  const [history,setHistory]=useState<HistoryRow[]>([]);
  const [historyError,setHistoryError]=useState("");
  const [historyMore,setHistoryMore]=useState(false);
- const [nextCursor,setNextCursor]=useState<{beforeCreated:string;beforeId:string}|null>(null);
+ const [nextCursor,setNextCursor]=useState<string|null>(null);
  const [loadingMore,setLoadingMore]=useState(false);
  const [historyVersion,setHistoryVersion]=useState(0);
  const [reviewFindings,setReviewFindings]=useState<ReviewFinding[]>([]);
  const [reviewError,setReviewError]=useState("");
  const [reviewMore,setReviewMore]=useState(false);
- const [reviewCursor,setReviewCursor]=useState<{beforeCreated:string;beforeId:string}|null>(null);
+ const [reviewCursor,setReviewCursor]=useState<string|null>(null);
  const [reviewLoading,setReviewLoading]=useState(false);
 
  useEffect(()=>{
@@ -83,7 +83,7 @@ export default function OfficialRecordsPage(){
   }).then(async r=>{
    if(!r.ok)throw Error("AUTHORITY_OR_HISTORY_UNAVAILABLE");
    const data=await r.json() as {
-    items?:HistoryRow[];hasMore?:boolean;nextCursor?:{beforeCreated:string;beforeId:string}|null;selfReportedOnly?:boolean;
+    items?:HistoryRow[];hasMore?:boolean;nextCursor?:string|null;selfReportedOnly?:boolean;
     officiallyVerified?:boolean;legalApproval?:boolean;roleGranted?:boolean
    };
    if(!Array.isArray(data.items)||data.items.length>100||
@@ -107,7 +107,7 @@ export default function OfficialRecordsPage(){
   }).then(async res=>{
    if(!res.ok)throw Error("REVIEW_HISTORY_DENIED");
    const data=await res.json() as {tenantId:string;items:ReviewFinding[];hasMore:boolean;
-    nextCursor:{beforeCreated:string;beforeId:string}|null;officiallyVerified:boolean;
+    nextCursor:string|null;officiallyVerified:boolean;
     legalApproval:boolean;roleGranted:boolean;sourceClassification:string};
    if(data.tenantId!==requestedTenant||!Array.isArray(data.items)||
     data.items.length>50||data.officiallyVerified!==false||
@@ -125,13 +125,13 @@ export default function OfficialRecordsPage(){
   if(!tenantId||!reviewMore||!reviewCursor||reviewLoading)return;
   const requestedTenant=tenantId;
   setReviewLoading(true);setReviewError("");
-  const params=new URLSearchParams(reviewCursor);
+  const params=new URLSearchParams({cursor:reviewCursor});
   try{
    const res=await fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/official-notices/reviews?"+params,{
     credentials:"same-origin",cache:"no-store"});
    if(!res.ok)throw Error("REVIEW_HISTORY_MORE_UNAVAILABLE");
    const data=await res.json() as {tenantId:string;items:ReviewFinding[];hasMore:boolean;
-    nextCursor:{beforeCreated:string;beforeId:string}|null;officiallyVerified:boolean;
+    nextCursor:string|null;officiallyVerified:boolean;
     legalApproval:boolean;roleGranted:boolean;sourceClassification:string};
    if(data.tenantId!==requestedTenant||!Array.isArray(data.items)||data.items.length>50||
     data.officiallyVerified!==false||data.legalApproval!==false||
@@ -154,13 +154,12 @@ export default function OfficialRecordsPage(){
   setLoadingMore(true);setHistoryError("");
   const requestedTenant=tenantId;
   try{
-   const params=new URLSearchParams({beforeCreated:nextCursor.beforeCreated,
-    beforeId:nextCursor.beforeId});
+   const params=new URLSearchParams({cursor:nextCursor});
    const res=await fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/official-notices/pages?"+params,{
     credentials:"same-origin",cache:"no-store"});
    if(!res.ok)throw Error("MORE_HISTORY_UNAVAILABLE");
    const data=await res.json() as {tenantId:string;items:HistoryRow[];hasMore:boolean;
-    nextCursor:{beforeCreated:string;beforeId:string}|null;selfReportedOnly:boolean;
+    nextCursor:string|null;selfReportedOnly:boolean;
     officiallyVerified:boolean;legalApproval:boolean;roleGranted:boolean};
    if(data.tenantId!==requestedTenant||!Array.isArray(data.items)||
     data.items.length>50||data.selfReportedOnly!==true||
