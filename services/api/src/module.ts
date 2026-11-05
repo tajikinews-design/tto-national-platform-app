@@ -294,6 +294,90 @@ export class FoundationCommandsController {
     });
   }
 
+  // Protected national-root only. A submitted dossier is NEVER a created tenant.
+  @Get("national/cooperative-onboarding")
+  async listNationalCooperativeOnboarding(@Headers("authorization") auth:string|undefined){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const role=await client.query<{allowed:boolean}>("SELECT tto.has_national_root() AS allowed");
+      if(role.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const r=await client.query<{
+        slug:string;workspace_state:string;dossier_id:string|null;dossier_state:string|null;
+        legal_name:string|null;candidate_manager_name:string|null;submitted_at:string|null
+      }>(
+       "SELECT w.slug,w.state AS workspace_state,d.dossier_id,d.state AS dossier_state, "+
+       "d.legal_name,d.candidate_manager_name,d.submitted_at "+
+       "FROM tto.cooperative_workspace_addresses w "+
+       "LEFT JOIN tto.cooperative_onboarding_dossiers d ON d.workspace_id=w.workspace_id "+
+       "WHERE w.state='RESERVED' ORDER BY w.created_at DESC LIMIT 100"
+      );
+      return {items:r.rows,tenantActivated:false};
+    });
+  }
+
+  @Post("national/cooperative-onboarding")
+  @HttpCode(201)
+  async submitNationalCooperativeOnboarding(
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const slug=requireText(input?.slug,3,40);
+    if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
+      throw new BadRequestException("INVALID_WORKSPACE_SLUG");
+    const legalName=requireText(input?.legalName,8,180);
+    const nationalId=requireText(input?.nationalId,11,11);
+    const registrationNumber=requireText(input?.registrationNumber,1,20);
+    const province=requireText(input?.province,2,120);
+    const county=requireText(input?.county,2,120);
+    const legalAddress=requireText(input?.legalAddress,8,300);
+    const representativeName=requireText(input?.representativeName,3,120);
+    const candidateManagerName=requireText(input?.candidateManagerName,3,120);
+    const candidateManagerMobile=requireText(input?.candidateManagerMobile,11,11);
+    const evidenceReference=input?.evidenceReference===undefined||input?.evidenceReference===""
+      ?null:requireText(input?.evidenceReference,5,180);
+    if(!/^[0-9]{11}$/.test(nationalId)||!/^[0-9]{1,20}$/.test(registrationNumber)||
+       !/^09[0-9]{9}$/.test(candidateManagerMobile))
+      throw new BadRequestException("INVALID_LEGAL_IDENTIFIERS_OR_MOBILE");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const role=await client.query<{allowed:boolean}>("SELECT tto.has_national_root() AS allowed");
+      if(role.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const reserved=await client.query<{workspace_id:string}>(
+        "SELECT workspace_id FROM tto.cooperative_workspace_addresses "+
+        "WHERE slug=$1 AND state='RESERVED' FOR UPDATE",[slug]);
+      if(reserved.rowCount!==1)
+        throw new BadRequestException("WORKSPACE_MUST_BE_RESERVED");
+      const existingTenant=await client.query(
+        "SELECT 1 FROM tto.tenants WHERE slug=$1 LIMIT 1",[slug]);
+      if(existingTenant.rowCount)throw new ConflictException("WORKSPACE_ALREADY_PROVISIONED");
+      const id=randomUUID();
+      try{
+        await client.query(
+          "INSERT INTO tto.cooperative_onboarding_dossiers "+
+          "(dossier_id,workspace_id,legal_name,national_id,registration_number,"+
+          "province,county,legal_address,representative_name,candidate_manager_name,"+
+          "candidate_manager_mobile,evidence_reference,created_by) "+
+          "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)",
+          [id,reserved.rows[0].workspace_id,legalName,nationalId,registrationNumber,
+            province,county,legalAddress,representativeName,candidateManagerName,
+            candidateManagerMobile,evidenceReference,actor]
+        );
+        await client.query(
+          "INSERT INTO tto.cooperative_onboarding_audit(dossier_id,actor_id,action) "+
+          "VALUES ($1,$2,'DOSSIER_SUBMITTED')",[id,actor]);
+      }catch(e){
+        if((e as {code?:string}).code==="23505")
+          throw new ConflictException("DOSSIER_ALREADY_EXISTS");
+        throw e;
+      }
+      return {dossierId:id,slug,status:"PENDING_LEGAL_REVIEW",tenantCreated:false,
+        managerRoleGranted:false,managerMobileVerified:false};
+    });
+  }
+
   @Post("national/cooperative-intakes")
   @HttpCode(201)
   async createNationalCooperativeIntake(
