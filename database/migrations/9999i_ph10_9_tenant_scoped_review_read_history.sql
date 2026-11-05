@@ -26,6 +26,7 @@ CREATE OR REPLACE FUNCTION tto.record_independent_gazette_finding(
 ) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
  SET search_path TO pg_catalog,tto AS $f$
 DECLARE v_actor uuid;v_session_actor uuid;v_claim tto.cooperative_manual_official_governance_claims%ROWTYPE;
+ v_tenant_appointment text;
  v_mandate tto.cooperative_external_legal_review_mandates%ROWTYPE;
  v_prev tto.cooperative_manual_gazette_review_findings%ROWTYPE;v_id uuid;
 BEGIN
@@ -54,18 +55,21 @@ BEGIN
  END IF;
  -- A global reviewer appointment alone is NOT authority over this tenant.
  -- A separate root-issued, valid, unrevoked tenant grant is mandatory.
- IF NOT EXISTS (
-  SELECT 1 FROM tto.cooperative_gazette_review_tenant_mandates s
-  JOIN tto.national_root_accounts nr ON nr.user_id=s.appointed_by
-  WHERE s.reviewer_id=v_actor AND s.tenant_id=v_claim.tenant_id
-   AND s.revoked_at IS NULL AND s.valid_from<=clock_timestamp()
-   AND s.expires_at>clock_timestamp() AND nr.singleton
-   AND nr.revoked_at IS NULL
- ) OR EXISTS (
-  SELECT 1 FROM tto.role_assignments ra
-  WHERE ra.user_id=v_actor AND ra.tenant_id=v_claim.tenant_id
-   AND ra.role_code='COOPERATIVE_MANAGER'
- ) THEN
+ SELECT s.appointment_reference INTO v_tenant_appointment
+ FROM tto.cooperative_gazette_review_tenant_mandates s
+ JOIN tto.national_root_accounts nr ON nr.user_id=s.appointed_by
+ WHERE s.reviewer_id=v_actor AND s.tenant_id=v_claim.tenant_id
+  AND s.revoked_at IS NULL AND s.valid_from<=clock_timestamp()
+  AND s.expires_at>clock_timestamp() AND nr.singleton AND nr.revoked_at IS NULL
+ FOR SHARE OF s;
+ IF v_tenant_appointment IS NULL OR
+  NOT EXISTS(SELECT 1 FROM tto.tenants
+             WHERE tenant_id=v_claim.tenant_id AND status='ACTIVE') OR
+  EXISTS (
+   SELECT 1 FROM tto.role_assignments ra
+   WHERE ra.user_id=v_actor AND ra.tenant_id=v_claim.tenant_id
+    AND ra.role_code='COOPERATIVE_MANAGER'
+  ) THEN
   RAISE EXCEPTION 'TENANT_SCOPED_INDEPENDENT_REVIEW_MANDATE_REQUIRED' USING ERRCODE='42501';
  END IF;
  IF p_request IS NULL OR p_source_reference IS NULL OR
@@ -95,7 +99,7 @@ BEGIN
  INSERT INTO tto.cooperative_manual_gazette_review_findings(
   request_key,claim_id,tenant_id,reviewer_id,mandate_appointment_reference,
   source_reference,source_sha256,outcome,rationale)
- VALUES(p_request,p_claim,v_claim.tenant_id,v_actor,v_mandate.appointment_reference,
+ VALUES(p_request,p_claim,v_claim.tenant_id,v_actor,v_tenant_appointment,
   btrim(p_source_reference),p_source_sha256,p_outcome,btrim(p_rationale))
  RETURNING finding_id INTO v_id;
  RETURN jsonb_build_object('findingId',v_id,'replayed',false,
