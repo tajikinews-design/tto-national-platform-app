@@ -20,6 +20,7 @@ if(process.env.CI!=="true"||process.env.VERCEL||process.env.APIIR_TOKEN||
 const db=new Client({connectionString:process.env.TEST_ADMIN_DATABASE_URL});
 const apiPort=32871,webPort=32872,api="http://127.0.0.1:"+apiPort,web="http://127.0.0.1:"+webPort;
 const rootId=randomUUID(),strangerId=randomUUID(),workspaceId=randomUUID(),otherWorkspaceId=randomUUID();
+const legalReviewerId=randomUUID();
 const slug="ci-dossier-"+randomUUID().slice(0,8),otherSlug="ci-dossier-"+randomUUID().slice(0,8);
 const processes=[];let checks=0,rootToken,nonrootToken;
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
@@ -53,7 +54,9 @@ async function main(){
  await db.query("INSERT INTO tto.national_root_accounts(singleton,user_id,must_change_credentials) VALUES(true,$1,false)",[rootId]);
  await db.query("INSERT INTO tto.cooperative_workspace_addresses(workspace_id,slug,created_by) VALUES($1,$2,$3),($4,$5,$3)",
  [workspaceId,slug,rootId,otherWorkspaceId,otherSlug]);
+ await db.query("INSERT INTO tto.user_accounts(user_id) VALUES ($1)",[legalReviewerId]);
  rootToken=await session(rootId);nonrootToken=await session(strangerId);
+ const reviewerToken=await session(legalReviewerId);
  const nest=start(["dist/main.js"],resolve(ROOT,"services/api"),{
   DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:String(apiPort),NODE_ENV:"test",
   APIIR_TOKEN:"",TTO_ISOLATED_DEMO_DB:"true",
@@ -148,6 +151,73 @@ async function main(){
  assert.equal(referred.tenantCreated,false);assert.equal(referred.managerRoleGranted,false);
  expect(await req(a,{method:"POST",body:{action:"REJECT",expectedVersion:6,
   requestKey:randomUUID(),reason:"Synthetic illegal after referral"}}),400,"terminal referral cannot be reopened");
+ // Independent authenticity governance: only real authority can ultimately verify.
+ // First check actual encrypted object integrity with authenticated root credentials.
+ const integrityPath=e+"/"+corrected.evidenceId+"/integrity";
+ expect(await req(integrityPath,{token:""}),401,"integrity requires cookie");
+ expect(await req(integrityPath,{token:nonrootToken}),403,"nonroot cannot invoke integrity");
+ const integrity=expect(await req(integrityPath),200,"cryptographic ciphertext integrity");
+ assert.equal(integrity.integrity,"MATCH");
+ assert.equal(integrity.authenticity,"NOT_VERIFIED");
+ assert.equal(integrity.externalSourceVerified,false);
+ assert.equal(integrity.legalApproval,false);
+ // Corrupt the encrypted fixture at rest and prove the server fails closed.
+ const original=await db.query(
+  "SELECT ciphertext FROM tto.cooperative_onboarding_evidence_quarantine WHERE evidence_id=$1",
+  [corrected.evidenceId]);
+ await db.query("UPDATE tto.cooperative_onboarding_evidence_quarantine SET ciphertext=$2 WHERE evidence_id=$1",
+  [corrected.evidenceId,Buffer.from("tampered")]);
+ expect(await req(integrityPath),503,"tampered ciphertext fails authenticated integrity check");
+ await db.query("UPDATE tto.cooperative_onboarding_evidence_quarantine SET ciphertext=$2 WHERE evidence_id=$1",
+  [corrected.evidenceId,original.rows[0].ciphertext]);
+ expect(await req(integrityPath),200,"restored ciphertext passes integrity check");
+ const sourcePath=s+"/"+submitted.dossierId+"/source-checks";
+ const checkRequest={evidenceId:corrected.evidenceId,requestKey:randomUUID(),
+  sourceKind:"NATIONAL_REGISTRY",sourceReference:"Synthetic registry evidence reference",
+  sourceHashHex:createHash("sha256").update("SYNTHETIC_UNVERIFIED_REGISTRY_CLAIM").digest("hex"),
+  finding:"MATCH_REPORTED_UNVERIFIED",
+  rationale:"Synthetic reviewer reports a source comparison; not a legal approval"};
+ expect(await req(sourcePath,{method:"POST",body:checkRequest,origin:false}),403,
+  "independent review CSRF Origin required");
+ expect(await req(sourcePath,{method:"POST",token:"",body:checkRequest}),401,
+  "independent review unauthenticated");
+ expect(await req(sourcePath,{method:"POST",body:checkRequest}),403,
+  "national root cannot approve its own submitted case");
+ expect(await req(sourcePath,{method:"POST",token:nonrootToken,body:checkRequest}),403,
+  "unappointed outsider reviewer forbidden");
+ expect(await req(sourcePath,{method:"POST",token:reviewerToken,body:checkRequest}),403,
+  "unappointed independent reviewer forbidden");
+ // A privileged operator seeds a *synthetic* time-bound appointment for CI only.
+ // There is no app/API privilege to create legal review mandates.
+ await db.query("INSERT INTO tto.cooperative_external_legal_review_mandates("+
+  "reviewer_id,appointed_by,authority_name,appointment_reference,"+
+  "appointment_evidence_sha256,valid_from,expires_at) VALUES($1,$2,$3,$4,$5,now()-interval '1 hour',now()+interval '3 days')",
+  [legalReviewerId,rootId,"Synthetic External Legal Review Board",
+   "Synthetic signed appointment in disposable database only",
+   createHash("sha256").update("SYNTHETIC_APPOINTMENT").digest()]);
+ const recorded=expect(await req(sourcePath,{method:"POST",token:reviewerToken,body:checkRequest}),201,
+  "appointed independent reviewer can record unverified source comparison");
+ assert.equal(recorded.authenticity,"NOT_VERIFIED");
+ assert.equal(recorded.legalApproval,false);
+ assert.equal(recorded.tenantCreated,false);
+ assert.equal(recorded.managerRoleGranted,false);
+ const checkReplay=expect(await req(sourcePath,{method:"POST",token:reviewerToken,body:checkRequest}),201,
+  "independent source check exact retry");
+ assert.equal(recorded.checkId,checkReplay.checkId);assert.equal(checkReplay.replayed,true);
+ expect(await req(sourcePath,{method:"POST",token:reviewerToken,body:{
+  ...checkRequest,finding:"MISMATCH_REPORTED"}}),409,
+  "same source check key with changed result cannot replay");
+ await db.query("UPDATE tto.cooperative_external_legal_review_mandates SET revoked_at=now()"+
+ " WHERE reviewer_id=$1",[legalReviewerId]);
+ expect(await req(sourcePath,{method:"POST",token:reviewerToken,body:{
+  ...checkRequest,requestKey:randomUUID()}}),403,"revoked legal reviewer must fail closed");
+ const external=await db.query("SELECT finding,reviewer_id FROM "+
+  "tto.cooperative_external_source_check_records WHERE dossier_id=$1",
+  [submitted.dossierId]);
+ assert.equal(external.rowCount,1);
+ assert.equal(external.rows[0].finding,"MATCH_REPORTED_UNVERIFIED");
+ assert.equal(external.rows[0].reviewer_id,legalReviewerId);checks++;
+ console.log("PH10_INDEPENDENT_REVIEW_MANDATE_REVOKE_CRYPTO_INTEGRITY_PASS_NO_AUTHENTICITY");
  const audit=await db.query("SELECT action,resulting_state,resulting_version FROM "+
  "tto.cooperative_onboarding_audit WHERE dossier_id=$1 ORDER BY occurred_at",[submitted.dossierId]);
  assert.equal(audit.rows.length,6,"submission plus five state changes must be auditable");
