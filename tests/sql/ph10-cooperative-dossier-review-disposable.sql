@@ -3,8 +3,8 @@
 BEGIN;
 INSERT INTO tto.user_accounts(user_id)
  VALUES ('11111111-1111-4111-8111-111111111111');
-INSERT INTO tto.national_root_accounts(singleton,user_id)
- VALUES (true,'11111111-1111-4111-8111-111111111111');
+INSERT INTO tto.national_root_accounts(singleton,user_id,must_change_credentials)
+ VALUES (true,'11111111-1111-4111-8111-111111111111',false);
 INSERT INTO tto.cooperative_workspace_addresses(workspace_id,slug,created_by)
  VALUES ('22222222-2222-4222-8222-222222222222','synthetic-ci-only',
          '11111111-1111-4111-8111-111111111111');
