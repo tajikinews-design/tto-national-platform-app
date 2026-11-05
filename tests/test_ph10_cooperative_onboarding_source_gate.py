@@ -22,6 +22,7 @@ class PH10CooperativeSourceGate(unittest.TestCase):
         cls.quarantine = read("database/migrations/9999b_ph10_cooperative_evidence_quarantine.sql")
         cls.external = read("database/migrations/9999c_ph10_cooperative_external_source_review_gate.sql")
         cls.malware = read("database/migrations/9999d_ph10_cooperative_malware_scan_receipts.sql")
+        cls.manual = read("database/migrations/9999e_ph10_manager_official_notice_claims.sql")
         cls.clamd = read("services/api/src/clamd-evidence.ts")
         cls.scan_bff = read("apps/national-admin/app/api/cooperatives/onboarding-evidence/[evidenceId]/scan/route.ts")
         cls.api = read("services/api/src/module.ts")
