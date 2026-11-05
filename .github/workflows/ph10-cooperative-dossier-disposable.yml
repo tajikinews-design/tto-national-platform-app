@@ -29,7 +29,7 @@ jobs:
       - name: Start ephemeral PostgreSQL17 without hosted credentials
         run: |
           set -euo pipefail
-          docker run -d --rm --name tto-ph10-dossier -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto postgres:17-alpine
+          docker run -d --rm --name tto-ph10-dossier -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto postgres:17-alpine
           ok=false
           for i in $(seq 1 90); do
             if docker exec tto-ph10-dossier psql -U postgres -d tto -Atqc 'SELECT 1' >/dev/null 2>&1; then ok=true;break;fi
@@ -55,6 +55,21 @@ jobs:
             docker exec -i tto-ph10-dossier psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$test_file"
           done
           echo PH10_DOSSIER_REVIEW_DB_GATE_PASS_NO_LEGAL_APPROVAL
+      - name: Build real Nest API and Next national panel (disposable only)
+        run: |
+          set -euo pipefail
+          pnpm --filter @tto/api build
+          pnpm --filter @tto/national-admin build
+      - name: Execute authenticated national BFF to Nest to PG17 end-to-end workflow
+        env:
+          TTO_ISOLATED_DEMO_DB: "true"
+          TEST_ADMIN_DATABASE_URL: "postgresql://postgres@127.0.0.1:5432/tto"
+          TTO_COOP_QUARANTINE_KEY_HEX: "${{ hashFiles('database/migrations/9999b_ph10_cooperative_evidence_quarantine.sql') }}"
+        run: |
+          set -euo pipefail
+          test "${#TTO_COOP_QUARANTINE_KEY_HEX}" -eq 64
+          timeout --signal=TERM --kill-after=5s 300s node scripts/ci/ph10-cooperative-onboarding-http-e2e.cjs
+          echo PH10_COOP_FULL_BFF_NEST_POSTGRES17_E2E_GATE_PASS_NO_LEGAL_APPROVAL
       - name: Destroy database even on failure
         if: always()
         run: docker rm -f tto-ph10-dossier || true
