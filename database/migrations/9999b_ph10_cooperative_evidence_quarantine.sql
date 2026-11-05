@@ -43,10 +43,21 @@ BEGIN
    octet_length(p_ciphertext) NOT BETWEEN 1 AND 524288 THEN
      RAISE EXCEPTION 'INVALID_EVIDENCE' USING ERRCODE='22023';
  END IF;
+ -- Serialize with dossier submission and avoid an upload racing after submission.
+ PERFORM pg_advisory_xact_lock(hashtextextended(p_slug,42));
  SELECT workspace_id INTO v_workspace FROM tto.cooperative_workspace_addresses
  WHERE slug=p_slug AND state='RESERVED' FOR SHARE;
  IF v_workspace IS NULL OR EXISTS(SELECT 1 FROM tto.tenants WHERE slug=p_slug)
  THEN RAISE EXCEPTION 'NOT_RESERVED_OR_ACTIVATED' USING ERRCODE='22023'; END IF;
+ -- New uploads after submission are permitted only for a requested correction.
+ IF EXISTS (
+  SELECT 1 FROM tto.cooperative_onboarding_dossiers d
+  WHERE d.workspace_id=v_workspace AND d.state<>'CHANGES_REQUESTED'
+ ) THEN
+  RAISE EXCEPTION 'EVIDENCE_UPLOAD_WINDOW_CLOSED' USING ERRCODE='22023';
+ END IF;
+ -- Equal upload keys are serialized to return the original result on exact replay.
+ PERFORM pg_advisory_xact_lock(hashtextextended(p_upload_key::text,57));
  SELECT * INTO v_existing FROM tto.cooperative_onboarding_evidence_quarantine
  WHERE upload_key=p_upload_key;
  IF FOUND THEN
