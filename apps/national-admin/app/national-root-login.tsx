@@ -88,6 +88,7 @@ export default function NationalRootLogin(){
    phase==="unavailable"?<div><p role="alert">بررسی نشست ممکن نیست؛ هیچ عملیات مدیریتی فعال نیست.</p><button type="button" onClick={()=>void verifySession()}>تلاش مجدد</button></div>:
    phase==="ready"?<div><p role="status">ورود مدیر ملی و تکمیل تعویض مشخصات تأیید شد.</p>
     <a style={{display:"inline-block",padding:"12px 18px",color:"#fff",background:"#075b88",borderRadius:8,textDecoration:"none"}} href="/cooperatives/new">ایجاد نشانی اختصاصی تعاونی</a>
+    <a style={{display:"inline-block",padding:"12px 18px",color:"#075b88",background:"#e9f4fc",borderRadius:8,textDecoration:"none",margin:10,fontWeight:700}} href="/cooperatives/onboarding">تکمیل پرونده حقوقی نشانی‌های رزروشده</a>
     <button type="button" onClick={()=>void logout()} disabled={busy} style={{margin:12,padding:10}}>خروج امن</button>
    </div>:
    phase==="change"?<div>
