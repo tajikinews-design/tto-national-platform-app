@@ -76,12 +76,14 @@ async function main(){
   [role,manager,tenant,authority]);
  managerToken=await session(manager);outsiderToken=await session(outsider);
  reviewerToken=await session(reviewer);
- await db.query("INSERT INTO tto.national_root_accounts(singleton,user_id,must_change_credentials) VALUES(true,$1,false)",[verifier]);
+ const rootRecord=await db.query("SELECT user_id FROM tto.national_root_accounts WHERE singleton AND revoked_at IS NULL");
+ const rootId=rootRecord.rows[0]?.user_id;
+ if(!rootId)throw Error("PREEXISTING_SYNTHETIC_NATIONAL_ROOT_REQUIRED");
  await db.query("INSERT INTO tto.cooperative_external_legal_review_mandates("+
   "reviewer_id,appointed_by,authority_name,appointment_reference,appointment_evidence_sha256,valid_from,expires_at)"+
   " VALUES($1,$2,'Synthetic Official Legal Reviewer','Synthetic Gazette Reviewer Mandate',"+
   "$3,now()-interval '5 minutes',now()+interval '2 days')",
-  [reviewer,verifier,randomBytes(32)]);
+  [reviewer,rootId,randomBytes(32)]);
 
  const nest=spawnNode(["dist/main.js"],resolve(ROOT,"services/api"),{
   DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:String(apiPort),NODE_ENV:"test",
