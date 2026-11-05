@@ -133,10 +133,9 @@ END $gate$;
 DO $gate$
 DECLARE first_id uuid; second_id uuid; value jsonb;history jsonb;
 BEGIN
- SELECT claim_id INTO first_id FROM tto.cooperative_manual_official_governance_claims
- WHERE request_key='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
  SELECT tto.list_manual_official_governance_claims(
   '44444444-4444-4444-8444-444444444444',decode(repeat('11',32),'hex')) INTO history;
+ first_id=(history->'items'->0->>'claimId')::uuid;
  IF jsonb_array_length(history->'items')<>1 OR history->>'selfReportedOnly'<>'true' OR
    history->>'legalApproval'<>'false' OR history->'items'->0->>'hasCorrection'<>'false'
  THEN RAISE EXCEPTION 'manager history leaked or omitted claim'; END IF;
