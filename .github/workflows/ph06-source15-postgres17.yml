@@ -1,0 +1,82 @@
+name: PH06 Member and Share Source15 PostgreSQL 17 (NO DEPLOY)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - feat/ph05-core-foundation-evidence-gates-20261102
+permissions:
+  contents: read
+concurrency:
+  group: ph06-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  source15-isolated:
+    if: github.head_ref == 'feat/ph06-member-share-ledger-synthetic-gates-20261102'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      CI: "true"
+      APIIR_TOKEN: ""
+    steps:
+      - name: Checkout exact head without write credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify 155 frozen IDs and 15 PH06 source contracts
+        run: |
+          set -euo pipefail
+          python3 tests/test_ph06_source15_truth.py
+          python3 tests/test_ph05_24_source_truth.py
+          python3 tests/test_ph05_24_runnable_map.py
+      - name: Start disposable PostgreSQL 17 with isolated database
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name tto-ph06-isolated -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine
+          ready=false
+          for n in $(seq 1 100); do
+            if docker exec tto-ph06-isolated psql -U postgres -d postgres -Atqc 'SELECT 1' >/dev/null 2>&1; then
+              ready=true
+              break
+            fi
+            sleep 0.5
+          done
+          test "$ready" = true || { docker logs tto-ph06-isolated; exit 1; }
+          # A transient startup socket can report ready then restart; retry
+          # the disposable-only CREATE DATABASE until PostgreSQL is stable.
+          made=false
+          for attempt in $(seq 1 40); do
+            if docker exec tto-ph06-isolated createdb -U postgres tto >/dev/null 2>&1; then
+              made=true; break
+            fi
+            if docker exec tto-ph06-isolated psql -U postgres -d tto -Atqc 'SELECT 1' >/dev/null 2>&1; then
+              made=true; break
+            fi
+            sleep 1
+          done
+          test "$made" = true || { docker logs tto-ph06-isolated | tail -80; exit 1; }
+      - name: Apply baseline migrations and PH06 0020 to disposable PG only
+        run: |
+          set -euo pipefail
+          for f in database/migrations/[0-9][0-9][0-9][0-9]_*.sql; do
+            echo "PH06_SYNTHETIC_MIGRATION=$(basename "$f")"
+            docker exec -i tto-ph06-isolated psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" >/dev/null
+          done
+          echo "PH06_SYNTHETIC_MIGRATIONS_0001_TO_0020_PASS"
+      - name: Run locked 15 source-ID negative and positive PH06 SQL scenarios
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph06-isolated psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph06-member-share-frozen15.sql
+          echo "PH06_SOURCE15_PG17_SYNTHETIC_ASSERTIONS_PASS_NOT_REAL_TRANSFER"
+      - name: Race two independent PostgreSQL sessions on one seller inventory
+        run: |
+          set -euo pipefail
+          bash scripts/ci/ph06-concurrent-share-lock.sh
+          echo "PH06_SHARE_LOCK_CONCURRENT_INDEPENDENT_SESSIONS_PASS"
+      - name: Positive legal-transfer lab with synthetic board, valuation, cap, SoD and verified payment
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph06-isolated psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph06-positive-legal-transfer-disposable-lab.sql
+          echo "PH06_SYNTHETIC_POSITIVE_FINALIZE_ATOMIC_TEST_PASS_NOT_PRODUCTION"
+      - name: Erase only disposable PostgreSQL
+        if: always()
+        run: docker rm -f tto-ph06-isolated || true
