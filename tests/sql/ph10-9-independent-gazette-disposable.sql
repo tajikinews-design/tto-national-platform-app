@@ -147,6 +147,6 @@ BEGIN
    (SELECT count(*) FROM tto.role_assignments)<>0 OR
    (SELECT count(*) FROM tto.legal_authorities)<>0 THEN
   RAISE EXCEPTION 'review modified permissions or evidence'; END IF;
-END $$;
+END $gate$;
 ROLLBACK;
 SELECT 'PH10_9_GAZETTE_REVIEW_NEGATIVE_AND_IMMUTABILITY_PASS' AS result;
