@@ -166,6 +166,44 @@ async function main(){
  const html=await page.text();
  assert.ok(html.includes("شماره روزنامه رسمی")&&html.includes("شماره آگهی"));
  assert.ok(html.includes("بررسی حقوقی مستقل الزامی است"));checks++;
+ // Browser-level assertion: the authorized manager sees only private
+ // self-reported history, can start a correction, and never receives legal approval.
+ const {chromium}=require("playwright");
+ const browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+ try{
+  const context=await browser.newContext({viewport:{width:390,height:844},locale:"fa-IR"});
+  await context.addCookies([{name:"tto_session",value:managerToken,domain:"localhost",
+   path:"/",httpOnly:true,secure:false,sameSite:"Lax"}]);
+  const page=await context.newPage();
+  const result=await page.goto(origin+"/official-records",
+   {waitUntil:"domcontentloaded",timeout:25000});
+  assert.equal(result.status(),200);checks++;
+  await page.getByRole("heading",{name:"سوابق ثبت‌شده آگهی‌ها و اصلاحات"})
+   .waitFor({state:"visible",timeout:17000});
+  await page.locator("article").first().waitFor({state:"visible",timeout:17000});
+  assert.equal(await page.locator("article").count(),2,
+   "manager should see first and amended Official Gazette claims");checks++;
+  await page.getByText("برای این سابقه، اصلاحیه جدید ثبت شده است.").waitFor();
+  const fresh=page.locator("article").filter({hasText:"22346"});
+  await fresh.getByRole("button",{name:"ثبت اصلاحیه جدید با حفظ سابقه"}).click();
+  assert.equal(await page.getByPlaceholder("از فهرست سوابق انتخاب کنید").inputValue(),
+   second.claimId,"selected correction must point to the newest claim");
+  assert.equal(await page.getByLabel("شماره روزنامه رسمی").inputValue(),"",
+   "new claim must require a NEW Gazette issue number");checks++;
+  const visible=await page.locator("main").innerText();
+  assert.ok(visible.includes("در انتظار بررسی حقوقی مستقل"));
+  assert.ok(!visible.includes("تأیید قطعی سمت"));checks++;
+  await context.close();
+  const anonContext=await browser.newContext({viewport:{width:390,height:844}});
+  const anon=await anonContext.newPage();
+  await anon.goto(origin+"/official-records",{waitUntil:"domcontentloaded",timeout:25000});
+  await anon.getByText("دسترسی مجاز مدیریت تعاونی احراز نشد",{exact:false})
+   .waitFor({state:"visible",timeout:17000});
+  assert.equal(await anon.locator("article").count(),0,
+   "anonymous viewer cannot see a private manager claim");checks++;
+  await anonContext.close();
+  console.log("PH10_MANUAL_GAZETTE_CHROMIUM_HISTORY_AND_CORRECTION_PASS_NO_DISCLOSURE");
+ }finally{await browser.close();}
  console.log("PH10_MANUAL_GAZETTE_BFF_NEST_PG17_NO_ROLE_ELEVATION_PASS_CHECKS="+checks);
 }
 main().catch(e=>{console.error("PH10_MANUAL_GAZETTE_E2E_FAIL",
