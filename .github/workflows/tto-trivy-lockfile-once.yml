@@ -1,0 +1,81 @@
+name: TTO one-shot Trivy lockfile pilot (NO DEPLOY)
+on:
+  push:
+    branches:
+      - feat/tto-child06-07-design-trivy-poc-20261102
+    paths:
+      - .github/workflows/tto-trivy-lockfile-once.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tto-trivy-one-shot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  trivy-private-lockfile-pilot:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feat/tto-child06-07-design-trivy-poc-20261102'
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    env:
+      CI: "true"
+      APIIR_TOKEN: ""
+      DATABASE_URL: ""
+      TTO_API_BASE_URL: ""
+      TTO_TRIVY_SCAN_OUTPUT: /tmp/tto-trivy-once.json
+      TRIVY_DISABLE_VEX_NOTICE: "true"
+    steps:
+      - name: Checkout reviewed branch, no persisted write credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Scan only pnpm lockfile (library CVEs, one-time report-only)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # release v0.36.0 pinned commit
+        with:
+          version: 'v0.76.1'
+          scan-type: 'fs'
+          scan-ref: './pnpm-lock.yaml'
+          scanners: 'vuln'
+          vuln-type: 'library'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          format: 'json'
+          output: /tmp/tto-trivy-once.json
+          exit-code: '0'
+          cache: 'false'
+          hide-progress: 'true'
+
+      - name: Print bounded private summary (no raw JSON artifacts, no secrets)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import collections, json, os
+          from pathlib import Path
+          p = Path(os.environ['TTO_TRIVY_SCAN_OUTPUT'])
+          if not p.is_file(): raise SystemExit("TTO_TRIVY_POC_FAILED_NO_JSON")
+          data = json.loads(p.read_text(encoding='utf-8'))
+          vulnerabilities = [v for r in data.get('Results', []) for v in (r.get('Vulnerabilities') or [])]
+          allowed = {'CRITICAL', 'HIGH', 'MEDIUM'}
+          rows = [v for v in vulnerabilities if v.get('Severity') in allowed]
+          counts = collections.Counter(v.get('Severity') for v in rows)
+          print("TTO_TRIVY_EXECUTED=YES")
+          print("TTO_TRIVY_SCOPE=PNPM_LOCKFILE_LIBRARIES_ONLY")
+          print("TTO_TRIVY_VERSION=v0.76.1")
+          print("TTO_TRIVY_SEVERITY_COUNTS=" + json.dumps({s: counts.get(s, 0) for s in ('CRITICAL','HIGH','MEDIUM')}, sort_keys=True))
+          print("TTO_TRIVY_FINDING_COUNT=" + str(len(rows)))
+          # Package names/CVE IDs and available fixed versions are not credentials; cap the output.
+          for v in sorted(rows, key=lambda a: (['CRITICAL','HIGH','MEDIUM'].index(a.get('Severity')), str(a.get('PkgName')), str(a.get('VulnerabilityID'))))[:30]:
+              safe = lambda x: ''.join(c for c in str(x or '') if c.isascii() and (c.isalnum() or c in '._-+/'))[:90]
+              print('TTO_TRIVY_FINDING severity={} pkg={} installed={} id={} fixed={}'.format(
+                  safe(v.get('Severity')),safe(v.get('PkgName')),safe(v.get('InstalledVersion')),
+                  safe(v.get('VulnerabilityID')),safe(v.get('FixedVersion'))))
+          print("TTO_TTO_TRIVY_SCAN_OUTPUT_RETAINED=NO")
+          PY
+
+      - name: Clear report from disposable runner
+        if: always()
+        shell: bash
+        run: rm -f "$TTO_TRIVY_SCAN_OUTPUT"
