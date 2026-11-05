@@ -15,11 +15,11 @@ if(process.env.CI!=="true"||process.env.TTO_ISOLATED_DEMO_DB!=="true"||
  process.env.VERCEL||process.env.APIIR_TOKEN)
  throw Error("PH10_MANUAL_GAZETTE_DISPOSABLE_ONLY");
 const db=new Client({connectionString:process.env.TEST_ADMIN_DATABASE_URL});
-const tenant=randomUUID(),foreignTenant=randomUUID(),manager=randomUUID(),outsider=randomUUID(),verifier=randomUUID(),
+const tenant=randomUUID(),foreignTenant=randomUUID(),manager=randomUUID(),outsider=randomUUID(),verifier=randomUUID(),reviewer=randomUUID(),
  authority=randomUUID(),role=randomUUID();
-const apiPort=32891,webPort=32892;
+const apiPort=32891,webPort=32892,nationalPort=32893;
 const api="http://127.0.0.1:"+apiPort,web="http://127.0.0.1:"+webPort,origin="http://localhost:"+webPort;
-let managerToken="",outsiderToken="",checks=0;
+let managerToken="",outsiderToken="",reviewerToken="",checks=0;
 const children=[];
 async function session(user){
  const token=randomBytes(48).toString("base64url");
@@ -61,8 +61,8 @@ function expect(res,status,label){assert.equal(res.status,status,label+" "+JSON.
 async function main(){
  await db.connect();
  await db.query("ALTER ROLE tto_app LOGIN");
- await db.query("INSERT INTO tto.user_accounts(user_id) VALUES ($1),($2),($3)",
-  [manager,outsider,verifier]);
+ await db.query("INSERT INTO tto.user_accounts(user_id) VALUES ($1),($2),($3),($4)",
+  [manager,outsider,verifier,reviewer]);
  await db.query("INSERT INTO tto.tenants(tenant_id,slug,display_name,status) VALUES "+
   "($1,$2,$3,'ACTIVE'),($4,$5,$6,'ACTIVE')",
   [tenant,"ci-gazette-"+randomUUID().slice(0,8),"Synthetic Gazette Cooperative",
@@ -75,6 +75,14 @@ async function main(){
   "legal_authority_id) VALUES($1,$2,$3,'COOPERATIVE_MANAGER',$4)",
   [role,manager,tenant,authority]);
  managerToken=await session(manager);outsiderToken=await session(outsider);
+ reviewerToken=await session(reviewer);
+ await db.query("INSERT INTO tto.national_root_accounts(singleton,user_id,must_change_credentials) VALUES(true,$1,false)",[verifier]);
+ await db.query("INSERT INTO tto.cooperative_external_legal_review_mandates("+
+  "reviewer_id,appointed_by,authority_name,appointment_reference,appointment_evidence_sha256,valid_from,expires_at)"+
+  " VALUES($1,$2,'Synthetic Official Legal Reviewer','Synthetic Gazette Reviewer Mandate',"+
+  "$3,now()-interval '5 minutes',now()+interval '2 days')",
+  [reviewer,verifier,randomBytes(32)]);
+
  const nest=spawnNode(["dist/main.js"],resolve(ROOT,"services/api"),{
   DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:String(apiPort),NODE_ENV:"test",
   CI:"true",TTO_ISOLATED_DEMO_DB:"true",APIIR_TOKEN:""});
@@ -204,6 +212,62 @@ async function main(){
   await anonContext.close();
   console.log("PH10_MANUAL_GAZETTE_CHROMIUM_HISTORY_AND_CORRECTION_PASS_NO_DISCLOSURE");
  }finally{await browser.close();}
+ // PH10.9 actual national Next BFF -> Nest -> PG17 reviewer flow + RTL Chromium.
+ const nationalCwd=resolve(ROOT,"apps/national-admin");
+ const nationalWeb="http://127.0.0.1:"+nationalPort;
+ const nationalOrigin="http://localhost:"+nationalPort;
+ const national=spawnNode([resolve(nationalCwd,"node_modules/next/dist/bin/next"),
+  "start","-p",String(nationalPort),"-H","127.0.0.1"],nationalCwd,{
+  NODE_ENV:"test",CI:"true",TTO_ISOLATED_DEMO_DB:"true",TTO_LOOPBACK_E2E:"1",
+  TTO_API_BASE_URL:api,NEXT_TELEMETRY_DISABLED:"1",APIIR_TOKEN:""});
+ await online(nationalWeb+"/governance/gazette-reviews",national);
+ const reviewPath="/api/governance/gazette-claims/"+second.claimId+"/reviews";
+ const reviewPayload={requestKey:randomUUID(),sourceReference:"Synthetic Gazette Record 2026",
+   sourceHashHex:randomBytes(32).toString("hex"),outcome:"INCONCLUSIVE",
+   rationale:"Only a synthetic reviewer comparison; no lawful signing rights."};
+ async function review(payload,token,includeOrigin=true){
+  const res=await fetch(nationalWeb+reviewPath,{method:"POST",headers:{
+    Host:"localhost:"+nationalPort, "Content-Type":"application/json",
+    ...(token?{Cookie:"tto_session="+token}:{}),
+    ...(includeOrigin?{Origin:nationalOrigin}:{}),
+   },body:JSON.stringify(payload),redirect:"manual",signal:AbortSignal.timeout(12000)});
+  return {status:res.status,value:await res.json().catch(()=>null)};
+ }
+ expect(await review(reviewPayload,""),401,"anonymous reviewer denied");
+ expect(await review(reviewPayload,managerToken),403,"self-appointed manager denied");
+ expect(await review(reviewPayload,reviewerToken,false),403,"review CSRF denied");
+ const recorded=expect(await review(reviewPayload,reviewerToken),201,"appointed reviewer stores report");
+ assert.equal(recorded.officiallyVerified,false);
+ assert.equal(recorded.roleGranted,false);
+ assert.equal(recorded.legalApproval,false);
+ const replay=expect(await review(reviewPayload,reviewerToken),201,"independent review idempotent replay");
+ assert.equal(replay.findingId,recorded.findingId);
+ assert.equal(replay.replayed,true);
+ expect(await review({...reviewPayload,outcome:"MISMATCH_REPORTED"},reviewerToken),409,
+  "conflicting reviewer replay rejected");
+ const browserReview=await chromium.launch({headless:true,args:["--no-sandbox"]});
+ try{
+  const context=await browserReview.newContext({viewport:{width:390,height:844},locale:"fa-IR"});
+  await context.addCookies([{name:"tto_session",value:reviewerToken,domain:"localhost",
+   path:"/",httpOnly:true,secure:false,sameSite:"Lax"}]);
+  const page=await context.newPage();
+  const response=await page.goto(nationalOrigin+"/governance/gazette-reviews",
+   {waitUntil:"domcontentloaded",timeout:25000});
+  assert.equal(response.status(),200);
+  await page.getByRole("heading",{name:"بررسی مستقل اطلاعات آگهی رسمی"}).waitFor();
+  await page.getByLabel("شناسه سابقه ثبت‌شده").fill(second.claimId);
+  await page.getByLabel("شناسه یا مرجع سند بررسی‌شده").fill("Synthetic Gazette Record 2026");
+  await page.getByLabel(/هش SHA-256/).fill(randomBytes(32).toString("hex"));
+  await page.getByLabel("دلایل و مستندات ارزیابی").fill(
+    "Synthetic independent report only, not source authenticity.");
+  await page.getByRole("button",{name:"ثبت گزارش بدون اعطای اختیار قانونی"}).click();
+  await page.getByText("گزارش بررسی ثبت شد؛ این گزارش تأیید قانونی آگهی یا اعطای سمت و حق امضا نیست.").waitFor();
+  checks++;
+  await context.close();
+ }finally{await browserReview.close();}
+ await db.query("UPDATE tto.cooperative_external_legal_review_mandates SET revoked_at=now() WHERE reviewer_id=$1",[reviewer]);
+ expect(await review({...reviewPayload,requestKey:randomUUID()},reviewerToken),403,"revoked reviewer denied");
+ console.log("PH10_9_INDEPENDENT_REVIEW_BFF_NEST_PG17_CHROMIUM_PASS_NO_LEGAL_PROMOTION");
  // PH10.9: synthetic full traversal beyond the old first-100 history limit.
  await db.query(`INSERT INTO tto.cooperative_manual_official_governance_claims(
   tenant_id,request_key,submitted_by,person_full_name,office_type,
