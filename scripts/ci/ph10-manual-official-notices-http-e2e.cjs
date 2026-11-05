@@ -85,6 +85,12 @@ async function main(){
   "$3,now()-interval '5 minutes',now()+interval '2 days')",
   [reviewer,rootId,randomBytes(32)]);
 
+ await db.query("INSERT INTO tto.cooperative_gazette_review_tenant_mandates("+
+  "reviewer_id,tenant_id,appointed_by,appointment_reference,evidence_sha256,valid_from,expires_at)"+
+  " VALUES($1,$2,$3,'Synthetic Tenant Legal Review Mandate',$4,"+
+  "now()-interval '5 minutes',now()+interval '2 days')",
+  [reviewer,tenant,rootId,randomBytes(32)]);
+
  const nest=spawnNode(["dist/main.js"],resolve(ROOT,"services/api"),{
   DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:String(apiPort),NODE_ENV:"test",
   CI:"true",TTO_ISOLATED_DEMO_DB:"true",APIIR_TOKEN:""});
@@ -238,6 +244,19 @@ async function main(){
  expect(await review(reviewPayload,""),401,"anonymous reviewer denied");
  expect(await review(reviewPayload,managerToken),403,"self-appointed manager denied");
  expect(await review(reviewPayload,reviewerToken,false),403,"review CSRF denied");
+ const foreignClaim=randomUUID();
+ await db.query("INSERT INTO tto.cooperative_manual_official_governance_claims("+
+  "claim_id,tenant_id,request_key,submitted_by,person_full_name,office_type,"+
+  "signing_mode,authority_scope,official_issue_number,official_publication_date,official_announcement_number)"+
+  " VALUES($1,$2,$3,$4,'Foreign Synthetic Signatory','BOARD_MEMBER','NONE',"+
+  "'No legal signing rights','23001',CURRENT_DATE,'FOREIGN42')",
+  [foreignClaim,foreignTenant,randomUUID(),manager]);
+ const forbiddenForeign=await fetch(nationalWeb+"/api/governance/gazette-claims/"+foreignClaim+"/reviews",{
+  method:"POST",headers:{Host:"localhost:"+nationalPort,"Content-Type":"application/json",
+   Origin:nationalOrigin,Cookie:"tto_session="+reviewerToken},
+  body:JSON.stringify({...reviewPayload,requestKey:randomUUID()}),
+  signal:AbortSignal.timeout(12000)});
+ assert.equal(forbiddenForeign.status,403,"reviewer must not access foreign cooperative");checks++;
  const recorded=expect(await review(reviewPayload,reviewerToken),201,"appointed reviewer stores report");
  assert.equal(recorded.officiallyVerified,false);
  assert.equal(recorded.roleGranted,false);
@@ -267,6 +286,9 @@ async function main(){
   checks++;
   await context.close();
  }finally{await browserReview.close();}
+ await db.query("UPDATE tto.cooperative_gazette_review_tenant_mandates SET revoked_at=now() WHERE reviewer_id=$1 AND tenant_id=$2",[reviewer,tenant]);
+ expect(await review({...reviewPayload,requestKey:randomUUID()},reviewerToken),403,
+  "revoked tenant-specific mandate denied even while global mandate valid");
  await db.query("UPDATE tto.cooperative_external_legal_review_mandates SET revoked_at=now() WHERE reviewer_id=$1",[reviewer]);
  expect(await review({...reviewPayload,requestKey:randomUUID()},reviewerToken),403,"revoked reviewer denied");
  console.log("PH10_9_INDEPENDENT_REVIEW_BFF_NEST_PG17_CHROMIUM_PASS_NO_LEGAL_PROMOTION");
