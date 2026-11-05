@@ -393,12 +393,39 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
      const scopeButton=page.getByRole('button',{name:'تأیید محدوده و استعلام'});
      await scopeButton.click({timeout:15000});
      console.log('PH10_CHROMIUM_NAV06_SCOPE_CONFIRM_CLICKED');
+     // Confirm the server read model independently before waiting for the UI.
+     // A missing permitted event is a real failing journey, not a browser timeout.
+     console.log('PH10_CHROMIUM_NAV06_BEFORE_AUTHENTICATED_SOURCE_GET');
+     const liveSource=await page.request.get(
+      'http://127.0.0.1:'+profile.port+'/api/tenants/'+tenant+'/ph10/NAV-06',
+      {timeout:15000});
+     const liveText=(await liveSource.text()).slice(0,1800);
+     console.log('PH10_CHROMIUM_NAV06_SOURCE_STATUS_'+liveSource.status());
+     assert.equal(liveSource.status(),200,
+      'PH10_NAV06_SOURCE_NOT_READABLE '+liveSource.status()+' '+liveText);
+     const live=JSON.parse(liveText);
+     assert.equal(live.sourceBound,true,'PH10_NAV06_SOURCE_NOT_BOUND');
+     assert.ok(live.items?.some(x=>
+       JSON.stringify(x).includes('PH10 Browser Enrollment Course')),
+       'PH10_NAV06_SYNTHETIC_EVENT_NOT_IN_READ_MODEL '+liveText);
+     console.log('PH10_CHROMIUM_NAV06_SOURCE_CONTRACT_PASS');
      const course=page.locator('li').filter({hasText:'PH10 Browser Enrollment Course'});
-     await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).waitFor({state:'visible',timeout:25000});
+     try{
+      await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'})
+       .waitFor({state:'visible',timeout:12000});
+     }catch(err){
+      const ui=(await page.locator('main').innerText().catch(()=>
+        '<unavailable>')).slice(-1700);
+      throw Error('PH10_NAV06_ENROLLMENT_BUTTON_MISSING ui='+ui+
+       ' source='+liveText+' cause='+String(err?.message).slice(0,100));
+     }
+     console.log('PH10_CHROMIUM_NAV06_ENROLL_BUTTON_READY');
      const enrollResponsePromise=page.waitForResponse(r=>r.request().method()==='POST'&&
        r.url().includes('/ph10/learning/events/'),{timeout:25000});
-     await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).click();
+     await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).click({timeout:12000});
+     console.log('PH10_CHROMIUM_NAV06_ENROLL_CLICKED');
      const enrollResponse=await enrollResponsePromise;
+     console.log('PH10_CHROMIUM_NAV06_ENROLL_POST_RECEIVED_'+enrollResponse.status());
      assert.equal(enrollResponse.status(),201,
       'PH10_BROWSER_TRAINING_POST_STATUS_'+enrollResponse.status()+' '+
       (await enrollResponse.text()).slice(0,300));
