@@ -129,13 +129,76 @@ BEGIN
   RAISE EXCEPTION 'cross-tenant supersession allowed';
  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $gate$;
+-- PH10.8: manager-only historical read, single append-only successor.
+DO $gate$
+DECLARE first_id uuid; second_id uuid; value jsonb;history jsonb;
+BEGIN
+ SELECT claim_id INTO first_id FROM tto.cooperative_manual_official_governance_claims
+ WHERE request_key='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+ SELECT tto.list_manual_official_governance_claims(
+  '44444444-4444-4444-8444-444444444444',decode(repeat('11',32),'hex')) INTO history;
+ IF jsonb_array_length(history->'items')<>1 OR history->>'selfReportedOnly'<>'true' OR
+   history->>'legalApproval'<>'false' OR history->'items'->0->>'hasCorrection'<>'false'
+ THEN RAISE EXCEPTION 'manager history leaked or omitted claim'; END IF;
+ SELECT tto.submit_manual_official_governance_claim(
+   '44444444-4444-4444-8444-444444444444',
+   'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+   'Synthetic Board Member','BOARD_MEMBER','JOINT',
+   'Updated joint signature conditions asserted by cooperative management',
+   '23002',CURRENT_DATE,'2001502',CURRENT_DATE-1,CURRENT_DATE+365,
+   NULL,first_id,decode(repeat('11',32),'hex')) INTO value;
+ second_id=(value->>'claimId')::uuid;
+ IF second_id=first_id THEN RAISE EXCEPTION 'correction overwrote old claim'; END IF;
+ BEGIN
+  PERFORM tto.submit_manual_official_governance_claim(
+   '44444444-4444-4444-8444-444444444444',
+   'ffffffff-ffff-4fff-8fff-ffffffffffff',
+   'Synthetic Board Member','BOARD_MEMBER','JOINT',
+   'Second contradictory correction must not branch version history',
+   '23003',CURRENT_DATE,'2001503',CURRENT_DATE-1,CURRENT_DATE+365,
+   NULL,first_id,decode(repeat('11',32),'hex'));
+  RAISE EXCEPTION 'competing Gazette corrections accepted';
+ EXCEPTION WHEN unique_violation THEN NULL; END;
+ SELECT tto.list_manual_official_governance_claims(
+  '44444444-4444-4444-8444-444444444444',decode(repeat('11',32),'hex')) INTO history;
+ IF jsonb_array_length(history->'items')<>2 OR
+   NOT EXISTS(SELECT 1 FROM jsonb_array_elements(history->'items') h
+      WHERE h->>'claimId'=first_id::text AND h->>'hasCorrection'='true') OR
+   NOT EXISTS(SELECT 1 FROM jsonb_array_elements(history->'items') h
+      WHERE h->>'claimId'=second_id::text AND h->>'hasCorrection'='false')
+ THEN RAISE EXCEPTION 'correction history relationship missing';END IF;
+ PERFORM set_config('tto.actor_id','22222222-2222-4222-8222-222222222222',true);
+ BEGIN
+  PERFORM tto.list_manual_official_governance_claims(
+   '44444444-4444-4444-8444-444444444444',decode(repeat('22',32),'hex'));
+  RAISE EXCEPTION 'outsider read private Gazette history';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ PERFORM set_config('tto.actor_id','11111111-1111-4111-8111-111111111111',true);
+ BEGIN
+  PERFORM tto.list_manual_official_governance_claims(
+   '55555555-5555-4555-8555-555555555555',decode(repeat('11',32),'hex'));
+  RAISE EXCEPTION 'cross-tenant Gazette history read';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+END $gate$;
 RESET ROLE;
 DO $gate$
 BEGIN
- IF (SELECT count(*) FROM tto.cooperative_manual_official_governance_claims)<>1 OR
+ -- Trigger blocks even DB owner mutations; changes must be a new cited record.
+ BEGIN
+  UPDATE tto.cooperative_manual_official_governance_claims
+   SET office_type='CEO' WHERE request_key='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  RAISE EXCEPTION 'old official claim was edited';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ BEGIN
+  DELETE FROM tto.cooperative_manual_official_governance_claims
+   WHERE request_key='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  RAISE EXCEPTION 'old official claim was deleted';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ IF (SELECT count(*) FROM tto.cooperative_manual_official_governance_claims)<>2 OR
  EXISTS(SELECT 1 FROM tto.cooperative_manual_official_governance_claims
   WHERE verification_status<>'SELF_REPORTED_PENDING_REVIEW' OR
-  official_issue_number<>'23001' OR official_announcement_number<>'2001501') OR
+  official_issue_number NOT IN ('23001','23002') OR
+  official_announcement_number NOT IN ('2001501','2001502')) OR
  (SELECT count(*) FROM tto.role_assignments)<>1 OR
  (SELECT count(*) FROM tto.legal_authorities)<>1 THEN
    RAISE EXCEPTION 'manual notice changed legal truth or lost provenance'; END IF;
