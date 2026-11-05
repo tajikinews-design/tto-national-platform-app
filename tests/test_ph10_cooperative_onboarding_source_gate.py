@@ -20,6 +20,7 @@ class PH10CooperativeSourceGate(unittest.TestCase):
         cls.review = read("database/migrations/9998_ph10_cooperative_dossier_review_gate.sql")
         cls.draft = read("database/migrations/9999_ph10_cooperative_onboarding_drafts.sql")
         cls.quarantine = read("database/migrations/9999b_ph10_cooperative_evidence_quarantine.sql")
+        cls.external = read("database/migrations/9999c_ph10_cooperative_external_source_review_gate.sql")
         cls.api = read("services/api/src/module.ts")
         cls.front = read("apps/national-admin/app/cooperatives/onboarding/page.tsx")
         cls.draft_bff = read("apps/national-admin/app/api/cooperatives/onboarding-drafts/route.ts")
@@ -27,7 +28,7 @@ class PH10CooperativeSourceGate(unittest.TestCase):
         cls.review_bff = read("apps/national-admin/app/api/cooperatives/onboarding/[dossierId]/actions/route.ts")
 
     def test_no_autonomous_legal_activation(self):
-        for sql in (self.review, self.draft, self.quarantine):
+        for sql in (self.review, self.draft, self.quarantine, self.external):
             self.assertNotRegex(sql, r"(?i)\bINSERT\s+INTO\s+tto\.(?:tenants|role_assignments)\b")
             self.assertNotRegex(sql, r"(?i)\bUPDATE\s+tto\.tenants\b")
         self.assertNotIn("'APPROVED'", self.review)
@@ -66,6 +67,20 @@ class PH10CooperativeSourceGate(unittest.TestCase):
         self.assertIn("v_existing.content_sha256=p_sha", self.quarantine)
         self.assertIn("createCipheriv(\"aes-256-gcm\"", self.api)
 
+    def test_independent_legal_reviewer_mandate_cannot_create_approval(self):
+        self.assertIn("CREATE TABLE tto.cooperative_external_legal_review_mandates", self.external)
+        self.assertIn("CREATE TABLE tto.cooperative_external_source_check_records", self.external)
+        self.assertIn("REVOKE ALL ON tto.cooperative_external_legal_review_mandates FROM PUBLIC,tto_app", self.external)
+        self.assertIn("REVOKE ALL ON tto.cooperative_external_source_check_records FROM PUBLIC,tto_app", self.external)
+        self.assertIn("INDEPENDENT_EXTERNAL_REVIEWER_REQUIRED", self.external)
+        self.assertIn("m.expires_at>clock_timestamp()", self.external)
+        self.assertIn("m.revoked_at IS NULL", self.external)
+        self.assertIn("v_dossier.created_by=v_actor", self.external)
+        self.assertIn("authenticity','NOT_VERIFIED'", self.external)
+        self.assertIn("MATCH_REPORTED_UNVERIFIED", self.external)
+        self.assertIn("tto.cooperative_evidence_integrity_packet", self.external)
+        self.assertIn("record_independent_cooperative_source_check", self.api)
+
     def test_api_boundary_is_fail_closed(self):
         for content in (self.draft_bff, self.file_bff, self.review_bff):
             self.assertIn('tto_session', content)
@@ -82,6 +97,7 @@ class PH10CooperativeSourceGate(unittest.TestCase):
             "tests/sql/ph10-cooperative-dossier-review-disposable.sql",
             "tests/sql/ph10-cooperative-draft-disposable.sql",
             "tests/sql/ph10-cooperative-evidence-quarantine-disposable.sql",
+            "tests/sql/ph10-cooperative-external-source-review-disposable.sql",
         )
         for name in files:
             sql = read(name)
