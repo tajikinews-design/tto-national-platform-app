@@ -52,7 +52,7 @@ BEGIN
       WHERE jsonb_typeof(f.v)<>'string' OR length(f.v #>> '{}')>300) THEN
     RAISE EXCEPTION 'INVALID_DRAFT' USING ERRCODE='22023';
  END IF;
- SELECT workspace_id INTO v_workspace FROM tto.cooperative_workspace_addresses
+ -- Serialize drafts with dossier submission for the same reserved slug.\n PERFORM pg_advisory_xact_lock(hashtextextended(p_slug,42));\n SELECT workspace_id INTO v_workspace FROM tto.cooperative_workspace_addresses
   WHERE slug=p_slug AND state='RESERVED' FOR SHARE;
  IF v_workspace IS NULL THEN RAISE EXCEPTION 'WORKSPACE_NOT_RESERVED' USING ERRCODE='22023'; END IF;
  IF EXISTS(SELECT 1 FROM tto.tenants WHERE slug=p_slug)
