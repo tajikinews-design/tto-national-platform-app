@@ -51,6 +51,12 @@ async function post(path,payload,{token=managerToken,originHeader=true}={}){
  const value=await result.json().catch(()=>null);
  return {status:result.status,value};
 }
+async function get(path,{token=managerToken}={}){
+ const result=await fetch(web+path,{
+  method:"GET",headers:{Host:"localhost:"+webPort,...(token?{Cookie:"tto_session="+token}:{})},
+  cache:"no-store",redirect:"manual",signal:AbortSignal.timeout(12000)});
+ return {status:result.status,value:await result.json().catch(()=>null)};
+}
 function expect(res,status,label){assert.equal(res.status,status,label+" "+JSON.stringify(res.value).slice(0,160));checks++;return res.value;}
 async function main(){
  await db.connect();
@@ -87,6 +93,13 @@ async function main(){
   gazetteIssueNumber:"22345",gazettePublicationDate:"2026-10-20",
   gazetteAnnouncementNumber:"140512345678",effectiveFrom:"2026-10-20",
   effectiveUntil:"2027-10-20",officialReferenceUrl:null,supersedesClaimId:null};
+ expect(await get(path,{token:""}),401,"anonymous history denied");
+ expect(await get(path,{token:outsiderToken}),403,"unappointed reader denied");
+ expect(await get("/api/tenants/"+foreignTenant+"/official-notices"),403,"foreign tenant history denied");
+ const emptyHistory=expect(await get(path),200,"authorized manager history first read");
+ assert.deepEqual(emptyHistory.items,[]);
+ assert.equal(emptyHistory.officiallyVerified,false);
+ assert.equal(emptyHistory.legalApproval,false);
  expect(await post(path,payload,{token:""}),401,"anonymous denied");
  expect(await post(path,payload,{token:outsiderToken}),403,"unappointed outsider denied");
  expect(await post(path,payload,{originHeader:false}),403,"CSRF missing Origin denied");
@@ -103,6 +116,40 @@ async function main(){
  expect(await post(path,{...payload,officeType:"CEO"}),409,"request key cannot change role claim");
  expect(await post("/api/tenants/"+foreignTenant+"/official-notices",
   {...payload,requestKey:randomUUID()}),403,"cross-tenant role denied");
+ const firstHistory=expect(await get(path),200,"history shows first self report");
+ assert.equal(firstHistory.items.length,1);
+ assert.equal(firstHistory.items[0].claimId,first.claimId);
+ assert.equal(firstHistory.items[0].hasCorrection,false);
+ assert.equal(firstHistory.items[0].status,"SELF_REPORTED_PENDING_REVIEW");
+ // A new Gazette announcement corrects the original without editing its audit row.
+ const correction={...payload,requestKey:randomUUID(),supersedesClaimId:first.claimId,
+  gazetteIssueNumber:"22346",gazettePublicationDate:"2026-10-22",
+  gazetteAnnouncementNumber:"140512345679",
+  authorityScope:"Joint signatures require updated board quorum as asserted by manager"};
+ const second=expect(await post(path,correction),201,"create correction linked to original");
+ assert.notEqual(second.claimId,first.claimId);
+ const secondReplay=expect(await post(path,correction),201,"correction idempotency");
+ assert.equal(secondReplay.claimId,second.claimId);assert.equal(secondReplay.replayed,true);
+ expect(await post(path,{...correction,requestKey:randomUUID()}),409,
+  "cannot create competing corrections to a single Gazette claim");
+ const history=expect(await get(path),200,"read complete original plus correction history");
+ assert.equal(history.items.length,2);
+ assert.equal(history.hasMore,false);
+ assert.equal(history.selfReportedOnly,true);
+ const old=history.items.find(x=>x.claimId===first.claimId);
+ const revised=history.items.find(x=>x.claimId===second.claimId);
+ assert.equal(old.gazetteIssueNumber,"22345");
+ assert.equal(old.hasCorrection,true);
+ assert.equal(revised.gazetteIssueNumber,"22346");
+ assert.equal(revised.supersedesClaimId,first.claimId);
+ assert.equal(revised.hasCorrection,false);
+ assert.equal(revised.status,"SELF_REPORTED_PENDING_REVIEW");
+ const originalDb=await db.query(
+  "SELECT official_announcement_number FROM tto.cooperative_manual_official_governance_claims "+
+  "WHERE claim_id=$1",[first.claimId]);
+ assert.equal(originalDb.rows[0].official_announcement_number,"140512345678");
+ checks++;
+
  // The initial self-report cannot change the existing verified manager's
  // legal authority, tenant count, signer status or formal permissions.
  const truth=await db.query(
@@ -112,7 +159,7 @@ async function main(){
  " (SELECT verification_status FROM tto.cooperative_manual_official_governance_claims WHERE claim_id=$2) status",
  [tenant,first.claimId]);
  assert.deepEqual(truth.rows[0],{
-  claims:1,roles:1,authorities:1,status:"SELF_REPORTED_PENDING_REVIEW"});
+  claims:2,roles:1,authorities:1,status:"SELF_REPORTED_PENDING_REVIEW"});
  checks++;
  const page=await fetch(web+"/official-records",{cache:"no-store"});
  assert.equal(page.status,200);
