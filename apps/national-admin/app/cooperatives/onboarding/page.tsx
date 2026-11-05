@@ -14,6 +14,11 @@ const names:Record<keyof Model,string>={
  candidateManagerName:"نام مدیر پیشنهادی",candidateManagerMobile:"شماره موبایل مدیر پیشنهادی",
  evidenceReference:"شماره یا شناسه مرجع مدارک (اختیاری)"
 };
+const statusLabels:Record<string,string>={
+ PENDING_LEGAL_REVIEW:"در انتظار بررسی حقوقی",IN_REVIEW:"در حال بررسی",
+ CHANGES_REQUESTED:"نیازمند اصلاح مدارک",REJECTED:"ردشده",
+ EXTERNAL_APPROVAL_REQUIRED:"در انتظار تأیید مستقل خارج از سامانه"
+};
 const fields:(keyof Model)[]=["legalName","nationalId","registrationNumber","province","county",
  "legalAddress","representativeName","candidateManagerName","candidateManagerMobile","evidenceReference"];
 const style={padding:"11px 13px",border:"1px solid #a8bbce",borderRadius:9,width:"100%",font:"inherit",boxSizing:"border-box" as const};
@@ -98,9 +103,7 @@ export default function CooperativeOnboardingPage(){
    <div style={{display:"grid",gap:9}}>
    {items.map(i=><div key={i.slug} style={{padding:12,background:"#f4f8fb",borderRadius:9}}>
     <strong dir="ltr">{i.slug}</strong> — {i.dossier_id?(
-      {PENDING_LEGAL_REVIEW:"در انتظار بررسی حقوقی",IN_REVIEW:"در حال بررسی",
-       CHANGES_REQUESTED:"نیازمند اصلاح مدارک",REJECTED:"ردشده",
-       EXTERNAL_APPROVAL_REQUIRED:"در انتظار تأیید مستقل خارج از سامانه"}[i.dossier_state??""]??
+      statusLabels[i.dossier_state??""]??
        "وضعیت پرونده نامشخص"):"آماده تکمیل اطلاعات"}
     {i.legal_name?<div style={{marginTop:6}}>{i.legal_name}</div>:null}
     {i.dossier_id&&i.review_version?<>
