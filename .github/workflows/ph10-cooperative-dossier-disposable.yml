@@ -60,16 +60,31 @@ jobs:
           set -euo pipefail
           pnpm --filter @tto/api build
           pnpm --filter @tto/national-admin build
+      - name: Install pinned Chromium for authenticated synthetic onboarding browser
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/tto-ph10-onboarding-browser --no-audit --no-fund playwright@1.56.1
+          node /tmp/tto-ph10-onboarding-browser/node_modules/playwright/cli.js install --with-deps chromium
       - name: Execute authenticated national BFF to Nest to PG17 end-to-end workflow
         env:
           TTO_ISOLATED_DEMO_DB: "true"
           TEST_ADMIN_DATABASE_URL: "postgresql://postgres@127.0.0.1:5432/tto"
           TTO_COOP_QUARANTINE_KEY_HEX: "${{ hashFiles('database/migrations/9999b_ph10_cooperative_evidence_quarantine.sql') }}"
+          NODE_PATH: /tmp/tto-ph10-onboarding-browser/node_modules
+          PH10_COOP_CHROMIUM: "1"
         run: |
           set -euo pipefail
           test "${#TTO_COOP_QUARANTINE_KEY_HEX}" -eq 64
           timeout --signal=TERM --kill-after=5s 300s node scripts/ci/ph10-cooperative-onboarding-http-e2e.cjs
           echo PH10_COOP_FULL_BFF_NEST_POSTGRES17_E2E_GATE_PASS_NO_LEGAL_APPROVAL
+      - name: Upload synthetic onboarding browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ph10-cooperative-onboarding-chromium-synthetic
+          path: ph10-artifacts/onboarding-*.png
+          retention-days: 7
+          if-no-files-found: warn
       - name: Destroy database even on failure
         if: always()
         run: docker rm -f tto-ph10-dossier || true
