@@ -467,9 +467,9 @@ export class FoundationCommandsController {
        !["NONE","INDIVIDUAL","JOINT","BOARD_RESOLUTION","OTHER_SPECIFIED"].includes(signingMode)||
        !/^[0-9]{1,20}$/.test(gazetteIssue)||
        !/^[0-9A-Za-z-]{1,40}$/.test(gazetteNotice)||
-       !/^\\d{4}-\\d{2}-\\d{2}$/.test(gazetteDate)||
-       (from!==null&&!/^\\d{4}-\\d{2}-\\d{2}$/.test(from))||
-       (until!==null&&!/^\\d{4}-\\d{2}-\\d{2}$/.test(until))||
+       !/^\d{4}-\d{2}-\d{2}$/.test(gazetteDate)||
+       (from!==null&&!/^\d{4}-\d{2}-\d{2}$/.test(from))||
+       (until!==null&&!/^\d{4}-\d{2}-\d{2}$/.test(until))||
        (url!==null&&(!url.startsWith("https://")||url.length>400)))
       throw new BadRequestException("INVALID_OFFICIAL_GAZETTE_CITATION");
     const actor=await this.db.sessionActor(auth);
