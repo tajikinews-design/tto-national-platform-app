@@ -16,7 +16,7 @@ ALTER TABLE tto.cooperative_onboarding_audit
 ALTER TABLE tto.cooperative_onboarding_audit
   ADD CONSTRAINT cooperative_onboarding_audit_action_check
   CHECK (action IN ('DOSSIER_SUBMITTED','START_REVIEW','REQUEST_CHANGES',
-                   'REJECT','RESUBMIT','RECOMMEND_EXTERNAL_APPROVAL'));
+                   'REJECT','RESUBMIT','REFER_EXTERNAL_REVIEW','RECOMMEND_EXTERNAL_APPROVAL'));
 ALTER TABLE tto.cooperative_onboarding_audit
   ADD COLUMN request_key uuid UNIQUE,
   ADD COLUMN prior_state text,
@@ -81,6 +81,12 @@ BEGIN
     v_next := 'REJECTED';
   ELSIF p_action='RESUBMIT' AND v_old='CHANGES_REQUESTED' THEN
     v_next := 'PENDING_LEGAL_REVIEW';
+  ELSIF p_action='REFER_EXTERNAL_REVIEW' AND v_old='IN_REVIEW' THEN
+    -- Administrative handoff, NOT an independent legal approval. No role grants.
+    IF v_row.evidence_reference IS NULL THEN
+      RAISE EXCEPTION 'EVIDENCE_REFERENCE_REQUIRED' USING ERRCODE='22023';
+    END IF;
+    v_next := 'EXTERNAL_APPROVAL_REQUIRED';
   ELSIF p_action='RECOMMEND_EXTERNAL_APPROVAL' AND v_old='IN_REVIEW' THEN
     -- Only independent reviewers may recommend; not a legal approval.
     IF v_row.created_by=v_actor OR v_row.evidence_reference IS NULL THEN
@@ -90,7 +96,7 @@ BEGIN
   ELSE
     RAISE EXCEPTION 'INVALID_REVIEW_TRANSITION' USING ERRCODE='22023';
   END IF;
-  IF p_action IN ('REQUEST_CHANGES','REJECT','RECOMMEND_EXTERNAL_APPROVAL') AND
+  IF p_action IN ('REQUEST_CHANGES','REJECT','REFER_EXTERNAL_REVIEW','RECOMMEND_EXTERNAL_APPROVAL') AND
       (v_reason IS NULL OR length(v_reason)<5 OR length(v_reason)>1500) THEN
     RAISE EXCEPTION 'REVIEW_REASON_REQUIRED' USING ERRCODE='22023';
   END IF;
