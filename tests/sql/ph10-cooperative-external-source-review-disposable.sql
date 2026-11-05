@@ -4,6 +4,14 @@ INSERT INTO tto.user_accounts(user_id) VALUES
 ('11111111-1111-4111-8111-111111111111'), -- root
 ('22222222-2222-4222-8222-222222222222'), -- independently appointed reviewer
 ('33333333-3333-4333-8333-333333333333'); -- outsider
+-- Independent sessions with known 32-byte hashes; all exist only in disposable PG17.
+INSERT INTO tto.user_sessions(session_id,user_id,session_hash,security_epoch,expires_at) VALUES
+('a1111111-1111-4111-8111-111111111111',
+ '11111111-1111-4111-8111-111111111111',decode(repeat('11',32),'hex'),0,now()+interval '1 hour'),
+('a2222222-2222-4222-8222-222222222222',
+ '22222222-2222-4222-8222-222222222222',decode(repeat('22',32),'hex'),0,now()+interval '1 hour'),
+('a3333333-3333-4333-8333-333333333333',
+ '33333333-3333-4333-8333-333333333333',decode(repeat('33',32),'hex'),0,now()+interval '1 hour');
 INSERT INTO tto.national_root_accounts(singleton,user_id,must_change_credentials)
  VALUES(true,'11111111-1111-4111-8111-111111111111',false);
 INSERT INTO tto.cooperative_workspace_addresses(workspace_id,slug,created_by) VALUES
@@ -64,7 +72,7 @@ BEGIN
    '88888888-8888-4888-8888-888888888888',
    'NATIONAL_REGISTRY','Synthetic Official Registry 1',
    decode(repeat('ee',32),'hex'),'MATCH_REPORTED_UNVERIFIED',
-   'Synthetic source check, not official legal approval');
+   'Synthetic source check, not official legal approval',decode(repeat('11',32),'hex'));
   RAISE EXCEPTION 'national root impersonated independent reviewer';
  EXCEPTION WHEN insufficient_privilege THEN NULL;
  END;
@@ -79,8 +87,23 @@ BEGIN
    '99999999-9999-4999-8999-999999999999',
    'NATIONAL_REGISTRY','Synthetic Official Registry 1',
    decode(repeat('ee',32),'hex'),'MATCH_REPORTED_UNVERIFIED',
-   'Synthetic outsider cannot verify a legal source');
+   'Synthetic outsider cannot verify a legal source',decode(repeat('33',32),'hex'));
   RAISE EXCEPTION 'outsider reported independent legal source';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
+ PERFORM set_config('tto.actor_id','22222222-2222-4222-8222-222222222222',true);
+ -- A valid reviewer token may not be replayed after spoofing an outsider actor.
+ PERFORM set_config('tto.actor_id','33333333-3333-4333-8333-333333333333',true);
+ BEGIN
+  PERFORM tto.record_independent_cooperative_source_check(
+   '77777777-7777-4777-8777-777777777777',
+   '55555555-5555-4555-8555-555555555555',
+   'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+   'NATIONAL_REGISTRY','Synthetic Official Registry 2',
+   decode(repeat('ee',32),'hex'),'INCONCLUSIVE',
+   'Synthetic review session cannot be reused across actors',
+   decode(repeat('22',32),'hex'));
+  RAISE EXCEPTION 'actor GUC spoofing accepted despite session mismatch';
  EXCEPTION WHEN insufficient_privilege THEN NULL;
  END;
  PERFORM set_config('tto.actor_id','22222222-2222-4222-8222-222222222222',true);
@@ -93,7 +116,7 @@ BEGIN
  '55555555-5555-4555-8555-555555555555',
  key,'NATIONAL_REGISTRY','Synthetic Official Registry 1',
  decode(repeat('ee',32),'hex'),'MATCH_REPORTED_UNVERIFIED',
- 'Synthetic source check, not official legal approval') INTO one;
+ 'Synthetic source check, not official legal approval',decode(repeat('22',32),'hex')) INTO one;
  IF one->>'authenticity'<>'NOT_VERIFIED' OR
     one->>'legalApproval'<>'false' OR one->>'managerRoleGranted'<>'false'
  THEN RAISE EXCEPTION 'source claim improperly promoted to legal verification: %',one; END IF;
@@ -102,7 +125,7 @@ BEGIN
  '55555555-5555-4555-8555-555555555555',
  key,'NATIONAL_REGISTRY','Synthetic Official Registry 1',
  decode(repeat('ee',32),'hex'),'MATCH_REPORTED_UNVERIFIED',
- 'Synthetic source check, not official legal approval') INTO two;
+ 'Synthetic source check, not official legal approval',decode(repeat('22',32),'hex')) INTO two;
  IF one->>'checkId'<>two->>'checkId' OR two->>'replayed'<>'true'
  THEN RAISE EXCEPTION 'source check idempotency failed'; END IF;
  BEGIN
@@ -111,7 +134,7 @@ BEGIN
    '55555555-5555-4555-8555-555555555555',
    key,'NATIONAL_REGISTRY','Synthetic Official Registry 1',
    decode(repeat('ee',32),'hex'),'MISMATCH_REPORTED',
-   'Synthetic source check, not official legal approval');
+   'Synthetic source check, not official legal approval',decode(repeat('22',32),'hex'));
   RAISE EXCEPTION 'request key replayed with altered decision';
  EXCEPTION WHEN unique_violation THEN NULL;
  END;
@@ -122,7 +145,7 @@ BEGIN
    'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
    'NATIONAL_REGISTRY','Synthetic Official Registry 1',
    decode(repeat('ee',32),'hex'),'INCONCLUSIVE',
-   'Attempt to cross reference another workspace file');
+   'Attempt to cross reference another workspace file',decode(repeat('22',32),'hex'));
   RAISE EXCEPTION 'foreign evidence accepted';
  EXCEPTION WHEN insufficient_privilege THEN NULL;
  END;
@@ -142,7 +165,7 @@ BEGIN
    'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
    'NATIONAL_REGISTRY','Synthetic Official Registry 2',
    decode(repeat('ee',32),'hex'),'INCONCLUSIVE',
-   'This reviewer mandate was explicitly revoked');
+   'This reviewer mandate was explicitly revoked',decode(repeat('22',32),'hex'));
   RAISE EXCEPTION 'revoked reviewer mandate accepted';
  EXCEPTION WHEN insufficient_privilege THEN NULL;
  END;
