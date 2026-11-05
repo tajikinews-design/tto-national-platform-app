@@ -166,4 +166,5 @@ export function PortalModulePreview({surface,moduleId}:{surface:Surface;moduleId
 }
 
 export { OtpLogin } from "./otp-login";
+export { TenantScopePicker } from "./tenant-scope-picker";
 export { ShareholderWorkspace } from "./shareholder-workspace";

@@ -174,7 +174,9 @@ jobs:
           pnpm --filter @tto/cooperative-management build
           pnpm --filter @tto/shareholder build
           pnpm --filter @tto/national-admin build
-          node services/api/test/ph09-portal.http.integration.cjs
+          # Bound real browser/HTTP integration independently of the 40-minute job limit.
+          # A timeout is a failing test, never a skipped or passed acceptance check.
+          timeout --signal=TERM --kill-after=5s 480s node services/api/test/ph09-portal.http.integration.cjs
           echo PH10_REAL_NEST_AUTHENTICATED_HTTP_PASS
           echo PH10_BROWSER_BOTH_PORTALS_REAL_SOURCE_RENDER_PASS
       - name: Upload authenticated mobile browser evidence

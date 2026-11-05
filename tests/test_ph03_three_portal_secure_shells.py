@@ -35,6 +35,12 @@ class ThreePortalBoundary(unittest.TestCase):
                 self.assertIn("import NationalRootLogin",home)
                 self.assertIn("<NationalRootLogin/>",home)
                 self.assertNotIn('OtpLogin surface="national"',home)
+                # Module JIT reviews are session/tenant-gated, never SMS OTP.
+                modules=(APPS/app/"app/modules/[id]/page.tsx").read_text(encoding="utf-8")
+                self.assertIn('<TenantScopePicker surface="national" moduleId={moduleId}/>',modules)
+                self.assertNotIn('OtpLogin surface="national"',modules)
+                self.assertIn('export { TenantScopePicker } from "./tenant-scope-picker";',
+                              (UI/"index.tsx").read_text(encoding="utf-8"))
                 root_login=(APPS/app/"app/national-root-login.tsx").read_text(encoding="utf-8")
                 self.assertIn('fetch("/api/auth/session"',root_login)
                 self.assertIn('x.authenticated===true&&x.nationalRoot===true',root_login)
@@ -69,11 +75,14 @@ class ThreePortalBoundary(unittest.TestCase):
         self.assertIn('current.evidenceStatus!=="ROLE_AUTHORITY_EVIDENCE"',picker)
         self.assertIn('current.evidenceStatus!=="JIT_DOCUMENT_REVIEW_ONLY"',picker)
         self.assertIn('محدوده بررسی شد؛ عملیات ماژول فعال نیست',picker)
-        for app in ("cooperative-management","national-admin"):
-            mod=(APPS/app/"app/modules/[id]/page.tsx").read_text(encoding="utf-8")
-            self.assertIn('initialManagementModuleId={moduleId}',mod)
-            self.assertIn('OtpLogin',mod)
-            self.assertNotIn('PortalModulePreview',mod)
+        mod=(APPS/"cooperative-management"/"app/modules/[id]/page.tsx").read_text(encoding="utf-8")
+        self.assertIn('initialManagementModuleId={moduleId}',mod)
+        self.assertIn('OtpLogin',mod)
+        self.assertNotIn('PortalModulePreview',mod)
+        national=(APPS/"national-admin"/"app/modules/[id]/page.tsx").read_text(encoding="utf-8")
+        self.assertIn('<TenantScopePicker surface="national" moduleId={moduleId}/>',national)
+        self.assertNotIn('OtpLogin',national)
+        self.assertNotIn('PortalModulePreview',national)
 
     def test_accessibility_keyboard_rtl_and_readable_action_controls(self):
         css=(UI/"styles.css").read_text(encoding="utf-8")

@@ -81,7 +81,11 @@ class Phase10SourceAudit(unittest.TestCase):
   for portal in ("national-admin","cooperative-management"):
    page=(ROOT/"apps"/portal/"app/modules/[id]/page.tsx").read_text()
    self.assertIn("module-status",page)
-   self.assertIn("OtpLogin",page)
+   if portal=="national-admin":
+    self.assertIn('TenantScopePicker surface="national"',page)
+    self.assertNotIn("OtpLogin",page)
+   else:
+    self.assertIn("OtpLogin",page)
  def test_emit_inspectable_census(self):
   ARTIFACT.mkdir(exist_ok=True)
   entries=current_cases()

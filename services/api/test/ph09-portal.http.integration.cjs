@@ -360,21 +360,86 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
     }finally{await capture.detach();}
     console.log('PH10_CHROMIUM_AFTER_SCREENSHOT_'+profile.kind.toUpperCase());
     if(profile.kind==='shareholder'){
+     // Exact evidence for a potential browser hang after the first screenshot.
+     // Abort externally (workflow timeout) rather than accepting an unfinished journey.
+     console.log('PH10_CHROMIUM_BEFORE_ENROLLMENT_NAV_SHAREHOLDER');
      // Real browser button -> Next BFF -> Nest POST -> PostgreSQL, not a mock.
      await page.goto('http://127.0.0.1:'+profile.port+'/modules/nav-06',
-       {waitUntil:'domcontentloaded',timeout:30000});
-     await page.locator('#sw-tenant').waitFor({state:'visible',timeout:25000});
-     await page.locator('#sw-tenant').selectOption(tenant);
-     await page.getByRole('button',{name:'تأیید محدوده و استعلام'}).click();
+       {waitUntil:'domcontentloaded',timeout:25000});
+     console.log('PH10_CHROMIUM_AFTER_ENROLLMENT_NAV_SHAREHOLDER');
+     await page.locator('#sw-tenant').waitFor({state:'visible',timeout:20000});
+     console.log('PH10_CHROMIUM_AFTER_ENROLLMENT_SELECTOR_SHAREHOLDER');
+     // A visible select is not necessarily enabled or populated. Require the
+     // *actual authorized tenant option* before interacting. Missing data fails
+     // quickly with the true UI state rather than hanging an entire CI runner.
+     try {
+      await page.waitForFunction((id)=>{
+       const el=document.querySelector('#sw-tenant');
+       return el instanceof HTMLSelectElement&&!el.disabled&&
+        Array.from(el.options).some(o=>o.value===id);
+      },tenant,{timeout:15000});
+     }catch(error){
+      const observed=await page.locator('#sw-tenant').evaluate(el=>({
+       disabled:el.disabled,options:Array.from(el.options).map(o=>o.value),
+       visibleAlerts:Array.from(document.querySelectorAll('[role="alert"]'))
+        .map(e=>e.textContent?.slice(0,200))
+      })).catch(()=>({readbackUnavailable:true}));
+      throw Error('PH10_BROWSER_NAV06_TENANT_SCOPE_NOT_READY '+
+       JSON.stringify(observed)+' '+String(error?.message).slice(0,130));
+     }
+     console.log('PH10_CHROMIUM_NAV06_AUTHORIZED_TENANT_READY');
+     await page.locator('#sw-tenant').selectOption(tenant,{timeout:15000});
+     console.log('PH10_CHROMIUM_NAV06_TENANT_SELECTED');
+     const scopeButton=page.getByRole('button',{name:'تأیید محدوده و استعلام'});
+     await scopeButton.click({timeout:15000});
+     console.log('PH10_CHROMIUM_NAV06_SCOPE_CONFIRM_CLICKED');
+     // Confirm the server read model independently before waiting for the UI.
+     // A missing permitted event is a real failing journey, not a browser timeout.
+     console.log('PH10_CHROMIUM_NAV06_BEFORE_AUTHENTICATED_SOURCE_GET');
+     const liveSource=await page.request.get(
+      'http://127.0.0.1:'+profile.port+'/api/tenants/'+tenant+'/ph10/NAV-06',
+      {timeout:15000});
+     const liveFull=await liveSource.text();
+     const liveText=liveFull.slice(0,1800);
+     console.log('PH10_CHROMIUM_NAV06_SOURCE_STATUS_'+liveSource.status());
+     assert.equal(liveSource.status(),200,
+      'PH10_NAV06_SOURCE_NOT_READABLE '+liveSource.status()+' '+liveText);
+     const live=JSON.parse(liveFull);
+     assert.equal(live.sourceBound,true,'PH10_NAV06_SOURCE_NOT_BOUND');
+     assert.ok(live.items?.some(x=>
+       JSON.stringify(x).includes('PH10 Browser Enrollment Course')),
+       'PH10_NAV06_SYNTHETIC_EVENT_NOT_IN_READ_MODEL '+liveText);
+     console.log('PH10_CHROMIUM_NAV06_SOURCE_CONTRACT_PASS');
      const course=page.locator('li').filter({hasText:'PH10 Browser Enrollment Course'});
-     await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).waitFor({state:'visible',timeout:25000});
+     try{
+      await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'})
+       .waitFor({state:'visible',timeout:12000});
+     }catch(err){
+      const ui=(await page.locator('main').innerText().catch(()=>
+        '<unavailable>')).slice(-1700);
+      throw Error('PH10_NAV06_ENROLLMENT_BUTTON_MISSING ui='+ui+
+       ' source='+liveText+' cause='+String(err?.message).slice(0,100));
+     }
+     console.log('PH10_CHROMIUM_NAV06_ENROLL_BUTTON_READY');
      const enrollResponsePromise=page.waitForResponse(r=>r.request().method()==='POST'&&
        r.url().includes('/ph10/learning/events/'),{timeout:25000});
-     await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).click();
+     await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).click({timeout:12000});
+     console.log('PH10_CHROMIUM_NAV06_ENROLL_CLICKED');
      const enrollResponse=await enrollResponsePromise;
-     assert.equal(enrollResponse.status(),201,
-      'PH10_BROWSER_TRAINING_POST_STATUS_'+enrollResponse.status()+' '+
-      (await enrollResponse.text()).slice(0,300));
+     console.log('PH10_CHROMIUM_NAV06_ENROLL_POST_RECEIVED_'+enrollResponse.status());
+     // Playwright's response.text() may itself block on an unfinished response
+     // body after Next emitted 403 headers. Never lose the actual HTTP status
+     // behind a global 8-minute CI timeout.
+     const enrollStatus=enrollResponse.status();
+     if(enrollStatus!==201){
+      const detail=await Promise.race([
+       enrollResponse.text().then(x=>x.slice(0,300)).catch(()=>'<unavailable>'),
+       new Promise(resolve=>setTimeout(()=>resolve('<body-read-timeout>'),1200))
+      ]);
+      throw Error('PH10_BROWSER_TRAINING_POST_STATUS_'+enrollStatus+
+       ' url='+enrollResponse.url()+' body='+detail);
+     }
+     console.log('PH10_CHROMIUM_NAV06_ENROLL_POST_STATUS_201');
      // If a browser result disagrees with POST, retain response and visible UI
      // evidence rather than hiding the actual failed functional journey.
      try{

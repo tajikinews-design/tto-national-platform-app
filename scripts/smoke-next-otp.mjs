@@ -11,16 +11,28 @@ for (let idx=0;idx<slugs.length;idx++){
   cwd,env:{...process.env,TTO_API_BASE_URL:"",PORT:String(port),NEXT_TELEMETRY_DISABLED:"1"},stdio:"ignore"
  });
  try{
-  let ready=false;
+  let ready=false,homeHtml="";
   for(let n=0;n<80;n++){
    if(server.exitCode!==null)throw Error(slug+" exited");
-   try{const r=await fetch("http://127.0.0.1:"+port+"/");if(r.ok){ready=true;const html=await r.text();
-    if(!html.includes("ورود با رمز یک‌بارمصرف"))throw Error(slug+" missing OTP form");
-    if(!html.includes("در این نسخه پیش‌نمایش"))throw Error(slug+" did not fail closed");
-    checks++;break;}}catch{}
+   try{
+    const r=await fetch("http://127.0.0.1:"+port+"/");
+    if(r.ok){homeHtml=await r.text();ready=true;break;}
+   }catch{}
    await new Promise(r=>setTimeout(r,200));
   }
   if(!ready)throw Error(slug+" not ready");
+  // Keep actual security assertions OUTSIDE the network retry catch:
+  // a malformed login UI must fail CI, never be silently swallowed.
+  if(slug==="national-admin"){
+   if(!homeHtml.includes("ورود مدیر ملی")||
+      !homeHtml.includes("ورود صرفاً با نام کاربری و رمز عبور اختصاصی")||
+      homeHtml.includes("ورود با رمز یک‌بارمصرف"))
+    throw Error("national root homepage must use dedicated credential gate, never OTP");
+  }else if(!homeHtml.includes("ورود با رمز یک‌بارمصرف")||
+           !homeHtml.includes("در این نسخه پیش‌نمایش")){
+   throw Error(slug+" OTP unavailable home gate missing");
+  }
+  checks++;
   // All ten module pages per portal mount only fail-closed public SSR without
   // backend/session; authenticated owner information never renders anonymously.
   const moduleCases=Array.from({length:10},(_,i)=>{
@@ -44,6 +56,17 @@ for (let idx=0;idx<slugs.length;idx++){
         html.includes("عضویت فعال — منبع تأییدشده")||
         html.includes("تعداد سهام: "))
        throw Error(slug+" protected module leaked private data or lacked fail-closed OTP");
+   }else if(slug==="national-admin"){
+     // National OTP is prohibited. JIT module scope is listed exclusively
+     // after server authorization; without backend no private tenant option
+     // can ever be included in anonymous SSR.
+     if(html.includes("ورود با رمز یک‌بارمصرف")||
+        !html.includes("دسترسی موقت مدیریت ملی")||
+        !html.includes("دسترسی ماژول نیازمند تأیید مجوز است")||
+        html.includes("Synthetic approved-to-display minute")||
+        html.includes("کارپوشه شخصی سهامدار")||
+        html.includes("تعداد سهام: "))
+       throw Error(slug+" JIT module must fail closed without national OTP or private data");
    }else{
      if(!html.includes("ورود با رمز یک‌بارمصرف")||
         !html.includes("در این نسخه پیش‌نمایش")||
