@@ -266,6 +266,19 @@ async function main(){
  assert.equal(replay.replayed,true);
  expect(await review({...reviewPayload,outcome:"MISMATCH_REPORTED"},reviewerToken),409,
   "conflicting reviewer replay rejected");
+ const reviewListPath="/api/tenants/"+tenant+"/official-notices/reviews";
+ const reviewedHistory=expect(await get(reviewListPath),200,"authorized manager reads separate review findings");
+ assert.equal(reviewedHistory.items.length,1);
+ assert.equal(reviewedHistory.items[0].claimId,second.claimId);
+ assert.equal(reviewedHistory.items[0].outcome,"INCONCLUSIVE");
+ assert.equal(reviewedHistory.officiallyVerified,false);
+ assert.equal(reviewedHistory.legalApproval,false);
+ assert.equal(reviewedHistory.roleGranted,false);
+ expect(await get(reviewListPath,{token:""}),401,"anonymous reviewer findings read denied");
+ expect(await get(reviewListPath,{token:outsiderToken}),403,"outsider reviewer findings read denied");
+ expect(await get("/api/tenants/"+foreignTenant+"/official-notices/reviews"),403,
+  "tenant-crossing reviewer findings history denied");
+ expect(await get(reviewListPath+"?limit=101"),400,"review history page limit enforced");
  const browserReview=await chromium.launch({headless:true,args:["--no-sandbox"]});
  try{
   const context=await browserReview.newContext({viewport:{width:390,height:844},locale:"fa-IR"});
@@ -285,6 +298,18 @@ async function main(){
   await page.getByText("گزارش بررسی ثبت شد؛ این گزارش تأیید قانونی آگهی یا اعطای سمت و حق امضا نیست.").waitFor();
   checks++;
   await context.close();
+  const managerContext=await browserReview.newContext({viewport:{width:390,height:844},locale:"fa-IR"});
+  await managerContext.addCookies([{name:"tto_session",value:managerToken,domain:"localhost",
+   path:"/",httpOnly:true,secure:false,sameSite:"Lax"}]);
+  const managerPage=await managerContext.newPage();
+  await managerPage.goto(origin+"/official-records",{waitUntil:"domcontentloaded",timeout:25000});
+  await managerPage.getByRole("heading",{name:"تاریخچه مستقل گزارش‌های بررسی حقوقی"}).waitFor();
+  await managerPage.getByText("نتیجه نامشخص؛ نیازمند بررسی بیشتر").waitFor({timeout:17000});
+  const reviewedUI=await managerPage.locator("main").innerText();
+  assert.ok(reviewedUI.includes(second.claimId));
+  assert.ok(reviewedUI.includes("هیچ گزارش، تأیید رسمی"));
+  checks++;
+  await managerContext.close();
  }finally{await browserReview.close();}
  await db.query("UPDATE tto.cooperative_gazette_review_tenant_mandates SET revoked_at=now() WHERE reviewer_id=$1 AND tenant_id=$2",[reviewer,tenant]);
  expect(await review({...reviewPayload,requestKey:randomUUID()},reviewerToken),403,
