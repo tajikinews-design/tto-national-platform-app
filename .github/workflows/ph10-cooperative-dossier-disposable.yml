@@ -130,6 +130,7 @@ jobs:
         env:
           TTO_ISOLATED_DEMO_DB: "true"
           TEST_ADMIN_DATABASE_URL: "postgresql://postgres@127.0.0.1:5432/tto"
+          NODE_PATH: /tmp/tto-ph10-onboarding-browser/node_modules
         run: |
           set -euo pipefail
           timeout --signal=TERM --kill-after=5s 140s node scripts/ci/ph10-manual-official-notices-http-e2e.cjs
