@@ -52,7 +52,8 @@ jobs:
             tests/sql/ph10-cooperative-dossier-review-disposable.sql \
             tests/sql/ph10-cooperative-draft-disposable.sql \
             tests/sql/ph10-cooperative-evidence-quarantine-disposable.sql \
-            tests/sql/ph10-cooperative-external-source-review-disposable.sql; do
+            tests/sql/ph10-cooperative-external-source-review-disposable.sql \
+            tests/sql/ph10-cooperative-malware-scan-disposable.sql; do
             echo "PH10_DISPOSABLE_CASE=$test_file"
             docker exec -i tto-ph10-dossier psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$test_file"
           done
@@ -62,6 +63,49 @@ jobs:
           set -euo pipefail
           pnpm --filter @tto/api build
           pnpm --filter @tto/national-admin build
+      - name: Install actual ClamAV daemon and disposable synthetic test signature
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq clamav-daemon
+          sudo systemctl stop clamav-daemon || true
+          python3 - <<'PY'
+          import os, hashlib
+          os.makedirs('/tmp/tto-ph10-clamav-db',exist_ok=True)
+          eicar=b'X5O!P%@AP[4\\\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'
+          assert len(eicar)==68
+          with open('/tmp/tto-ph10-clamav-db/test.hdb','w') as f:
+              f.write(hashlib.md5(eicar).hexdigest()+':68:PH10.Eicar.Test\n')
+          with open('/tmp/tto-ph10-clamd.conf','w') as f:
+              f.write('''Foreground yes
+          User root
+          LogTime yes
+          LogFile /tmp/tto-ph10-clamd.log
+          LocalSocket /tmp/tto-ph10-clamd.sock
+          LocalSocketMode 666
+          DatabaseDirectory /tmp/tto-ph10-clamav-db
+          MaxFileSize 2M
+          MaxScanSize 3M
+          StreamMaxLength 2M
+          ''')
+          PY
+          clamd --config-file /tmp/tto-ph10-clamd.conf > /tmp/tto-ph10-clamd-stdout.log 2>&1 &
+          echo $! > /tmp/tto-ph10-clamd.pid
+          for n in $(seq 1 100); do
+            test -S /tmp/tto-ph10-clamd.sock && break
+            sleep 0.25
+          done
+          test -S /tmp/tto-ph10-clamd.sock || {
+            cat /tmp/tto-ph10-clamd-stdout.log
+            exit 1
+          }
+      - name: Test real ClamAV EICAR detection and scanner offline negative
+        env:
+          TTO_ISOLATED_DEMO_DB: "true"
+          TTO_COOP_CLAMD_SOCKET: "/tmp/tto-ph10-clamd.sock"
+        run: |
+          set -euo pipefail
+          node scripts/ci/ph10-clamd-engine-smoke.cjs
       - name: Install pinned Chromium for authenticated synthetic onboarding browser
         run: |
           set -euo pipefail
@@ -74,6 +118,7 @@ jobs:
           TTO_COOP_QUARANTINE_KEY_HEX: "${{ hashFiles('database/migrations/9999b_ph10_cooperative_evidence_quarantine.sql') }}"
           NODE_PATH: /tmp/tto-ph10-onboarding-browser/node_modules
           PH10_COOP_CHROMIUM: "1"
+          TTO_COOP_CLAMD_SOCKET: "/tmp/tto-ph10-clamd.sock"
         run: |
           set -euo pipefail
           test "${#TTO_COOP_QUARANTINE_KEY_HEX}" -eq 64
@@ -87,6 +132,11 @@ jobs:
           path: ph10-artifacts/onboarding-*.png
           retention-days: 7
           if-no-files-found: warn
+      - name: Stop synthetic antivirus daemon and erase test signature
+        if: always()
+        run: |
+          if test -f /tmp/tto-ph10-clamd.pid; then kill "$(cat /tmp/tto-ph10-clamd.pid)" || true; fi
+          rm -rf /tmp/tto-ph10-clamav-db /tmp/tto-ph10-clamd.sock /tmp/tto-ph10-clamd.pid
       - name: Destroy database even on failure
         if: always()
         run: docker rm -f tto-ph10-dossier || true
