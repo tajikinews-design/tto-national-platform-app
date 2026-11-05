@@ -60,7 +60,7 @@ BEGIN
  END IF;
  SELECT tto.review_cooperative_onboarding(
  '33333333-3333-4333-8333-333333333333','RESUBMIT',3,
- '88888888-8888-4888-8888-888888888888') INTO r;
+ '88888888-8888-4888-8888-888888888888',NULL,'corrected-ci-evidence') INTO r;
  IF r->>'status'<>'PENDING_LEGAL_REVIEW' OR (r->>'version')::int<>4 THEN
    RAISE EXCEPTION 'resubmission failed: %',r;
  END IF;
