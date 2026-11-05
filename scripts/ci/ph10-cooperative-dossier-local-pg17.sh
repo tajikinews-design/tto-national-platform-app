@@ -28,7 +28,8 @@ for f in database/migrations/[0-9][0-9][0-9][0-9]*.sql;do
 done
 for f in tests/sql/ph10-cooperative-dossier-review-disposable.sql \
  tests/sql/ph10-cooperative-draft-disposable.sql \
- tests/sql/ph10-cooperative-evidence-quarantine-disposable.sql;do
+ tests/sql/ph10-cooperative-evidence-quarantine-disposable.sql \
+ tests/sql/ph10-cooperative-external-source-review-disposable.sql;do
  echo "TTO_PH10_TEST=$f"
  "$DOCKER_BIN" exec -i "$name" psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f"
 done
