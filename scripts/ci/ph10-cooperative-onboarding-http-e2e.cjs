@@ -153,6 +153,36 @@ async function main(){
   requestKey:randomUUID(),reason:"Synthetic illegal after referral"}}),400,"terminal referral cannot be reopened");
  // Independent authenticity governance: only real authority can ultimately verify.
  // First check actual encrypted object integrity with authenticated root credentials.
+ // PH10.6: ClamAV observes decrypted bytes in-process, then records an
+ // append-only receipt. Even CLEAN has no legal or quarantine release effect.
+ const scanPath=e+"/"+corrected.evidenceId+"/scan";
+ const scanBody={requestKey:randomUUID()};
+ expect(await req(scanPath,{token:"",method:"POST",body:scanBody}),401,
+   "malware scan requires authenticated cookie");
+ expect(await req(scanPath,{token:nonrootToken,method:"POST",body:scanBody}),403,
+   "outsider may not scan quarantine");
+ expect(await req(scanPath,{origin:false,method:"POST",body:scanBody}),403,
+   "malware scan must enforce same Origin");
+ const scanned=expect(await req(scanPath,{method:"POST",body:scanBody}),201,
+   "real clamd CLEAN result recorded");
+ assert.equal(scanned.verdict,"CLEAN");
+ assert.equal(scanned.stillQuarantined,true);
+ assert.equal(scanned.authenticity,"NOT_VERIFIED");
+ assert.equal(scanned.legalApproval,false);
+ const reScan=expect(await req(scanPath,{method:"POST",body:scanBody}),201,
+   "exact malware receipt replay is stable");
+ assert.equal(reScan.receiptId,scanned.receiptId);
+ assert.equal(reScan.replayed,true);
+ const badSocket=await db.query("SELECT count(*)::int AS n FROM "+
+   "tto.cooperative_onboarding_malware_scan_receipts WHERE evidence_id=$1",
+   [corrected.evidenceId]);
+ assert.equal(badSocket.rows[0].n,1);
+ const unchanged=await db.query(
+  "SELECT scan_status,authenticity_status FROM tto.cooperative_onboarding_evidence_quarantine "+
+  "WHERE evidence_id=$1",[corrected.evidenceId]);
+ assert.deepEqual(unchanged.rows[0],{
+  scan_status:"QUARANTINED",authenticity_status:"NOT_VERIFIED"});checks++;
+ console.log("PH10_CLAMD_REAL_HTTP_BFF_SCAN_RECEIPT_PASS_NO_RELEASE");
  const integrityPath=e+"/"+corrected.evidenceId+"/integrity";
  expect(await req(integrityPath,{token:""}),401,"integrity requires cookie");
  expect(await req(integrityPath,{token:nonrootToken}),403,"nonroot cannot invoke integrity");
