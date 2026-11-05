@@ -10,10 +10,9 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{tenantId:str
  if(!token||!/^[A-Za-z0-9_-]{32,256}$/.test(token))return fail(401,"SESSION_REQUIRED");
  if(process.env.TTO_ISOLATED_DEMO_DB!=="true")return fail(503,"GAZETTE_NOT_RELEASED");
  const cursor=new URL(req.url).searchParams;
- const beforeCreated=cursor.get("beforeCreated"),beforeId=cursor.get("beforeId"),limit=cursor.get("limit")??"50";
- if(cursor.size>3||Boolean(beforeCreated)!==Boolean(beforeId)||
-  (beforeCreated&&(!Number.isFinite(Date.parse(beforeCreated))||beforeCreated.length>40))||
-  (beforeId&&!UUID.test(beforeId))||!/^(?:[1-9]|[1-9][0-9]|100)$/.test(limit))
+ const pageToken=cursor.get("cursor"),limit=cursor.get("limit")??"50";
+ if(cursor.size>2||(pageToken!==null&&!/^[A-Za-z0-9_-]{32,512}$/.test(pageToken))||
+  !/^(?:[1-9]|[1-9][0-9]|100)$/.test(limit))
   return fail(400,"INVALID_CURSOR");
  const base=process.env.TTO_API_BASE_URL??"";
  const local=process.env.CI==="true"&&!process.env.VERCEL&&process.env.TTO_LOOPBACK_E2E==="1"&&/^http:\/\/127\.0\.0\.1:[0-9]{4,5}$/.test(base);
@@ -22,7 +21,7 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{tenantId:str
   const url=new URL(base);if(url.username||url.password)return fail(503,"BACKEND_UNAVAILABLE");
   const target=new URL("/v1/tenants/"+tenantId+"/governance/manual-official-notices/pages",url);
   target.searchParams.set("limit",limit);
-  if(beforeId&&beforeCreated){target.searchParams.set("beforeId",beforeId);target.searchParams.set("beforeCreated",beforeCreated);}
+  if(pageToken)target.searchParams.set("cursor",pageToken);
   const out=await fetch(target,{headers:{Authorization:"Bearer "+token,...trustedBackendHeaders(req)},
    cache:"no-store",redirect:"error",signal:AbortSignal.timeout(9000)});
   if([400,401,403].includes(out.status))return fail(out.status,"GAZETTE_ACCESS_DENIED");
