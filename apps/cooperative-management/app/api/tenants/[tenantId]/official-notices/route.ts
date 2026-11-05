@@ -39,14 +39,14 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{tenantId:st
     !str("gazetteAnnouncementNumber",1,40)||
     !/^[0-9A-Za-z-]{1,40}$/.test(v.gazetteAnnouncementNumber as string)||
     !str("gazettePublicationDate",10,10)||!date.test(v.gazettePublicationDate as string)||
-    (v.effectiveFrom!==undefined&&v.effectiveFrom!==""&&
+    (v.effectiveFrom!==undefined&&v.effectiveFrom!==null&&v.effectiveFrom!==""&&
       (typeof v.effectiveFrom!=="string"||!date.test(v.effectiveFrom)))||
-    (v.effectiveUntil!==undefined&&v.effectiveUntil!==""&&
+    (v.effectiveUntil!==undefined&&v.effectiveUntil!==null&&v.effectiveUntil!==""&&
       (typeof v.effectiveUntil!=="string"||!date.test(v.effectiveUntil)))||
-    (v.officialReferenceUrl!==undefined&&v.officialReferenceUrl!==""&&
+    (v.officialReferenceUrl!==undefined&&v.officialReferenceUrl!==null&&v.officialReferenceUrl!==""&&
       (typeof v.officialReferenceUrl!=="string"||
        !v.officialReferenceUrl.startsWith("https://")||v.officialReferenceUrl.length>400))||
-    (v.supersedesClaimId!==undefined&&v.supersedesClaimId!==""&&
+    (v.supersedesClaimId!==undefined&&v.supersedesClaimId!==null&&v.supersedesClaimId!==""&&
       (typeof v.supersedesClaimId!=="string"||!UUID.test(v.supersedesClaimId))))
    return deny(400,"INVALID_OFFICIAL_GAZETTE_CITATION");
  const base=process.env.TTO_API_BASE_URL??"";
