@@ -1,4 +1,4 @@
-import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req } from "@nestjs/common";
+import { Module, Global, Controller, Get, Query, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
