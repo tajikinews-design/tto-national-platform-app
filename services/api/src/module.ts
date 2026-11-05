@@ -345,6 +345,9 @@ export class FoundationCommandsController {
     return this.db.withActor(actor,async client=>{
       const role=await client.query<{allowed:boolean}>("SELECT tto.has_national_root() AS allowed");
       if(role.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      // Shared transaction lock with save_cooperative_onboarding_draft prevents
+      // saving a new draft after concurrent dossier submission commits.
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,42))",[slug]);
       const reserved=await client.query<{workspace_id:string}>(
         "SELECT workspace_id FROM tto.cooperative_workspace_addresses "+
         "WHERE slug=$1 AND state='RESERVED'",[slug]);
