@@ -118,7 +118,7 @@ async function main(){
  assert.equal(page.status,200);
  const html=await page.text();
  assert.ok(html.includes("شماره روزنامه رسمی")&&html.includes("شماره آگهی"));
- assert.ok(html.includes("در انتظار بررسی حقوقی"));checks++;
+ assert.ok(html.includes("بررسی حقوقی مستقل الزامی است"));checks++;
  console.log("PH10_MANUAL_GAZETTE_BFF_NEST_PG17_NO_ROLE_ELEVATION_PASS_CHECKS="+checks);
 }
 main().catch(e=>{console.error("PH10_MANUAL_GAZETTE_E2E_FAIL",
