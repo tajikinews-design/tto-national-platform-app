@@ -1,8 +1,46 @@
-import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req } from "@nestjs/common";
+import { Module, Global, Controller, Get, Query, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
 import { scanQuarantineBytes } from "./clamd-evidence";
+// Opaque, authenticated, session- and tenant-bound short-lived keyset cursor.
+// The only secret is the existing revocable session digest (never sent to clients).
+function ph109CursorKey(sessionDigest:Buffer):Buffer{
+ return createHmac("sha256",sessionDigest).update("TTO_PH10_9_GAZETTE_KEYSET_V1").digest();
+}
+function ph109EncodeCursor(sessionDigest:Buffer,tenant:string,kind:string,
+ createdAt:string,id:string):string{
+ const nonce=randomBytes(12);
+ const cipher=createCipheriv("aes-256-gcm",ph109CursorKey(sessionDigest),nonce);
+ cipher.setAAD(Buffer.from("TTO_GAZETTE_CURSOR:"+kind+":"+tenant));
+ const bytes=Buffer.concat([cipher.update(JSON.stringify({
+  at:createdAt,id,expires:Date.now()+15*60*1000}),"utf8"),cipher.final()]);
+ return Buffer.concat([nonce,cipher.getAuthTag(),bytes]).toString("base64url");
+}
+function ph109DecodeCursor(token:string|undefined,sessionDigest:Buffer,tenant:string,kind:string):
+ {beforeCreated:string|null;beforeId:string|null}{
+ if(!token)return {beforeCreated:null,beforeId:null};
+ if(!/^[A-Za-z0-9_-]{32,512}$/.test(token))
+  throw new BadRequestException("INVALID_GAZETTE_CURSOR");
+ try{
+  const bytes=Buffer.from(token,"base64url");
+  if(bytes.length<30||bytes.toString("base64url")!==token)throw Error("invalid or noncanonical");
+  const decipher=createDecipheriv("aes-256-gcm",ph109CursorKey(sessionDigest),bytes.subarray(0,12));
+  decipher.setAAD(Buffer.from("TTO_GAZETTE_CURSOR:"+kind+":"+tenant));
+  decipher.setAuthTag(bytes.subarray(12,28));
+  const payload=JSON.parse(Buffer.concat([decipher.update(bytes.subarray(28)),decipher.final()])
+   .toString("utf8")) as {at?:unknown;id?:unknown;expires?:unknown};
+  if(typeof payload.at!=="string"||payload.at.length>40||
+     !Number.isFinite(Date.parse(payload.at))||
+     typeof payload.id!=="string"||
+     !/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(payload.id)||
+     typeof payload.expires!=="number"||payload.expires<Date.now()||
+     payload.expires>Date.now()+15*60*1000)
+   throw Error("payload");
+  return {beforeCreated:payload.at,beforeId:payload.id};
+ }catch{throw new BadRequestException("INVALID_GAZETTE_CURSOR");}
+}
+
 
 @Injectable()
 export class Database {
@@ -433,6 +471,113 @@ export class FoundationCommandsController {
         if(code==="42501")throw new ForbiddenException("QUARANTINE_ACCESS_DENIED");
         if(code==="23505")throw new ConflictException("QUARANTINE_UPLOAD_CONFLICT");
         if(code==="22023")throw new BadRequestException("INVALID_QUARANTINE_DOCUMENT");
+        throw e;
+      }
+    });
+  }
+
+  @Get("tenants/:tenantId/governance/manual-official-notices/pages")
+  async pagedGazetteHistory(
+    @Param("tenantId",new ParseUUIDPipe()) tenantId:string,
+    @Headers("authorization") auth:string|undefined,
+    @Query("cursor") cursor?:string,
+    @Query("limit") limitText?:string
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("GAZETTE_HISTORY_NOT_RELEASED");
+    if(limitText!==undefined&&!/^(?:[1-9]|[1-9][0-9]|100)$/.test(limitText))
+      throw new BadRequestException("INVALID_GAZETTE_CURSOR");
+    const limit=limitText===undefined?50:Number(limitText);
+    const digest=this.db.sessionDigest(auth);
+    const {beforeCreated,beforeId}=ph109DecodeCursor(cursor,digest,tenantId,"claims");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.inTenant(actor,tenantId,async client=>{
+      try{
+        const result=await client.query<{out:Record<string,unknown>}>(
+          "SELECT tto.list_manual_official_governance_claims_page($1::uuid,$2::bytea,$3::timestamptz,$4::uuid,$5::integer) AS out",
+          [tenantId,digest,beforeCreated,beforeId,limit]);
+        const value=result.rows[0]?.out;
+        if(!value||!Array.isArray(value.items)||value.items.length>limit||
+           value.officiallyVerified!==false||value.legalApproval!==false||
+           value.roleGranted!==false||value.selfReportedOnly!==true)
+          throw new ServiceUnavailableException("GAZETTE_HISTORY_UNAVAILABLE");
+        const last=value.items.at(-1) as {createdAt?:string;claimId?:string}|undefined;
+        return {tenantId,...value,
+          nextCursor:value.hasMore===true&&last?ph109EncodeCursor(digest,tenantId,"claims",last.createdAt!,last.claimId!):null};
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("MANAGER_LEGAL_AUTHORITY_REQUIRED");
+        if(code==="22023")throw new BadRequestException("INVALID_GAZETTE_CURSOR");
+        throw e;
+      }
+    });
+  }
+
+  // PH10.9 private reviewer-finding history; a finding is NOT legal verification.
+  @Get("tenants/:tenantId/governance/manual-official-notices/reviews")
+  async listGazetteReviewFindings(
+    @Param("tenantId",new ParseUUIDPipe()) tenantId:string,
+    @Headers("authorization") auth:string|undefined,
+    @Query("cursor") cursor?:string,
+    @Query("limit") limitText?:string
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("GAZETTE_REVIEW_HISTORY_NOT_RELEASED");
+    if(limitText!==undefined&&!/^(?:[1-9]|[1-9][0-9]|100)$/.test(limitText))
+      throw new BadRequestException("INVALID_GAZETTE_CURSOR");
+    const limit=limitText===undefined?50:Number(limitText);
+    const digest=this.db.sessionDigest(auth);
+    const {beforeCreated,beforeId}=ph109DecodeCursor(cursor,digest,tenantId,"findings");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.inTenant(actor,tenantId,async client=>{
+      try{
+        const result=await client.query<{out:Record<string,unknown>}>(
+          "SELECT tto.list_manual_gazette_review_findings_page($1::uuid,$2::bytea,$3::timestamptz,$4::uuid,$5::integer) AS out",
+          [tenantId,digest,beforeCreated,beforeId,limit]);
+        const value=result.rows[0]?.out;
+        if(!value||!Array.isArray(value.items)||value.items.length>limit||
+           typeof value.hasMore!=="boolean"||value.officiallyVerified!==false||
+           value.legalApproval!==false||value.roleGranted!==false||
+           value.sourceClassification!=="INDEPENDENT_REVIEWER_FINDINGS_NOT_OFFICIAL_VERIFICATION")
+          throw new ServiceUnavailableException("INVALID_REVIEW_HISTORY_UPSTREAM");
+        const last=value.items.at(-1) as {createdAt?:string;findingId?:string}|undefined;
+        return {...value,nextCursor:value.hasMore===true&&last?
+          ph109EncodeCursor(digest,tenantId,"findings",last.createdAt!,last.findingId!):null};
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("REVIEW_HISTORY_MANAGER_REQUIRED");
+        if(code==="22023")throw new BadRequestException("INVALID_REVIEW_HISTORY_CURSOR");
+        throw e;
+      }
+    });
+  }
+
+  @Post("national/governance/gazette-claims/:claimId/reviews")
+  @HttpCode(201)
+  async reviewGazette(@Param("claimId",new ParseUUIDPipe()) claimId:string,
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("GAZETTE_REVIEW_NOT_RELEASED");
+    const key=requireId(input?.requestKey);
+    const reference=requireText(input?.sourceReference,8,240);
+    const rationale=requireText(input?.rationale,10,1500);
+    const hash=input?.sourceHashHex,outcome=input?.outcome;
+    if(typeof hash!=="string"||!/^[a-fA-F0-9]{64}$/.test(hash)||
+      typeof outcome!=="string"||
+      !["MATCH_REPORTED_UNVERIFIED","MISMATCH_REPORTED","INCONCLUSIVE"].includes(outcome))
+      throw new BadRequestException("INVALID_GAZETTE_REVIEW");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      try {
+        const result=await client.query<{out:Record<string,unknown>}>(
+          "SELECT tto.record_independent_gazette_finding($1::uuid,$2::uuid,$3::text,$4::bytea,$5::text,$6::text,$7::bytea) AS out",
+          [claimId,key,reference,Buffer.from(hash,"hex"),outcome,rationale,this.db.sessionDigest(auth)]);
+        return {claimId,...result.rows[0].out};
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("INDEPENDENT_GAZETTE_REVIEWER_REQUIRED");
+        if(code==="23505")throw new ConflictException("GAZETTE_REVIEW_REPLAY_CONFLICT");
+        if(code==="22023")throw new BadRequestException("INVALID_GAZETTE_REVIEW");
         throw e;
       }
     });

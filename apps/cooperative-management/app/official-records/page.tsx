@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useState} from "react";
+import {useEffect,useRef,useState} from "react";
 type Tenant={tenantId:string;displayName:string;evidenceStatus:string};
 type Form={
  personFullName:string;officeType:string;signingMode:string;authorityScope:string;
@@ -10,6 +10,12 @@ type HistoryRow=Form & {
  claimId:string;status:"SELF_REPORTED_PENDING_REVIEW";createdAt:string;
  hasCorrection:boolean;supersedesClaimId:string|null;effectiveFrom:string|null;
  effectiveUntil:string|null;officialReferenceUrl:string|null;
+};
+type ReviewFinding={findingId:string;claimId:string;outcome:"INCONCLUSIVE"|"MISMATCH_REPORTED"|"MATCH_REPORTED_UNVERIFIED";sourceReference:string;rationale:string;reviewerMandateReference:string;createdAt:string};
+const REVIEW_LABELS:Record<ReviewFinding["outcome"],string>={
+ INCONCLUSIVE:"نتیجه نامشخص؛ نیازمند بررسی بیشتر",
+ MISMATCH_REPORTED:"گزارش مغایرت با اظهار مدیریت",
+ MATCH_REPORTED_UNVERIFIED:"تطبیق گزارش‌شده؛ اصالت رسمی تأیید نشده"
 };
 const EMPTY:Form={personFullName:"",officeType:"BOARD_MEMBER",signingMode:"NONE",
  authorityScope:"",gazetteIssueNumber:"",gazettePublicationDate:"",
@@ -31,6 +37,7 @@ const labelStyle={display:"grid",gap:6,fontSize:14,fontWeight:650 as const};
 export default function OfficialRecordsPage(){
  const [tenants,setTenants]=useState<Tenant[]>([]);
  const [tenantId,setTenantId]=useState("");
+ const tenantScopeRef=useRef("");
  const [form,setForm]=useState<Form>({...EMPTY});
  const [requestKey,setRequestKey]=useState("");
  const [busy,setBusy]=useState(false);
@@ -40,7 +47,15 @@ export default function OfficialRecordsPage(){
  const [history,setHistory]=useState<HistoryRow[]>([]);
  const [historyError,setHistoryError]=useState("");
  const [historyMore,setHistoryMore]=useState(false);
+ const [nextCursor,setNextCursor]=useState<string|null>(null);
+ const [loadingMore,setLoadingMore]=useState(false);
  const [historyVersion,setHistoryVersion]=useState(0);
+ const [reviewFindings,setReviewFindings]=useState<ReviewFinding[]>([]);
+ const [reviewError,setReviewError]=useState("");
+ const [reviewMore,setReviewMore]=useState(false);
+ const [reviewCursor,setReviewCursor]=useState<string|null>(null);
+ const [reviewLoading,setReviewLoading]=useState(false);
+
  useEffect(()=>{
   let alive=true;
   void fetch("/api/me/tenant-options",{credentials:"same-origin",cache:"no-store"})
@@ -52,6 +67,7 @@ export default function OfficialRecordsPage(){
     const allowed=Array.isArray(body.items)?body.items.filter(
       x=>x.evidenceStatus==="ROLE_AUTHORITY_EVIDENCE"):[];
     setTenants(allowed);
+    tenantScopeRef.current=allowed[0]?.tenantId??"";
     setTenantId(allowed[0]?.tenantId??"");
     setPhase("ready");
    }).catch(()=>{if(alive)setPhase("unavailable")});
@@ -62,25 +78,104 @@ export default function OfficialRecordsPage(){
   const abort=new AbortController();
   setHistory([]);
   setHistoryError("");
-  void fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/official-notices",{
+  void fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/official-notices/pages",{
    credentials:"same-origin",cache:"no-store",signal:abort.signal
   }).then(async r=>{
    if(!r.ok)throw Error("AUTHORITY_OR_HISTORY_UNAVAILABLE");
    const data=await r.json() as {
-    items?:HistoryRow[];hasMore?:boolean;selfReportedOnly?:boolean;
+    items?:HistoryRow[];hasMore?:boolean;nextCursor?:string|null;selfReportedOnly?:boolean;
     officiallyVerified?:boolean;legalApproval?:boolean;roleGranted?:boolean
    };
    if(!Array.isArray(data.items)||data.items.length>100||
       data.selfReportedOnly!==true||data.officiallyVerified!==false||
       data.legalApproval!==false||data.roleGranted!==false)
     throw Error("UNSAFE_HISTORY_RESPONSE");
-   if(!abort.signal.aborted){setHistory(data.items);setHistoryMore(data.hasMore===true);}
+   if(!abort.signal.aborted){setHistory(data.items);setHistoryMore(data.hasMore===true);setNextCursor(data.nextCursor??null);}
   }).catch(()=>{
    if(!abort.signal.aborted){setHistory([]);setHistoryError(
     "سوابق قابل بازیابی نیستند؛ هیچ اطلاعاتی بدون مجوز نمایش داده نمی‌شود.");}
   });
   return()=>abort.abort();
  },[phase,tenantId,historyVersion]);
+ // Findings are a separate, access-controlled record: they never change self-report status.
+ useEffect(()=>{
+  if(phase!=="ready"||!tenantId){setReviewFindings([]);setReviewError("");setReviewMore(false);setReviewCursor(null);return;}
+  const abort=new AbortController(),requestedTenant=tenantId;
+  setReviewFindings([]);setReviewError("");setReviewMore(false);setReviewCursor(null);
+  void fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/official-notices/reviews",{
+   credentials:"same-origin",cache:"no-store",signal:abort.signal
+  }).then(async res=>{
+   if(!res.ok)throw Error("REVIEW_HISTORY_DENIED");
+   const data=await res.json() as {tenantId:string;items:ReviewFinding[];hasMore:boolean;
+    nextCursor:string|null;officiallyVerified:boolean;
+    legalApproval:boolean;roleGranted:boolean;sourceClassification:string};
+   if(data.tenantId!==requestedTenant||!Array.isArray(data.items)||
+    data.items.length>50||data.officiallyVerified!==false||
+    data.legalApproval!==false||data.roleGranted!==false||
+    data.sourceClassification!=="INDEPENDENT_REVIEWER_FINDINGS_NOT_OFFICIAL_VERIFICATION")
+    throw Error("UNSAFE_REVIEW_HISTORY");
+   if(!abort.signal.aborted&&tenantScopeRef.current===requestedTenant){
+    setReviewFindings(data.items);setReviewMore(data.hasMore);setReviewCursor(data.nextCursor);
+   }
+  }).catch(()=>{if(!abort.signal.aborted&&tenantScopeRef.current===requestedTenant)
+   setReviewError("تاریخچه مستقل بررسی‌ها در دسترس نیست؛ هیچ نتیجه‌ای بدون احراز دسترسی نمایش داده نمی‌شود.");});
+  return()=>abort.abort();
+ },[phase,tenantId,historyVersion]);
+ async function loadReviewMore(){
+  if(!tenantId||!reviewMore||!reviewCursor||reviewLoading)return;
+  const requestedTenant=tenantId;
+  setReviewLoading(true);setReviewError("");
+  const params=new URLSearchParams({cursor:reviewCursor});
+  try{
+   const res=await fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/official-notices/reviews?"+params,{
+    credentials:"same-origin",cache:"no-store"});
+   if(!res.ok)throw Error("REVIEW_HISTORY_MORE_UNAVAILABLE");
+   const data=await res.json() as {tenantId:string;items:ReviewFinding[];hasMore:boolean;
+    nextCursor:string|null;officiallyVerified:boolean;
+    legalApproval:boolean;roleGranted:boolean;sourceClassification:string};
+   if(data.tenantId!==requestedTenant||!Array.isArray(data.items)||data.items.length>50||
+    data.officiallyVerified!==false||data.legalApproval!==false||
+    data.roleGranted!==false||
+    data.sourceClassification!=="INDEPENDENT_REVIEWER_FINDINGS_NOT_OFFICIAL_VERIFICATION")
+    throw Error("UNSAFE_REVIEW_HISTORY_PAGE");
+   if(tenantScopeRef.current!==requestedTenant)return;
+   setReviewFindings(existing=>{
+    if(tenantScopeRef.current!==requestedTenant)return existing;
+    const seen=new Set(existing.map(x=>x.findingId));
+    return [...existing,...data.items.filter(x=>!seen.has(x.findingId))];
+   });
+   setReviewMore(data.hasMore);setReviewCursor(data.nextCursor);
+  }catch{if(tenantScopeRef.current===requestedTenant)
+   setReviewError("بارگذاری ادامه گزارش‌های بررسی ناموفق بود.");}
+  finally{setReviewLoading(false);}
+ }
+ async function loadMore(){
+  if(!tenantId||!historyMore||!nextCursor||loadingMore)return;
+  setLoadingMore(true);setHistoryError("");
+  const requestedTenant=tenantId;
+  try{
+   const params=new URLSearchParams({cursor:nextCursor});
+   const res=await fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/official-notices/pages?"+params,{
+    credentials:"same-origin",cache:"no-store"});
+   if(!res.ok)throw Error("MORE_HISTORY_UNAVAILABLE");
+   const data=await res.json() as {tenantId:string;items:HistoryRow[];hasMore:boolean;
+    nextCursor:string|null;selfReportedOnly:boolean;
+    officiallyVerified:boolean;legalApproval:boolean;roleGranted:boolean};
+   if(data.tenantId!==requestedTenant||!Array.isArray(data.items)||
+    data.items.length>50||data.selfReportedOnly!==true||
+    data.officiallyVerified!==false||data.legalApproval!==false||
+    data.roleGranted!==false)throw Error("UNSAFE_HISTORY_PAGE");
+   if(tenantScopeRef.current!==requestedTenant)return;
+   setHistory(current=>{
+    if(tenantScopeRef.current!==requestedTenant)return current;
+    const known=new Set(current.map(row=>row.claimId));
+    return [...current,...data.items.filter(row=>!known.has(row.claimId))];
+   });
+   setHistoryMore(data.hasMore);setNextCursor(data.nextCursor);
+  }catch{if(tenantScopeRef.current===requestedTenant)
+   setHistoryError("دریافت ادامه سوابق انجام نشد؛ دوباره تلاش کنید.");}
+  finally{setLoadingMore(false);}
+ }
  const correctClaim=(row:HistoryRow)=>{
   if(row.hasCorrection||busy)return;
   setForm({
@@ -151,7 +246,7 @@ export default function OfficialRecordsPage(){
   {phase==="ready"&&tenants.length>0?<form onSubmit={e=>void submit(e)}
     style={{display:"grid",gap:20,background:"#f6fafb",borderRadius:14,padding:22}}>
    <label style={labelStyle}>تعاونی مجاز
-    <select required value={tenantId} onChange={e=>{setTenantId(e.target.value);setRequestKey("");}}
+    <select required value={tenantId} onChange={e=>{tenantScopeRef.current=e.target.value;setTenantId(e.target.value);setRequestKey("");}}
      style={fieldStyle}>{tenants.map(t=><option key={t.tenantId} value={t.tenantId}>{t.displayName}</option>)}</select>
    </label>
    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:16}}>
@@ -233,8 +328,40 @@ export default function OfficialRecordsPage(){
       </button>}
     <p style={{fontSize:12,overflowWrap:"anywhere"}}>شناسه سابقه: <code dir="ltr">{row.claimId}</code></p>
    </article>)}
-   {historyMore?<p role="status">فقط ۱۰۰ سابقه جدید نمایش داده شده است؛ بازیابی سوابق قدیمی‌تر
-    نیازمند صفحه‌بندی و کنترل مجوز مجدد است.</p>:null}
+   {historyMore?<button type="button" disabled={loadingMore||!nextCursor}
+     onClick={()=>void loadMore()} aria-label="بارگذاری سوابق قدیمی‌تر">
+      {loadingMore?"در حال دریافت سوابق…":"نمایش سوابق قدیمی‌تر"}
+    </button>:null}
+  </section>:null}
+  {phase==="ready"&&tenantId?<section aria-labelledby="gazette-review-history-title"
+    style={{marginTop:28,border:"1px solid #bdcfd2",borderRadius:12,padding:20}}>
+   <h2 id="gazette-review-history-title">تاریخچه مستقل گزارش‌های بررسی حقوقی</h2>
+   <p role="note" style={{lineHeight:2}}>
+    این فهرست فقط گزارش‌های مستقل درباره اظهارهای ثبت‌شده است؛ هیچ گزارش، تأیید رسمی
+    اصالت آگهی، سمت یا حق امضا محسوب نمی‌شود. اصلاحیه‌ها و نسخه‌های قبلی مستقل باقی می‌مانند.
+   </p>
+   {reviewError?<p role="alert">{reviewError}</p>:null}
+   {!reviewError&&reviewFindings.length===0?<p role="status">هنوز گزارشی از بررسی مستقل ثبت نشده است.</p>:null}
+   <ul style={{listStyle:"none",padding:0,display:"grid",gap:12}}>
+    {reviewFindings.map(row=><li key={row.findingId}
+       style={{border:"1px solid #dae5e8",borderRadius:10,padding:16}}>
+      <strong>{REVIEW_LABELS[row.outcome]??"گزارش نامعتبر"}</strong>
+      <p>مرجع بررسی: {row.sourceReference}</p>
+      <p style={{whiteSpace:"pre-wrap"}}>شرح نتیجه: {row.rationale}</p>
+      <p>مبنای انتصاب کارشناس: {row.reviewerMandateReference}</p>
+      <p>زمان ثبت: <time dateTime={row.createdAt} dir="ltr">{row.createdAt}</time></p>
+      <p style={{fontSize:12,overflowWrap:"anywhere"}}>
+       شناسه اظهار: <code dir="ltr">{row.claimId}</code>
+      </p>
+      <p style={{fontSize:12,overflowWrap:"anywhere"}}>
+       شناسه گزارش مستقل: <code dir="ltr">{row.findingId}</code>
+      </p>
+     </li>)}
+   </ul>
+   {reviewMore?<button type="button" onClick={()=>void loadReviewMore()}
+     disabled={reviewLoading||!reviewCursor} aria-label="بارگذاری گزارش‌های بررسی قدیمی‌تر">
+     {reviewLoading?"در حال بازیابی…":"نمایش گزارش‌های بررسی قدیمی‌تر"}
+   </button>:null}
   </section>:null}
  </main>;
 }
