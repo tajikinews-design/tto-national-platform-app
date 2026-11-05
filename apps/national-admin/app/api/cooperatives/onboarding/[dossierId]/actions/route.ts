@@ -5,7 +5,7 @@ export const dynamic="force-dynamic";
 const HEADERS={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
 const TOKEN=/^[A-Za-z0-9_-]{32,256}$/;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const actions=new Set(["START_REVIEW","REQUEST_CHANGES","REJECT","RESUBMIT","RECOMMEND_EXTERNAL_APPROVAL"]);
+const actions=new Set(["START_REVIEW","REQUEST_CHANGES","REJECT","RESUBMIT","REFER_EXTERNAL_REVIEW","RECOMMEND_EXTERNAL_APPROVAL"]);
 function fail(status:number,code:string){return NextResponse.json({code},{status,headers:HEADERS})}
 export async function POST(req:NextRequest,{params}:{params:Promise<{dossierId:string}>}){
  const {dossierId}=await params;
