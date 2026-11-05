@@ -309,7 +309,12 @@ for(let idx=0;idx<slugs.length;idx++){
      const r=await fetch("http://127.0.0.1:"+port+"/");
      if(r.ok){
        const html=await r.text();
-       if(!html.includes("در حال بررسی نشست ورود"))throw Error(slug+" runtime-enabled session restoration shell missing");
+       if(slug==="national-admin"){
+        if(!html.includes("ورود مدیر ملی")||!html.includes("در حال بررسی اعتبار نشست"))
+         throw Error("national root password/session restoration shell missing");
+       }else if(!html.includes("در حال بررسی نشست ورود")){
+        throw Error(slug+" runtime-enabled session restoration shell missing");
+       }
        checks++;ready=true;break;
      }
    }catch {}
