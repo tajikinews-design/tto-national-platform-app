@@ -44,12 +44,22 @@ REVOKE ALL ON tto.cooperative_external_source_check_records FROM PUBLIC,tto_app;
 CREATE OR REPLACE FUNCTION tto.record_independent_cooperative_source_check(
  p_dossier_id uuid,p_evidence_id uuid,p_request_key uuid,
  p_source_kind text,p_external_reference text,p_source_sha256 bytea,
- p_finding text,p_rationale text
+ p_finding text,p_rationale text,p_session_hash bytea DEFAULT NULL
 ) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog,tto AS $f$
-DECLARE v_actor uuid; v_dossier tto.cooperative_onboarding_dossiers%ROWTYPE;
+DECLARE v_actor uuid; v_session_actor uuid;
+ v_dossier tto.cooperative_onboarding_dossiers%ROWTYPE;
  v_previous tto.cooperative_external_source_check_records%ROWTYPE;v_id uuid;
 BEGIN
  v_actor:=tto.context_actor_id();
+ -- Bind appointed-reviewer decisions to an actual revocable server-verified
+ -- session hash; changing the actor GUC alone must not grant legal authority.
+ IF p_session_hash IS NULL OR octet_length(p_session_hash)<>32 THEN
+   RAISE EXCEPTION 'REVIEWER_SESSION_REQUIRED' USING ERRCODE='42501';
+ END IF;
+ SELECT user_id INTO v_session_actor FROM tto.resolve_session(p_session_hash);
+ IF v_session_actor IS NULL OR v_session_actor IS DISTINCT FROM v_actor THEN
+   RAISE EXCEPTION 'REVIEWER_SESSION_ACTOR_MISMATCH' USING ERRCODE='42501';
+ END IF;
  IF v_actor IS NULL OR NOT EXISTS (
    SELECT 1 FROM tto.cooperative_external_legal_review_mandates m
    JOIN tto.national_root_accounts r ON r.user_id=m.appointed_by
@@ -114,9 +124,9 @@ BEGIN
   'tenantCreated',false,'managerRoleGranted',false);
 END $f$;
 REVOKE ALL ON FUNCTION tto.record_independent_cooperative_source_check(
- uuid,uuid,uuid,text,text,bytea,text,text) FROM PUBLIC;
+ uuid,uuid,uuid,text,text,bytea,text,text,bytea) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION tto.record_independent_cooperative_source_check(
- uuid,uuid,uuid,text,text,bytea,text,text) TO tto_app;
+ uuid,uuid,uuid,text,text,bytea,text,text,bytea) TO tto_app;
 
 -- Server-only cryptographic integrity check. It does NOT attest an official source
 -- or permit a caller to access plaintext. tto_app receives bytes only through this
