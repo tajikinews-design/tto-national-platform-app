@@ -47,7 +47,13 @@ jobs:
       - name: Execute isolated review and anti-replay assertions
         run: |
           set -euo pipefail
-          docker exec -i tto-ph10-dossier psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph10-cooperative-dossier-review-disposable.sql
+          for test_file in \
+            tests/sql/ph10-cooperative-dossier-review-disposable.sql \
+            tests/sql/ph10-cooperative-draft-disposable.sql \
+            tests/sql/ph10-cooperative-evidence-quarantine-disposable.sql; do
+            echo "PH10_DISPOSABLE_CASE=$test_file"
+            docker exec -i tto-ph10-dossier psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$test_file"
+          done
           echo PH10_DOSSIER_REVIEW_DB_GATE_PASS_NO_LEGAL_APPROVAL
       - name: Destroy database even on failure
         if: always()
