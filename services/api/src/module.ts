@@ -511,7 +511,7 @@ export class FoundationCommandsController {
       throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
     const action=input?.action;
     const allowed=new Set(["START_REVIEW","REQUEST_CHANGES","REJECT",
-                           "RESUBMIT","RECOMMEND_EXTERNAL_APPROVAL"]);
+                           "RESUBMIT","REFER_EXTERNAL_REVIEW","RECOMMEND_EXTERNAL_APPROVAL"]);
     if(typeof action!=="string"||!allowed.has(action))
       throw new BadRequestException("INVALID_REVIEW_ACTION");
     const expectedVersion=input?.expectedVersion;
