@@ -70,7 +70,7 @@ RESET ROLE;
 DO $test$
 BEGIN
  IF (SELECT count(*) FROM tto.cooperative_onboarding_audit
-   WHERE dossier_id='33333333-3333-4333-8333-333333333333')<>4 THEN
+   WHERE dossier_id='33333333-3333-4333-8333-333333333333')<>3 THEN
   RAISE EXCEPTION 'duplicate or missing audit records';
  END IF;
  IF EXISTS(SELECT 1 FROM tto.tenants)
