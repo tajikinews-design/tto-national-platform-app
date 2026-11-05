@@ -32,7 +32,7 @@ class PH10CooperativeSourceGate(unittest.TestCase):
         cls.review_bff = read("apps/national-admin/app/api/cooperatives/onboarding/[dossierId]/actions/route.ts")
 
     def test_no_autonomous_legal_activation(self):
-        for sql in (self.review, self.draft, self.quarantine, self.external, self.malware):
+        for sql in (self.review, self.draft, self.quarantine, self.external, self.malware, self.manual):
             self.assertNotRegex(sql, r"(?i)\bINSERT\s+INTO\s+tto\.(?:tenants|role_assignments)\b")
             self.assertNotRegex(sql, r"(?i)\bUPDATE\s+tto\.tenants\b")
         self.assertNotIn("'APPROVED'", self.review)
@@ -112,6 +112,31 @@ class PH10CooperativeSourceGate(unittest.TestCase):
         self.assertIn('ORIGIN_REQUIRED',self.scan_bff)
         self.assertIn('stillQuarantined!==true',self.scan_bff)
 
+    def test_manual_gazette_self_reporting_never_confers_rights(self):
+        self.assertIn("cooperative_manual_official_governance_claims",self.manual)
+        self.assertIn("official_issue_number text NOT NULL",self.manual)
+        self.assertIn("official_publication_date date NOT NULL",self.manual)
+        self.assertIn("official_announcement_number text NOT NULL",self.manual)
+        self.assertIn("SELF_REPORTED_PENDING_REVIEW",self.manual)
+        self.assertIn("tto.resolve_session(p_session_digest)",self.manual)
+        self.assertIn("tto.has_tenant_role(p_tenant,'COOPERATIVE_MANAGER')",self.manual)
+        self.assertIn("tto.has_verified_authority(p_tenant,'ROLE_MANAGEMENT')",self.manual)
+        self.assertIn("REVOKE ALL ON tto.cooperative_manual_official_governance_claims FROM PUBLIC,tto_app",self.manual)
+        self.assertNotIn("INSERT INTO tto.role_assignments",self.manual)
+        self.assertNotIn("UPDATE tto.legal_authorities",self.manual)
+        self.assertIn("'officiallyVerified',false",self.manual)
+        self.assertIn("'roleGranted',false",self.manual)
+        page=read("apps/cooperative-management/app/official-records/page.tsx")
+        self.assertIn("gazetteIssueNumber",page)
+        self.assertIn("gazettePublicationDate",page)
+        self.assertIn("gazetteAnnouncementNumber",page)
+        self.assertIn("SELF_REPORTED_PENDING_REVIEW",page)
+        self.assertIn("هیچ استعلام پولی رسمیو انجام نمی‌شود",page)
+        bff=read("apps/cooperative-management/app/api/tenants/[tenantId]/official-notices/route.ts")
+        self.assertIn("ORIGIN_REQUIRED",bff)
+        self.assertIn("MANAGER_LEGAL_AUTHORITY_REQUIRED",bff)
+        self.assertIn("officiallyVerified!==false",bff)
+
     def test_pg17_test_files_are_rollback_only(self):
         files = (
             "tests/sql/ph10-cooperative-dossier-review-disposable.sql",
@@ -119,6 +144,7 @@ class PH10CooperativeSourceGate(unittest.TestCase):
             "tests/sql/ph10-cooperative-evidence-quarantine-disposable.sql",
             "tests/sql/ph10-cooperative-external-source-review-disposable.sql",
             "tests/sql/ph10-cooperative-malware-scan-disposable.sql",
+            "tests/sql/ph10-manual-official-governance-claims-disposable.sql",
         )
         for name in files:
             sql = read(name)
