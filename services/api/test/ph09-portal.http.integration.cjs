@@ -427,9 +427,19 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
      console.log('PH10_CHROMIUM_NAV06_ENROLL_CLICKED');
      const enrollResponse=await enrollResponsePromise;
      console.log('PH10_CHROMIUM_NAV06_ENROLL_POST_RECEIVED_'+enrollResponse.status());
-     assert.equal(enrollResponse.status(),201,
-      'PH10_BROWSER_TRAINING_POST_STATUS_'+enrollResponse.status()+' '+
-      (await enrollResponse.text()).slice(0,300));
+     // Playwright's response.text() may itself block on an unfinished response
+     // body after Next emitted 403 headers. Never lose the actual HTTP status
+     // behind a global 8-minute CI timeout.
+     const enrollStatus=enrollResponse.status();
+     if(enrollStatus!==201){
+      const detail=await Promise.race([
+       enrollResponse.text().then(x=>x.slice(0,300)).catch(()=>'<unavailable>'),
+       new Promise(resolve=>setTimeout(()=>resolve('<body-read-timeout>'),1200))
+      ]);
+      throw Error('PH10_BROWSER_TRAINING_POST_STATUS_'+enrollStatus+
+       ' url='+enrollResponse.url()+' body='+detail);
+     }
+     console.log('PH10_CHROMIUM_NAV06_ENROLL_POST_STATUS_201');
      // If a browser result disagrees with POST, retain response and visible UI
      // evidence rather than hiding the actual failed functional journey.
      try{
