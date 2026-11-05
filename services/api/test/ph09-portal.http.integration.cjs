@@ -369,8 +369,30 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
      console.log('PH10_CHROMIUM_AFTER_ENROLLMENT_NAV_SHAREHOLDER');
      await page.locator('#sw-tenant').waitFor({state:'visible',timeout:20000});
      console.log('PH10_CHROMIUM_AFTER_ENROLLMENT_SELECTOR_SHAREHOLDER');
-     await page.locator('#sw-tenant').selectOption(tenant);
-     await page.getByRole('button',{name:'تأیید محدوده و استعلام'}).click();
+     // A visible select is not necessarily enabled or populated. Require the
+     // *actual authorized tenant option* before interacting. Missing data fails
+     // quickly with the true UI state rather than hanging an entire CI runner.
+     try {
+      await page.waitForFunction((id)=>{
+       const el=document.querySelector('#sw-tenant');
+       return el instanceof HTMLSelectElement&&!el.disabled&&
+        Array.from(el.options).some(o=>o.value===id);
+      },tenant,{timeout:15000});
+     }catch(error){
+      const observed=await page.locator('#sw-tenant').evaluate(el=>({
+       disabled:el.disabled,options:Array.from(el.options).map(o=>o.value),
+       visibleAlerts:Array.from(document.querySelectorAll('[role="alert"]'))
+        .map(e=>e.textContent?.slice(0,200))
+      })).catch(()=>({readbackUnavailable:true}));
+      throw Error('PH10_BROWSER_NAV06_TENANT_SCOPE_NOT_READY '+
+       JSON.stringify(observed)+' '+String(error?.message).slice(0,130));
+     }
+     console.log('PH10_CHROMIUM_NAV06_AUTHORIZED_TENANT_READY');
+     await page.locator('#sw-tenant').selectOption(tenant,{timeout:15000});
+     console.log('PH10_CHROMIUM_NAV06_TENANT_SELECTED');
+     const scopeButton=page.getByRole('button',{name:'تأیید محدوده و استعلام'});
+     await scopeButton.click({timeout:15000});
+     console.log('PH10_CHROMIUM_NAV06_SCOPE_CONFIRM_CLICKED');
      const course=page.locator('li').filter({hasText:'PH10 Browser Enrollment Course'});
      await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).waitFor({state:'visible',timeout:25000});
      const enrollResponsePromise=page.waitForResponse(r=>r.request().method()==='POST'&&
