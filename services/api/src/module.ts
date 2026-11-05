@@ -378,6 +378,68 @@ export class FoundationCommandsController {
     });
   }
 
+  // PH10.3: draft claims only; no legal registration or tenant role.
+  @Get("national/cooperative-onboarding-drafts")
+  async listNationalCooperativeDrafts(@Headers("authorization") auth:string|undefined){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const check=await client.query<{allowed:boolean}>("SELECT tto.has_national_root() AS allowed");
+      if(check.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const rows=await client.query<{slug:string;payload:Record<string,string>;version:number}>(
+        "SELECT w.slug,d.payload,d.version FROM tto.cooperative_onboarding_drafts d "+
+        "JOIN tto.cooperative_workspace_addresses w ON w.workspace_id=d.workspace_id "+
+        "WHERE w.state='RESERVED' AND NOT EXISTS (SELECT 1 FROM "+
+        "tto.cooperative_onboarding_dossiers s WHERE s.workspace_id=d.workspace_id) "+
+        "ORDER BY d.updated_at DESC LIMIT 100"
+      );
+      return {items:rows.rows,tenantCreated:false};
+    });
+  }
+
+  @Post("national/cooperative-onboarding-drafts")
+  @HttpCode(200)
+  async saveNationalCooperativeDraft(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const slug=requireText(input?.slug,3,40);
+    if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
+      throw new BadRequestException("INVALID_WORKSPACE_SLUG");
+    if(typeof input?.expectedVersion!=="number"||
+       !Number.isSafeInteger(input.expectedVersion)||input.expectedVersion<0)
+      throw new BadRequestException("INVALID_DRAFT_VERSION");
+    const requestKey=requireId(input?.requestKey);
+    const payload=input?.payload;
+    if(!payload||typeof payload!=="object"||Array.isArray(payload))
+      throw new BadRequestException("INVALID_DRAFT_PAYLOAD");
+    const allowed=new Set(["legalName","nationalId","registrationNumber","province",
+      "county","legalAddress","representativeName","candidateManagerName",
+      "candidateManagerMobile","evidenceReference"]);
+    const record=payload as Record<string,unknown>;
+    if(Object.keys(record).some(key=>!allowed.has(key)||typeof record[key]!=="string"||
+       (record[key] as string).length>300)||JSON.stringify(record).length>4096)
+      throw new BadRequestException("INVALID_DRAFT_FIELDS");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      try{
+        const result=await client.query<{out:Record<string,unknown>}>(
+          "SELECT tto.save_cooperative_onboarding_draft($1::text,$2::jsonb,$3::integer,$4::uuid) AS out",
+          [slug,JSON.stringify(record),input.expectedVersion,requestKey]
+        );
+        return result.rows[0].out;
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("DRAFT_PERMISSION_DENIED");
+        if(code==="23505"||code==="40001")
+          throw new ConflictException("DRAFT_VERSION_OR_KEY_CONFLICT");
+        if(code==="22023")throw new BadRequestException("INVALID_DRAFT");
+        throw e;
+      }
+    });
+  }
+
   // PH10.2: auditable review only. Never grants legal authority or provisions a tenant.
   @Post("national/cooperative-onboarding/:dossierId/actions")
   @HttpCode(200)
