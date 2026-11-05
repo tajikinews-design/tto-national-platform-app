@@ -515,9 +515,9 @@ export class FoundationCommandsController {
       try{
         const out=await client.query<{result:Record<string,unknown>}>(
           "SELECT tto.record_independent_cooperative_source_check("+
-          "$1::uuid,$2::uuid,$3::uuid,$4::text,$5::text,$6::bytea,$7::text,$8::text) AS result",
+          "$1::uuid,$2::uuid,$3::uuid,$4::text,$5::text,$6::bytea,$7::text,$8::text,$9::bytea) AS result",
           [dossierId,evidenceId,requestKey,sourceKind,sourceReference,
-           Buffer.from(sourceHashHex,"hex"),finding,rationale]
+           Buffer.from(sourceHashHex,"hex"),finding,rationale,this.db.sessionDigest(auth)]
         );
         return {dossierId,evidenceId,...out.rows[0].result};
       }catch(e){
