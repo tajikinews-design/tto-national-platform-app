@@ -98,7 +98,9 @@ try{
    'tests/sql/ph10-cooperative-dossier-review-disposable.sql',
    'tests/sql/ph10-cooperative-draft-disposable.sql',
    'tests/sql/ph10-cooperative-evidence-quarantine-disposable.sql',
-   'tests/sql/ph10-cooperative-external-source-review-disposable.sql'
+   'tests/sql/ph10-cooperative-external-source-review-disposable.sql',
+   'tests/sql/ph10-cooperative-malware-scan-disposable.sql',
+   'tests/sql/ph10-manual-official-governance-claims-disposable.sql'
  )
  foreach($test in $Tests){
   Log ('TEST '+$test)
