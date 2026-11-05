@@ -161,7 +161,10 @@ jobs:
       - name: Install isolated authenticated-browser Chromium
         run: |
           npm install --prefix /tmp/tto-ph10-auth --no-audit --no-fund playwright@1.56.1
-          node /tmp/tto-ph10-auth/node_modules/playwright/cli.js install --with-deps chromium
+          # Hosted Ubuntu has required libraries; avoid indefinite apt mirror resolution.
+          timeout --signal=TERM --kill-after=5s 210s node /tmp/tto-ph10-auth/node_modules/playwright/cli.js install chromium
+          node -e "const fs=require('node:fs');const pw=require('/tmp/tto-ph10-auth/node_modules/playwright');if(!fs.existsSync(pw.chromium.executablePath()))throw Error('CHROMIUM_HEADLESS_NOT_INSTALLED')"
+          echo PH10_BROWSER_INSTALL_NO_APT_OK
       - name: Build and exercise actual Nest HTTP in same database
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
@@ -237,7 +240,10 @@ jobs:
       - name: Install pinned Chromium for PH04 denied-button true browser testing
         run: |
           npm install --prefix /tmp/tto-ph10-ph04 --no-audit --no-fund playwright@1.56.1
-          node /tmp/tto-ph10-ph04/node_modules/playwright/cli.js install --with-deps chromium
+          # Hosted Ubuntu has required libraries; avoid indefinite apt mirror resolution.
+          timeout --signal=TERM --kill-after=5s 210s node /tmp/tto-ph10-ph04/node_modules/playwright/cli.js install chromium
+          node -e "const fs=require('node:fs');const pw=require('/tmp/tto-ph10-ph04/node_modules/playwright');if(!fs.existsSync(pw.chromium.executablePath()))throw Error('CHROMIUM_HEADLESS_NOT_INSTALLED')"
+          echo PH10_BROWSER_INSTALL_NO_APT_OK
       - name: Run historical migrations + actual PH04 authenticated HTTP and DED-004
         env:
           NODE_PATH: /tmp/tto-ph10-ph04/node_modules
