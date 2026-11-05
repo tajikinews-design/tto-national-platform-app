@@ -347,7 +347,7 @@ export class FoundationCommandsController {
       if(role.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
       const reserved=await client.query<{workspace_id:string}>(
         "SELECT workspace_id FROM tto.cooperative_workspace_addresses "+
-        "WHERE slug=$1 AND state='RESERVED' FOR UPDATE",[slug]);
+        "WHERE slug=$1 AND state='RESERVED'",[slug]);
       if(reserved.rowCount!==1)
         throw new BadRequestException("WORKSPACE_MUST_BE_RESERVED");
       const existingTenant=await client.query(
