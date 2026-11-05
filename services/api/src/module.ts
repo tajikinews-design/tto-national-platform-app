@@ -477,6 +477,47 @@ export class FoundationCommandsController {
     });
   }
 
+  // PH10.9 private reviewer-finding history; a finding is NOT legal verification.
+  @Get("tenants/:tenantId/governance/manual-official-notices/reviews")
+  async listGazetteReviewFindings(
+    @Param("tenantId",new ParseUUIDPipe()) tenantId:string,
+    @Headers("authorization") auth:string|undefined,
+    @Query("beforeCreated") beforeCreated?:string,
+    @Query("beforeId") beforeId?:string,
+    @Query("limit") limitText?:string
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("GAZETTE_REVIEW_HISTORY_NOT_RELEASED");
+    if((beforeCreated&&!beforeId)||(!beforeCreated&&beforeId)||
+      (beforeCreated&&(!Number.isFinite(Date.parse(beforeCreated))||beforeCreated.length>40))||
+      (beforeId&&!/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(beforeId))||
+      (limitText!==undefined&&!/^(?:[1-9]|[1-9][0-9]|100)$/.test(limitText)))
+      throw new BadRequestException("INVALID_REVIEW_HISTORY_CURSOR");
+    const limit=limitText===undefined?50:Number(limitText);
+    const actor=await this.db.sessionActor(auth);
+    return this.db.inTenant(actor,tenantId,async client=>{
+      try{
+        const result=await client.query<{out:Record<string,unknown>}>(
+          "SELECT tto.list_manual_gazette_review_findings_page($1::uuid,$2::bytea,$3::timestamptz,$4::uuid,$5::integer) AS out",
+          [tenantId,this.db.sessionDigest(auth),beforeCreated??null,beforeId??null,limit]);
+        const value=result.rows[0]?.out;
+        if(!value||!Array.isArray(value.items)||value.items.length>limit||
+           typeof value.hasMore!=="boolean"||value.officiallyVerified!==false||
+           value.legalApproval!==false||value.roleGranted!==false||
+           value.sourceClassification!=="INDEPENDENT_REVIEWER_FINDINGS_NOT_OFFICIAL_VERIFICATION")
+          throw new ServiceUnavailableException("INVALID_REVIEW_HISTORY_UPSTREAM");
+        const last=value.items.at(-1) as {createdAt?:string;findingId?:string}|undefined;
+        return {...value,nextCursor:value.hasMore===true&&last?
+          {beforeCreated:last.createdAt,beforeId:last.findingId}:null};
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("REVIEW_HISTORY_MANAGER_REQUIRED");
+        if(code==="22023")throw new BadRequestException("INVALID_REVIEW_HISTORY_CURSOR");
+        throw e;
+      }
+    });
+  }
+
   @Post("national/governance/gazette-claims/:claimId/reviews")
   @HttpCode(201)
   async reviewGazette(@Param("claimId",new ParseUUIDPipe()) claimId:string,
