@@ -29,7 +29,28 @@ class ThreePortalBoundary(unittest.TestCase):
         self.assertIn('if((data as {authenticated:boolean}).authenticated!==true)invalidateSession();',login)
         for app,surface in SURFACES.items():
             home=(APPS/app/"app/page.tsx").read_text(encoding="utf-8")
-            self.assertIn('OtpLogin surface="'+surface+'"',home)
+            if app == "national-admin":
+                # The national root uses a separately verified credential flow.
+                # Preserve independent server validation, forced rotation, and OTP deny.
+                self.assertIn("import NationalRootLogin",home)
+                self.assertIn("<NationalRootLogin/>",home)
+                self.assertNotIn('OtpLogin surface="national"',home)
+                root_login=(APPS/app/"app/national-root-login.tsx").read_text(encoding="utf-8")
+                self.assertIn('fetch("/api/auth/session"',root_login)
+                self.assertIn('x.authenticated===true&&x.nationalRoot===true',root_login)
+                self.assertIn('x.mustChangeCredentials===true',root_login)
+                self.assertIn('phase==="unavailable"',root_login)
+                self.assertIn('fetch("/api/national-login"',root_login)
+                password_bff=(APPS/app/"app/api/national-login/route.ts").read_text(encoding="utf-8")
+                self.assertIn('ORIGIN_REQUIRED',password_bff)
+                self.assertIn('httpOnly:true',password_bff)
+                self.assertIn('"/v1/national/root/login"',password_bff)
+                for action in ("request","verify"):
+                    otp_bff=(APPS/app/f"app/api/auth/otp/{action}/route.ts").read_text(encoding="utf-8")
+                    self.assertIn('NATIONAL_ROOT_CREDENTIALS_ONLY',otp_bff)
+                    self.assertIn("status:403",otp_bff)
+            else:
+                self.assertIn('OtpLogin surface="'+surface+'"',home)
             bff=(APPS/app/"app/api/auth/session/route.ts").read_text(encoding="utf-8")
             self.assertIn('request.cookies.get("tto_session")',bff)
             self.assertIn("httpOnly:true",bff)
