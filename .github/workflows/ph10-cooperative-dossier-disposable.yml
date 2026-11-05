@@ -26,6 +26,7 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm --filter @tto/api typecheck
           pnpm --filter @tto/national-admin typecheck
+          python3 -m unittest tests/test_ph10_cooperative_onboarding_source_gate.py -v
       - name: Start ephemeral PostgreSQL17 without hosted credentials
         run: |
           set -euo pipefail
