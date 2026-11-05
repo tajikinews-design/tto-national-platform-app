@@ -399,11 +399,12 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
      const liveSource=await page.request.get(
       'http://127.0.0.1:'+profile.port+'/api/tenants/'+tenant+'/ph10/NAV-06',
       {timeout:15000});
-     const liveText=(await liveSource.text()).slice(0,1800);
+     const liveFull=await liveSource.text();
+     const liveText=liveFull.slice(0,1800);
      console.log('PH10_CHROMIUM_NAV06_SOURCE_STATUS_'+liveSource.status());
      assert.equal(liveSource.status(),200,
       'PH10_NAV06_SOURCE_NOT_READABLE '+liveSource.status()+' '+liveText);
-     const live=JSON.parse(liveText);
+     const live=JSON.parse(liveFull);
      assert.equal(live.sourceBound,true,'PH10_NAV06_SOURCE_NOT_BOUND');
      assert.ok(live.items?.some(x=>
        JSON.stringify(x).includes('PH10 Browser Enrollment Course')),
