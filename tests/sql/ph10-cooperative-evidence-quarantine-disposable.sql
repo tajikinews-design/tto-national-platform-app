@@ -50,6 +50,55 @@ BEGIN
  END;
 END $test$;
 RESET ROLE;
+-- Simulate a submitted dossier on the same pre-Tenant workspace.
+INSERT INTO tto.cooperative_onboarding_dossiers(
+ dossier_id,workspace_id,legal_name,national_id,registration_number,
+ province,county,legal_address,representative_name,candidate_manager_name,
+ candidate_manager_mobile,evidence_reference,created_by)
+ VALUES(
+ '33333333-3333-4333-8333-333333333333',
+ '22222222-2222-4222-8222-222222222222','Synthetic only cooperative',
+ '12345678901','12345','Synthetic Province','Synthetic County',
+ 'Synthetic address used only inside transaction','Synthetic Contact',
+ 'Synthetic Candidate','09123456789','quarantine-ci-evidence',
+ '11111111-1111-4111-8111-111111111111');
+SET LOCAL ROLE tto_app;
+SELECT set_config('tto.actor_id','11111111-1111-4111-8111-111111111111',true);
+DO $test$
+DECLARE replay jsonb;
+BEGIN
+ -- Retry of existing upload must be idempotent even after dossier submission.
+ SELECT tto.store_quarantined_cooperative_evidence(
+ 'synthetic-upload-ci','44444444-4444-4444-8444-444444444444',
+ 'document.pdf','application/pdf',decode(repeat('aa',32),'hex'),
+ decode(repeat('bb',12),'hex'),decode(repeat('cc',16),'hex'),
+ decode('cafe','hex')) INTO replay;
+ IF replay->>'replayed'<>'true' THEN
+   RAISE EXCEPTION 'existing upload was not replayable after submit';
+ END IF;
+ BEGIN
+  PERFORM tto.store_quarantined_cooperative_evidence(
+   'synthetic-upload-ci','dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+   'document.pdf','application/pdf',decode(repeat('aa',32),'hex'),
+   decode(repeat('bb',12),'hex'),decode(repeat('cc',16),'hex'),
+   decode('cafe','hex'));
+  RAISE EXCEPTION 'new upload accepted outside correction window';
+ EXCEPTION WHEN invalid_parameter_value THEN NULL;
+ END;
+ -- Forged actor context without registered national-root principal must fail.
+ PERFORM set_config('tto.actor_id','99999999-9999-4999-8999-999999999999',true);
+ BEGIN
+  PERFORM tto.store_quarantined_cooperative_evidence(
+   'synthetic-upload-ci','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+   'document.pdf','application/pdf',decode(repeat('aa',32),'hex'),
+   decode(repeat('bb',12),'hex'),decode(repeat('cc',16),'hex'),
+   decode('cafe','hex'));
+  RAISE EXCEPTION 'nonroot upload permitted';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
+ PERFORM set_config('tto.actor_id','11111111-1111-4111-8111-111111111111',true);
+END $test$;
+RESET ROLE;
 DO $test$
 BEGIN
  IF (SELECT count(*) FROM tto.cooperative_onboarding_evidence_quarantine)<>1 THEN
