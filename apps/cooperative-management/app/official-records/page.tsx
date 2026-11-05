@@ -11,6 +11,12 @@ type HistoryRow=Form & {
  hasCorrection:boolean;supersedesClaimId:string|null;effectiveFrom:string|null;
  effectiveUntil:string|null;officialReferenceUrl:string|null;
 };
+type ReviewFinding={findingId:string;claimId:string;outcome:"INCONCLUSIVE"|"MISMATCH_REPORTED"|"MATCH_REPORTED_UNVERIFIED";sourceReference:string;rationale:string;reviewerMandateReference:string;createdAt:string};
+const REVIEW_LABELS:Record<ReviewFinding["outcome"],string>={
+ INCONCLUSIVE:"نتیجه نامشخص؛ نیازمند بررسی بیشتر",
+ MISMATCH_REPORTED:"گزارش مغایرت با اظهار مدیریت",
+ MATCH_REPORTED_UNVERIFIED:"تطبیق گزارش‌شده؛ اصالت رسمی تأیید نشده"
+};
 const EMPTY:Form={personFullName:"",officeType:"BOARD_MEMBER",signingMode:"NONE",
  authorityScope:"",gazetteIssueNumber:"",gazettePublicationDate:"",
  gazetteAnnouncementNumber:"",effectiveFrom:"",effectiveUntil:"",
@@ -44,6 +50,12 @@ export default function OfficialRecordsPage(){
  const [nextCursor,setNextCursor]=useState<{beforeCreated:string;beforeId:string}|null>(null);
  const [loadingMore,setLoadingMore]=useState(false);
  const [historyVersion,setHistoryVersion]=useState(0);
+ const [reviewFindings,setReviewFindings]=useState<ReviewFinding[]>([]);
+ const [reviewError,setReviewError]=useState("");
+ const [reviewMore,setReviewMore]=useState(false);
+ const [reviewCursor,setReviewCursor]=useState<{beforeCreated:string;beforeId:string}|null>(null);
+ const [reviewLoading,setReviewLoading]=useState(false);
+
  useEffect(()=>{
   let alive=true;
   void fetch("/api/me/tenant-options",{credentials:"same-origin",cache:"no-store"})
@@ -85,6 +97,58 @@ export default function OfficialRecordsPage(){
   });
   return()=>abort.abort();
  },[phase,tenantId,historyVersion]);
+ // Findings are a separate, access-controlled record: they never change self-report status.
+ useEffect(()=>{
+  if(phase!=="ready"||!tenantId){setReviewFindings([]);setReviewError("");setReviewMore(false);setReviewCursor(null);return;}
+  const abort=new AbortController(),requestedTenant=tenantId;
+  setReviewFindings([]);setReviewError("");setReviewMore(false);setReviewCursor(null);
+  void fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/official-notices/reviews",{
+   credentials:"same-origin",cache:"no-store",signal:abort.signal
+  }).then(async res=>{
+   if(!res.ok)throw Error("REVIEW_HISTORY_DENIED");
+   const data=await res.json() as {tenantId:string;items:ReviewFinding[];hasMore:boolean;
+    nextCursor:{beforeCreated:string;beforeId:string}|null;officiallyVerified:boolean;
+    legalApproval:boolean;roleGranted:boolean;sourceClassification:string};
+   if(data.tenantId!==requestedTenant||!Array.isArray(data.items)||
+    data.items.length>50||data.officiallyVerified!==false||
+    data.legalApproval!==false||data.roleGranted!==false||
+    data.sourceClassification!=="INDEPENDENT_REVIEWER_FINDINGS_NOT_OFFICIAL_VERIFICATION")
+    throw Error("UNSAFE_REVIEW_HISTORY");
+   if(!abort.signal.aborted&&tenantScopeRef.current===requestedTenant){
+    setReviewFindings(data.items);setReviewMore(data.hasMore);setReviewCursor(data.nextCursor);
+   }
+  }).catch(()=>{if(!abort.signal.aborted&&tenantScopeRef.current===requestedTenant)
+   setReviewError("تاریخچه مستقل بررسی‌ها در دسترس نیست؛ هیچ نتیجه‌ای بدون احراز دسترسی نمایش داده نمی‌شود.");});
+  return()=>abort.abort();
+ },[phase,tenantId,historyVersion]);
+ async function loadReviewMore(){
+  if(!tenantId||!reviewMore||!reviewCursor||reviewLoading)return;
+  const requestedTenant=tenantId;
+  setReviewLoading(true);setReviewError("");
+  const params=new URLSearchParams(reviewCursor);
+  try{
+   const res=await fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/official-notices/reviews?"+params,{
+    credentials:"same-origin",cache:"no-store"});
+   if(!res.ok)throw Error("REVIEW_HISTORY_MORE_UNAVAILABLE");
+   const data=await res.json() as {tenantId:string;items:ReviewFinding[];hasMore:boolean;
+    nextCursor:{beforeCreated:string;beforeId:string}|null;officiallyVerified:boolean;
+    legalApproval:boolean;roleGranted:boolean;sourceClassification:string};
+   if(data.tenantId!==requestedTenant||!Array.isArray(data.items)||data.items.length>50||
+    data.officiallyVerified!==false||data.legalApproval!==false||
+    data.roleGranted!==false||
+    data.sourceClassification!=="INDEPENDENT_REVIEWER_FINDINGS_NOT_OFFICIAL_VERIFICATION")
+    throw Error("UNSAFE_REVIEW_HISTORY_PAGE");
+   if(tenantScopeRef.current!==requestedTenant)return;
+   setReviewFindings(existing=>{
+    if(tenantScopeRef.current!==requestedTenant)return existing;
+    const seen=new Set(existing.map(x=>x.findingId));
+    return [...existing,...data.items.filter(x=>!seen.has(x.findingId))];
+   });
+   setReviewMore(data.hasMore);setReviewCursor(data.nextCursor);
+  }catch{if(tenantScopeRef.current===requestedTenant)
+   setReviewError("بارگذاری ادامه گزارش‌های بررسی ناموفق بود.");}
+  finally{setReviewLoading(false);}
+ }
  async function loadMore(){
   if(!tenantId||!historyMore||!nextCursor||loadingMore)return;
   setLoadingMore(true);setHistoryError("");
@@ -269,6 +333,36 @@ export default function OfficialRecordsPage(){
      onClick={()=>void loadMore()} aria-label="بارگذاری سوابق قدیمی‌تر">
       {loadingMore?"در حال دریافت سوابق…":"نمایش سوابق قدیمی‌تر"}
     </button>:null}
+  </section>:null}
+  {phase==="ready"&&tenantId?<section aria-labelledby="gazette-review-history-title"
+    style={{marginTop:28,border:"1px solid #bdcfd2",borderRadius:12,padding:20}}>
+   <h2 id="gazette-review-history-title">تاریخچه مستقل گزارش‌های بررسی حقوقی</h2>
+   <p role="note" style={{lineHeight:2}}>
+    این فهرست فقط گزارش‌های مستقل درباره اظهارهای ثبت‌شده است؛ هیچ گزارش، تأیید رسمی
+    اصالت آگهی، سمت یا حق امضا محسوب نمی‌شود. اصلاحیه‌ها و نسخه‌های قبلی مستقل باقی می‌مانند.
+   </p>
+   {reviewError?<p role="alert">{reviewError}</p>:null}
+   {!reviewError&&reviewFindings.length===0?<p role="status">هنوز گزارشی از بررسی مستقل ثبت نشده است.</p>:null}
+   <ul style={{listStyle:"none",padding:0,display:"grid",gap:12}}>
+    {reviewFindings.map(row=><li key={row.findingId}
+       style={{border:"1px solid #dae5e8",borderRadius:10,padding:16}}>
+      <strong>{REVIEW_LABELS[row.outcome]??"گزارش نامعتبر"}</strong>
+      <p>مرجع بررسی: {row.sourceReference}</p>
+      <p style={{whiteSpace:"pre-wrap"}}>شرح نتیجه: {row.rationale}</p>
+      <p>مبنای انتصاب کارشناس: {row.reviewerMandateReference}</p>
+      <p>زمان ثبت: <time dateTime={row.createdAt} dir="ltr">{row.createdAt}</time></p>
+      <p style={{fontSize:12,overflowWrap:"anywhere"}}>
+       شناسه اظهار: <code dir="ltr">{row.claimId}</code>
+      </p>
+      <p style={{fontSize:12,overflowWrap:"anywhere"}}>
+       شناسه گزارش مستقل: <code dir="ltr">{row.findingId}</code>
+      </p>
+     </li>)}
+   </ul>
+   {reviewMore?<button type="button" onClick={()=>void loadReviewMore()}
+     disabled={reviewLoading||!reviewCursor} aria-label="بارگذاری گزارش‌های بررسی قدیمی‌تر">
+     {reviewLoading?"در حال بازیابی…":"نمایش گزارش‌های بررسی قدیمی‌تر"}
+   </button>:null}
   </section>:null}
  </main>;
 }
