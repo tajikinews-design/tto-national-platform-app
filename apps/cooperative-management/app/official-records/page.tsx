@@ -6,6 +6,11 @@ type Form={
  gazetteIssueNumber:string;gazettePublicationDate:string;gazetteAnnouncementNumber:string;
  effectiveFrom:string;effectiveUntil:string;officialReferenceUrl:string;supersedesClaimId:string;
 };
+type HistoryRow=Form & {
+ claimId:string;status:"SELF_REPORTED_PENDING_REVIEW";createdAt:string;
+ hasCorrection:boolean;supersedesClaimId:string|null;effectiveFrom:string|null;
+ effectiveUntil:string|null;officialReferenceUrl:string|null;
+};
 const EMPTY:Form={personFullName:"",officeType:"BOARD_MEMBER",signingMode:"NONE",
  authorityScope:"",gazetteIssueNumber:"",gazettePublicationDate:"",
  gazetteAnnouncementNumber:"",effectiveFrom:"",effectiveUntil:"",
@@ -32,6 +37,10 @@ export default function OfficialRecordsPage(){
  const [phase,setPhase]=useState<"loading"|"ready"|"denied"|"unavailable">("loading");
  const [message,setMessage]=useState("");
  const [recordId,setRecordId]=useState("");
+ const [history,setHistory]=useState<HistoryRow[]>([]);
+ const [historyError,setHistoryError]=useState("");
+ const [historyMore,setHistoryMore]=useState(false);
+ const [historyVersion,setHistoryVersion]=useState(0);
  useEffect(()=>{
   let alive=true;
   void fetch("/api/me/tenant-options",{credentials:"same-origin",cache:"no-store"})
@@ -48,6 +57,43 @@ export default function OfficialRecordsPage(){
    }).catch(()=>{if(alive)setPhase("unavailable")});
   return()=>{alive=false;};
  },[]);
+ useEffect(()=>{
+  if(phase!=="ready"||!tenantId){setHistory([]);setHistoryError("");return;}
+  const abort=new AbortController();
+  setHistory([]);
+  setHistoryError("");
+  void fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/official-notices",{
+   credentials:"same-origin",cache:"no-store",signal:abort.signal
+  }).then(async r=>{
+   if(!r.ok)throw Error("AUTHORITY_OR_HISTORY_UNAVAILABLE");
+   const data=await r.json() as {
+    items?:HistoryRow[];hasMore?:boolean;selfReportedOnly?:boolean;
+    officiallyVerified?:boolean;legalApproval?:boolean;roleGranted?:boolean
+   };
+   if(!Array.isArray(data.items)||data.items.length>100||
+      data.selfReportedOnly!==true||data.officiallyVerified!==false||
+      data.legalApproval!==false||data.roleGranted!==false)
+    throw Error("UNSAFE_HISTORY_RESPONSE");
+   if(!abort.signal.aborted){setHistory(data.items);setHistoryMore(data.hasMore===true);}
+  }).catch(()=>{
+   if(!abort.signal.aborted){setHistory([]);setHistoryError(
+    "سوابق قابل بازیابی نیستند؛ هیچ اطلاعاتی بدون مجوز نمایش داده نمی‌شود.");}
+  });
+  return()=>abort.abort();
+ },[phase,tenantId,historyVersion]);
+ const correctClaim=(row:HistoryRow)=>{
+  if(row.hasCorrection||busy)return;
+  setForm({
+   personFullName:row.personFullName,officeType:row.officeType,
+   signingMode:row.signingMode,authorityScope:row.authorityScope,
+   gazetteIssueNumber:"",gazettePublicationDate:"",gazetteAnnouncementNumber:"",
+   effectiveFrom:row.effectiveFrom??"",effectiveUntil:row.effectiveUntil??"",
+   officialReferenceUrl:"",supersedesClaimId:row.claimId
+  });
+  setRequestKey("");setRecordId("");
+  setMessage("نسخه اصلاحی ایجاد شد. مشخصات آگهی جدید را وارد کنید؛ سابقه قبلی حفظ می‌شود.");
+  window.scrollTo({top:0,behavior:"smooth"});
+ };
  const change=(key:keyof Form,value:string)=>{
   setForm(old=>({...old,[key]:value}));setRequestKey("");setRecordId("");setMessage("");
  };
@@ -76,6 +122,7 @@ export default function OfficialRecordsPage(){
       receipt.roleGranted!==false||receipt.officiallyVerified!==false)
     throw Error("INVALID_RECEIPT");
    setRecordId(receipt.claimId);
+   setHistoryVersion(v=>v+1);
    setMessage("اطلاعات به عنوان اظهار مدیریت ثبت شد و در انتظار بررسی حقوقی است؛ هیچ سمت یا اختیار اجرایی تأیید نشده است.");
    setRequestKey("");
   }catch{setMessage("نتیجه ثبت نامشخص است؛ بدون تغییر اطلاعات می‌توانید با همان شناسه درخواست دوباره تلاش کنید.");}
@@ -151,9 +198,8 @@ export default function OfficialRecordsPage(){
       value={form.officialReferenceUrl} onChange={e=>change("officialReferenceUrl",e.target.value)}
       style={fieldStyle}/></label>
     <label style={labelStyle}>شناسه سابقه قبلی برای اصلاح (اختیاری)
-     <input maxLength={36} placeholder="UUID سابقه قبلی"
-      value={form.supersedesClaimId}
-      onChange={e=>change("supersedesClaimId",e.target.value)} style={fieldStyle}/></label>
+     <input readOnly maxLength={36} placeholder="از فهرست سوابق انتخاب کنید"
+      value={form.supersedesClaimId} style={{...fieldStyle,background:"#edf4f5"}}/></label>
    </div>
    <button type="submit" disabled={busy} style={{padding:13,border:0,borderRadius:8,
      background:"#145d69",color:"#fff",font:"inherit",cursor:"pointer"}}>
@@ -162,5 +208,33 @@ export default function OfficialRecordsPage(){
    {message?<p role="status" aria-live="polite">{message}</p>:null}
    {recordId?<p>شناسه ثبت برای پیگیری: <code dir="ltr">{recordId}</code></p>:null}
   </form>:null}
+  {phase==="ready"&&tenantId?<section aria-labelledby="gazette-history-title"
+    style={{marginTop:28,border:"1px solid #c4d6db",borderRadius:12,padding:20}}>
+   <h2 id="gazette-history-title">سوابق ثبت‌شده آگهی‌ها و اصلاحات</h2>
+   <p style={{lineHeight:2}}>این سوابق فقط اظهار مدیریت هستند و تأیید سمت یا حق امضا محسوب نمی‌شوند.
+    اصلاح هر سابقه با یک رکورد جدید و شماره آگهی مستقل ثبت می‌شود.</p>
+   {historyError?<p role="alert">{historyError}</p>:null}
+   {!historyError&&history.length===0?<p role="status">سابقه‌ای برای این تعاونی ثبت نشده است.</p>:null}
+   {history.map(row=><article key={row.claimId}
+     style={{border:"1px solid #dce8eb",borderRadius:8,padding:15,marginBottom:12}}>
+    <h3 style={{marginTop:0}}>{row.personFullName} — {
+      OFFICES.find(x=>x[0]===row.officeType)?.[1]??"سمت اظهارشده"}</h3>
+    <p>روزنامه رسمی شماره <b dir="ltr">{row.gazetteIssueNumber}</b>،
+     تاریخ انتشار <time dir="ltr">{row.gazettePublicationDate}</time>،
+     شماره آگهی <b dir="ltr">{row.gazetteAnnouncementNumber}</b></p>
+    <p>نوع حق امضا: {SIGNING.find(x=>x[0]===row.signingMode)?.[1]??"اظهار مدیریت"}</p>
+    <p style={{whiteSpace:"pre-wrap"}}>دامنه اختیار اظهارشده: {row.authorityScope}</p>
+    <p style={{color:"#7a5721"}}>وضعیت: در انتظار بررسی حقوقی مستقل</p>
+    {row.hasCorrection?<p>برای این سابقه، اصلاحیه جدید ثبت شده است.</p>:
+      <button type="button" onClick={()=>correctClaim(row)} disabled={busy}
+       style={{padding:"8px 12px",border:"1px solid #8da7ad",borderRadius:6,
+        background:"#f1f8fa",cursor:"pointer"}}>
+       ثبت اصلاحیه جدید با حفظ سابقه
+      </button>}
+    <p style={{fontSize:12,overflowWrap:"anywhere"}}>شناسه سابقه: <code dir="ltr">{row.claimId}</code></p>
+   </article>)}
+   {historyMore?<p role="status">فقط ۱۰۰ سابقه جدید نمایش داده شده است؛ بازیابی سوابق قدیمی‌تر
+    نیازمند صفحه‌بندی و کنترل مجوز مجدد است.</p>:null}
+  </section>:null}
  </main>;
 }
