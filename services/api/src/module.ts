@@ -2,6 +2,7 @@ import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injecta
 import { Pool, PoolClient } from "pg";
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
+import { scanQuarantineBytes } from "./clamd-evidence";
 
 @Injectable()
 export class Database {
@@ -432,6 +433,75 @@ export class FoundationCommandsController {
         if(code==="42501")throw new ForbiddenException("QUARANTINE_ACCESS_DENIED");
         if(code==="23505")throw new ConflictException("QUARANTINE_UPLOAD_CONFLICT");
         if(code==="22023")throw new BadRequestException("INVALID_QUARANTINE_DOCUMENT");
+        throw e;
+      }
+    });
+  }
+
+  // PH10.6: root-only, authenticated, no-plaintext-response ClamAV scan.
+  // A CLEAN receipt does not release quarantine or make the document authentic.
+  @Post("national/cooperative-onboarding-evidence/:evidenceId/scan")
+  @HttpCode(201)
+  async scanCooperativeQuarantineEvidence(
+    @Param("evidenceId",new ParseUUIDPipe()) evidenceId:string,
+    @Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const requestKey=requireId(input?.requestKey);
+    const key=process.env.TTO_COOP_QUARANTINE_KEY_HEX??"";
+    if(!/^[a-fA-F0-9]{64}$/.test(key)||
+       !process.env.TTO_COOP_CLAMD_SOCKET)
+      throw new ServiceUnavailableException("QUARANTINE_SCANNER_NOT_CONFIGURED");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const permitted=await client.query<{allowed:boolean}>(
+        "SELECT tto.has_national_root() AS allowed");
+      if(permitted.rows[0]?.allowed!==true)
+        throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const record=await client.query<{ciphertext:Buffer;iv:Buffer;tag:Buffer;
+        content_sha256:Buffer;key_version:string;scan_status:string;
+        authenticity_status:string}>(
+        "SELECT * FROM tto.cooperative_evidence_integrity_packet($1::uuid)",
+        [evidenceId]);
+      if(record.rowCount!==1)
+        throw new BadRequestException("QUARANTINED_EVIDENCE_NOT_FOUND");
+      const item=record.rows[0];
+      if(item.key_version!=="isolated-v1"||item.scan_status!=="QUARANTINED"||
+         item.authenticity_status!=="NOT_VERIFIED")
+        throw new ServiceUnavailableException("SCANNER_SCOPE_INVALID");
+      let bytes:Buffer;
+      try{
+        const decipher=createDecipheriv("aes-256-gcm",Buffer.from(key,"hex"),item.iv);
+        decipher.setAuthTag(item.tag);
+        bytes=Buffer.concat([decipher.update(item.ciphertext),decipher.final()]);
+        const digest=createHash("sha256").update(bytes).digest();
+        if(digest.length!==item.content_sha256.length||
+           !timingSafeEqual(digest,item.content_sha256))
+          throw Error("MISMATCH");
+      }catch{
+        throw new ServiceUnavailableException("EVIDENCE_INTEGRITY_UNCONFIRMED");
+      }
+      let scan;
+      try{scan=await scanQuarantineBytes(bytes);}
+      catch{
+        throw new ServiceUnavailableException("MALWARE_SCANNER_UNAVAILABLE");
+      }finally{
+        bytes.fill(0);
+      }
+      try{
+        const out=await client.query<{result:Record<string,unknown>}>(
+          "SELECT tto.record_cooperative_malware_scan("+
+          "$1::uuid,$2::uuid,$3::bytea,$4::text,$5::text,$6::text,$7::bytea) AS result",
+          [evidenceId,requestKey,item.content_sha256,scan.verdict,
+           scan.engine,scan.signature,this.db.sessionDigest(auth)]);
+        return {evidenceId,...out.rows[0].result};
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="23505")throw new ConflictException("SCAN_RECEIPT_REPLAY_CONFLICT");
+        if(code==="42501")throw new ForbiddenException("SCAN_RECEIPT_PERMISSION_DENIED");
+        if(code==="22023")throw new BadRequestException("INVALID_SCAN_RECEIPT");
         throw e;
       }
     });
