@@ -50,7 +50,7 @@ BEGIN
    'Synthetic Board Member','BOARD_MEMBER','JOINT',
    'Signature requires both specified members and board resolution',
    '23001',CURRENT_DATE-1,'2001501',
-   CURRENT_DATE-5,CURRENT_DATE+interval '1 year',NULL,NULL,
+   CURRENT_DATE-5,CURRENT_DATE+365,NULL,NULL,
    decode(repeat('22',32),'hex'));
   RAISE EXCEPTION 'non-manager submitted board authority';
  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
@@ -62,7 +62,7 @@ BEGIN
    'Synthetic Board Member','BOARD_MEMBER','JOINT',
    'Signature requires both specified members and board resolution',
    '23001',CURRENT_DATE-1,'2001501',
-   CURRENT_DATE-5,CURRENT_DATE+interval '1 year',NULL,NULL,
+   CURRENT_DATE-5,CURRENT_DATE+365,NULL,NULL,
    decode(repeat('22',32),'hex'));
   RAISE EXCEPTION 'manager reused outsider session';
  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
@@ -76,7 +76,7 @@ BEGIN
  'Synthetic Board Member','BOARD_MEMBER','JOINT',
  'Signature requires both specified members and board resolution',
  '23001',CURRENT_DATE-1,'2001501',
- CURRENT_DATE-5,CURRENT_DATE+interval '1 year',NULL,NULL,
+ CURRENT_DATE-5,CURRENT_DATE+365,NULL,NULL,
  decode(repeat('11',32),'hex')) INTO original;
  IF original->>'status'<>'SELF_REPORTED_PENDING_REVIEW' OR
  original->>'officiallyVerified'<>'false' OR
@@ -90,7 +90,7 @@ BEGIN
  'Synthetic Board Member','BOARD_MEMBER','JOINT',
  'Signature requires both specified members and board resolution',
  '23001',CURRENT_DATE-1,'2001501',
- CURRENT_DATE-5,CURRENT_DATE+interval '1 year',NULL,NULL,
+ CURRENT_DATE-5,CURRENT_DATE+365,NULL,NULL,
  decode(repeat('11',32),'hex')) INTO repeated;
  IF original->>'claimId'<>repeated->>'claimId' OR repeated->>'replayed'<>'true'
  THEN RAISE EXCEPTION 'manual governance idempotency failed';END IF;
