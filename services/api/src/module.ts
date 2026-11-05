@@ -1,6 +1,6 @@
 import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
-import { createHash, createHmac, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createHash, createHmac, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
 
 @Injectable()
@@ -375,6 +375,62 @@ export class FoundationCommandsController {
       }
       return {dossierId:id,slug,status:"PENDING_LEGAL_REVIEW",tenantCreated:false,
         managerRoleGranted:false,managerMobileVerified:false};
+    });
+  }
+
+  // PH10.4: isolated pre-tenant encrypted quarantine. No file is made readable.
+  @Post("national/cooperative-onboarding-evidence")
+  @HttpCode(201)
+  async uploadQuarantinedCooperativeEvidence(
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const key=process.env.TTO_COOP_QUARANTINE_KEY_HEX??"";
+    if(!/^[a-fA-F0-9]{64}$/.test(key))
+      throw new ServiceUnavailableException("QUARANTINE_ENCRYPTION_NOT_CONFIGURED");
+    const slug=requireText(input?.slug,3,40);
+    if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
+      throw new BadRequestException("INVALID_WORKSPACE_SLUG");
+    const uploadKey=requireId(input?.uploadKey);
+    const contentBase64=input?.contentBase64;
+    const mime=input?.mimeType;
+    if(typeof mime!=="string"||!["application/pdf","image/png","image/jpeg"].includes(mime)||
+      typeof contentBase64!=="string"||contentBase64.length>700000||
+      !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(contentBase64))
+      throw new BadRequestException("INVALID_EVIDENCE_ENCODING_OR_MIME");
+    const plain=Buffer.from(contentBase64,"base64");
+    if(plain.length<8||plain.length>524288||plain.toString("base64")!==contentBase64)
+      throw new BadRequestException("INVALID_EVIDENCE_SIZE");
+    const isPdf=plain.subarray(0,5).equals(Buffer.from("%PDF-"));
+    const isPng=plain.subarray(0,8).equals(Buffer.from("89504e470d0a1a0a","hex"));
+    const isJpeg=plain[0]===0xff&&plain[1]===0xd8&&plain[2]===0xff;
+    if((mime==="application/pdf"&&!isPdf)||(mime==="image/png"&&!isPng)||
+       (mime==="image/jpeg"&&!isJpeg))
+      throw new BadRequestException("EVIDENCE_SIGNATURE_MISMATCH");
+    const filename="document."+(isPdf?"pdf":isPng?"png":"jpg");
+    const sha=createHash("sha256").update(plain).digest();
+    const iv=randomBytes(12);
+    const cipher=createCipheriv("aes-256-gcm",Buffer.from(key,"hex"),iv);
+    const encrypted=Buffer.concat([cipher.update(plain),cipher.final()]);
+    const tag=cipher.getAuthTag();
+    // Never log document bytes, hashes, key material, or transport body.
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      try{
+        const result=await client.query<{out:Record<string,unknown>}>(
+          "SELECT tto.store_quarantined_cooperative_evidence($1::text,$2::uuid,$3::text,"+
+          "$4::text,$5::bytea,$6::bytea,$7::bytea,$8::bytea) AS out",
+          [slug,uploadKey,filename,mime,sha,iv,tag,encrypted]
+        );
+        return result.rows[0].out;
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("QUARANTINE_ACCESS_DENIED");
+        if(code==="23505")throw new ConflictException("QUARANTINE_UPLOAD_CONFLICT");
+        if(code==="22023")throw new BadRequestException("INVALID_QUARANTINE_DOCUMENT");
+        throw e;
+      }
     });
   }
 
