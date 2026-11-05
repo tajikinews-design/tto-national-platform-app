@@ -24,7 +24,7 @@ function ph109DecodeCursor(token:string|undefined,sessionDigest:Buffer,tenant:st
   throw new BadRequestException("INVALID_GAZETTE_CURSOR");
  try{
   const bytes=Buffer.from(token,"base64url");
-  if(bytes.length<30)throw Error("short");
+  if(bytes.length<30||bytes.toString("base64url")!==token)throw Error("invalid or noncanonical");
   const decipher=createDecipheriv("aes-256-gcm",ph109CursorKey(sessionDigest),bytes.subarray(0,12));
   decipher.setAAD(Buffer.from("TTO_GAZETTE_CURSOR:"+kind+":"+tenant));
   decipher.setAuthTag(bytes.subarray(12,28));
