@@ -27,7 +27,8 @@ function Log([string]$Message){
  Write-Host $line
  Add-Content -LiteralPath $Transcript -Value $line -Encoding UTF8
 }
-$DockerExe=(Get-Command docker -CommandType Application -ErrorAction SilentlyContinue).Source
+$dockerCommand=Get-Command docker -CommandType Application -ErrorAction SilentlyContinue
+$DockerExe=if($dockerCommand){$dockerCommand.Source}else{$null}
 function Invoke-DockerNative([string[]]$Argv){
  if(!$DockerExe){throw 'Docker CLI missing'}
  & $DockerExe @Argv
