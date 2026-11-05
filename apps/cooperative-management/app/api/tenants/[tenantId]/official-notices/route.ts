@@ -78,3 +78,44 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{tenantId:st
   return NextResponse.json(x,{status:201,headers:H});
  }catch{return deny(503,"OFFICIAL_NOTICE_UNAVAILABLE");}
 }
+
+// Manager history is a private legal claim read-model, never a published register.
+export async function GET(req:NextRequest,{params}:{params:Promise<{tenantId:string}>}){
+ const {tenantId}=await params;
+ if(!UUID.test(tenantId))return deny(400,"INVALID_TENANT_ID");
+ const token=req.cookies.get("tto_session")?.value;
+ if(!token||!TOKEN.test(token))return deny(401,"SESSION_REQUIRED");
+ if(process.env.TTO_ISOLATED_DEMO_DB!=="true")return deny(503,"LEGAL_RECORDS_PREVIEW_ONLY");
+ const base=process.env.TTO_API_BASE_URL??"";
+ const loopback=process.env.CI==="true"&&!process.env.VERCEL&&
+  process.env.TTO_LOOPBACK_E2E==="1"&&
+  /^http:\/\/127\.0\.0\.1:[0-9]{4,5}$/.test(base);
+ if(!base.startsWith("https://")&&!loopback)return deny(503,"BACKEND_UNAVAILABLE");
+ try{
+  const u=new URL(base);
+  if(u.username||u.password)return deny(503,"BACKEND_UNAVAILABLE");
+  const res=await fetch(new URL("/v1/tenants/"+tenantId+"/governance/manual-official-notices",u),{
+   method:"GET",headers:{Authorization:"Bearer "+token,...trustedBackendHeaders(req)},
+   cache:"no-store",redirect:"error",signal:AbortSignal.timeout(9000)});
+  if([400,401,403].includes(res.status))
+   return deny(res.status,"MANAGER_LEGAL_AUTHORITY_REQUIRED");
+  if(res.status!==200)return deny(503,"GAZETTE_HISTORY_UNAVAILABLE");
+  const result:unknown=await res.json();
+  if(!result||typeof result!=="object"||Array.isArray(result))return deny(502,"INVALID_UPSTREAM");
+  const x=result as Record<string,unknown>;
+  if(x.tenantId!==tenantId||!Array.isArray(x.items)||x.items.length>100||
+     typeof x.hasMore!=="boolean"||x.selfReportedOnly!==true||
+     x.officiallyVerified!==false||x.legalApproval!==false||x.roleGranted!==false)
+   return deny(502,"INVALID_UPSTREAM");
+  for(const row of x.items){
+   if(!row||typeof row!=="object"||Array.isArray(row))return deny(502,"INVALID_UPSTREAM");
+   const item=row as Record<string,unknown>;
+   if(typeof item.claimId!=="string"||!UUID.test(item.claimId)||
+      typeof item.personFullName!=="string"||
+      item.status!=="SELF_REPORTED_PENDING_REVIEW"||
+      typeof item.hasCorrection!=="boolean")
+    return deny(502,"INVALID_UPSTREAM");
+  }
+  return NextResponse.json(x,{status:200,headers:H});
+ }catch{return deny(503,"GAZETTE_HISTORY_UNAVAILABLE");}
+}
