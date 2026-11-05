@@ -128,7 +128,7 @@ export default function CooperativeOnboardingPage(){
   if(action==="RESUBMIT"&&(evidenceReference.length<5||evidenceReference.length>180)){
    setMessage("برای ارسال دوباره، مرجع مدرک اصلاح‌شده با طول ۵ تا ۱۸۰ حرف لازم است.");return;
   }
-  if(["REQUEST_CHANGES","REJECT","RECOMMEND_EXTERNAL_APPROVAL"].includes(action)&&
+  if(["REQUEST_CHANGES","REJECT","REFER_EXTERNAL_REVIEW","RECOMMEND_EXTERNAL_APPROVAL"].includes(action)&&
      (reason.length<5||reason.length>1500)){
    setMessage("برای این تصمیم، توضیح حداقل پنج حرفی و حداکثر ۱۵۰۰ حرفی لازم است.");return;
   }
@@ -202,6 +202,7 @@ export default function CooperativeOnboardingPage(){
       {i.dossier_state==="IN_REVIEW"?<>
         <button disabled={busy} onClick={()=>void advance(i,"REQUEST_CHANGES")}>درخواست اصلاح</button>
         <button disabled={busy} onClick={()=>void advance(i,"REJECT")}>رد با ذکر دلیل</button>
+        <button disabled={busy} onClick={()=>void advance(i,"REFER_EXTERNAL_REVIEW")}>ارجاع برای تأیید مستقل حقوقی</button>
       </>:null}
       {i.dossier_state==="CHANGES_REQUESTED"?<div style={{width:"100%"}}>
         <label>شناسه مرجع مدرک اصلاح‌شده
