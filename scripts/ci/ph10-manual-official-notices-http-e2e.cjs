@@ -274,6 +274,8 @@ async function main(){
  assert.equal(reviewedHistory.officiallyVerified,false);
  assert.equal(reviewedHistory.legalApproval,false);
  assert.equal(reviewedHistory.roleGranted,false);
+ assert.equal(reviewedHistory.sourceClassification,"INDEPENDENT_REVIEWER_FINDINGS_NOT_OFFICIAL_VERIFICATION");
+ assert.ok(!JSON.stringify(reviewedHistory).includes("sourceSha256"),"private raw source digest not exposed");
  expect(await get(reviewListPath,{token:""}),401,"anonymous reviewer findings read denied");
  expect(await get(reviewListPath,{token:outsiderToken}),403,"outsider reviewer findings read denied");
  expect(await get("/api/tenants/"+foreignTenant+"/official-notices/reviews"),403,
@@ -327,11 +329,10 @@ async function main(){
   '23000',CURRENT_DATE,'SYN'||n
  FROM generate_series(1,105) n`,[tenant,manager]);
  const pagesPath="/api/tenants/"+tenant+"/official-notices/pages";
- let cursor=null;const seen=new Set();let pageCount=0;
+ let cursor=null;let capturedCursor=null;const seen=new Set();let pageCount=0;
  for(;;){
   const u=pagesPath+"?limit=30"+(cursor?
-   "&beforeCreated="+encodeURIComponent(cursor.beforeCreated)+
-   "&beforeId="+encodeURIComponent(cursor.beforeId):"");
+   "&cursor="+encodeURIComponent(cursor):"");
   const item=expect(await get(u),200,"authenticated Gazette history page");
   assert.equal(item.officiallyVerified,false);assert.equal(item.roleGranted,false);
   assert.equal(item.legalApproval,false);assert.ok(item.items.length<=30);
@@ -341,11 +342,22 @@ async function main(){
   }
   pageCount++;
   if(!item.hasMore)break;
-  assert.ok(item.nextCursor?.beforeCreated&&item.nextCursor?.beforeId);
+  assert.equal(typeof item.nextCursor,"string");
+  assert.ok(item.nextCursor.length>40,"opaque continuation token required");
   cursor=item.nextCursor;
+  if(!capturedCursor)capturedCursor=cursor;
   assert.ok(pageCount<20,"page traversal failed to terminate");
  }
  assert.equal(seen.size,107,"must traverse all 105 synthetic fixtures and 2 prior claims");checks++;
+ assert.ok(capturedCursor,"must obtain an opaque page cursor");
+ const mutated=capturedCursor.slice(0,-1)+(capturedCursor.endsWith("A")?"B":"A");
+ expect(await get(pagesPath+"?cursor="+encodeURIComponent(mutated)),400,
+  "tampered opaque claim cursor denied");
+ const otherManagerSession=await session(manager);
+ expect(await get(pagesPath+"?cursor="+encodeURIComponent(capturedCursor),
+  {token:otherManagerSession}),400,"cursor cannot be replayed from another active manager session");
+ expect(await get(pagesPath+"?beforeCreated=2026-10-20T00:00:00Z&beforeId="+first.claimId),
+  400,"raw unsealed keyset position forbidden");
  expect(await get(pagesPath+"?limit=30",{token:""}),401,"anonymous paged history denied");
  expect(await get(pagesPath+"?limit=30",{token:outsiderToken}),403,"foreign reader paged history denied");
  expect(await get(pagesPath+"?limit=101"),400,"oversized paged history rejected");
