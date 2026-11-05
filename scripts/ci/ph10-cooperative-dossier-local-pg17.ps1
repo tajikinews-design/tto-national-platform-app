@@ -6,8 +6,8 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-$OutputEncoding=New-Object System.Text.UTF8Encoding($false)
-[Console]::OutputEncoding=New-Object System.Text.UTF8Encoding($false)
+$OutputEncoding=[System.Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false)
 $ExpectedBranch='feat/ph10-cooperative-dossier-lifecycle-20261105'
 $Root=(Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $RunId=[guid]::NewGuid().ToString('N').Substring(0,12)
@@ -27,8 +27,10 @@ function Log([string]$Message){
  Write-Host $line
  Add-Content -LiteralPath $Transcript -Value $line -Encoding UTF8
 }
-function Docker([string[]]$Argv){
- & docker @Argv
+$DockerExe=(Get-Command docker -CommandType Application -ErrorAction SilentlyContinue).Source
+function Invoke-DockerNative([string[]]$Argv){
+ if(!$DockerExe){throw 'Docker CLI missing'}
+ & $DockerExe @Argv
  if($LASTEXITCODE -ne 0){throw ('docker command failed: '+($Argv -join ' '))}
 }
 function SqlFile([string]$Path){
@@ -36,7 +38,7 @@ function SqlFile([string]$Path){
  if(!(Test-Path -LiteralPath $full -PathType Leaf)){throw ('missing file: '+$Path)}
  $sql=[IO.File]::ReadAllText($full,[System.Text.Encoding]::UTF8)
  # PowerShell sends UTF-8 to Docker stdin; the only database is in our container.
- $sql | & docker exec -i $Container psql -X -U postgres -d tto -v ON_ERROR_STOP=1 -f -
+ $sql | & $DockerExe exec -i $Container psql -X -U postgres -d tto -v ON_ERROR_STOP=1 -f -
  if($LASTEXITCODE -ne 0){throw ('SQL failed: '+$Path)}
 }
 try{
@@ -51,31 +53,32 @@ try{
  if($LASTEXITCODE -ne 0){throw 'tracked working-tree changes; use clean exact commit'}
  & git diff --cached --quiet
  if($LASTEXITCODE -ne 0){throw 'staged changes; use clean exact commit'}
+ if(!$DockerExe){throw "Docker CLI missing"}
  if($env:DOCKER_HOST -and $env:DOCKER_HOST -notmatch '^(npipe://|unix://)'){
    throw 'remote Docker context not permitted'
  }
- $context=(& docker context inspect | ConvertFrom-Json)
+ $context=@(& $DockerExe context inspect | ConvertFrom-Json)
  if($LASTEXITCODE -ne 0 -or !$context){throw 'Docker context not accessible'}
  $endpoint=[string]$context[0].Endpoints.docker.Host
  if($endpoint -notmatch '^(npipe://|unix://)'){
    throw ('only local Docker engine accepted, got '+$endpoint)
  }
- & docker info --format '{{.ServerVersion}}' | Out-Null
+ & $DockerExe info --format '{{.ServerVersion}}' | Out-Null
  if($LASTEXITCODE -ne 0){throw 'Docker Desktop/daemon not running'}
  Log ('START branch='+$branch+' head='+$Head+' context='+$endpoint)
  $Image='postgres:17-alpine'
  # Pull happens on the Docker host if needed, but the DB container has no network.
- Docker @('run','-d','--rm','--network','none','--name',$Container,
+ Invoke-DockerNative @('run','-d','--rm','--network','none','--name',$Container,
    '-e','POSTGRES_HOST_AUTH_METHOD=trust','-e','POSTGRES_DB=tto',$Image) | Out-Null
  $Created=$true
  $ready=$false
  for($i=0;$i -lt 90;$i++){
-  & docker exec $Container psql -X -U postgres -d tto -Atqc 'SELECT 1' 2>$null | Out-Null
+  & $DockerExe exec $Container psql -X -U postgres -d tto -Atqc 'SELECT 1' 2>$null | Out-Null
   if($LASTEXITCODE -eq 0){$ready=$true;break}
   Start-Sleep -Seconds 1
  }
  if(!$ready){throw 'ephemeral PostgreSQL 17 did not become ready'}
- $DbVersion=(& docker exec $Container psql -X -U postgres -d tto -Atqc 'SHOW server_version').Trim()
+ $DbVersion=(& $DockerExe exec $Container psql -X -U postgres -d tto -Atqc 'SHOW server_version').Trim()
  if($LASTEXITCODE -ne 0 -or $DbVersion -notmatch '^17\.'){
   throw ('wrong PostgreSQL major version: '+$DbVersion)
  }
@@ -107,7 +110,7 @@ try{
  Log ('BLOCKED '+$Failure)
 }finally{
  if($Created){
-  & docker rm -f $Container *> $null
+  & $DockerExe rm -f $Container *> $null
   Log ('REMOVED_ONLY_OWN_CONTAINER '+$Container)
  }
  $record=[ordered]@{
