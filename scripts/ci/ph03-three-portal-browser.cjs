@@ -57,6 +57,10 @@ async function main(){
         // Dedicated national-root credential flow, never the member OTP shell.
         await page.getByRole("heading",{name:"ورود مدیر ملی"}).waitFor();
         assert.equal(await page.locator(".otp-panel").count(),0,"national root must not render OTP");
+        // The client first verifies the session asynchronously. Verify the
+        // eventual real login UI instead of racing React hydration.
+        await page.locator("#national-username").waitFor({state:"visible",timeout:12000});
+        await page.locator("#national-password").waitFor({state:"visible",timeout:12000});
         assert.equal(await page.locator("#national-username").count(),1,"national root login field absent");
         assert.equal(await page.locator("#national-password").count(),1,"national root password field absent");
         assert.equal(await page.getByRole("button",{name:"دریافت کد"}).count(),0,"national root OTP forbidden");
