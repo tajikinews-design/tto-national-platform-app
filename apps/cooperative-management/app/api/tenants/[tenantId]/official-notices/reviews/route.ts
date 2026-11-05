@@ -11,7 +11,7 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{tenantId:str
  if(process.env.TTO_ISOLATED_DEMO_DB!=="true")return deny(503,"GAZETTE_HISTORY_NOT_RELEASED");
  const q=new URL(req.url).searchParams;
  const pageToken=q.get("cursor"),limit=q.get("limit")??"50";
- if(q.size>2||(pageToken!==null&&!/^[A-Za-z0-9_-]{32,512}$/.test(pageToken))||
+ if([...q.keys()].some(k=>k!=="cursor"&&k!=="limit")||q.size>2||(pageToken!==null&&!/^[A-Za-z0-9_-]{32,512}$/.test(pageToken))||
    !/^(?:[1-9]|[1-9][0-9]|100)$/.test(limit))
   return deny(400,"INVALID_REVIEW_HISTORY_CURSOR");
  const base=process.env.TTO_API_BASE_URL??"";
