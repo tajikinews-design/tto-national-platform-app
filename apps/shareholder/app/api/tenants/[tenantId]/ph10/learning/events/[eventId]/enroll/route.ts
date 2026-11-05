@@ -14,8 +14,20 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{tenantId:st
  if(!cookie||!TOKEN.test(cookie))return deny(401,"SESSION_REQUIRED");
  const origin=req.headers.get("origin");
  if(origin){
-  try{if(new URL(origin).origin!==new URL(req.url).origin)return deny(403,"INVALID_ORIGIN");}
-  catch{return deny(403,"INVALID_ORIGIN");}
+  try{
+   const incoming=new URL(origin);
+   const normalOrigin=new URL(req.url).origin;
+   // Next.js can normalize loopback requests to "localhost" internally while
+   // Chromium uses the actual 127.0.0.1 Host. This alternative is restricted
+   // to isolated CI, with a literal loopback Host and port; it does not apply
+   // to production or permit cross-origin browser requests.
+   const loopbackHost=req.headers.get("host");
+   const isolatedLoopback=process.env.CI==="true"&&!process.env.VERCEL&&
+    process.env.TTO_LOOPBACK_E2E==="1"&&
+    /^127\.0\.0\.1:[0-9]{4,5}$/.test(loopbackHost??"")&&
+    incoming.origin==="http://"+loopbackHost;
+   if(incoming.origin!==normalOrigin&&!isolatedLoopback)return deny(403,"INVALID_ORIGIN");
+  }catch{return deny(403,"INVALID_ORIGIN");}
  }
  const base=process.env.TTO_API_BASE_URL;
  const loopback=process.env.CI==="true"&&!process.env.VERCEL&&
