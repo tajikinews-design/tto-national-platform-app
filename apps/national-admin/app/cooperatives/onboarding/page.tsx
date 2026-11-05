@@ -98,6 +98,34 @@ export default function CooperativeOnboardingPage(){
   }catch{setMessage("بارگذاری امن تأیید نشد. هیچ اصالت یا وضعیت بررسی برای مدرک ثبت نشده است.");}
   finally{setBusy(false)}
  }
+ async function scanCurrentQuarantine(){
+  const evidenceId=form.evidenceReference;
+  if(!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(evidenceId)||busy||phase!=="ready")return;
+  setBusy(true);setMessage("");
+  try{
+   const response=await fetch(
+    "/api/cooperatives/onboarding-evidence/"+encodeURIComponent(evidenceId)+"/scan",{
+     method:"POST",credentials:"same-origin",cache:"no-store",
+     headers:{"Content-Type":"application/json"},
+     body:JSON.stringify({requestKey:crypto.randomUUID()})
+    });
+   if(response.status===401||response.status===403){setPhase("denied");return;}
+   if(!response.ok){
+    setMessage("اسکن امنیتی در دسترس یا قابل تأیید نیست؛ مدرک همچنان در قرنطینه باقی می‌ماند.");
+    return;
+   }
+   const result=await response.json() as {
+    verdict?:string;stillQuarantined?:boolean;authenticity?:string;legalApproval?:boolean
+   };
+   if(!["CLEAN","MALWARE"].includes(result.verdict??"")||
+      result.stillQuarantined!==true||result.authenticity!=="NOT_VERIFIED"||
+      result.legalApproval!==false)throw Error("INVALID_SCAN_RESPONSE");
+   setMessage(result.verdict==="MALWARE"?
+     "اسکنر آلودگی را گزارش کرد؛ فایل در قرنطینه باقی می‌ماند و قابل تأیید نیست.":
+     "اسکن فنی موردی بدون گزارش آلودگی ثبت شد؛ اصالت حقوقی و پایگاه کامل امضاهای ضدبدافزار هنوز تأیید نشده‌اند و فایل در قرنطینه است.");
+  }catch{setMessage("نتیجه اسکن قابل تأیید نبود؛ هیچ تغییری در قرنطینه یا اعتبار مدرک ایجاد نشد.");}
+  finally{setBusy(false)}
+ }
  async function saveDraft(){
   if(busy||phase!=="ready"||!form.slug)return;
   setBusy(true);setMessage("");
@@ -243,6 +271,12 @@ export default function CooperativeOnboardingPage(){
       <button type="button" disabled={!evidenceFile||busy}
         onClick={()=>void uploadQuarantinedEvidence()}
         style={{marginRight:9,padding:"9px 15px"}}>ارسال به قرنطینه</button>
+      <button type="button" disabled={busy||!/^[0-9a-f-]{36}$/i.test(form.evidenceReference)}
+        onClick={()=>void scanCurrentQuarantine()}
+        style={{marginRight:9,padding:"9px 15px",background:"#f0f6f7",border:"1px solid #b7c9cf",
+                borderRadius:7,cursor:"pointer"}}>
+        اجرای اسکن بدافزار (بدون خروج از قرنطینه)
+      </button>
     </div>
     <p style={{lineHeight:2,background:"#fff8e5",padding:12,borderRadius:9}}>
      شماره مدیر پیشنهادی فقط برای تکمیل پرونده ثبت می‌شود. پیامک OTP، تطبیق هویت و تأیید سمت مدیریتی در مراحل جدا انجام خواهند شد. اطلاعات جعلی یا آزمایشی وارد نکنید.
