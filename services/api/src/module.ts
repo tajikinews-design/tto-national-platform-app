@@ -305,10 +305,10 @@ export class FoundationCommandsController {
       if(role.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
       const r=await client.query<{
         slug:string;workspace_state:string;dossier_id:string|null;dossier_state:string|null;
-        legal_name:string|null;candidate_manager_name:string|null;submitted_at:string|null
+        legal_name:string|null;candidate_manager_name:string|null;submitted_at:string|null;review_version:number|null
       }>(
        "SELECT w.slug,w.state AS workspace_state,d.dossier_id,d.state AS dossier_state, "+
-       "d.legal_name,d.candidate_manager_name,d.submitted_at "+
+       "d.legal_name,d.candidate_manager_name,d.submitted_at,d.review_version "+
        "FROM tto.cooperative_workspace_addresses w "+
        "LEFT JOIN tto.cooperative_onboarding_dossiers d ON d.workspace_id=w.workspace_id "+
        "WHERE w.state='RESERVED' ORDER BY w.created_at DESC LIMIT 100"
@@ -375,6 +375,51 @@ export class FoundationCommandsController {
       }
       return {dossierId:id,slug,status:"PENDING_LEGAL_REVIEW",tenantCreated:false,
         managerRoleGranted:false,managerMobileVerified:false};
+    });
+  }
+
+  // PH10.2: auditable review only. Never grants legal authority or provisions a tenant.
+  @Post("national/cooperative-onboarding/:dossierId/actions")
+  @HttpCode(200)
+  async reviewNationalCooperativeOnboarding(
+    @Param("dossierId",new ParseUUIDPipe()) dossierId:string,
+    @Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const action=input?.action;
+    const allowed=new Set(["START_REVIEW","REQUEST_CHANGES","REJECT",
+                           "RESUBMIT","RECOMMEND_EXTERNAL_APPROVAL"]);
+    if(typeof action!=="string"||!allowed.has(action))
+      throw new BadRequestException("INVALID_REVIEW_ACTION");
+    const expectedVersion=input?.expectedVersion;
+    if(typeof expectedVersion!=="number"||!Number.isSafeInteger(expectedVersion)||
+       expectedVersion<1)throw new BadRequestException("INVALID_REVIEW_VERSION");
+    const requestKey=requireId(input?.requestKey);
+    const reason=input?.reason;
+    if(reason!==undefined&&(typeof reason!=="string"||reason.length>1500))
+      throw new BadRequestException("INVALID_REVIEW_REASON");
+    const evidence=input?.evidenceReference;
+    if(evidence!==undefined&&(typeof evidence!=="string"||
+       evidence.length>180))throw new BadRequestException("INVALID_EVIDENCE_REFERENCE");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      try{
+        const result=await client.query<{out:Record<string,unknown>}>(
+          "SELECT tto.review_cooperative_onboarding($1::uuid,$2::text,$3::integer,"+
+          "$4::uuid,$5::text,$6::text) AS out",
+          [dossierId,action,expectedVersion,requestKey,reason??null,evidence??null]
+        );
+        return result.rows[0].out;
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("REVIEW_PERMISSION_DENIED");
+        if(code==="23505"||code==="40001")
+          throw new ConflictException("REVIEW_VERSION_OR_IDEMPOTENCY_CONFLICT");
+        if(code==="22023")throw new BadRequestException("INVALID_REVIEW_TRANSITION");
+        throw e;
+      }
     });
   }
 
