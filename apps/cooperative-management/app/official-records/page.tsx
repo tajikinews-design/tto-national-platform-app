@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useState} from "react";
+import {useEffect,useRef,useState} from "react";
 type Tenant={tenantId:string;displayName:string;evidenceStatus:string};
 type Form={
  personFullName:string;officeType:string;signingMode:string;authorityScope:string;
@@ -31,6 +31,7 @@ const labelStyle={display:"grid",gap:6,fontSize:14,fontWeight:650 as const};
 export default function OfficialRecordsPage(){
  const [tenants,setTenants]=useState<Tenant[]>([]);
  const [tenantId,setTenantId]=useState("");
+ const tenantScopeRef=useRef("");
  const [form,setForm]=useState<Form>({...EMPTY});
  const [requestKey,setRequestKey]=useState("");
  const [busy,setBusy]=useState(false);
@@ -54,6 +55,7 @@ export default function OfficialRecordsPage(){
     const allowed=Array.isArray(body.items)?body.items.filter(
       x=>x.evidenceStatus==="ROLE_AUTHORITY_EVIDENCE"):[];
     setTenants(allowed);
+    tenantScopeRef.current=allowed[0]?.tenantId??"";
     setTenantId(allowed[0]?.tenantId??"");
     setPhase("ready");
    }).catch(()=>{if(alive)setPhase("unavailable")});
@@ -100,13 +102,15 @@ export default function OfficialRecordsPage(){
     data.items.length>50||data.selfReportedOnly!==true||
     data.officiallyVerified!==false||data.legalApproval!==false||
     data.roleGranted!==false)throw Error("UNSAFE_HISTORY_PAGE");
-   if(tenantId!==requestedTenant)return;
+   if(tenantScopeRef.current!==requestedTenant)return;
    setHistory(current=>{
+    if(tenantScopeRef.current!==requestedTenant)return current;
     const known=new Set(current.map(row=>row.claimId));
     return [...current,...data.items.filter(row=>!known.has(row.claimId))];
    });
    setHistoryMore(data.hasMore);setNextCursor(data.nextCursor);
-  }catch{setHistoryError("دریافت ادامه سوابق انجام نشد؛ دوباره تلاش کنید.");}
+  }catch{if(tenantScopeRef.current===requestedTenant)
+   setHistoryError("دریافت ادامه سوابق انجام نشد؛ دوباره تلاش کنید.");}
   finally{setLoadingMore(false);}
  }
  const correctClaim=(row:HistoryRow)=>{
@@ -179,7 +183,7 @@ export default function OfficialRecordsPage(){
   {phase==="ready"&&tenants.length>0?<form onSubmit={e=>void submit(e)}
     style={{display:"grid",gap:20,background:"#f6fafb",borderRadius:14,padding:22}}>
    <label style={labelStyle}>تعاونی مجاز
-    <select required value={tenantId} onChange={e=>{setTenantId(e.target.value);setRequestKey("");}}
+    <select required value={tenantId} onChange={e=>{tenantScopeRef.current=e.target.value;setTenantId(e.target.value);setRequestKey("");}}
      style={fieldStyle}>{tenants.map(t=><option key={t.tenantId} value={t.tenantId}>{t.displayName}</option>)}</select>
    </label>
    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:16}}>
