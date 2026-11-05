@@ -64,13 +64,26 @@ BEGIN
  IF r->>'status'<>'PENDING_LEGAL_REVIEW' OR (r->>'version')::int<>4 THEN
    RAISE EXCEPTION 'resubmission failed: %',r;
  END IF;
+ SELECT tto.review_cooperative_onboarding(
+ '33333333-3333-4333-8333-333333333333','START_REVIEW',4,
+ '99999999-9999-4999-8999-999999999999') INTO r;
+ IF r->>'status'<>'IN_REVIEW' OR (r->>'version')::int<>5 THEN
+   RAISE EXCEPTION 'second review failed: %',r;
+ END IF;
+ SELECT tto.review_cooperative_onboarding(
+ '33333333-3333-4333-8333-333333333333','REFER_EXTERNAL_REVIEW',5,
+ 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','Send for independent legal signoff') INTO r;
+ IF r->>'status'<>'EXTERNAL_APPROVAL_REQUIRED' OR
+  (r->>'version')::int<>6 OR r->>'managerRoleGranted'<>'false' THEN
+   RAISE EXCEPTION 'external referral was treated as legal approval: %',r;
+ END IF;
  -- Deliberately cannot reach any APPROVED or ACTIVATED state.
 END $test$;
 RESET ROLE;
 DO $test$
 BEGIN
  IF (SELECT count(*) FROM tto.cooperative_onboarding_audit
-   WHERE dossier_id='33333333-3333-4333-8333-333333333333')<>3 THEN
+   WHERE dossier_id='33333333-3333-4333-8333-333333333333')<>5 THEN
   RAISE EXCEPTION 'duplicate or missing audit records';
  END IF;
  IF EXISTS(SELECT 1 FROM tto.tenants)
