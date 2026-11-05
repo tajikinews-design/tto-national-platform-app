@@ -33,6 +33,7 @@ export default function CooperativeOnboardingPage(){
  const [correctedEvidence,setCorrectedEvidence]=useState<Record<string,string>>({});
  const [drafts,setDrafts]=useState<Record<string,Draft>>({});
  const [draftVersions,setDraftVersions]=useState<Record<string,number>>({});
+ const [evidenceFile,setEvidenceFile]=useState<File|null>(null);
  async function refresh(){
   setPhase("loading");
   try{
@@ -63,6 +64,40 @@ export default function CooperativeOnboardingPage(){
   }catch{setPhase("error")}
  }
  useEffect(()=>{void refresh()},[]);
+ async function uploadQuarantinedEvidence(){
+  const file=evidenceFile;
+  if(!file||busy||phase!=="ready"||!form.slug)return;
+  if(file.size<8||file.size>524288||
+    !["application/pdf","image/jpeg","image/png"].includes(file.type)){
+   setMessage("فقط PDF، PNG یا JPEG تا حجم ۵۱۲ کیلوبایت در قرنطینه آزمایشی پذیرفته می‌شود.");return;
+  }
+  setBusy(true);setMessage("");
+  try{
+   const dataUrl=await new Promise<string>((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result));
+    reader.onerror=()=>reject(Error("file-read"));
+    reader.readAsDataURL(file);
+   });
+   const encoded=dataUrl.split(",")[1];
+   if(!encoded)throw Error("file-encoding");
+   const response=await fetch("/api/cooperatives/onboarding-evidence",{
+    method:"POST",credentials:"same-origin",cache:"no-store",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({slug:form.slug,uploadKey:crypto.randomUUID(),
+      mimeType:file.type,contentBase64:encoded})
+   });
+   if(response.status===401||response.status===403){setPhase("denied");return;}
+   if(!response.ok)throw Error("upload-failed");
+   const obj=await response.json() as {evidenceId?:string;scanStatus?:string;authenticity?:string};
+   if(!obj.evidenceId||obj.scanStatus!=="QUARANTINED"||
+      obj.authenticity!=="NOT_VERIFIED")throw Error("unexpected-evidence-state");
+   setForm(prev=>({...prev,evidenceReference:obj.evidenceId!}));
+   setMessage("مدرک رمزگذاری و فقط قرنطینه شد؛ اسکن امنیتی و اصالت حقوقی هنوز تأیید نشده‌اند.");
+   setEvidenceFile(null);
+  }catch{setMessage("بارگذاری امن تأیید نشد. هیچ اصالت یا وضعیت بررسی برای مدرک ثبت نشده است.");}
+  finally{setBusy(false)}
+ }
  async function saveDraft(){
   if(busy||phase!=="ready"||!form.slug)return;
   setBusy(true);setMessage("");
@@ -197,6 +232,16 @@ export default function CooperativeOnboardingPage(){
        required={field!=="evidenceReference"} autoComplete="off"
        onChange={e=>setForm(f=>({...f,[field]:e.target.value}))}/>
      </label>)}
+    </div>
+    <div style={{marginTop:16,padding:12,border:"1px dashed #8098ac",borderRadius:9}}>
+      <label htmlFor="coop-evidence-file">بارگذاری آزمایشی مدرک در قرنطینه رمزگذاری‌شده</label>
+      <p style={{lineHeight:2}}>فقط PDF یا تصویر تا ۵۱۲ کیلوبایت. فایل در اختیار کاربران
+       دیگر قرار نمی‌گیرد و تا تأیید مستقل اسکن امنیتی و اصالت حقوقی معتبر نیست.</p>
+      <input id="coop-evidence-file" type="file" accept="application/pdf,image/png,image/jpeg"
+        onChange={e=>setEvidenceFile(e.target.files?.[0]??null)} />
+      <button type="button" disabled={!evidenceFile||busy}
+        onClick={()=>void uploadQuarantinedEvidence()}
+        style={{marginRight:9,padding:"9px 15px"}}>ارسال به قرنطینه</button>
     </div>
     <p style={{lineHeight:2,background:"#fff8e5",padding:12,borderRadius:9}}>
      شماره مدیر پیشنهادی فقط برای تکمیل پرونده ثبت می‌شود. پیامک OTP، تطبیق هویت و تأیید سمت مدیریتی در مراحل جدا انجام خواهند شد. اطلاعات جعلی یا آزمایشی وارد نکنید.
