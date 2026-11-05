@@ -29,7 +29,9 @@ done
 for f in tests/sql/ph10-cooperative-dossier-review-disposable.sql \
  tests/sql/ph10-cooperative-draft-disposable.sql \
  tests/sql/ph10-cooperative-evidence-quarantine-disposable.sql \
- tests/sql/ph10-cooperative-external-source-review-disposable.sql;do
+ tests/sql/ph10-cooperative-external-source-review-disposable.sql \
+ tests/sql/ph10-cooperative-malware-scan-disposable.sql \
+ tests/sql/ph10-manual-official-governance-claims-disposable.sql;do
  echo "TTO_PH10_TEST=$f"
  "$DOCKER_BIN" exec -i "$name" psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f"
 done
