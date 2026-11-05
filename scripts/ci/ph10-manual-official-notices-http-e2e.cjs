@@ -318,6 +318,48 @@ async function main(){
   checks++;
   await managerContext.close();
  }finally{await browserReview.close();}
+ // Build a disposable >100 finding history from owner-only synthetic fixtures.
+ // This does not bypass tenant access in the actual BFF/Nest read path.
+ await db.query("INSERT INTO tto.cooperative_manual_gazette_review_findings("+
+  "request_key,claim_id,tenant_id,reviewer_id,mandate_appointment_reference,"+
+  "source_reference,source_sha256,outcome,rationale)"+
+  " SELECT gen_random_uuid(),$1,$2,$3,'Synthetic Tenant Legal Review Mandate',"+
+  "'Synthetic Gazette Archive Item '||n,$4,'INCONCLUSIVE',"+
+  "'Synthetic archived legal finding only '||n FROM generate_series(1,105) n",
+  [second.claimId,tenant,reviewer,randomBytes(32)]);
+ const reviewIds=new Set();let reviewCursorToken=null,reviewFirstCursor=null,reviewPages=0;
+ for(;;){
+  const path=reviewListPath+"?limit=35"+(reviewCursorToken?
+   "&cursor="+encodeURIComponent(reviewCursorToken):"");
+  const page=expect(await get(path),200,"bounded independent finding history page");
+  assert.equal(page.sourceClassification,"INDEPENDENT_REVIEWER_FINDINGS_NOT_OFFICIAL_VERIFICATION");
+  assert.equal(page.officiallyVerified,false);
+  assert.equal(page.legalApproval,false);
+  assert.equal(page.roleGranted,false);
+  assert.ok(page.items.length<=35,"finding history limit must hold");
+  for(const item of page.items){
+   assert.equal(item.claimId,second.claimId);
+   assert.ok(!reviewIds.has(item.findingId),"finding page must not duplicate records");
+   reviewIds.add(item.findingId);
+  }
+  reviewPages++;
+  if(!page.hasMore)break;
+  assert.equal(typeof page.nextCursor,"string");
+  assert.ok(page.nextCursor.length>40,"finding continuation token must be opaque");
+  reviewCursorToken=page.nextCursor;
+  if(!reviewFirstCursor)reviewFirstCursor=reviewCursorToken;
+  assert.ok(reviewPages<20,"finding history traversal must terminate");
+ }
+ assert.equal(reviewIds.size,107,"all 105 archived synthetic findings plus two prior reviews must be reachable");
+ const forgedReview=reviewFirstCursor.replace(/^./,x=>x==="A"?"B":"A");
+ expect(await get(reviewListPath+"?cursor="+encodeURIComponent(forgedReview)),400,
+  "forged reviewer-history cursor must be rejected");
+ expect(await get(reviewListPath+"?cursor="+encodeURIComponent(reviewFirstCursor),
+  {token:await session(manager)}),400,
+  "private reviewer-history cursor cannot be reused in a second manager session");
+ expect(await get(reviewListPath+"?beforeCreated=2026-11-01T00:00:00Z"),400,
+  "raw keyset parameters cannot bypass reviewer-history cursor seal");
+ console.log("PH10_9_REVIEW_FINDINGS_OVER_100_SESSION_BOUND_PAGE_PASS_PAGES="+reviewPages);
  // Concurrent retries for the same review request key are one immutable finding.
  const raceKey=randomUUID(),raceReview={...reviewPayload,requestKey:raceKey,
   outcome:"MISMATCH_REPORTED",rationale:"Concurrent synthetic reviewer mismatch only, no approval."};
