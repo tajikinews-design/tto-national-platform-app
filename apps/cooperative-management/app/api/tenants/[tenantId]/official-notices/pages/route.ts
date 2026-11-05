@@ -11,7 +11,7 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{tenantId:str
  if(process.env.TTO_ISOLATED_DEMO_DB!=="true")return fail(503,"GAZETTE_NOT_RELEASED");
  const cursor=new URL(req.url).searchParams;
  const pageToken=cursor.get("cursor"),limit=cursor.get("limit")??"50";
- if(cursor.size>2||(pageToken!==null&&!/^[A-Za-z0-9_-]{32,512}$/.test(pageToken))||
+ if([...cursor.keys()].some(k=>k!=="cursor"&&k!=="limit")||cursor.size>2||(pageToken!==null&&!/^[A-Za-z0-9_-]{32,512}$/.test(pageToken))||
   !/^(?:[1-9]|[1-9][0-9]|100)$/.test(limit))
   return fail(400,"INVALID_CURSOR");
  const base=process.env.TTO_API_BASE_URL??"";
