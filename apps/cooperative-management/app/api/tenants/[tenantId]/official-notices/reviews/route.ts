@@ -10,10 +10,9 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{tenantId:str
  if(!token||!/^[A-Za-z0-9_-]{32,256}$/.test(token))return deny(401,"SESSION_REQUIRED");
  if(process.env.TTO_ISOLATED_DEMO_DB!=="true")return deny(503,"GAZETTE_HISTORY_NOT_RELEASED");
  const q=new URL(req.url).searchParams;
- const beforeCreated=q.get("beforeCreated"),beforeId=q.get("beforeId"),limit=q.get("limit")??"50";
- if(q.size>3||Boolean(beforeCreated)!==Boolean(beforeId)||
-   (beforeCreated&&(!Number.isFinite(Date.parse(beforeCreated))||beforeCreated.length>40))||
-   (beforeId&&!UUID.test(beforeId))||!/^(?:[1-9]|[1-9][0-9]|100)$/.test(limit))
+ const pageToken=q.get("cursor"),limit=q.get("limit")??"50";
+ if(q.size>2||(pageToken!==null&&!/^[A-Za-z0-9_-]{32,512}$/.test(pageToken))||
+   !/^(?:[1-9]|[1-9][0-9]|100)$/.test(limit))
   return deny(400,"INVALID_REVIEW_HISTORY_CURSOR");
  const base=process.env.TTO_API_BASE_URL??"";
  const local=process.env.CI==="true"&&!process.env.VERCEL&&
@@ -24,10 +23,7 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{tenantId:str
   if(url.username||url.password)return deny(503,"BACKEND_UNAVAILABLE");
   const upstream=new URL("/v1/tenants/"+tenantId+"/governance/manual-official-notices/reviews",url);
   upstream.searchParams.set("limit",limit);
-  if(beforeCreated&&beforeId){
-   upstream.searchParams.set("beforeCreated",beforeCreated);
-   upstream.searchParams.set("beforeId",beforeId);
-  }
+  if(pageToken)upstream.searchParams.set("cursor",pageToken);
   const response=await fetch(upstream,{headers:{
    Authorization:"Bearer "+token,...trustedBackendHeaders(req)},
    cache:"no-store",redirect:"error",signal:AbortSignal.timeout(9000)});
