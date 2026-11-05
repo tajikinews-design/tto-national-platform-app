@@ -29,6 +29,7 @@ export default function CooperativeOnboardingPage(){
  const [busy,setBusy]=useState(false);
  const [message,setMessage]=useState("");
  const [reasons,setReasons]=useState<Record<string,string>>({});
+ const [correctedEvidence,setCorrectedEvidence]=useState<Record<string,string>>({});
  async function refresh(){
   setPhase("loading");
   try{
@@ -47,6 +48,10 @@ export default function CooperativeOnboardingPage(){
  async function advance(row:Row,action:string){
   if(busy||!row.dossier_id||!row.review_version)return;
   const reason=(reasons[row.slug]??"").trim();
+  const evidenceReference=(correctedEvidence[row.slug]??"").trim();
+  if(action==="RESUBMIT"&&(evidenceReference.length<5||evidenceReference.length>180)){
+   setMessage("برای ارسال دوباره، مرجع مدرک اصلاح‌شده با طول ۵ تا ۱۸۰ حرف لازم است.");return;
+  }
   if(["REQUEST_CHANGES","REJECT","RECOMMEND_EXTERNAL_APPROVAL"].includes(action)&&
      (reason.length<5||reason.length>1500)){
    setMessage("برای این تصمیم، توضیح حداقل پنج حرفی و حداکثر ۱۵۰۰ حرفی لازم است.");return;
@@ -58,7 +63,8 @@ export default function CooperativeOnboardingPage(){
     method:"POST",credentials:"same-origin",cache:"no-store",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({action,expectedVersion:row.review_version,
-      requestKey:crypto.randomUUID(),...(reason?{reason}:{})})
+      requestKey:crypto.randomUUID(),...(reason?{reason}:{}),
+      ...(action==="RESUBMIT"?{evidenceReference}:{})})
    });
    if(response.status===409){setMessage("نسخه پرونده تغییر کرده است؛ اطلاعات تازه را دریافت کنید.");await refresh();return;}
    if(response.status===401||response.status===403){setPhase("denied");return;}
@@ -121,8 +127,14 @@ export default function CooperativeOnboardingPage(){
         <button disabled={busy} onClick={()=>void advance(i,"REQUEST_CHANGES")}>درخواست اصلاح</button>
         <button disabled={busy} onClick={()=>void advance(i,"REJECT")}>رد با ذکر دلیل</button>
       </>:null}
-      {i.dossier_state==="CHANGES_REQUESTED"?<button disabled={busy}
-        onClick={()=>void advance(i,"RESUBMIT")}>بازگرداندن به صف بررسی</button>:null}
+      {i.dossier_state==="CHANGES_REQUESTED"?<div style={{width:"100%"}}>
+        <label>شناسه مرجع مدرک اصلاح‌شده
+          <input style={style} minLength={5} maxLength={180}
+           value={correctedEvidence[i.slug]??""}
+           onChange={e=>setCorrectedEvidence(p=>({...p,[i.slug]:e.target.value}))}/>
+        </label>
+        <button disabled={busy} onClick={()=>void advance(i,"RESUBMIT")}>ارسال مجدد مدرک اصلاح‌شده</button>
+      </div>:null}
       </div>
     </>:null}
    </div>)}
