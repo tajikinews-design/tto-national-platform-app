@@ -40,6 +40,8 @@ export default function OfficialRecordsPage(){
  const [history,setHistory]=useState<HistoryRow[]>([]);
  const [historyError,setHistoryError]=useState("");
  const [historyMore,setHistoryMore]=useState(false);
+ const [nextCursor,setNextCursor]=useState<{beforeCreated:string;beforeId:string}|null>(null);
+ const [loadingMore,setLoadingMore]=useState(false);
  const [historyVersion,setHistoryVersion]=useState(0);
  useEffect(()=>{
   let alive=true;
@@ -62,25 +64,51 @@ export default function OfficialRecordsPage(){
   const abort=new AbortController();
   setHistory([]);
   setHistoryError("");
-  void fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/official-notices",{
+  void fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/official-notices/pages",{
    credentials:"same-origin",cache:"no-store",signal:abort.signal
   }).then(async r=>{
    if(!r.ok)throw Error("AUTHORITY_OR_HISTORY_UNAVAILABLE");
    const data=await r.json() as {
-    items?:HistoryRow[];hasMore?:boolean;selfReportedOnly?:boolean;
+    items?:HistoryRow[];hasMore?:boolean;nextCursor?:{beforeCreated:string;beforeId:string}|null;selfReportedOnly?:boolean;
     officiallyVerified?:boolean;legalApproval?:boolean;roleGranted?:boolean
    };
    if(!Array.isArray(data.items)||data.items.length>100||
       data.selfReportedOnly!==true||data.officiallyVerified!==false||
       data.legalApproval!==false||data.roleGranted!==false)
     throw Error("UNSAFE_HISTORY_RESPONSE");
-   if(!abort.signal.aborted){setHistory(data.items);setHistoryMore(data.hasMore===true);}
+   if(!abort.signal.aborted){setHistory(data.items);setHistoryMore(data.hasMore===true);setNextCursor(data.nextCursor??null);}
   }).catch(()=>{
    if(!abort.signal.aborted){setHistory([]);setHistoryError(
     "سوابق قابل بازیابی نیستند؛ هیچ اطلاعاتی بدون مجوز نمایش داده نمی‌شود.");}
   });
   return()=>abort.abort();
  },[phase,tenantId,historyVersion]);
+ async function loadMore(){
+  if(!tenantId||!historyMore||!nextCursor||loadingMore)return;
+  setLoadingMore(true);setHistoryError("");
+  const requestedTenant=tenantId;
+  try{
+   const params=new URLSearchParams({beforeCreated:nextCursor.beforeCreated,
+    beforeId:nextCursor.beforeId});
+   const res=await fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/official-notices/pages?"+params,{
+    credentials:"same-origin",cache:"no-store"});
+   if(!res.ok)throw Error("MORE_HISTORY_UNAVAILABLE");
+   const data=await res.json() as {tenantId:string;items:HistoryRow[];hasMore:boolean;
+    nextCursor:{beforeCreated:string;beforeId:string}|null;selfReportedOnly:boolean;
+    officiallyVerified:boolean;legalApproval:boolean;roleGranted:boolean};
+   if(data.tenantId!==requestedTenant||!Array.isArray(data.items)||
+    data.items.length>50||data.selfReportedOnly!==true||
+    data.officiallyVerified!==false||data.legalApproval!==false||
+    data.roleGranted!==false)throw Error("UNSAFE_HISTORY_PAGE");
+   if(tenantId!==requestedTenant)return;
+   setHistory(current=>{
+    const known=new Set(current.map(row=>row.claimId));
+    return [...current,...data.items.filter(row=>!known.has(row.claimId))];
+   });
+   setHistoryMore(data.hasMore);setNextCursor(data.nextCursor);
+  }catch{setHistoryError("دریافت ادامه سوابق انجام نشد؛ دوباره تلاش کنید.");}
+  finally{setLoadingMore(false);}
+ }
  const correctClaim=(row:HistoryRow)=>{
   if(row.hasCorrection||busy)return;
   setForm({
@@ -233,8 +261,10 @@ export default function OfficialRecordsPage(){
       </button>}
     <p style={{fontSize:12,overflowWrap:"anywhere"}}>شناسه سابقه: <code dir="ltr">{row.claimId}</code></p>
    </article>)}
-   {historyMore?<p role="status">فقط ۱۰۰ سابقه جدید نمایش داده شده است؛ بازیابی سوابق قدیمی‌تر
-    نیازمند صفحه‌بندی و کنترل مجوز مجدد است.</p>:null}
+   {historyMore?<button type="button" disabled={loadingMore||!nextCursor}
+     onClick={()=>void loadMore()} aria-label="بارگذاری سوابق قدیمی‌تر">
+      {loadingMore?"در حال دریافت سوابق…":"نمایش سوابق قدیمی‌تر"}
+    </button>:null}
   </section>:null}
  </main>;
 }
