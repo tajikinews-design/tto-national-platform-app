@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
+type Draft={slug:string;payload:Partial<Model>;version:number};
 type Row={slug:string;workspace_state:string;dossier_id:string|null;dossier_state:string|null;legal_name:string|null;candidate_manager_name:string|null;submitted_at:string|null;review_version:number|null};
 type Model={
  slug:string;legalName:string;nationalId:string;registrationNumber:string;province:string;county:string;
@@ -30,6 +31,8 @@ export default function CooperativeOnboardingPage(){
  const [message,setMessage]=useState("");
  const [reasons,setReasons]=useState<Record<string,string>>({});
  const [correctedEvidence,setCorrectedEvidence]=useState<Record<string,string>>({});
+ const [drafts,setDrafts]=useState<Record<string,Draft>>({});
+ const [draftVersions,setDraftVersions]=useState<Record<string,number>>({});
  async function refresh(){
   setPhase("loading");
   try{
@@ -40,11 +43,49 @@ export default function CooperativeOnboardingPage(){
    if(!json||typeof json!=="object"||Array.isArray(json)||!Array.isArray((json as {items?:unknown}).items))
     throw Error("invalid-payload");
    const records=(json as {items:Row[]}).items;
-   setItems(records);setForm(f=>({...f,slug:records.some(x=>x.slug===f.slug&&!x.dossier_id)?f.slug:records.find(x=>!x.dossier_id)?.slug??""}));
+   const draftsResponse=await fetch("/api/cooperatives/onboarding-drafts",
+     {cache:"no-store",credentials:"same-origin"});
+   if(!draftsResponse.ok)throw Error("drafts-unavailable");
+   const draftsJson:unknown=await draftsResponse.json();
+   if(!draftsJson||typeof draftsJson!=="object"||Array.isArray(draftsJson)||
+      !Array.isArray((draftsJson as {items?:unknown}).items))throw Error("invalid-drafts");
+   const loaded=(draftsJson as {items:Draft[]}).items;
+   const map=Object.fromEntries(loaded.map(d=>[d.slug,d])) as Record<string,Draft>;
+   setDrafts(map);
+   setDraftVersions(Object.fromEntries(loaded.map(d=>[d.slug,d.version])));
+   setItems(records);
+   setForm(f=>{
+     const slug=records.some(x=>x.slug===f.slug&&!x.dossier_id)?f.slug:
+       records.find(x=>!x.dossier_id)?.slug??"";
+     return f.slug?{...f,slug}:{...blank,...(map[slug]?.payload??{}),slug};
+   });
    setPhase("ready");
   }catch{setPhase("error")}
  }
  useEffect(()=>{void refresh()},[]);
+ async function saveDraft(){
+  if(busy||phase!=="ready"||!form.slug)return;
+  setBusy(true);setMessage("");
+  const payload=Object.fromEntries(fields.map(k=>[k,form[k]]));
+  try{
+   const response=await fetch("/api/cooperatives/onboarding-drafts",{
+    method:"POST",credentials:"same-origin",cache:"no-store",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({slug:form.slug,payload,expectedVersion:draftVersions[form.slug]??0,
+      requestKey:crypto.randomUUID()})
+   });
+   if(response.status===409){setMessage("پیش‌نویس روی سرور تغییر کرده است؛ نسخه جدید را دریافت کنید.");await refresh();return;}
+   if(response.status===401||response.status===403){setPhase("denied");return;}
+   if(!response.ok)throw Error("draft-save-not-confirmed");
+   const obj=await response.json() as {slug?:string;version?:number;submitted?:boolean;tenantCreated?:boolean};
+   if(obj.slug!==form.slug||typeof obj.version!=="number"||obj.submitted!==false||
+      obj.tenantCreated!==false)throw Error("draft-invalid-result");
+   setDraftVersions(v=>({...v,[form.slug]:obj.version!}));
+   setDrafts(v=>({...v,[form.slug]:{slug:form.slug,version:obj.version!,payload}}));
+   setMessage("پیش‌نویس امن در پرونده ذخیره شد؛ هیچ تأیید یا فعال‌سازی انجام نشده است.");
+  }catch{setMessage("ذخیره پیش‌نویس تأیید نشد؛ اطلاعات فعلی را حفظ و وضعیت سرور را بررسی کنید.");}
+  finally{setBusy(false)}
+ }
  async function advance(row:Row,action:string){
   if(busy||!row.dossier_id||!row.review_version)return;
   const reason=(reasons[row.slug]??"").trim();
@@ -142,7 +183,7 @@ export default function CooperativeOnboardingPage(){
    {items.some(i=>!i.dossier_id)?<form onSubmit={submit} style={{marginTop:24}}>
     <h2>ثبت اطلاعات واقعی شرکت</h2>
     <label htmlFor="coop-slug" style={{display:"block",margin:"14px 0 8px"}}>نشانی رزروشده موردنظر</label>
-    <select id="coop-slug" value={form.slug} onChange={e=>setForm(f=>({...f,slug:e.target.value}))} required style={style}>
+    <select id="coop-slug" value={form.slug} onChange={e=>setForm({...blank,...(drafts[e.target.value]?.payload??{}),slug:e.target.value})} required style={style}>
      {items.filter(i=>!i.dossier_id).map(i=><option key={i.slug} value={i.slug}>{i.slug}</option>)}
     </select>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:16,marginTop:10}}>
@@ -160,6 +201,11 @@ export default function CooperativeOnboardingPage(){
     <p style={{lineHeight:2,background:"#fff8e5",padding:12,borderRadius:9}}>
      شماره مدیر پیشنهادی فقط برای تکمیل پرونده ثبت می‌شود. پیامک OTP، تطبیق هویت و تأیید سمت مدیریتی در مراحل جدا انجام خواهند شد. اطلاعات جعلی یا آزمایشی وارد نکنید.
     </p>
+    <button type="button" disabled={busy} onClick={()=>void saveDraft()}
+     style={{background:"#e8f1f7",color:"#173b53",border:"1px solid #93adbd",borderRadius:9,
+             padding:"13px 25px",font:"inherit",marginLeft:9}}>
+      {busy?"در حال ذخیره…":"ذخیره پیش‌نویس"}
+    </button>
     <button type="submit" disabled={busy} style={{background:"#08618b",color:"#fff",border:0,borderRadius:9,padding:"13px 25px",font:"inherit",cursor:"pointer"}}>
      {busy?"در حال ثبت…":"ثبت پرونده برای بررسی حقوقی"}
     </button>
