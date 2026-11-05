@@ -7,6 +7,10 @@ BEGIN
  OR has_table_privilege('tto_app','tto.cooperative_manual_gazette_review_findings','DELETE')
  OR has_table_privilege('tto_app','tto.cooperative_manual_gazette_review_findings','SELECT')
  THEN RAISE EXCEPTION 'unexpected direct review-table privilege'; END IF;
+ IF has_table_privilege('tto_app','tto.cooperative_gazette_review_tenant_mandates','INSERT')
+ OR has_table_privilege('tto_app','tto.cooperative_gazette_review_tenant_mandates','SELECT')
+ OR has_table_privilege('tto_app','tto.cooperative_gazette_review_tenant_mandates','UPDATE')
+ THEN RAISE EXCEPTION 'unprivileged user can assign tenant reviewers';END IF;
  IF NOT has_function_privilege('tto_app',
  'tto.record_independent_gazette_finding(uuid,uuid,text,bytea,text,text,bytea)','EXECUTE')
  THEN RAISE EXCEPTION 'review command execute privilege missing'; END IF;
@@ -31,6 +35,13 @@ INSERT INTO tto.cooperative_external_legal_review_mandates(
  decode(repeat('ad',32),'hex'),now()-interval '1 hour',now()+interval '2 days');
 INSERT INTO tto.tenants(tenant_id,slug,display_name,status)
 VALUES ('a3000000-0000-4000-8000-000000000001','test-ph109-gazette','PH109 Synthetic','ACTIVE');
+INSERT INTO tto.cooperative_gazette_review_tenant_mandates(
+ reviewer_id,tenant_id,appointed_by,appointment_reference,evidence_sha256,valid_from,expires_at)
+ VALUES('a1000000-0000-4000-8000-000000000002',
+ 'a3000000-0000-4000-8000-000000000001',
+ 'a1000000-0000-4000-8000-000000000003',
+ 'Synthetic Tenant-Specific Gazette Review Appointment',decode(repeat('ed',32),'hex'),
+ now()-interval '1 hour',now()+interval '2 days');
 INSERT INTO tto.cooperative_manual_official_governance_claims(
  claim_id,tenant_id,request_key,submitted_by,person_full_name,office_type,
  signing_mode,authority_scope,official_issue_number,official_publication_date,
@@ -98,6 +109,24 @@ BEGIN
   RAISE EXCEPTION 'contradictory idempotency accepted';
  EXCEPTION WHEN unique_violation THEN NULL; END;
 END $gate$;
+RESET ROLE;
+-- Revoking tenant grant denies the reviewer, independently of global mandate.
+UPDATE tto.cooperative_gazette_review_tenant_mandates SET revoked_at=now()
+ WHERE reviewer_id='a1000000-0000-4000-8000-000000000002';
+SET LOCAL ROLE tto_app;
+SELECT set_config('tto.actor_id','a1000000-0000-4000-8000-000000000002',true);
+DO $check$
+BEGIN
+ BEGIN
+  PERFORM tto.record_independent_gazette_finding(
+   'a4000000-0000-4000-8000-000000000001',
+   'a6000000-0000-4000-8000-000000000008','Test Gazette Reference',
+   decode(repeat('cc',32),'hex'),'INCONCLUSIVE',
+   'Revoked tenant mandate must override still valid global appointment',
+   decode(repeat('a2',32),'hex'));
+  RAISE EXCEPTION 'revoked tenant reviewer accepted';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+END $check$;
 RESET ROLE;
 UPDATE tto.cooperative_external_legal_review_mandates SET revoked_at=now()
  WHERE reviewer_id='a1000000-0000-4000-8000-000000000002';
