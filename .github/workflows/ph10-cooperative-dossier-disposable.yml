@@ -64,6 +64,7 @@ jobs:
           set -euo pipefail
           pnpm --filter @tto/api build
           pnpm --filter @tto/national-admin build
+          pnpm --filter @tto/cooperative-management build
       - name: Install actual ClamAV daemon and disposable synthetic test signature
         run: |
           set -euo pipefail
@@ -125,6 +126,15 @@ jobs:
           test "${#TTO_COOP_QUARANTINE_KEY_HEX}" -eq 64
           timeout --signal=TERM --kill-after=5s 300s node scripts/ci/ph10-cooperative-onboarding-http-e2e.cjs
           echo PH10_COOP_FULL_BFF_NEST_POSTGRES17_E2E_GATE_PASS_NO_LEGAL_APPROVAL
+      - name: Exercise manager-entered Official Gazette issue/date/notice through real BFF and Nest
+        env:
+          TTO_ISOLATED_DEMO_DB: "true"
+          TEST_ADMIN_DATABASE_URL: "postgresql://postgres@127.0.0.1:5432/tto"
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=5s 140s node scripts/ci/ph10-manual-official-notices-http-e2e.cjs
+          echo PH10_MANUAL_OFFICIAL_GAZETTE_MANAGER_HTTP_PG17_GATE_PASS_NO_LEGAL_APPROVAL
+
       - name: Upload synthetic onboarding browser evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
