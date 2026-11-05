@@ -401,9 +401,9 @@ async function main(){
  console.log("PH10_9_HISTORY_OVER_100_KEYSET_BFF_NEST_PG17_PASS_PAGES="+pageCount);
  // Fail closed when the actual Nest legal-review backend becomes unavailable.
  nest.kill("SIGTERM");
- for(let i=0;i<20&&nest.exitCode===null;i++)
+ for(let i=0;i<20&&nest.exitCode===null&&nest.signalCode===null;i++)
   await new Promise(resolve=>setTimeout(resolve,100));
- assert.notEqual(nest.exitCode,null,"synthetic Nest backend must terminate before fault check");
+ assert.ok(nest.exitCode!==null||nest.signalCode!==null,"synthetic Nest backend must terminate before fault check");
  expect(await get(reviewListPath),503,"review findings history cannot leak on backend outage");
  expect(await get(pagesPath),503,"private official notice history cannot leak on backend outage");
  checks+=2;
