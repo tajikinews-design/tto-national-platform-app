@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
-type Row={slug:string;workspace_state:string;dossier_id:string|null;dossier_state:string|null;legal_name:string|null;candidate_manager_name:string|null;submitted_at:string|null};
+type Row={slug:string;workspace_state:string;dossier_id:string|null;dossier_state:string|null;legal_name:string|null;candidate_manager_name:string|null;submitted_at:string|null;review_version:number|null};
 type Model={
  slug:string;legalName:string;nationalId:string;registrationNumber:string;province:string;county:string;
  legalAddress:string;representativeName:string;candidateManagerName:string;candidateManagerMobile:string;evidenceReference:string
@@ -23,6 +23,7 @@ export default function CooperativeOnboardingPage(){
  const [phase,setPhase]=useState<"loading"|"ready"|"denied"|"error">("loading");
  const [busy,setBusy]=useState(false);
  const [message,setMessage]=useState("");
+ const [reasons,setReasons]=useState<Record<string,string>>({});
  async function refresh(){
   setPhase("loading");
   try{
@@ -38,6 +39,32 @@ export default function CooperativeOnboardingPage(){
   }catch{setPhase("error")}
  }
  useEffect(()=>{void refresh()},[]);
+ async function advance(row:Row,action:string){
+  if(busy||!row.dossier_id||!row.review_version)return;
+  const reason=(reasons[row.slug]??"").trim();
+  if(["REQUEST_CHANGES","REJECT","RECOMMEND_EXTERNAL_APPROVAL"].includes(action)&&
+     (reason.length<5||reason.length>1500)){
+   setMessage("برای این تصمیم، توضیح حداقل پنج حرفی و حداکثر ۱۵۰۰ حرفی لازم است.");return;
+  }
+  setBusy(true);setMessage("");
+  try{
+   const response=await fetch("/api/cooperatives/onboarding/"+
+    encodeURIComponent(row.dossier_id)+"/actions",{
+    method:"POST",credentials:"same-origin",cache:"no-store",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({action,expectedVersion:row.review_version,
+      requestKey:crypto.randomUUID(),...(reason?{reason}:{})})
+   });
+   if(response.status===409){setMessage("نسخه پرونده تغییر کرده است؛ اطلاعات تازه را دریافت کنید.");await refresh();return;}
+   if(response.status===401||response.status===403){setPhase("denied");return;}
+   if(!response.ok)throw Error("action-not-confirmed");
+   const value=await response.json() as {tenantCreated?:unknown;managerRoleGranted?:unknown};
+   if(value.tenantCreated!==false||value.managerRoleGranted!==false)throw Error("unexpected-activation");
+   setMessage("نتیجه بررسی ثبت شد. این تصمیم هیچ نقش مدیریتی یا Tenant ایجاد نکرد.");
+   await refresh();
+  }catch{setMessage("ثبت تصمیم تأیید نشد. بدون تکرار فوری، ابتدا وضعیت پرونده را بررسی کنید.");}
+  finally{setBusy(false)}
+ }
  async function submit(e:FormEvent){
   e.preventDefault();if(busy||phase!=="ready"||!form.slug)return;
   setBusy(true);setMessage("");
@@ -70,8 +97,31 @@ export default function CooperativeOnboardingPage(){
    <h2>نشانی‌های رزروشده</h2>
    <div style={{display:"grid",gap:9}}>
    {items.map(i=><div key={i.slug} style={{padding:12,background:"#f4f8fb",borderRadius:9}}>
-    <strong dir="ltr">{i.slug}</strong> — {i.dossier_id?"پرونده در انتظار بررسی مدارک":"آماده تکمیل اطلاعات"}
+    <strong dir="ltr">{i.slug}</strong> — {i.dossier_id?(
+      {PENDING_LEGAL_REVIEW:"در انتظار بررسی حقوقی",IN_REVIEW:"در حال بررسی",
+       CHANGES_REQUESTED:"نیازمند اصلاح مدارک",REJECTED:"ردشده",
+       EXTERNAL_APPROVAL_REQUIRED:"در انتظار تأیید مستقل خارج از سامانه"}[i.dossier_state??""]??
+       "وضعیت پرونده نامشخص"):"آماده تکمیل اطلاعات"}
     {i.legal_name?<div style={{marginTop:6}}>{i.legal_name}</div>:null}
+    {i.dossier_id&&i.review_version?<>
+      <p style={{margin:"8px 0"}}>نسخه بررسی: {i.review_version} — این پنل مجوز تأیید قانونی یا فعال‌سازی ندارد.</p>
+      {i.dossier_state==="IN_REVIEW"?<label style={{display:"block",marginBottom:8}}>
+        توضیحات بررسی (الزامی برای درخواست اصلاح یا رد)
+        <textarea value={reasons[i.slug]??""} maxLength={1500} rows={3}
+          onChange={e=>setReasons(prev=>({...prev,[i.slug]:e.target.value}))}
+          style={{...style,marginTop:5}}/>
+      </label>:null}
+      <div style={{display:"flex",flexWrap:"wrap",gap:9}}>
+      {i.dossier_state==="PENDING_LEGAL_REVIEW"?<button disabled={busy}
+        onClick={()=>void advance(i,"START_REVIEW")}>شروع بررسی</button>:null}
+      {i.dossier_state==="IN_REVIEW"?<>
+        <button disabled={busy} onClick={()=>void advance(i,"REQUEST_CHANGES")}>درخواست اصلاح</button>
+        <button disabled={busy} onClick={()=>void advance(i,"REJECT")}>رد با ذکر دلیل</button>
+      </>:null}
+      {i.dossier_state==="CHANGES_REQUESTED"?<button disabled={busy}
+        onClick={()=>void advance(i,"RESUBMIT")}>بازگرداندن به صف بررسی</button>:null}
+      </div>
+    </>:null}
    </div>)}
    </div>
    {items.some(i=>!i.dossier_id)?<form onSubmit={submit} style={{marginTop:24}}>
