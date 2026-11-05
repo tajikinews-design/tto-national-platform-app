@@ -64,6 +64,16 @@ async function main(){
         assert.equal(await page.locator("#national-username").count(),1,"national root login field absent");
         assert.equal(await page.locator("#national-password").count(),1,"national root password field absent");
         assert.equal(await page.getByRole("button",{name:"دریافت کد"}).count(),0,"national root OTP forbidden");
+       }else if(app.slug==="national-admin"){
+        // National modules are separately scoped, never SMS-OTP authenticated.
+        // With no backend, JIT discovery must fail closed and expose no records.
+        await page.locator(".tenant-picker").waitFor({state:"visible",timeout:12000});
+        assert.equal(await page.locator(".otp-panel").count(),0,"national modules must not use OTP");
+        await page.getByText("بازیابی مجوزهای تعاونی ممکن نیست",{exact:false})
+         .waitFor({state:"visible",timeout:12000});
+        assert.equal(await page.locator("#tto-select-national").count(),0,
+          "unverified national tenant options should be absent");
+        assert.equal(await page.getByRole("button",{name:"دریافت کد"}).count(),0);
        }else{
         assert.equal(await page.locator(".otp-panel").count(),1);
         assert.equal(await page.locator(".otp-unavailable").count(),1);
