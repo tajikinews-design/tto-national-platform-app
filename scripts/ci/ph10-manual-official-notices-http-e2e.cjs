@@ -412,7 +412,7 @@ async function main(){
  }
  assert.equal(seen.size,107,"must traverse all 105 synthetic fixtures and 2 prior claims");checks++;
  assert.ok(capturedCursor,"must obtain an opaque page cursor");
- const mutated=capturedCursor.slice(0,-1)+(capturedCursor.endsWith("A")?"B":"A");
+ const mutated=(capturedCursor.startsWith("A")?"B":"A")+capturedCursor.slice(1);
  expect(await get(pagesPath+"?cursor="+encodeURIComponent(mutated)),400,
   "tampered opaque claim cursor denied");
  const otherManagerSession=await session(manager);
