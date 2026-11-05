@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "1.0",
+  "domain": "Cooperative legal dossier, pre-Tenant",
+  "status": "LAB_IMPLEMENTED_ACCEPTANCE_BLOCKED",
+  "sourceBranch": "feat/ph10-cooperative-dossier-lifecycle-20261105",
+  "reservedSlugs": [
+    "ttoney",
+    "ttotsh"
+  ],
+  "identityBoundary": {
+    "applicant": "National root authenticated session may save draft and submit claims; it does not prove legal company registration or manager authority.",
+    "reviewer": "Independent legal reviewer authority must be established by a real appointing body, evidence of delegation, expiry, revocation and actor separation.",
+    "forbidden": [
+      "submitter approving own dossier",
+      "user submitted reviewer identity",
+      "browser-provided role/tenant",
+      "implicit manager role by OTP or national root",
+      "automatic tenant activation"
+    ]
+  },
+  "workflow": {
+    "draft": "Versioned, authenticated, nonlegal claim, one per reserved workspace",
+    "submit": "PENDING_LEGAL_REVIEW; unique workspace+national ID; no Tenant or role",
+    "transitions": [
+      "PENDING_LEGAL_REVIEW -> IN_REVIEW",
+      "IN_REVIEW -> CHANGES_REQUESTED",
+      "CHANGES_REQUESTED -> PENDING_LEGAL_REVIEW",
+      "IN_REVIEW -> REJECTED",
+      "IN_REVIEW -> EXTERNAL_APPROVAL_REQUIRED (requires independent verified mandate; not yet source-approved)"
+    ],
+    "terminalStates": [
+      "REJECTED",
+      "EXTERNAL_APPROVAL_REQUIRED"
+    ],
+    "realLegalApprovedStateImplemented": false,
+    "tenantProvisioningImplemented": false,
+    "managerRoleGrantImplemented": false
+  },
+  "evidence": {
+    "isolatedQuarantineImplemented": true,
+    "allowedMime": [
+      "application/pdf",
+      "image/png",
+      "image/jpeg"
+    ],
+    "maxBytes": 524288,
+    "transport": "authenticated same-origin JSON relay with body cap and no-store",
+    "serverProtection": "AES-256-GCM, independently configured 256-bit server-only key, random per-upload IV; ciphertext and hash persisted in unexposed, RLS-forced table",
+    "status": "QUARANTINED",
+    "authenticity": "NOT_VERIFIED",
+    "unimplementedRequiredControls": [
+      "independent anti-malware scanner",
+      "encrypted key lifecycle/rotation and KMS",
+      "production object storage/custody",
+      "external official legal registry verification",
+      "independent signer identity and authority verification",
+      "signed legal review with revocation",
+      "retention and deletion policy",
+      "full negative API/E2E/Chromium suite"
+    ]
+  },
+  "acceptance": {
+    "structuralCodeReview": "SOURCE_INSPECTED_ONLY",
+    "postgres17Runtime": "NOT_RUN",
+    "apiRuntime": "NOT_RUN",
+    "browser": "NOT_RUN",
+    "scanner": "NOT_CONFIGURED",
+    "legalApproverSource": "NOT_AUTHORIZED",
+    "officialSourceEvidence": "NOT_VERIFIED",
+    "release": "BLOCKED"
+  },
+  "prohibitions": [
+    "No hosted Preview migration without independent data-safety review",
+    "No live documents while encryption/scanner/provider controls incomplete",
+    "No real share, payment, wallet, or general accounting",
+    "No Production deployment",
+    "No new fictional cooperative, Tenant, or manager",
+    "No silent promotion to GREEN"
+  ]
+}
