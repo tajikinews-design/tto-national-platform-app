@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "1.0",
+  "phase": "PH10",
+  "asOf": "2026-11-03",
+  "target": "155 frozen source acceptance IDs, complete portal-role/workflow/legal UAT",
+  "basePhase09Sha": "96396fc0c5320fe969e0d53b8f160acf99073111",
+  "ownerAuthorizes": "engineering/isolated test only",
+  "noMergeDeployHostedDBRealMoneyOrShares": true,
+  "sourcePath": "docs/analysis/ACCEPTANCE_IDS.json",
+  "sourceCount": 155,
+  "sourceGroups": {
+    "PH04": 16,
+    "PH05": 24,
+    "PH06": 15,
+    "PH07": 26,
+    "PH08": 36,
+    "PH09": 38
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "name": "immutable source155 & legacy108/47 traceability",
+      "state": "CI_SCOPED_PASS_NOT_FORMAL155_E2E"
+    },
+    {
+      "id": "G1",
+      "name": "clean PostgreSQL17 migration, exact source-bound phase suites, negative/race",
+      "state": "CI_SCOPED_PASS_PG17_CURRENT_SHA"
+    },
+    {
+      "id": "G2",
+      "name": "authenticated real Nest HTTP all module endpoints and legal guardrails",
+      "state": "PARTIAL_AUTHENTICATED_HTTP_PHASE08_FULL_COVERAGE_BLOCKED"
+    },
+    {
+      "id": "G3",
+      "name": "3 portal all pages/roles true browser end-to-end",
+      "state": "PARTIAL_THREE_PORTAL_BROWSER_NOT_ALL_PAGES_ROLES"
+    },
+    {
+      "id": "G4",
+      "name": "cross-phase real synthetic workflows + source-backed legal decisions",
+      "state": "BLOCKED_FULL_USER_JOURNEYS_UNPROVEN"
+    },
+    {
+      "id": "G5",
+      "name": "security, recovery, performance, release dry-run, QA acceptance",
+      "state": "BLOCKED_FULL_PLATFORM_RELEASE_PROOF_MISSING"
+    }
+  ],
+  "knownIssues": [
+    {
+      "id": "PH10-001",
+      "severity": "HIGH",
+      "component": "three portals",
+      "detail": "Most cooperative/national module pages display secure module-status and OTP only; not complete source-bound operational workflows",
+      "evidence": [
+        "apps/cooperative-management/app/modules/[id]/page.tsx",
+        "apps/national-admin/app/modules/[id]/page.tsx"
+      ]
+    },
+    {
+      "id": "PH10-002",
+      "severity": "HIGH",
+      "component": "PH08 domain integration",
+      "detail": "Six PH08 modules provide PG17 source tests; no equivalent fully authenticated production-path HTTP workflow evidence for all 36",
+      "evidence": [
+        ".github/workflows/ph08-source36-postgres17.yml"
+      ]
+    },
+    {
+      "id": "PH10-003",
+      "severity": "HIGH",
+      "component": "source155 acceptance",
+      "detail": "Frozen source matrix historical formalAcceptance=0; old SQL/alias results must not be relabelled end-to-end",
+      "evidence": [
+        "docs/analysis/PH04_LOCKED_155_SOURCE_EXECUTION_MATRIX.json"
+      ]
+    },
+    {
+      "id": "PH10-004",
+      "severity": "MEDIUM",
+      "component": "external legal and operational systems",
+      "detail": "Authoritative board/chamber/valuation/payment verification, official election handoff, message delivery not certified by synthetic test runs",
+      "evidence": [
+        "docs/source/SOURCE_BASELINE.json"
+      ]
+    },
+    {
+      "id": "PH10-005",
+      "severity": "MEDIUM",
+      "component": "release",
+      "detail": "PR141 PR142 PR145 are stacked open/unmerged; source-based CI does not prove integrated release from main",
+      "evidence": [
+        "docs/analysis/PH09_OFFICIAL_SOURCE38.json"
+      ]
+    }
+  ],
+  "releaseGate": "BLOCKED",
+  "scopedTechnicalGate": "PARTIAL_CI_GREEN_NOT_FULL_INTEGRATION",
+  "full155UserJourneyGate": "NOT_PASSED",
+  "formalOperationalGreen": "NOT_ISSUED",
+  "nextStep": "Synthetic-only: enumerate each portal page -> canonical API -> authorization role -> 155 source acceptance IDs; implement missing PH08 API/real page journeys; rerun full isolated CI plus browser and security; real-data verification strictly later.",
+  "testDataPolicy": {
+    "currentStage": "SYNTHETIC_ONLY",
+    "legalEntity": "fictional cooperative; no real company identifier, manager identity, shareholding, bank details or authoritative records",
+    "fixtures": "isolated deterministic, disposable, tagged synthetic; redact screenshots and logs",
+    "nextStage": "REAL_DATA_VALIDATION_AFTER_ALL_UI_API_AND_TECHNICAL_GATES_GREEN",
+    "realDataPrerequisites": [
+      "complete pages-to-canonical-API integration with evidence",
+      "all 155 source scenarios traced, with required journeys genuinely tested",
+      "independent source owner and authorization verified for each cooperative",
+      "approved operational connection and independent external verification"
+    ],
+    "prohibitedBeforeApproval": [
+      "live source imports",
+      "production tenant data",
+      "live share ownership mutations",
+      "live payments",
+      "merge or deploy from this QA PR"
+    ]
+  },
+  "ciEvidence": {
+    "commitSha": "cf2a0aa9dfe8fe4142bf4e9bf9883330072ab3bd",
+    "integrationRunId": 41614687994,
+    "integrationConclusion": "success",
+    "securityRunId": 41614687971,
+    "securityConclusion": "success",
+    "scope": "CI workflow passed for source-census tests, isolated PG17 schema and PH05-PH09 scoped SQL, authenticated Nest HTTP slices and three-portal Chromium checks; NOT all 155 end-to-end journeys",
+    "runJobs": [
+      "frozen155-and-three-portals",
+      "source-sql-and-actual-api",
+      "identity-source-core-real-http"
+    ],
+    "executionContext": "GitHub-hosted ephemeral CI; PostgreSQL17 Docker container only inside CI, removed after test; no local or hosted DB change"
+  }
+}

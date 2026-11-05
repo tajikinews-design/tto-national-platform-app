@@ -53,9 +53,32 @@ async function main(){
        await page.getByRole("main").waitFor();
        await page.getByRole("navigation",{name:"منوی اصلی "+app.title}).waitFor();
        assert.equal(await page.locator('[aria-current="page"]').count(),1);
-       assert.equal(await page.locator(".otp-panel").count(),1);
-       assert.equal(await page.locator(".otp-unavailable").count(),1);
-       assert.equal(await page.getByRole("button",{name:"دریافت کد"}).count(),0,"no OTP forms without backend");
+       if(app.slug==="national-admin"&&route==="/"){
+        // Dedicated national-root credential flow, never the member OTP shell.
+        await page.getByRole("heading",{name:"ورود مدیر ملی"}).waitFor();
+        assert.equal(await page.locator(".otp-panel").count(),0,"national root must not render OTP");
+        // The client first verifies the session asynchronously. Verify the
+        // eventual real login UI instead of racing React hydration.
+        await page.locator("#national-username").waitFor({state:"visible",timeout:12000});
+        await page.locator("#national-password").waitFor({state:"visible",timeout:12000});
+        assert.equal(await page.locator("#national-username").count(),1,"national root login field absent");
+        assert.equal(await page.locator("#national-password").count(),1,"national root password field absent");
+        assert.equal(await page.getByRole("button",{name:"دریافت کد"}).count(),0,"national root OTP forbidden");
+       }else if(app.slug==="national-admin"){
+        // National modules are separately scoped, never SMS-OTP authenticated.
+        // With no backend, JIT discovery must fail closed and expose no records.
+        await page.locator(".tenant-picker").waitFor({state:"visible",timeout:12000});
+        assert.equal(await page.locator(".otp-panel").count(),0,"national modules must not use OTP");
+        await page.getByText("بازیابی مجوزهای تعاونی ممکن نیست",{exact:false})
+         .waitFor({state:"visible",timeout:12000});
+        assert.equal(await page.locator("#tto-select-national").count(),0,
+          "unverified national tenant options should be absent");
+        assert.equal(await page.getByRole("button",{name:"دریافت کد"}).count(),0);
+       }else{
+        assert.equal(await page.locator(".otp-panel").count(),1);
+        assert.equal(await page.locator(".otp-unavailable").count(),1);
+        assert.equal(await page.getByRole("button",{name:"دریافت کد"}).count(),0,"no OTP forms without backend");
+       }
        if(route!=="/"&&app.slug!=="shareholder"){
         await page.getByText("دسترسی ماژول نیازمند تأیید مجوز است").waitFor();
         assert.equal(await page.locator(".module-status").count()>0,true);

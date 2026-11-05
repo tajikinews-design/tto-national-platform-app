@@ -1,0 +1,258 @@
+name: PH10 integrated source155, portals and tenant security (ISOLATED ONLY)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [feat/ph09-opportunity-impact-grc-network-data-ops-20261103]
+permissions:
+  contents: read
+concurrency:
+  group: ph10-integration-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  frozen155-and-three-portals:
+    if: github.head_ref == 'audit/ph10-full-platform-integration-155-20261103'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: ""
+      TTO_API_BASE_URL: ""
+      APIIR_TOKEN: ""
+      VERCEL: ""
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: "22"}
+      - name: Inspect all frozen 155 with zero fabricated E2E
+        run: |
+          set -euo pipefail
+          python3 tests/test_ph10_155_readiness.py -v
+          python3 tests/test_ph10_legal_baseline_source.py -v
+          python3 tests/test_ph09_108_47_legacy_traceability.py -v
+          python3 tests/test_ph04_155_execution_truth.py -v
+          python3 tests/test_ph05_24_runnable_map.py -v
+          python3 tests/test_ph06_source15_truth.py -v
+          python3 tests/test_ph07_source26_truth.py -v
+          python3 tests/test_ph08_source36_truth.py -v
+          python3 tests/test_ph09_source38_truth.py -v
+      - name: Enumerate every portal page and BFF route without claiming integration GREEN
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/ph10-page-api-inventory.py
+      - name: Build three Next portals plus Nest API on checked-out source
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.18.0
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm check
+      - name: Exercise 30 denied-backend module routes across 3 portals
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=5s 240s node scripts/smoke-next-otp.mjs
+          echo PH10_THREE_PORTAL_BACKEND_DENY_ROUTING_PASS
+      - name: Install Chromium for real browser RTL/accessibility
+        run: |
+          npm install --prefix /tmp/ph10-pw --no-audit --no-fund playwright@1.56.1 axe-core@4.10.3
+          node /tmp/ph10-pw/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Browser routes keyboard a11y anonymous denies across all three portals
+        env: {NODE_PATH: /tmp/ph10-pw/node_modules}
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=5s 240s node scripts/ci/ph03-three-portal-browser.cjs
+          echo PH10_THREE_PORTAL_EXISTING_BROWSER_SCOPE_PASS_NOT_ALL155_E2E
+      - name: Upload truth census and visual evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ph10-155-census-and-three-portals
+          path: |
+            ph10-artifacts/*.json
+            ph03-screenshots/*.png
+          if-no-files-found: warn
+          retention-days: 7
+  source-sql-and-actual-api:
+    if: github.head_ref == 'audit/ph10-full-platform-integration-155-20261103'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      TTO_ENABLE_REAL_SMSOTP_DELIVERY: "false"
+      APIIR_TOKEN: ""
+      VERCEL: ""
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: "22"}
+      - name: Start exclusively disposable PG17
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name tto-ph10-ci -e POSTGRES_HOST_AUTH_METHOD=trust -p 127.0.0.1:5432:5432 postgres:17-alpine
+          ok=false
+          for i in $(seq 1 90); do
+            if docker exec tto-ph10-ci psql -U postgres -d postgres -Atqc 'SELECT 1' >/dev/null 2>&1; then ok=true;break;fi
+            sleep 0.5
+          done
+          test "$ok" = true
+          created=false
+          for attempt in $(seq 1 45); do
+            if docker exec tto-ph10-ci createdb -U postgres tto >/dev/null 2>&1; then
+              created=true;break
+            fi
+            if docker exec tto-ph10-ci psql -U postgres -d tto -Atqc 'SELECT 1' >/dev/null 2>&1; then
+              created=true;break
+            fi
+            sleep 1
+          done
+          test "$created" = true || { docker logs tto-ph10-ci | tail -70; exit 1; }
+      - name: Apply all migrations to PG17 from exact PR head
+        run: |
+          set -euo pipefail
+          for f in database/migrations/[0-9][0-9][0-9][0-9]*.sql; do
+            echo "PH10_MIGRATION=$(basename "$f")"
+            docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" >/dev/null
+          done
+          echo PH10_MIGRATIONS_DISPOSABLE_PASS
+      - name: Prove CORE-TENANT-AT-003 exact concurrent duplicate slug boundary
+        run: |
+          set -euo pipefail
+          bash scripts/ci/ph10-concurrent-tenant-slug.sh
+      - name: Execute scoped core acceptance slices in exact-head DB
+        run: |
+          set -euo pipefail
+          for f in tests/sql/ph05-cf03-contract-depth.sql tests/sql/ph05-cf04-contract-depth.sql tests/sql/ph05-cf05-contract-depth.sql tests/sql/ph06-member-share-frozen15.sql tests/sql/ph06-positive-legal-transfer-disposable-lab.sql; do
+            echo "PH10_OLDER_PHASE_SUITE=$f"
+            docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f"
+          done
+          echo PH10_PH05_PH06_SCOPED_REGRESSION_PASS
+      - name: Execute 26 PH07 source acceptance cases
+        run: |
+          set -euo pipefail
+          for m in governance communications support transparency; do
+            docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "tests/sql/ph07-${m}-acceptance.sql"
+          done
+          echo PH10_PH07_26_SOURCE_ASSERTIONS_PASS
+      - name: Execute 36 PH08 source acceptance cases
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph08-fixture-seed.sql
+          for m in projects member-voice academy-events member-benefits marketplace procurement; do
+            docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "tests/sql/ph08-${m}-acceptance.sql"
+          done
+          echo PH10_PH08_36_SOURCE_ASSERTIONS_PASS
+      - name: Execute 38 PH09 source acceptance cases and cross-tenant restore
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph09-fixture-seed.sql
+          for m in opportunities impact grc network-intelligence data-governance operations; do
+            docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "tests/sql/ph09-${m}-acceptance.sql"
+          done
+          echo PH10_PH09_38_SOURCE_SCOPED_ASSERTIONS_PASS
+      - name: Record exact-run SQL-only evidence for 100 of 155 frozen IDs
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/ph10-exact-run-sql-ledger.py
+      - name: Install isolated authenticated-browser Chromium
+        run: |
+          npm install --prefix /tmp/tto-ph10-auth --no-audit --no-fund playwright@1.56.1
+          node /tmp/tto-ph10-auth/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Build and exercise actual Nest HTTP in same database
+        env:
+          TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+          AUTH_CHALLENGE_HMAC_SECRET: PH10_EPHEMERAL_TEST_ONLY_SECRET_32_CHAR_MINIMUM
+          PH10_AUTH_CHROMIUM: "1"
+          NODE_PATH: /tmp/tto-ph10-auth/node_modules
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.18.0
+          pnpm install --frozen-lockfile
+          pnpm --filter @tto/api build
+          pnpm --filter @tto/cooperative-management build
+          pnpm --filter @tto/shareholder build
+          pnpm --filter @tto/national-admin build
+          # Bound real browser/HTTP integration independently of the 40-minute job limit.
+          # A timeout is a failing test, never a skipped or passed acceptance check.
+          timeout --signal=TERM --kill-after=5s 480s node services/api/test/ph09-portal.http.integration.cjs
+          echo PH10_REAL_NEST_AUTHENTICATED_HTTP_PASS
+          echo PH10_BROWSER_BOTH_PORTALS_REAL_SOURCE_RENDER_PASS
+      - name: Upload authenticated mobile browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ph10-authenticated-portal-source-chromium
+          path: |
+            ph10-artifacts/ph10-*-authenticated-*.png
+            ph10-artifacts/ph10_155_exact_run_sql_ledger.json
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Verify disposable PostgreSQL17 snapshot backup and restore
+        run: |
+          set -euo pipefail
+          bash scripts/ci/ph10-disposable-backup-restore.sh
+      - name: Explicitly preserve the remaining mandatory integration blockers
+        run: |
+          echo PH10_ALL155_FULL_USER_JOURNEYS_NOT_YET_PROVEN
+          echo PH10_PHASE08_API_FULL_COVERAGE_NOT_YET_PROVEN
+          echo PH10_NO_PRODUCTION_OR_LIVE_FINANCIAL_OPS
+      - name: Destroy ephemeral database even on failure
+        if: always()
+        run: docker rm -f tto-ph10-ci || true
+  identity-source-core-real-http:
+    if: github.head_ref == 'audit/ph10-full-platform-integration-155-20261103'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: "true"
+      NODE_ENV: "test"
+      APIIR_TOKEN: ""
+      VERCEL: ""
+      TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: "22"}
+      - name: Build exact-head all portals and Nest for PH04 identity source
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.18.0
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm check
+      - name: Launch disposable independent PG17
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name tto-adaptive-postgres -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto -p 127.0.0.1:5432:5432 postgres:17
+          ok=false
+          for i in $(seq 1 100); do
+            if docker exec tto-adaptive-postgres psql -U postgres -d tto -Atqc 'SELECT 1' >/dev/null 2>&1;then ok=true;break;fi
+            sleep 0.5
+          done
+          test "$ok" = true
+      - name: Install pinned Chromium for PH04 denied-button true browser testing
+        run: |
+          npm install --prefix /tmp/tto-ph10-ph04 --no-audit --no-fund playwright@1.56.1
+          node /tmp/tto-ph10-ph04/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Run historical migrations + actual PH04 authenticated HTTP and DED-004
+        env:
+          NODE_PATH: /tmp/tto-ph10-ph04/node_modules
+          PH04_BROWSER_DED004: "1"
+        run: |
+          set -euo pipefail
+          bash scripts/ci/release-regression.sh
+          echo PH10_PH04_INDEPENDENT_IDENTITY_AUTH_HTTP_CHROMIUM_PASS_NOT_ALL_16_USER_JOURNEYS
+      - name: Archive identity browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ph10-ph04-identity-chromium
+          path: ph04-screenshots/*.png
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Remove temporary identity Postgres
+        if: always()
+        run: docker rm -f tto-adaptive-postgres || true

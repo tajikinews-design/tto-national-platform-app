@@ -79,6 +79,38 @@ async function checkPortal(slug,index) {
  await untilReady(url+"/",next,"Next "+slug);
  const homepage=await fetch(url+"/");
  const html=await homepage.text();
+ if(slug==="national-admin"){
+  // PH10 national root uses its own server-verified password session.
+  // It must never attempt member SMS-OTP or infer authority from a URL.
+  assert.ok(html.includes('ورود مدیر ملی')&&html.includes('ورود مدیر اصلی'),
+    "national root SSR must show the dedicated password authentication shell");checks++;
+  assert.ok(!html.includes('در این نسخه پیش‌نمایش، پایگاه داده'),"national root SSR disclosed preview data");checks++;
+  const anon=await fetch(url+"/api/auth/session",{cache:"no-store"});
+  assertStatus(anon,200,"national root anonymous session check");
+  assert.deepEqual(await anon.json(),{authenticated:false});checks++;
+  assert.match(anon.headers.get("cache-control")??"",/no-store/);checks++;
+  const malformed=await fetch(url+"/api/auth/session",{headers:{Cookie:"tto_session=invalid"},cache:"no-store"});
+  assertStatus(malformed,200,"national root malformed session check");
+  assert.deepEqual(await malformed.json(),{authenticated:false});checks++;
+  assert.match(malformed.headers.get("set-cookie")??"",/max-age=0/i);checks++;
+  for(const route of ["/api/auth/otp/request","/api/auth/otp/verify"]){
+   const forbidden=await post(url+route,{mobile:MOBILE,otp:OTP});
+   assertStatus(forbidden,403,"national root OTP must remain disabled "+route);
+   assert.deepEqual(await forbidden.json(),{error:"NATIONAL_ROOT_CREDENTIALS_ONLY"});checks++;
+   assert.ok(!forbidden.headers.get("set-cookie"),"national OTP must never issue cookie");checks++;
+  }
+  const crossOrigin=await post(url+"/api/national-login",{username:"ci-invalid",password:"ci-invalid"});
+  assertStatus(crossOrigin,403,"national login requires browser Origin header");
+  assert.ok(!crossOrigin.headers.get("set-cookie"),"cross-origin login issued cookie");checks++;
+  const forgedRole=await fetch(url+"/api/cooperatives/onboarding",{
+    headers:{Authorization:"Bearer "+("x".repeat(48)),"X-Role":"NATIONAL_ROOT"},cache:"no-store"
+  });
+  assertStatus(forgedRole,401,"national dossier access denied without verified cookie");
+  next.kill("SIGTERM");
+  await new Promise(r=>setTimeout(r,350));
+  console.log("CF01_THREE_PORTAL_E2E_NATIONAL_ADMIN_PASSWORD_ONLY_DENIAL_PASS");
+  return;
+ }
  assert.ok(html.includes('در حال بررسی نشست ورود'),slug+" session restoration SSR shell must be visible");checks++;
  assert.ok(!html.includes("در این نسخه پیش‌نمایش، پایگاه داده"),slug+" still claims backend unavailable");checks++;
 
@@ -200,7 +232,7 @@ async function main() {
   assert.equal(body.status,"ACCEPTED");checks++;
  }
  let events=await db.query("SELECT count(*)::integer AS n FROM tto.otp_request_throttle_events");
- assert.equal(events.rows[0].n,6,"only 3 known plus 3 unknown requests reserved");checks++;
+ assert.equal(events.rows[0].n,5,"only 2 OTP-enabled portal requests plus 3 unknown requests reserved");checks++;
  // Concurrency cannot bypass 30 source-IP/15m even with forged forwarded addresses.
  const concurrent=await Promise.all(Array.from({length:40},(_,n)=>
    post(API+"/v1/auth/challenges/request",{mobile:"0911"+String(n+1).padStart(7,"0")},{
@@ -223,7 +255,7 @@ async function main() {
  }finally{await restricted.end();}
 
  const count=await db.query("SELECT count(*)::integer AS n FROM tto.auth_challenges WHERE purpose='SMSOTP_LOGIN'");
- assert.equal(count.rows[0].n,3);checks++;
+ assert.equal(count.rows[0].n,2,"national root must not create SMSOTP_LOGIN challenge");checks++;
  console.log("CF01_THREE_PORTAL_NEXT_NEST_PG17_LOGIN_LOGOUT_E2E_PASS_CHECKS="+checks);
  console.log("CF01_TEST_FIXTURE_ONLY_NO_REAL_SMS_NO_PRODUCTION");
 }

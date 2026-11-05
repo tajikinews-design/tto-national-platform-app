@@ -1,6 +1,6 @@
 import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
-import { createHash, createHmac, randomBytes, randomUUID, randomInt } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
 
 @Injectable()
@@ -49,6 +49,13 @@ export class Database {
     }
   }
   async onModuleDestroy(): Promise<void> { await this.pool.end(); }
+  async workspaceExists(slug:string):Promise<boolean>{
+    const result=await this.pool.query(
+      "SELECT 1 FROM tto.cooperative_workspace_addresses WHERE slug=$1 AND state='RESERVED' LIMIT 1",
+      [slug]
+    );
+    return (result.rowCount??0)>0;
+  }
   async isReady(): Promise<void> { await this.pool.query("SELECT 1 FROM tto.tenants LIMIT 0"); }
   async prepareSmsLogin(mobile:string, id:string, hash:Buffer):Promise<boolean>{
     const r=await this.pool.query<{ok:boolean}>(
@@ -68,6 +75,38 @@ export class Database {
       "SELECT tto.complete_smsotp_delivery($1,$2) AS ok",[id,accepted]
     );
     return r.rows[0]?.ok===true;
+  }
+  async reserveNationalRootAttempt(key:Buffer):Promise<boolean>{
+    const result=await this.pool.query<{allowed:boolean}>(
+      "SELECT tto.reserve_national_root_attempt($1) AS allowed",[key]);
+    return result.rows[0]?.allowed===true;
+  }
+  async nationalRootCredentialState():Promise<{
+    username:string|null;password_scrypt:string|null;must_change_credentials:boolean;credentials_version:string
+  }|null>{
+    const r=await this.pool.query<{
+      username:string|null;password_scrypt:string|null;must_change_credentials:boolean;credentials_version:string
+    }>("SELECT username,password_scrypt,must_change_credentials,credentials_version FROM tto.national_root_credential_state()");
+    return r.rows[0]??null;
+  }
+  async issueNationalRootSession(hash:Buffer,version:string):Promise<boolean>{
+    const result=await this.pool.query<{issued:boolean}>(
+      "SELECT tto.issue_national_root_session($1,$2::bigint) AS issued",[hash,version]);
+    return result.rows[0]?.issued===true;
+  }
+  async beginMobileRegistration(mobile:string,id:string,hash:Buffer):Promise<boolean>{
+    const r=await this.pool.query<{ok:boolean}>(
+      "SELECT tto.begin_mobile_registration($1,$2,$3,clock_timestamp()+interval '4 minutes') AS ok",
+      [mobile,id,hash]
+    );
+    return r.rows[0]?.ok===true;
+  }
+  async consumeMobileRegistration(challengeId:string,verifier:Buffer,sessionHash:Buffer):Promise<boolean>{
+    const r=await this.pool.query<{user_id:string|null}>(
+      "SELECT tto.consume_mobile_registration($1,$2,$3) AS user_id",
+      [challengeId,verifier,sessionHash]
+    );
+    return typeof r.rows[0]?.user_id==="string";
   }
   async consumeChallenge(challengeId:string, verifier:Buffer, sessionHash:Buffer): Promise<boolean> {
     const result=await this.pool.query<{user_id:string|null}>(
@@ -184,6 +223,15 @@ export class HealthController {
 }
 
 /** Tenant commands are routed only through verified session -> transaction-local identity context. */
+function verifyNationalPassword(password:string,encoded:string):boolean{
+  const parts=encoded.split("$");
+  if(parts.length!==4||parts[0]!=="scrypt"||parts[1]!=="v1"||
+     !/^[a-f0-9]{32}$/.test(parts[2])||!/^[a-f0-9]{128}$/.test(parts[3]))
+    throw new ServiceUnavailableException("NATIONAL_CREDENTIAL_HASH_INVALID");
+  const actual=scryptSync(password,Buffer.from(parts[2],"hex"),64,
+    {N:16384,r:8,p:1,maxmem:64*1024*1024});
+  return timingSafeEqual(actual,Buffer.from(parts[3],"hex"));
+}
 const uuidPattern=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 function requireId(value:unknown):string {
   if(typeof value!=="string" || !uuidPattern.test(value))throw new BadRequestException("Invalid identifier");
@@ -202,6 +250,174 @@ export class FoundationCommandsController {
     return this.db.inTenant(actor,tenant,async c=>{
       const data=await c.query<{out:T}>(sql,values);
       return data.rows[0].out;
+    });
+  }
+
+  @Get("national/cooperative-workspaces/:slug")
+  async findWorkspace(@Param("slug") slug:string){
+    if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
+      throw new BadRequestException("INVALID_WORKSPACE_SLUG");
+    // Return only public routing identifiers, never identity, owner or company data.
+    return this.db.workspaceExists(slug).then(exists=>({exists,slug}));
+  }
+
+  @Post("national/cooperative-workspaces")
+  @HttpCode(201)
+  async reserveCooperativeWorkspace(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    // This is an address reservation, NOT legal registration, Tenant activation or role grant.
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ISOLATED_DEMO_DATABASE_REQUIRED");
+    const slug=typeof input?.slug==="string"?input.slug:"";
+    if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       new Set(["admin","login","api","auth","demo","national","shareholder","manager","system","www"]).has(slug))
+      throw new BadRequestException("INVALID_WORKSPACE_SLUG");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const role=await client.query<{allowed:boolean}>(
+        'SELECT tto.has_platform_operator() AS allowed'
+      );
+      if(role.rows[0]?.allowed!==true)
+        throw new ForbiddenException("NATIONAL_PLATFORM_OPERATOR_REQUIRED");
+      const workspaceId=randomUUID();
+      try{
+       await client.query(
+        "INSERT INTO tto.cooperative_workspace_addresses(workspace_id,slug,created_by) VALUES ($1,$2,$3)",
+        [workspaceId,slug,actor]);
+      }catch(e){
+       if((e as {code?:string}).code==="23505")
+        throw new ConflictException("WORKSPACE_ADDRESS_TAKEN");
+       throw e;
+      }
+      return {workspaceId,slug,address:"https://www.ttoir.ir/c/"+slug,
+       state:"RESERVED",managementAccessGranted:false};
+    });
+  }
+
+  // Protected national-root only. A submitted dossier is NEVER a created tenant.
+  @Get("national/cooperative-onboarding")
+  async listNationalCooperativeOnboarding(@Headers("authorization") auth:string|undefined){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const role=await client.query<{allowed:boolean}>("SELECT tto.has_national_root() AS allowed");
+      if(role.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const r=await client.query<{
+        slug:string;workspace_state:string;dossier_id:string|null;dossier_state:string|null;
+        legal_name:string|null;candidate_manager_name:string|null;submitted_at:string|null
+      }>(
+       "SELECT w.slug,w.state AS workspace_state,d.dossier_id,d.state AS dossier_state, "+
+       "d.legal_name,d.candidate_manager_name,d.submitted_at "+
+       "FROM tto.cooperative_workspace_addresses w "+
+       "LEFT JOIN tto.cooperative_onboarding_dossiers d ON d.workspace_id=w.workspace_id "+
+       "WHERE w.state='RESERVED' ORDER BY w.created_at DESC LIMIT 100"
+      );
+      return {items:r.rows,tenantActivated:false};
+    });
+  }
+
+  @Post("national/cooperative-onboarding")
+  @HttpCode(201)
+  async submitNationalCooperativeOnboarding(
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const slug=requireText(input?.slug,3,40);
+    if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
+      throw new BadRequestException("INVALID_WORKSPACE_SLUG");
+    const legalName=requireText(input?.legalName,8,180);
+    const nationalId=requireText(input?.nationalId,11,11);
+    const registrationNumber=requireText(input?.registrationNumber,1,20);
+    const province=requireText(input?.province,2,120);
+    const county=requireText(input?.county,2,120);
+    const legalAddress=requireText(input?.legalAddress,8,300);
+    const representativeName=requireText(input?.representativeName,3,120);
+    const candidateManagerName=requireText(input?.candidateManagerName,3,120);
+    const candidateManagerMobile=requireText(input?.candidateManagerMobile,11,11);
+    const evidenceReference=input?.evidenceReference===undefined||input?.evidenceReference===""
+      ?null:requireText(input?.evidenceReference,5,180);
+    if(!/^[0-9]{11}$/.test(nationalId)||!/^[0-9]{1,20}$/.test(registrationNumber)||
+       !/^09[0-9]{9}$/.test(candidateManagerMobile))
+      throw new BadRequestException("INVALID_LEGAL_IDENTIFIERS_OR_MOBILE");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const role=await client.query<{allowed:boolean}>("SELECT tto.has_national_root() AS allowed");
+      if(role.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const reserved=await client.query<{workspace_id:string}>(
+        "SELECT workspace_id FROM tto.cooperative_workspace_addresses "+
+        "WHERE slug=$1 AND state='RESERVED'",[slug]);
+      if(reserved.rowCount!==1)
+        throw new BadRequestException("WORKSPACE_MUST_BE_RESERVED");
+      const existingTenant=await client.query(
+        "SELECT 1 FROM tto.tenants WHERE slug=$1 LIMIT 1",[slug]);
+      if(existingTenant.rowCount)throw new ConflictException("WORKSPACE_ALREADY_PROVISIONED");
+      const id=randomUUID();
+      try{
+        await client.query(
+          "INSERT INTO tto.cooperative_onboarding_dossiers "+
+          "(dossier_id,workspace_id,legal_name,national_id,registration_number,"+
+          "province,county,legal_address,representative_name,candidate_manager_name,"+
+          "candidate_manager_mobile,evidence_reference,created_by) "+
+          "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)",
+          [id,reserved.rows[0].workspace_id,legalName,nationalId,registrationNumber,
+            province,county,legalAddress,representativeName,candidateManagerName,
+            candidateManagerMobile,evidenceReference,actor]
+        );
+        await client.query(
+          "INSERT INTO tto.cooperative_onboarding_audit(dossier_id,actor_id,action) "+
+          "VALUES ($1,$2,'DOSSIER_SUBMITTED')",[id,actor]);
+      }catch(e){
+        if((e as {code?:string}).code==="23505")
+          throw new ConflictException("DOSSIER_ALREADY_EXISTS");
+        throw e;
+      }
+      return {dossierId:id,slug,status:"PENDING_LEGAL_REVIEW",tenantCreated:false,
+        managerRoleGranted:false,managerMobileVerified:false};
+    });
+  }
+
+  @Post("national/cooperative-intakes")
+  @HttpCode(201)
+  async createNationalCooperativeIntake(
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>
+  ){
+    // Preview DB must be explicitly confirmed disposable. This is NOT tenant creation.
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ISOLATED_DEMO_DATABASE_REQUIRED");
+    const name=requireText(input?.name,8,180).trim();
+    const registrationNumber=requireText(input?.registrationNumber,1,20).trim();
+    const nationalId=requireText(input?.nationalId,11,11).trim();
+    const province=requireText(input?.province,2,120).trim();
+    const county=requireText(input?.county,2,120).trim();
+    const address=requireText(input?.address,4,300).trim();
+    const representative=requireText(input?.representative,2,120).trim();
+    if(!/^[0-9]{11}$/.test(nationalId)||!/^[0-9]{1,20}$/.test(registrationNumber))
+      throw new BadRequestException("INVALID_COMPANY_IDENTIFIERS");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const access=await client.query<{allowed:boolean}>(
+        'SELECT EXISTS (SELECT 1 FROM tto.list_actor_tenant_options() WHERE "platformOperator" IS TRUE) AS allowed'
+      );
+      if(access.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_PLATFORM_OPERATOR_REQUIRED");
+      // The unique constraint enforces idempotency; broad SELECT is intentionally disallowed by RLS.
+      const id=randomUUID();
+      try{
+        await client.query(
+          "INSERT INTO tto.national_cooperative_intake (intake_id,national_id,registration_number,legal_name,province,county,legal_address,representative,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+          [id,nationalId,registrationNumber,name,province,county,address,representative,actor]
+        );
+        await client.query(
+          "INSERT INTO tto.national_cooperative_intake_audit (intake_id,actor_id,event_type) VALUES ($1,$2,'INTAKE_CREATED')",
+          [id,actor]
+        );
+      }catch(e){
+        if((e as {code?:string}).code==="23505")
+          throw new ConflictException("NATIONAL_ID_ALREADY_SUBMITTED");
+        throw e;
+      }
+      return {intakeId:id,status:"PENDING_VERIFICATION",created:true,tenantCreated:false};
     });
   }
 
@@ -331,6 +547,172 @@ export class FoundationCommandsController {
     if(!record)throw new ForbiddenException("Verified shareholding unavailable");
     return {record};
   }
+  /** Preview-only enrollment. A verified mobile creates an ordinary user,
+   * NEVER a national operator, manager or tenant assignment. */
+  /**
+   * Owner-authenticated national root login, separate from SMS OTP.
+   * Guarded by branch-scoped Preview secrets and Postgres rate limits.
+   * A valid credential alone cannot create or approve any other root.
+   */
+  @Post("national/root/login")
+  @HttpCode(200)
+  async loginNationalRoot(@Body() input:Record<string,unknown>,@Req() req:{ip?:string}){
+    if(process.env.TTO_NATIONAL_ROOT_LOGIN_ENABLED!=="true" ||
+       process.env.TTO_ISOLATED_DEMO_DB!=="true" ||
+       (process.env.VERCEL==="1" && process.env.VERCEL_ENV!=="preview"))
+      throw new ServiceUnavailableException("NATIONAL_LOGIN_UNAVAILABLE");
+    const username=input?.username;
+    const password=input?.password;
+    if(typeof username!=="string" || username.length>64 ||
+       typeof password!=="string" || password.length>128)
+      throw new BadRequestException("INVALID_CREDENTIAL_REQUEST");
+    const secret=process.env.TTO_NATIONAL_ROOT_ATTEMPT_SECRET;
+    const initialUsername=process.env.TTO_NATIONAL_ROOT_USERNAME;
+    const initialHash=process.env.TTO_NATIONAL_ROOT_PASSWORD_SCRYPT;
+    const ip=req?.ip;
+    if(!secret||Buffer.byteLength(secret)<32||
+       typeof ip!=="string"||ip.length<3||ip.length>64)
+      throw new ServiceUnavailableException("NATIONAL_LOGIN_UNAVAILABLE");
+    const fingerprint=createHmac("sha256",secret).update("national-login-ip:"+ip).digest();
+    const globalKey=createHmac("sha256",secret).update("national-login-global").digest();
+    if(!await this.db.reserveNationalRootAttempt(fingerprint) ||
+       !await this.db.reserveNationalRootAttempt(globalKey))
+      throw new ForbiddenException("LOGIN_RATE_LIMITED");
+    const state=await this.db.nationalRootCredentialState();
+    if(!state)throw new ServiceUnavailableException("NATIONAL_ROOT_NOT_PROVISIONED");
+    // Once a new credential is stored, the original bootstrap secret is permanently retired.
+    const effectiveUsername=state.password_scrypt?state.username:initialUsername;
+    const effectiveHash=state.password_scrypt??initialHash;
+    if(!effectiveUsername || !effectiveHash)
+      throw new ServiceUnavailableException("NATIONAL_LOGIN_UNAVAILABLE");
+    if(!verifyNationalPassword(password,effectiveHash) ||
+       !timingSafeEqual(createHash("sha256").update(username).digest(),
+        createHash("sha256").update(effectiveUsername).digest()))
+      throw new UnauthorizedException("INVALID_CREDENTIALS");
+    const token=randomBytes(48).toString("base64url");
+    const tokenHash=createHash("sha256").update(token).digest();
+    const created=await this.db.issueNationalRootSession(tokenHash,state.credentials_version);
+    if(!created)throw new ServiceUnavailableException("NATIONAL_LOGIN_RETRY_REQUIRED");
+    return {accessToken:token,tokenType:"Bearer",nationalRoot:true,
+      mustChangeCredentials:state.must_change_credentials};
+  }
+
+  @Get("national/root/session")
+  async nationalRootSession(@Headers("authorization") auth?:string){
+    const actor=await this.db.sessionActor(auth);
+    const status=await this.db.withActor(actor,async client=>{
+      const r=await client.query<{principal:boolean;must_change:boolean}>(
+        "SELECT tto.is_national_root_principal() AS principal,tto.national_root_requires_change() AS must_change");
+      return r.rows[0];
+    });
+    if(status?.principal!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+    return {authenticated:true,nationalRoot:true,
+      mustChangeCredentials:status.must_change===true};
+  }
+
+  @Post("national/root/change-credentials")
+  @HttpCode(200)
+  async changeNationalRootCredentials(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    if(process.env.TTO_NATIONAL_ROOT_LOGIN_ENABLED!=="true" ||
+       process.env.TTO_ISOLATED_DEMO_DB!=="true" ||
+       (process.env.VERCEL==="1" && process.env.VERCEL_ENV!=="preview"))
+      throw new ServiceUnavailableException("NATIONAL_LOGIN_UNAVAILABLE");
+    const username=input?.newUsername;
+    const password=input?.newPassword;
+    const current=input?.currentPassword;
+    if(typeof username!=="string"||!/^[A-Za-z0-9._-]{5,64}$/.test(username)||
+       typeof password!=="string"||password.length<14||password.length>128||
+       Buffer.byteLength(password)>256||/^\\d+$/.test(password)||
+       typeof current!=="string"||current.length<1||current.length>128)
+      throw new BadRequestException("WEAK_NEW_CREDENTIALS");
+    const actor=await this.db.sessionActor(auth);
+    const state=await this.db.nationalRootCredentialState();
+    const currentUser=state?.password_scrypt?state.username:process.env.TTO_NATIONAL_ROOT_USERNAME;
+    const currentHash=state?.password_scrypt??process.env.TTO_NATIONAL_ROOT_PASSWORD_SCRYPT;
+    if(!state||!currentUser||!currentHash)
+      throw new ServiceUnavailableException("NATIONAL_LOGIN_UNAVAILABLE");
+    if(username===currentUser||password===current||
+       password.includes(currentUser)||password.includes(username))
+      throw new BadRequestException("NEW_CREDENTIALS_MUST_DIFFER");
+    if(!verifyNationalPassword(current,currentHash))
+      throw new UnauthorizedException("INVALID_CREDENTIALS");
+    const salt=randomBytes(16).toString("hex");
+    const digest=scryptSync(password,Buffer.from(salt,"hex"),64,
+      {N:16384,r:8,p:1,maxmem:64*1024*1024}).toString("hex");
+    const encoded="scrypt$v1$"+salt+"$"+digest;
+    const changed=await this.db.withActor(actor,async client=>{
+      const response=await client.query<{changed:boolean}>(
+       "SELECT tto.rotate_national_root_credentials($1,$2,$3::bigint,$4) AS changed",
+       [username,encoded,state.credentials_version,this.db.sessionDigest(auth)]);
+      return response.rows[0]?.changed===true;
+    });
+    if(!changed)throw new ForbiddenException("NATIONAL_ROOT_CREDENTIAL_CHANGE_DENIED");
+    // PostgreSQL revokes every existing root session, including this request's cookie.
+    return {changed:true,sessionsRevoked:true,loginRequired:true};
+  }
+
+  @Post("auth/registration/request")
+  @HttpCode(202)
+  async requestMobileRegistration(@Body() input:Record<string,unknown>,@Req() req:{ip?:string}){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true" ||
+       process.env.TTO_ENABLE_MOBILE_REGISTRATION!=="true")
+      throw new ServiceUnavailableException("REGISTRATION_NOT_ENABLED");
+    const mobile=input?.mobile;
+    if(typeof mobile!=="string" || !/^09[0-9]{9}$/.test(mobile))
+      throw new BadRequestException("INVALID_MOBILE");
+    const pepper=process.env.AUTH_CHALLENGE_HMAC_SECRET;
+    const guard=process.env.AUTH_ABUSE_HMAC_SECRET;
+    const ip=req?.ip;
+    if(!pepper||Buffer.byteLength(pepper)<32 ||
+       !guard||Buffer.byteLength(guard)<32 ||
+       typeof ip!=="string"||ip.length<3||ip.length>64)
+      throw new ServiceUnavailableException("AUTH_CAPACITY_UNAVAILABLE");
+    const synthetic=process.env.NODE_ENV==="test" &&
+       process.env.TTO_MOCK_SMSOTP_PROVIDER==="true";
+    if(!synthetic &&
+      (process.env.TTO_ENABLE_REAL_SMSOTP_DELIVERY!=="true" ||
+       !process.env.APIIR_TOKEN || process.env.APIIR_TOKEN.length<12))
+      throw new ServiceUnavailableException("SMS_DELIVERY_UNAVAILABLE");
+    const requestId=randomUUID();
+    const ipKey=createHmac("sha256",guard).update("ip:v1:"+ip).digest();
+    const mobileKey=createHmac("sha256",guard).update("mobile:v1:"+mobile).digest();
+    let allowed=false;
+    try{allowed=await this.db.reservePublicOtpRequest(ipKey,mobileKey)}
+    catch{throw new ServiceUnavailableException("AUTH_CAPACITY_UNAVAILABLE")}
+    if(!allowed)return {requestId,status:"ACCEPTED"};
+    const code=synthetic?"111222":String(randomInt(100000,1000000));
+    const hash=createHmac("sha256",pepper).update(requestId+":"+code).digest();
+    const created=await this.db.beginMobileRegistration(mobile,requestId,hash);
+    if(created){
+      let sent=false;
+      try{sent=await this.sms.send(mobile,code)}catch{sent=false}
+      await this.db.attestSmsDelivery(requestId,sent);
+    }
+    // Do not reveal whether this mobile already exists or is throttled.
+    return {requestId,status:"ACCEPTED"};
+  }
+
+  @Post("auth/registration/verify")
+  @HttpCode(200)
+  async verifyMobileRegistration(@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true" ||
+       process.env.TTO_ENABLE_MOBILE_REGISTRATION!=="true")
+      throw new ServiceUnavailableException("REGISTRATION_NOT_ENABLED");
+    const id=requireId(input?.challengeId);
+    if(typeof input?.otp!=="string"||!/^[0-9]{6}$/.test(input.otp))
+      throw new BadRequestException("INVALID_CODE");
+    const pepper=process.env.AUTH_CHALLENGE_HMAC_SECRET;
+    if(!pepper||Buffer.byteLength(pepper)<32)
+      throw new ServiceUnavailableException("AUTH_UNAVAILABLE");
+    const digest=createHmac("sha256",pepper).update(id+":"+input.otp).digest();
+    const accessToken=randomBytes(48).toString("base64url");
+    const sessionHash=createHash("sha256").update(accessToken).digest();
+    const accepted=await this.db.consumeMobileRegistration(id,digest,sessionHash);
+    if(!accepted)throw new UnauthorizedException("INVALID_OR_EXPIRED_CODE");
+    return {accessToken,tokenType:"Bearer",nationalOperator:false};
+  }
+
   @Post("auth/challenges/request")
   @HttpCode(202)
   async requestSmsLogin(@Body() payload:Record<string,unknown>,@Req() req:{ip?:string}){
@@ -765,5 +1147,92 @@ export class Ph09PortalController {
  }
 }
 
-@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController],providers:[ApiIrSmsOtpProvider]})
+/**
+ * PH10 gap repair: PH08 source-backed read-only integration into the real
+ * authenticated Nest API. No new business operations or automatic approvals.
+ * Controller NEVER selects raw private PH08 tables as tto_app.
+ */
+@Controller("v1/tenants")
+export class Ph10Phase08ReadController {
+ constructor(private readonly db:Database){}
+ private async scoped(tenant:string,authorization:string|undefined,sql:string){
+  const actor=await this.db.sessionActor(authorization);
+  return this.db.inTenant(actor,tenant,async client=>{
+   const r=await client.query(sql);
+   return {items:r.rows,tenantScoped:true,readOnly:true};
+  });
+ }
+ @Get(":tenantId/ph08/projects/disclosures")
+ async projects(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,"SELECT project_id,name FROM tto.ph08_my_project_disclosures()");
+ }
+ @Get(":tenantId/ph08/voice/open-polls")
+ async polls(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,"SELECT poll_id,title,deadline FROM tto.ph10_member_open_polls()");
+ }
+ @Post(":tenantId/ph08/voice/:pollId/respond")
+ async respondPoll(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+ @Param("pollId",new ParseUUIDPipe()) poll:string,
+ @Headers("authorization") auth:string|undefined,
+ @Body() input:Record<string,unknown>){
+  const answer=requireText(input?.answer,1,400);
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const r=await c.query<{accepted:boolean}>(
+     "SELECT tto.ph10_submit_member_poll($1,$2) AS accepted",[poll,answer]);
+   if(r.rows[0]?.accepted!==true)throw new ForbiddenException({code:"POLL_DEADLINE_AUDIENCE_OR_DUPLICATE"});
+   return {recorded:true,legalVote:false};
+  });
+ }
+ @Post(":tenantId/ph08/learning/events/:eventId/enroll")
+ async enroll(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+ @Param("eventId",new ParseUUIDPipe()) event:string,
+ @Headers("authorization") auth?:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const r=await c.query<{outcome:string}>(
+     "SELECT tto.ph10_enroll_training_event($1) AS outcome",[event]);
+   const status=r.rows[0]?.outcome;
+   if(status==="DUPLICATE")throw new ConflictException({code:"EVENT_ALREADY_REGISTERED"});
+   if(status!=="CONFIRMED"&&status!=="WAITLIST")throw new ForbiddenException({code:"EVENT_OR_ROLE_NOT_ALLOWED"});
+   return {registration:status,courseCompleted:false,certificateIssued:false};
+  });
+ }
+ @Post(":tenantId/ph08/benefits/vouchers/:voucherId/redeem")
+ async redeem(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+ @Param("voucherId",new ParseUUIDPipe()) voucher:string,
+ @Headers("authorization") auth?:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const r=await c.query<{redeemed:boolean}>(
+     "SELECT tto.ph10_redeem_member_voucher($1) AS redeemed",[voucher]);
+   if(r.rows[0]?.redeemed!==true)throw new ForbiddenException({code:"NONCASH_VOUCHER_INVALID_USED_OR_FOREIGN"});
+   return {redeemed:true,walletCredit:false,cashTransfer:false};
+  });
+ }
+ @Get(":tenantId/ph08/learning/events")
+ async learning(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,"SELECT event_id,course_title,capacity,refund_policy_version,registration_state FROM tto.ph10_member_training_events()");
+ }
+ @Get(":tenantId/ph08/benefits/my-vouchers")
+ async benefits(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,"SELECT voucher_id,title,expires_at,noncash_units FROM tto.ph10_member_vouchers()");
+ }
+ @Get(":tenantId/ph08/market/offers")
+ async marketplace(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,"SELECT offer_id,title,price_snapshot,seller_kind FROM tto.ph10_member_market_offers()");
+ }
+ @Get(":tenantId/ph08/procurement/tenders")
+ async tenders(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,"SELECT tender_id,deadline,opened_at,criteria_version FROM tto.ph10_manager_procurement_tenders()");
+ }
+}
+
+@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController],providers:[ApiIrSmsOtpProvider]})
 export class AppModule {}

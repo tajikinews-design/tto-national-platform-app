@@ -1,0 +1,788 @@
+{
+  "phase": "PH10",
+  "version": "1.0",
+  "sourceDocument": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+  "sourceURL": "https://docs.google.com/document/d/1wbnxjxgU_mDynU9Un8BmM1ep8B7BH0kO/edit",
+  "authority": "verbatim scenario / expected from owner-issued source",
+  "identityRegister": "docs/analysis/ACCEPTANCE_IDS.json",
+  "sourceCount": 155,
+  "technicalCertification": "NOT_ENTAILED_BY_SOURCE_TEXT",
+  "formalOperationalAcceptance": "NOT_ISSUED",
+  "cases": [
+    {
+      "id": "CORE-AUTH-AT-001",
+      "sourceScenario": "Account in two tenants",
+      "sourceExpected": "permissions independent"
+    },
+    {
+      "id": "CORE-AUTH-AT-002",
+      "sourceScenario": "cross-tenant URL/API",
+      "sourceExpected": "reject"
+    },
+    {
+      "id": "CORE-AUTH-AT-003",
+      "sourceScenario": "expired role active session",
+      "sourceExpected": "reject"
+    },
+    {
+      "id": "CORE-AUTH-AT-004",
+      "sourceScenario": "Platform Admin no JIT",
+      "sourceExpected": "tenant data reject"
+    },
+    {
+      "id": "CORE-AUTH-AT-005",
+      "sourceScenario": "OTP replay",
+      "sourceExpected": "second reject"
+    },
+    {
+      "id": "CORE-AUTH-AT-006",
+      "sourceScenario": "revoked role stale token",
+      "sourceExpected": "not usable"
+    },
+    {
+      "id": "CORE-AUTH-AT-007",
+      "sourceScenario": "creator=approver",
+      "sourceExpected": "SoD block"
+    },
+    {
+      "id": "CORE-AUTH-AT-008",
+      "sourceScenario": "permission without authority",
+      "sourceExpected": "AUTHORITY_REQUIRED"
+    },
+    {
+      "id": "CORE-TENANT-AT-001",
+      "sourceScenario": "activate tenant",
+      "sourceExpected": "no implicit role/member"
+    },
+    {
+      "id": "CORE-TENANT-AT-002",
+      "sourceScenario": "change slug",
+      "sourceExpected": "tenant_id stable"
+    },
+    {
+      "id": "CORE-TENANT-AT-003",
+      "sourceScenario": "duplicate slug race",
+      "sourceExpected": "only one succeeds"
+    },
+    {
+      "id": "CORE-TENANT-AT-004",
+      "sourceScenario": "party without user",
+      "sourceExpected": "valid"
+    },
+    {
+      "id": "CORE-TENANT-AT-005",
+      "sourceScenario": "link user-party",
+      "sourceExpected": "no membership/share"
+    },
+    {
+      "id": "CORE-TENANT-AT-006",
+      "sourceScenario": "party merge with shares",
+      "sourceExpected": "no ownership transfer"
+    },
+    {
+      "id": "CORE-TENANT-AT-007",
+      "sourceScenario": "duplicate relationship event",
+      "sourceExpected": "no second effect"
+    },
+    {
+      "id": "CORE-TENANT-AT-008",
+      "sourceScenario": "global party enumeration",
+      "sourceExpected": "not public"
+    },
+    {
+      "id": "CORE-DOC-AT-001",
+      "sourceScenario": "آپلود فایل آلوده",
+      "sourceExpected": "QUARANTINED و غیرقابل download"
+    },
+    {
+      "id": "CORE-DOC-AT-002",
+      "sourceScenario": "انتشار سند بدون approval",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "CORE-DOC-AT-003",
+      "sourceScenario": "ویرایش سند منتشرشده",
+      "sourceExpected": "نسخه جدید ساخته شود"
+    },
+    {
+      "id": "CORE-DOC-AT-004",
+      "sourceScenario": "حدس storage key",
+      "sourceExpected": "Access denied"
+    },
+    {
+      "id": "CORE-DOC-AT-005",
+      "sourceScenario": "Seal evidence bundle",
+      "sourceExpected": "bundle hash ثابت"
+    },
+    {
+      "id": "CORE-DOC-AT-006",
+      "sourceScenario": "Audit delete attempt",
+      "sourceExpected": "ممنوع"
+    },
+    {
+      "id": "CORE-DOC-AT-007",
+      "sourceScenario": "Legal hold فعال",
+      "sourceExpected": "Disposition blocked"
+    },
+    {
+      "id": "CORE-DOC-AT-008",
+      "sourceScenario": "Cross-tenant download",
+      "sourceExpected": "Reject + audit"
+    },
+    {
+      "id": "CORE-RULE-AT-001",
+      "sourceScenario": "قاعده بدون source",
+      "sourceExpected": "Publish blocked"
+    },
+    {
+      "id": "CORE-RULE-AT-002",
+      "sourceScenario": "rule جدید با future effective date",
+      "sourceExpected": "قبل از تاریخ اعمال نشود"
+    },
+    {
+      "id": "CORE-RULE-AT-003",
+      "sourceScenario": "تراکنش تاریخی",
+      "sourceExpected": "rule version قبلی حفظ"
+    },
+    {
+      "id": "CORE-RULE-AT-004",
+      "sourceScenario": "gate OPEN fail-closed",
+      "sourceExpected": "feature finalize blocked"
+    },
+    {
+      "id": "CORE-RULE-AT-005",
+      "sourceScenario": "tenant override خارج schema",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "CORE-RULE-AT-006",
+      "sourceScenario": "Proxy baseline",
+      "sourceExpected": "max 3 نتیجه دهد"
+    },
+    {
+      "id": "CORE-RULE-AT-007",
+      "sourceScenario": "Two-stage >500",
+      "sourceExpected": "TWO_STAGE"
+    },
+    {
+      "id": "CORE-RULE-AT-008",
+      "sourceScenario": "Rule supersede",
+      "sourceExpected": "old version still queryable"
+    },
+    {
+      "id": "CORE-INT-AT-001",
+      "sourceScenario": "تکرار webhook",
+      "sourceExpected": "اثر دوم نداشته باشد"
+    },
+    {
+      "id": "CORE-INT-AT-002",
+      "sourceScenario": "receipt upload",
+      "sourceExpected": "فقط PAYMENT_REPORTED"
+    },
+    {
+      "id": "CORE-INT-AT-003",
+      "sourceScenario": "verification success",
+      "sourceExpected": "PAYMENT_VERIFIED event"
+    },
+    {
+      "id": "CORE-INT-AT-004",
+      "sourceScenario": "callback browser redirect",
+      "sourceExpected": "به‌تنهایی verified نشود"
+    },
+    {
+      "id": "CORE-INT-AT-005",
+      "sourceScenario": "notification provider fail",
+      "sourceExpected": "business transaction rollback نشود"
+    },
+    {
+      "id": "CORE-INT-AT-006",
+      "sourceScenario": "cross-tenant credential use",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "CORE-INT-AT-007",
+      "sourceScenario": "wallet balance query",
+      "sourceExpected": "feature absent"
+    },
+    {
+      "id": "CORE-INT-AT-008",
+      "sourceScenario": "out-of-order provider status",
+      "sourceExpected": "state regression نشود"
+    },
+    {
+      "id": "MEMBER-AT-001",
+      "sourceScenario": "Application submit",
+      "sourceExpected": "SUBMITTED + audit"
+    },
+    {
+      "id": "MEMBER-AT-002",
+      "sourceScenario": "Approve membership",
+      "sourceExpected": "ACTIVE relationship"
+    },
+    {
+      "id": "MEMBER-AT-003",
+      "sourceScenario": "Party exists without membership",
+      "sourceExpected": "valid"
+    },
+    {
+      "id": "MEMBER-AT-004",
+      "sourceScenario": "Non-member shareholder",
+      "sourceExpected": "no member vote inferred"
+    },
+    {
+      "id": "MEMBER-AT-005",
+      "sourceScenario": "Cross-tenant member lookup",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "MEMBER-AT-006",
+      "sourceScenario": "End membership",
+      "sourceExpected": "history retained"
+    },
+    {
+      "id": "MEMBER-AT-007",
+      "sourceScenario": "Duplicate decision retry",
+      "sourceExpected": "single effect"
+    },
+    {
+      "id": "SHARE-AT-001",
+      "sourceScenario": "دو فروش هم‌زمان یک سهم",
+      "sourceExpected": "فقط یک lock موفق"
+    },
+    {
+      "id": "SHARE-AT-002",
+      "sourceScenario": "receipt upload",
+      "sourceExpected": "ownership unchanged"
+    },
+    {
+      "id": "SHARE-AT-003",
+      "sourceScenario": "verified payment",
+      "sourceExpected": "still no ownership until finalize"
+    },
+    {
+      "id": "SHARE-AT-004",
+      "sourceScenario": "valuation expired",
+      "sourceExpected": "finalization blocked"
+    },
+    {
+      "id": "SHARE-AT-005",
+      "sourceScenario": "cap violation",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "SHARE-AT-006",
+      "sourceScenario": "cancel transfer",
+      "sourceExpected": "share lock released"
+    },
+    {
+      "id": "SHARE-AT-007",
+      "sourceScenario": "finalize retry",
+      "sourceExpected": "single ledger effect"
+    },
+    {
+      "id": "SHARE-AT-008",
+      "sourceScenario": "non-member without required approval",
+      "sourceExpected": "voting right not inferred"
+    },
+    {
+      "id": "GOV-AT-001",
+      "sourceScenario": "3 proxy registrations",
+      "sourceExpected": "Accept"
+    },
+    {
+      "id": "GOV-AT-002",
+      "sourceScenario": "4th proxy",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "GOV-AT-003",
+      "sourceScenario": "501 members",
+      "sourceExpected": "TWO_STAGE"
+    },
+    {
+      "id": "GOV-AT-004",
+      "sourceScenario": "500 members",
+      "sourceExpected": "ONE_STAGE"
+    },
+    {
+      "id": "GOV-AT-005",
+      "sourceScenario": "candidate without chamber letter",
+      "sourceExpected": "PENDING_EXTERNAL_REVIEW"
+    },
+    {
+      "id": "GOV-AT-006",
+      "sourceScenario": "candidate in approved letter",
+      "sourceExpected": "APPROVED"
+    },
+    {
+      "id": "GOV-AT-007",
+      "sourceScenario": "SMS-only notice",
+      "sourceExpected": "legal_notice_complete=false"
+    },
+    {
+      "id": "GOV-AT-008",
+      "sourceScenario": "online legal voting request",
+      "sourceExpected": "official-system handoff/not hosted"
+    },
+    {
+      "id": "COMM-AT-001",
+      "sourceScenario": "Delivered without read",
+      "sourceExpected": "Read=false"
+    },
+    {
+      "id": "COMM-AT-002",
+      "sourceScenario": "Read without ack",
+      "sourceExpected": "Ack=false"
+    },
+    {
+      "id": "COMM-AT-003",
+      "sourceScenario": "Recipient snapshot after publish",
+      "sourceExpected": "audience ثابت"
+    },
+    {
+      "id": "COMM-AT-004",
+      "sourceScenario": "duplicate send callback",
+      "sourceExpected": "no duplicate state"
+    },
+    {
+      "id": "COMM-AT-005",
+      "sourceScenario": "cross-tenant feed",
+      "sourceExpected": "no leak"
+    },
+    {
+      "id": "COMM-AT-006",
+      "sourceScenario": "acknowledgement",
+      "sourceExpected": "explicit evidence created"
+    },
+    {
+      "id": "SUP-AT-001",
+      "sourceScenario": "User sees another user ticket",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "SUP-AT-002",
+      "sourceScenario": "SLA waiting state",
+      "sourceExpected": "clock pause as policy"
+    },
+    {
+      "id": "SUP-AT-003",
+      "sourceScenario": "Agent without JIT opens sensitive source",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "SUP-AT-004",
+      "sourceScenario": "Resolve ticket",
+      "sourceExpected": "resolution recorded"
+    },
+    {
+      "id": "SUP-AT-005",
+      "sourceScenario": "Repeated material issue",
+      "sourceExpected": "GRC handoff"
+    },
+    {
+      "id": "SUP-AT-006",
+      "sourceScenario": "Internal note",
+      "sourceExpected": "not visible to requester"
+    },
+    {
+      "id": "TRN-AT-001",
+      "sourceScenario": "Publish without source",
+      "sourceExpected": "Blocked"
+    },
+    {
+      "id": "TRN-AT-002",
+      "sourceScenario": "Supersede report",
+      "sourceExpected": "old version remains"
+    },
+    {
+      "id": "TRN-AT-003",
+      "sourceScenario": "Wallet report request",
+      "sourceExpected": "feature absent"
+    },
+    {
+      "id": "TRN-AT-004",
+      "sourceScenario": "Auditor edit attempt",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "TRN-AT-005",
+      "sourceScenario": "Cross-tenant export",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "TRN-AT-006",
+      "sourceScenario": "Proposed dividend",
+      "sourceExpected": "not shown as paid"
+    },
+    {
+      "id": "PROJ-AT-001",
+      "sourceScenario": "Project without required permit",
+      "sourceExpected": "Activation blocked"
+    },
+    {
+      "id": "PROJ-AT-002",
+      "sourceScenario": "Branch outside county",
+      "sourceExpected": "not auto independent activity"
+    },
+    {
+      "id": "PROJ-AT-003",
+      "sourceScenario": "Milestone complete",
+      "sourceExpected": "event emitted"
+    },
+    {
+      "id": "PROJ-AT-004",
+      "sourceScenario": "Project record only",
+      "sourceExpected": "no ownership claim"
+    },
+    {
+      "id": "PROJ-AT-005",
+      "sourceScenario": "Member view",
+      "sourceExpected": "only approved disclosure"
+    },
+    {
+      "id": "PROJ-AT-006",
+      "sourceScenario": "Concurrent update",
+      "sourceExpected": "conflict handled"
+    },
+    {
+      "id": "VOICE-AT-001",
+      "sourceScenario": "Poll result",
+      "sourceExpected": "not legal resolution"
+    },
+    {
+      "id": "VOICE-AT-002",
+      "sourceScenario": "Late response",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "VOICE-AT-003",
+      "sourceScenario": "Unauthorized audience",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "VOICE-AT-004",
+      "sourceScenario": "Duplicate response policy",
+      "sourceExpected": "single accepted"
+    },
+    {
+      "id": "VOICE-AT-005",
+      "sourceScenario": "Small cohort aggregate",
+      "sourceExpected": "privacy suppression"
+    },
+    {
+      "id": "VOICE-AT-006",
+      "sourceScenario": "Accepted proposal",
+      "sourceExpected": "explicit handoff, not automatic project"
+    },
+    {
+      "id": "LEARN-AT-001",
+      "sourceScenario": "Attend event only",
+      "sourceExpected": "course not auto completed"
+    },
+    {
+      "id": "LEARN-AT-002",
+      "sourceScenario": "Full event concurrent register",
+      "sourceExpected": "capacity not exceeded"
+    },
+    {
+      "id": "LEARN-AT-003",
+      "sourceScenario": "Waitlist vacancy",
+      "sourceExpected": "promotion per policy"
+    },
+    {
+      "id": "LEARN-AT-004",
+      "sourceScenario": "Certificate without completion",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "LEARN-AT-005",
+      "sourceScenario": "Retired course",
+      "sourceExpected": "history remains"
+    },
+    {
+      "id": "LEARN-AT-006",
+      "sourceScenario": "Paid event refund",
+      "sourceExpected": "policy version recorded"
+    },
+    {
+      "id": "BEN-AT-001",
+      "sourceScenario": "Benefit limited no allocation policy",
+      "sourceExpected": "Activation blocked"
+    },
+    {
+      "id": "BEN-AT-002",
+      "sourceScenario": "Redeem twice",
+      "sourceExpected": "second rejected"
+    },
+    {
+      "id": "BEN-AT-003",
+      "sourceScenario": "Reward units",
+      "sourceExpected": "not withdrawable cash"
+    },
+    {
+      "id": "BEN-AT-004",
+      "sourceScenario": "Expired voucher",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "BEN-AT-005",
+      "sourceScenario": "Cross-tenant entitlement",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "BEN-AT-006",
+      "sourceScenario": "Reward display",
+      "sourceExpected": "not labelled dividend"
+    },
+    {
+      "id": "MKT-AT-001",
+      "sourceScenario": "Member supplier proposal",
+      "sourceExpected": "does not create public offer"
+    },
+    {
+      "id": "MKT-AT-002",
+      "sourceScenario": "Order payment",
+      "sourceExpected": "seller=cooperative"
+    },
+    {
+      "id": "MKT-AT-003",
+      "sourceScenario": "Refund",
+      "sourceExpected": "policy version retained"
+    },
+    {
+      "id": "MKT-AT-004",
+      "sourceScenario": "Sponsored creative",
+      "sourceExpected": "labelled"
+    },
+    {
+      "id": "MKT-AT-005",
+      "sourceScenario": "Sensitive targeting attempt",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "MKT-AT-006",
+      "sourceScenario": "Cross-tenant seller order",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "PROC-AT-001",
+      "sourceScenario": "Bid after deadline",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "PROC-AT-002",
+      "sourceScenario": "Evaluator opens sealed bid early",
+      "sourceExpected": "Reject/audit"
+    },
+    {
+      "id": "PROC-AT-003",
+      "sourceScenario": "Criteria edit after open",
+      "sourceExpected": "Blocked/new event required"
+    },
+    {
+      "id": "PROC-AT-004",
+      "sourceScenario": "Group procurement payment pool",
+      "sourceExpected": "feature absent"
+    },
+    {
+      "id": "PROC-AT-005",
+      "sourceScenario": "Conflict evaluator",
+      "sourceExpected": "SoD/GRC block"
+    },
+    {
+      "id": "PROC-AT-006",
+      "sourceScenario": "Threshold change",
+      "sourceExpected": "versioned policy"
+    },
+    {
+      "id": "OPP-AT-001",
+      "sourceScenario": "Late application",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "OPP-AT-002",
+      "sourceScenario": "AI low score",
+      "sourceExpected": "no auto-reject"
+    },
+    {
+      "id": "OPP-AT-003",
+      "sourceScenario": "Reviewer other tenant",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "OPP-AT-004",
+      "sourceScenario": "Procurement-like opportunity",
+      "sourceExpected": "handoff formal sourcing"
+    },
+    {
+      "id": "OPP-AT-005",
+      "sourceScenario": "Interview request",
+      "sourceExpected": "Events handoff"
+    },
+    {
+      "id": "OPP-AT-006",
+      "sourceScenario": "Status history",
+      "sourceExpected": "preserved"
+    },
+    {
+      "id": "IMPACT-AT-001",
+      "sourceScenario": "Project milestone",
+      "sourceExpected": "not auto impact claim"
+    },
+    {
+      "id": "IMPACT-AT-002",
+      "sourceScenario": "Measurement no source",
+      "sourceExpected": "quality fail/block publish"
+    },
+    {
+      "id": "IMPACT-AT-003",
+      "sourceScenario": "SROI request",
+      "sourceExpected": "auto calculation absent"
+    },
+    {
+      "id": "IMPACT-AT-004",
+      "sourceScenario": "Public claim",
+      "sourceExpected": "requires approval"
+    },
+    {
+      "id": "IMPACT-AT-005",
+      "sourceScenario": "Sensitive beneficiary export",
+      "sourceExpected": "restricted"
+    },
+    {
+      "id": "IMPACT-AT-006",
+      "sourceScenario": "Historical methodology",
+      "sourceExpected": "version preserved"
+    },
+    {
+      "id": "GRC-AT-001",
+      "sourceScenario": "Article129 transaction no workflow",
+      "sourceExpected": "finalization blocked"
+    },
+    {
+      "id": "GRC-AT-002",
+      "sourceScenario": "Article132 director loan",
+      "sourceExpected": "hard block"
+    },
+    {
+      "id": "GRC-AT-003",
+      "sourceScenario": "Related party alone",
+      "sourceExpected": "not automatically prohibited"
+    },
+    {
+      "id": "GRC-AT-004",
+      "sourceScenario": "Whistleblower identity access",
+      "sourceExpected": "need-to-know only"
+    },
+    {
+      "id": "GRC-AT-005",
+      "sourceScenario": "Control test evidence",
+      "sourceExpected": "immutable"
+    },
+    {
+      "id": "GRC-AT-006",
+      "sourceScenario": "Close finding without verification when required",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "NI-AT-001",
+      "sourceScenario": "No data",
+      "sourceExpected": "not rendered as zero"
+    },
+    {
+      "id": "NI-AT-002",
+      "sourceScenario": "Small cohort",
+      "sourceExpected": "suppressed"
+    },
+    {
+      "id": "NI-AT-003",
+      "sourceScenario": "Different metric versions",
+      "sourceExpected": "not compared"
+    },
+    {
+      "id": "NI-AT-004",
+      "sourceScenario": "Tenant asks peer exact value",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "NI-AT-005",
+      "sourceScenario": "Snapshot rebuild",
+      "sourceExpected": "new version"
+    },
+    {
+      "id": "NI-AT-006",
+      "sourceScenario": "Estimated value",
+      "sourceExpected": "labelled estimated"
+    },
+    {
+      "id": "DG-AT-001",
+      "sourceScenario": "Legal hold vs delete race",
+      "sourceExpected": "hold blocks disposition"
+    },
+    {
+      "id": "DG-AT-002",
+      "sourceScenario": "Archived record",
+      "sourceExpected": "not treated as deleted"
+    },
+    {
+      "id": "DG-AT-003",
+      "sourceScenario": "Material final record hard delete",
+      "sourceExpected": "Reject"
+    },
+    {
+      "id": "DG-AT-004",
+      "sourceScenario": "Policy change",
+      "sourceExpected": "historical disposition snapshot retained"
+    },
+    {
+      "id": "DG-AT-005",
+      "sourceScenario": "Unclassified sensitive export",
+      "sourceExpected": "fail closed/review"
+    },
+    {
+      "id": "DG-AT-006",
+      "sourceScenario": "Hold release",
+      "sourceExpected": "future disposition can resume"
+    },
+    {
+      "id": "OPS-AT-001",
+      "sourceScenario": "108/47 traceability",
+      "sourceExpected": "complete mapping"
+    },
+    {
+      "id": "OPS-AT-002",
+      "sourceScenario": "Cross-tenant suite",
+      "sourceExpected": "PASS"
+    },
+    {
+      "id": "OPS-AT-003",
+      "sourceScenario": "Wallet regression",
+      "sourceExpected": "no cash wallet endpoints/balances"
+    },
+    {
+      "id": "OPS-AT-004",
+      "sourceScenario": "Backup restore",
+      "sourceExpected": "tenant data not mixed"
+    },
+    {
+      "id": "OPS-AT-005",
+      "sourceScenario": "Migration dry-run",
+      "sourceExpected": "reconciliation zero unexplained"
+    },
+    {
+      "id": "OPS-AT-006",
+      "sourceScenario": "Release with failed mandatory test",
+      "sourceExpected": "blocked"
+    },
+    {
+      "id": "OPS-AT-007",
+      "sourceScenario": "500 tenant synthetic isolation",
+      "sourceExpected": "no hard tenant cap"
+    },
+    {
+      "id": "OPS-AT-008",
+      "sourceScenario": "Rollback rehearsal",
+      "sourceExpected": "documented/verified"
+    }
+  ]
+}

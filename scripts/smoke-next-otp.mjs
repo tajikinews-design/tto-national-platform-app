@@ -11,16 +11,28 @@ for (let idx=0;idx<slugs.length;idx++){
   cwd,env:{...process.env,TTO_API_BASE_URL:"",PORT:String(port),NEXT_TELEMETRY_DISABLED:"1"},stdio:"ignore"
  });
  try{
-  let ready=false;
+  let ready=false,homeHtml="";
   for(let n=0;n<80;n++){
    if(server.exitCode!==null)throw Error(slug+" exited");
-   try{const r=await fetch("http://127.0.0.1:"+port+"/");if(r.ok){ready=true;const html=await r.text();
-    if(!html.includes("ورود با رمز یک‌بارمصرف"))throw Error(slug+" missing OTP form");
-    if(!html.includes("در این نسخه پیش‌نمایش"))throw Error(slug+" did not fail closed");
-    checks++;break;}}catch{}
+   try{
+    const r=await fetch("http://127.0.0.1:"+port+"/");
+    if(r.ok){homeHtml=await r.text();ready=true;break;}
+   }catch{}
    await new Promise(r=>setTimeout(r,200));
   }
   if(!ready)throw Error(slug+" not ready");
+  // Keep actual security assertions OUTSIDE the network retry catch:
+  // a malformed login UI must fail CI, never be silently swallowed.
+  if(slug==="national-admin"){
+   if(!homeHtml.includes("ورود مدیر ملی")||
+      !homeHtml.includes("ورود صرفاً با نام کاربری و رمز عبور اختصاصی")||
+      homeHtml.includes("ورود با رمز یک‌بارمصرف"))
+    throw Error("national root homepage must use dedicated credential gate, never OTP");
+  }else if(!homeHtml.includes("ورود با رمز یک‌بارمصرف")||
+           !homeHtml.includes("در این نسخه پیش‌نمایش")){
+   throw Error(slug+" OTP unavailable home gate missing");
+  }
+  checks++;
   // All ten module pages per portal mount only fail-closed public SSR without
   // backend/session; authenticated owner information never renders anonymously.
   const moduleCases=Array.from({length:10},(_,i)=>{
@@ -44,6 +56,17 @@ for (let idx=0;idx<slugs.length;idx++){
         html.includes("عضویت فعال — منبع تأییدشده")||
         html.includes("تعداد سهام: "))
        throw Error(slug+" protected module leaked private data or lacked fail-closed OTP");
+   }else if(slug==="national-admin"){
+     // National OTP is prohibited. JIT module scope is listed exclusively
+     // after server authorization; without backend no private tenant option
+     // can ever be included in anonymous SSR.
+     if(html.includes("ورود با رمز یک‌بارمصرف")||
+        !html.includes("دسترسی موقت مدیریت ملی")||
+        !html.includes("دسترسی ماژول نیازمند تأیید مجوز است")||
+        html.includes("Synthetic approved-to-display minute")||
+        html.includes("کارپوشه شخصی سهامدار")||
+        html.includes("تعداد سهام: "))
+       throw Error(slug+" JIT module must fail closed without national OTP or private data");
    }else{
      if(!html.includes("ورود با رمز یک‌بارمصرف")||
         !html.includes("در این نسخه پیش‌نمایش")||
@@ -123,6 +146,35 @@ for (let idx=0;idx<slugs.length;idx++){
     if(malformed.status!==400)throw Error("source-gated "+domain+" accepted invalid tenant ID");
     checks++;
    }
+  }
+  // PH10 cooperative source BFF: spoofed credentials never bypass cookies or
+  // switch source domain and tenant; no backend must always fail closed.
+  if(slug==="cooperative-management"){
+    const root="http://127.0.0.1:"+port+"/api/tenants/"+tid+"/ph10/";
+    for(const moduleId of ["NAV-04","NAV-05","NAV-07","NAV-08","NAV-09","NAV-10"]){
+      const anonymous=await fetch(root+moduleId,{
+        headers:{Authorization:"Bearer "+"z".repeat(48),"X-Role":"COOPERATIVE_MANAGER"}
+      });
+      const anonBody=await anonymous.json();
+      if(anonymous.status!==401||anonBody.available!==false||
+         !/no-store/.test(anonymous.headers.get("cache-control")??""))
+        throw Error("PH10_BFF_UNAUTH_SOURCE_LEAK_"+moduleId);
+      checks++;
+      const fakeCookie=await fetch(root+moduleId,{
+        headers:{Cookie:"tto_session="+"f".repeat(48)}
+      });
+      const unavailable=await fakeCookie.json();
+      if(fakeCookie.status!==503||unavailable.available!==false)
+        throw Error("PH10_BFF_MISSING_BACKEND_FAIL_OPEN_"+moduleId);
+      checks++;
+    }
+    const unapproved=await fetch(root+"NAV-03");
+    if(unapproved.status!==404)throw Error("PH10_BFF_UNAPPROVED_MODULE_ACCESS");
+    const invalid=await fetch("http://127.0.0.1:"+port+
+      "/api/tenants/not-uuid/ph10/NAV-10");
+    if(invalid.status!==400)throw Error("PH10_BFF_INVALID_TENANT");
+    checks+=2;
+    console.log("PH10_COOP_BFF_SIX_SOURCE_ROUTES_FAIL_CLOSED_PASS");
   }
   // Anonymous navigation is allowed only for public-design review copy.
   // The actual shareholder operational portal remains guarded by OTP and legal sources.
@@ -250,7 +302,16 @@ for (let idx=0;idx<slugs.length;idx++){
    const response=await fetch("http://127.0.0.1:"+port+route,{
     method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mobile:"09123456789",otp:"123456"})
    });
-   if(response.status!==503)throw Error(slug+" "+route+" unexpectedly returned "+response.status);
+   if(slug==="national-admin"){
+    // The national root login is password-only. OTP requests and verification
+    // MUST be forbidden even if the backend is unavailable; never relax 403.
+    if(response.status!==403)throw Error(slug+" "+route+" must deny OTP with 403; got "+response.status);
+    const denied=await response.json();
+    if(denied.error!=="NATIONAL_ROOT_CREDENTIALS_ONLY")
+     throw Error("national root OTP endpoint did not fail closed");
+   }else if(response.status!==503){
+    throw Error(slug+" "+route+" unexpectedly returned "+response.status);
+   }
    checks++;
   }
  }finally{server.kill("SIGTERM");}
@@ -271,7 +332,12 @@ for(let idx=0;idx<slugs.length;idx++){
      const r=await fetch("http://127.0.0.1:"+port+"/");
      if(r.ok){
        const html=await r.text();
-       if(!html.includes("در حال بررسی نشست ورود"))throw Error(slug+" runtime-enabled session restoration shell missing");
+       if(slug==="national-admin"){
+        if(!html.includes("ورود مدیر ملی")||!html.includes("در حال بررسی اعتبار نشست"))
+         throw Error("national root password/session restoration shell missing");
+       }else if(!html.includes("در حال بررسی نشست ورود")){
+        throw Error(slug+" runtime-enabled session restoration shell missing");
+       }
        checks++;ready=true;break;
      }
    }catch {}

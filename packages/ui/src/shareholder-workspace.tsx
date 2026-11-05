@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 import {ShareholderReadModels} from "./shareholder-read-models";
+import {ShareholderSourceSection} from "./shareholder-source-section";
 import {SHAREHOLDER_SECTION_RULES,type ShareholderSectionId} from "./shareholder-section-config";
 import {shareholderNavigation} from "./shareholder-navigation";
 
@@ -232,16 +233,19 @@ export function ShareholderWorkspace({
       <div><span className="sw-eyebrow">{initialSectionId} · حوزه مستقل</span>
        <h3>{shareholderNavigation[Number(initialSectionId.slice(4))-1]}</h3>
        <p>{section.description}</p></div>
-      <span className="sw-pill">فاقد منبع عملیاتی تأییدشده</span>
+      <span className="sw-pill">{(["NAV-06","NAV-07","NAV-08","NAV-10"] as string[]).includes(initialSectionId)?
+       "فقط منابع دارای مجوز · بدون عملیات مالی":"فاقد منبع عملیاتی تأییدشده"}</span>
      </div>
+     {verified&&selected?<ShareholderSourceSection tenantId={selected}
+      moduleId={initialSectionId} onSessionInvalidated={onSessionInvalidated}/>:null}
      <div className="sw-section-boundary">
       <h4>مرجع موردنیاز</h4><p>{section.authority}</p>
       <h4>قابلیت پیش‌بینی‌شده پس از تصویب</h4><p>{section.capability}</p>
      </div>
      <p className="sw-message sw-warning" role="status">{verified?
-       "محدوده تعاونی بررسی شده، اما منبع داده، مجوز مخاطب و اختیار این بخش هنوز مستقلاً تأیید نشده‌اند. هیچ فهرست، پرونده یا عملیاتی نمایش داده نمی‌شود.":
+       "محدوده تعاونی بررسی شد؛ داده این بخش تنها در صورت مجوز مستقل منبع و نقش از API خوانده می‌شود. عدم وجود مجوز به معنای نمایش فهرست یا داده ساختگی نیست.":
        "ابتدا تعاونی و محدوده مجاز را تأیید کنید. ورود به حساب به‌تنهایی حق مشاهده یا انجام عملیات این بخش ایجاد نمی‌کند."}</p>
-     <p className="sw-footnote">این بخش فقط‌خواندنی است. درخواست، رأی‌گیری، دانلود سند، ویرایش تنظیمات و پرداخت در این مرحله فعال نیست.</p>
+     {initialSectionId==="NAV-06"?<p className="sw-footnote">ثبت‌نام آموزشی در رویدادهای مجاز پس از احراز عضویت و تعاونی از طریق سرور انجام می‌شود؛ پرداخت، معامله سهام و انتقال مالکیت فعال نیست.</p>:<p className="sw-footnote">این بخش فقط‌خواندنی است. درخواست، رأی‌گیری، دانلود سند، ویرایش تنظیمات و پرداخت در این مرحله فعال نیست.</p>}
     </article>:null}
    {view==="membership"?<div className="sw-cards sw-membership">
      <article className="sw-card"><h3>پرونده عضویت</h3>
