@@ -35,6 +35,12 @@ class ThreePortalBoundary(unittest.TestCase):
                 self.assertIn("import NationalRootLogin",home)
                 self.assertIn("<NationalRootLogin/>",home)
                 self.assertNotIn('OtpLogin surface="national"',home)
+                # Module JIT reviews are session/tenant-gated, never SMS OTP.
+                modules=(APPS/app/"app/modules/[id]/page.tsx").read_text(encoding="utf-8")
+                self.assertIn('<TenantScopePicker surface="national" moduleId={moduleId}/>',modules)
+                self.assertNotIn('OtpLogin surface="national"',modules)
+                self.assertIn('export { TenantScopePicker } from "./tenant-scope-picker";',
+                              (UI/"index.tsx").read_text(encoding="utf-8"))
                 root_login=(APPS/app/"app/national-root-login.tsx").read_text(encoding="utf-8")
                 self.assertIn('fetch("/api/auth/session"',root_login)
                 self.assertIn('x.authenticated===true&&x.nationalRoot===true',root_login)
