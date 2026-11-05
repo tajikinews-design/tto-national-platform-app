@@ -310,9 +310,24 @@ async function main(){
   const reviewedUI=await managerPage.locator("main").innerText();
   assert.ok(reviewedUI.includes(second.claimId));
   assert.ok(reviewedUI.includes("هیچ گزارش، تأیید رسمی"));
+  // Mobile RTL keyboard smoke: the private review panel remains operable by Tab.
+  await managerPage.keyboard.press("Tab");
+  const focused=await managerPage.evaluate(()=>document.activeElement?.tagName??"");
+  assert.ok(["A","INPUT","SELECT","BUTTON","TEXTAREA"].includes(focused),
+   "keyboard navigation must focus an interactive control");
   checks++;
   await managerContext.close();
  }finally{await browserReview.close();}
+ // Concurrent retries for the same review request key are one immutable finding.
+ const raceKey=randomUUID(),raceReview={...reviewPayload,requestKey:raceKey,
+  outcome:"MISMATCH_REPORTED",rationale:"Concurrent synthetic reviewer mismatch only, no approval."};
+ const reviewRace=await Promise.all([review(raceReview,reviewerToken),review(raceReview,reviewerToken)]);
+ assert.deepEqual(reviewRace.map(x=>x.status).sort(),[201,201]);
+ assert.equal(reviewRace[0].value.findingId,reviewRace[1].value.findingId);
+ assert.equal(reviewRace.filter(x=>x.value.replayed===false).length,1);
+ expect(await review({...raceReview,outcome:"INCONCLUSIVE"},reviewerToken),409,
+  "same review idempotency key with a conflicting outcome denied");
+ checks++;
  await db.query("UPDATE tto.cooperative_gazette_review_tenant_mandates SET revoked_at=now() WHERE reviewer_id=$1 AND tenant_id=$2",[reviewer,tenant]);
  expect(await review({...reviewPayload,requestKey:randomUUID()},reviewerToken),403,
   "revoked tenant-specific mandate denied even while global mandate valid");
@@ -361,6 +376,23 @@ async function main(){
  expect(await get(pagesPath+"?limit=30",{token:""}),401,"anonymous paged history denied");
  expect(await get(pagesPath+"?limit=30",{token:outsiderToken}),403,"foreign reader paged history denied");
  expect(await get(pagesPath+"?limit=101"),400,"oversized paged history rejected");
+ // Competing successor corrections for one claim must never fork the immutable chain.
+ const rootRace=expect(await post(path,{...payload,requestKey:randomUUID(),
+  gazetteIssueNumber:"99991",gazetteAnnouncementNumber:"RACE1",supersedesClaimId:null}),
+  201,"concurrency fixture original manual claim");
+ const correctionA={...payload,requestKey:randomUUID(),
+  gazetteIssueNumber:"99992",gazetteAnnouncementNumber:"RACE2",supersedesClaimId:rootRace.claimId};
+ const correctionB={...correctionA,requestKey:randomUUID(),
+  gazetteIssueNumber:"99993",gazetteAnnouncementNumber:"RACE3"};
+ const [resultA,resultB]=await Promise.all([post(path,correctionA),post(path,correctionB)]);
+ assert.deepEqual([resultA.status,resultB.status].sort(),[201,409],
+  "one and only one correction may succeed concurrently");
+ const actualCorrections=await db.query(
+  "SELECT count(*)::int AS n FROM tto.cooperative_manual_official_governance_claims WHERE supersedes_claim_id=$1",
+  [rootRace.claimId]);
+ assert.equal(actualCorrections.rows[0].n,1);
+ checks++;
+ console.log("PH10_9_CONCURRENT_CORRECTION_AND_REVIEW_REPLAY_PASS_NO_ROLE_ELEVATION");
  console.log("PH10_9_HISTORY_OVER_100_KEYSET_BFF_NEST_PG17_PASS_PAGES="+pageCount);
  console.log("PH10_MANUAL_GAZETTE_BFF_NEST_PG17_NO_ROLE_ELEVATION_PASS_CHECKS="+checks);
 }
