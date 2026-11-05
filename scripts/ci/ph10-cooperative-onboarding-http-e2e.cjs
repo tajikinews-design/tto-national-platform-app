@@ -30,8 +30,8 @@ async function ready(url,p){for(let n=0;n<100;n++){
  await pause(240);
 }throw Error("SERVER_NOT_READY_"+url);}
 async function req(path,{method="GET",token=rootToken,body,origin=true}={}){
- const headers={...(token?{Cookie:"tto_session="+token}:{}),
- ...(method!=="GET"&&origin?{Origin:web}:{}),
+ const headers={Host:"localhost:"+webPort,...(token?{Cookie:"tto_session="+token}:{}),
+ ...(method!=="GET"&&origin?{Origin:"http://localhost:"+webPort}:{}),
  ...(body!==undefined?{"Content-Type":"application/json"}:{})};
  const r=await fetch(web+path,{method,headers,
  ...(body!==undefined?{body:JSON.stringify(body)}:{}),cache:"no-store",redirect:"manual",
