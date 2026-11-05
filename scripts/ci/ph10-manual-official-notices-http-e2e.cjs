@@ -204,6 +204,39 @@ async function main(){
   await anonContext.close();
   console.log("PH10_MANUAL_GAZETTE_CHROMIUM_HISTORY_AND_CORRECTION_PASS_NO_DISCLOSURE");
  }finally{await browser.close();}
+ // PH10.9: synthetic full traversal beyond the old first-100 history limit.
+ await db.query(`INSERT INTO tto.cooperative_manual_official_governance_claims(
+  tenant_id,request_key,submitted_by,person_full_name,office_type,
+  signing_mode,authority_scope,official_issue_number,official_publication_date,
+  official_announcement_number)
+ SELECT $1,gen_random_uuid(),$2,'Synthetic Historic Officer '||n,
+  'BOARD_MEMBER','NONE','No independently authorized signatory powers',
+  '23000',CURRENT_DATE,'SYN'||n
+ FROM generate_series(1,105) n`,[tenant,manager]);
+ const pagesPath="/api/tenants/"+tenant+"/official-notices/pages";
+ let cursor=null;const seen=new Set();let pageCount=0;
+ for(;;){
+  const u=pagesPath+"?limit=30"+(cursor?
+   "&beforeCreated="+encodeURIComponent(cursor.beforeCreated)+
+   "&beforeId="+encodeURIComponent(cursor.beforeId):"");
+  const item=expect(await get(u),200,"authenticated Gazette history page");
+  assert.equal(item.officiallyVerified,false);assert.equal(item.roleGranted,false);
+  assert.equal(item.legalApproval,false);assert.ok(item.items.length<=30);
+  for(const row of item.items){
+   assert.ok(!seen.has(row.claimId),"duplicate between page cursors");
+   seen.add(row.claimId);
+  }
+  pageCount++;
+  if(!item.hasMore)break;
+  assert.ok(item.nextCursor?.beforeCreated&&item.nextCursor?.beforeId);
+  cursor=item.nextCursor;
+  assert.ok(pageCount<20,"page traversal failed to terminate");
+ }
+ assert.equal(seen.size,107,"must traverse all 105 synthetic fixtures and 2 prior claims");checks++;
+ expect(await get(pagesPath+"?limit=30",{token:""}),401,"anonymous paged history denied");
+ expect(await get(pagesPath+"?limit=30",{token:outsiderToken}),403,"foreign reader paged history denied");
+ expect(await get(pagesPath+"?limit=101"),400,"oversized paged history rejected");
+ console.log("PH10_9_HISTORY_OVER_100_KEYSET_BFF_NEST_PG17_PASS_PAGES="+pageCount);
  console.log("PH10_MANUAL_GAZETTE_BFF_NEST_PG17_NO_ROLE_ELEVATION_PASS_CHECKS="+checks);
 }
 main().catch(e=>{console.error("PH10_MANUAL_GAZETTE_E2E_FAIL",
