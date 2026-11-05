@@ -22,6 +22,7 @@ ALTER TABLE tto.cooperative_onboarding_audit
   ADD COLUMN prior_state text,
   ADD COLUMN resulting_state text,
   ADD COLUMN resulting_version integer,
+  ADD COLUMN evidence_at_action text,
   ADD COLUMN reason text CHECK (reason IS NULL OR length(reason) BETWEEN 5 AND 1500);
 CREATE INDEX cooperative_onboarding_audit_dossier_time_idx
  ON tto.cooperative_onboarding_audit(dossier_id,occurred_at DESC);
@@ -58,6 +59,8 @@ BEGIN
   IF FOUND THEN
     IF v_prior.actor_id = v_actor AND v_prior.dossier_id = p_dossier_id
        AND v_prior.action = p_action AND
+       v_prior.resulting_version = p_expected_version+1 AND
+       v_prior.evidence_at_action IS NOT DISTINCT FROM nullif(btrim(p_evidence_reference),'') AND
        v_prior.reason IS NOT DISTINCT FROM nullif(btrim(p_reason),'') THEN
       RETURN jsonb_build_object('dossierId',p_dossier_id,
          'status',v_prior.resulting_state,'version',v_prior.resulting_version,
@@ -103,9 +106,9 @@ BEGIN
     WHERE dossier_id=p_dossier_id;
   INSERT INTO tto.cooperative_onboarding_audit(
     dossier_id,actor_id,action,request_key,prior_state,resulting_state,
-    resulting_version,reason)
+    resulting_version,evidence_at_action,reason)
   VALUES (p_dossier_id,v_actor,p_action,p_request_key,v_old,v_next,
-          p_expected_version+1,v_reason);
+          p_expected_version+1,nullif(btrim(p_evidence_reference),''),v_reason);
   RETURN jsonb_build_object('dossierId',p_dossier_id,'status',v_next,
      'version',p_expected_version+1,'replayed',false,
      'tenantCreated',false,'managerRoleGranted',false);
