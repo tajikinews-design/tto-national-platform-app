@@ -331,6 +331,11 @@ async function main(){
  await db.query("UPDATE tto.cooperative_gazette_review_tenant_mandates SET revoked_at=now() WHERE reviewer_id=$1 AND tenant_id=$2",[reviewer,tenant]);
  expect(await review({...reviewPayload,requestKey:randomUUID()},reviewerToken),403,
   "revoked tenant-specific mandate denied even while global mandate valid");
+ await db.query("UPDATE tto.cooperative_gazette_review_tenant_mandates "+
+  "SET revoked_at=NULL,expires_at=now()-interval '1 minute' WHERE reviewer_id=$1 AND tenant_id=$2",
+  [reviewer,tenant]);
+ expect(await review({...reviewPayload,requestKey:randomUUID()},reviewerToken),403,
+  "expired scoped reviewer mandate rejected independently of active global appointment");
  await db.query("UPDATE tto.cooperative_external_legal_review_mandates SET revoked_at=now() WHERE reviewer_id=$1",[reviewer]);
  expect(await review({...reviewPayload,requestKey:randomUUID()},reviewerToken),403,"revoked reviewer denied");
  console.log("PH10_9_INDEPENDENT_REVIEW_BFF_NEST_PG17_CHROMIUM_PASS_NO_LEGAL_PROMOTION");
@@ -394,6 +399,15 @@ async function main(){
  checks++;
  console.log("PH10_9_CONCURRENT_CORRECTION_AND_REVIEW_REPLAY_PASS_NO_ROLE_ELEVATION");
  console.log("PH10_9_HISTORY_OVER_100_KEYSET_BFF_NEST_PG17_PASS_PAGES="+pageCount);
+ // Fail closed when the actual Nest legal-review backend becomes unavailable.
+ nest.kill("SIGTERM");
+ for(let i=0;i<20&&nest.exitCode===null;i++)
+  await new Promise(resolve=>setTimeout(resolve,100));
+ assert.notEqual(nest.exitCode,null,"synthetic Nest backend must terminate before fault check");
+ expect(await get(reviewListPath),503,"review findings history cannot leak on backend outage");
+ expect(await get(pagesPath),503,"private official notice history cannot leak on backend outage");
+ checks+=2;
+ console.log("PH10_9_GAZETTE_HISTORY_BACKEND_OUTAGE_FAIL_CLOSED_PASS");
  console.log("PH10_MANUAL_GAZETTE_BFF_NEST_PG17_NO_ROLE_ELEVATION_PASS_CHECKS="+checks);
 }
 main().catch(e=>{console.error("PH10_MANUAL_GAZETTE_E2E_FAIL",
