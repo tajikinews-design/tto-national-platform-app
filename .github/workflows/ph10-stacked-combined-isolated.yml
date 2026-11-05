@@ -54,7 +54,12 @@ jobs:
       - name: Install Chromium for real browser RTL/accessibility
         run: |
           npm install --prefix /tmp/ph10-pw --no-audit --no-fund playwright@1.56.1 axe-core@4.10.3
-          # GitHub hosted Ubuntu runner already has browser runtime libraries.\n          # Do not call apt --with-deps here: Ubuntu mirror hangs previously\n          # cancelled the entire browser gate after 40 minutes (run 42064598886).\n          timeout --signal=TERM --kill-after=5s 210s node /tmp/ph10-pw/node_modules/playwright/cli.js install chromium\n          echo PH10_PINNED_CHROMIUM_INSTALL_NO_APT_PASS
+          set -euo pipefail
+          # Avoid apt mirror resolution: GitHub runner system libs are already present.
+          # Install only pinned browser bytes with an explicit failure deadline.
+          timeout --signal=TERM --kill-after=5s 210s node /tmp/ph10-pw/node_modules/playwright/cli.js install chromium
+          node -e "const fs=require('node:fs'); const pw=require('/tmp/ph10-pw/node_modules/playwright'); if(!fs.existsSync(pw.chromium.executablePath())){throw Error('CHROMIUM_HEADLESS_NOT_INSTALLED')}"
+          echo PH10_PINNED_CHROMIUM_INSTALL_NO_APT_PASS
       - name: Browser routes keyboard a11y anonymous denies across all three portals
         env: {NODE_PATH: /tmp/ph10-pw/node_modules}
         run: |
