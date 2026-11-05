@@ -21,6 +21,9 @@ class PH10CooperativeSourceGate(unittest.TestCase):
         cls.draft = read("database/migrations/9999_ph10_cooperative_onboarding_drafts.sql")
         cls.quarantine = read("database/migrations/9999b_ph10_cooperative_evidence_quarantine.sql")
         cls.external = read("database/migrations/9999c_ph10_cooperative_external_source_review_gate.sql")
+        cls.malware = read("database/migrations/9999d_ph10_cooperative_malware_scan_receipts.sql")
+        cls.clamd = read("services/api/src/clamd-evidence.ts")
+        cls.scan_bff = read("apps/national-admin/app/api/cooperatives/onboarding-evidence/[evidenceId]/scan/route.ts")
         cls.api = read("services/api/src/module.ts")
         cls.front = read("apps/national-admin/app/cooperatives/onboarding/page.tsx")
         cls.draft_bff = read("apps/national-admin/app/api/cooperatives/onboarding-drafts/route.ts")
@@ -28,7 +31,7 @@ class PH10CooperativeSourceGate(unittest.TestCase):
         cls.review_bff = read("apps/national-admin/app/api/cooperatives/onboarding/[dossierId]/actions/route.ts")
 
     def test_no_autonomous_legal_activation(self):
-        for sql in (self.review, self.draft, self.quarantine, self.external):
+        for sql in (self.review, self.draft, self.quarantine, self.external, self.malware):
             self.assertNotRegex(sql, r"(?i)\bINSERT\s+INTO\s+tto\.(?:tenants|role_assignments)\b")
             self.assertNotRegex(sql, r"(?i)\bUPDATE\s+tto\.tenants\b")
         self.assertNotIn("'APPROVED'", self.review)
@@ -92,12 +95,29 @@ class PH10CooperativeSourceGate(unittest.TestCase):
         self.assertIn("saveDraft", self.front)
         self.assertIn("REFER_EXTERNAL_REVIEW", self.front)
 
+    def test_scan_receipts_are_not_releasing_legal_quarantine(self):
+        self.assertIn("REVOKE ALL ON tto.cooperative_onboarding_malware_scan_receipts FROM PUBLIC,tto_app",self.malware)
+        self.assertIn("REVIEWER_SESSION",self.external)
+        self.assertIn("tto.resolve_session(p_session_hash)",self.malware)
+        self.assertIn("FOR SHARE",self.malware)
+        self.assertIn("'stillQuarantined',true",self.malware)
+        self.assertIn("'authenticity','NOT_VERIFIED'",self.malware)
+        self.assertNotIn("UPDATE tto.cooperative_onboarding_evidence_quarantine",self.malware)
+        self.assertNotIn("INSERT INTO tto.tenants",self.malware)
+        self.assertIn("zINSTREAM\\0",self.clamd)
+        self.assertIn("socket.setTimeout",self.clamd)
+        self.assertIn('from "./clamd-evidence"',self.api)
+        self.assertIn('POST(req:NextRequest',self.scan_bff)
+        self.assertIn('ORIGIN_REQUIRED',self.scan_bff)
+        self.assertIn('stillQuarantined!==true',self.scan_bff)
+
     def test_pg17_test_files_are_rollback_only(self):
         files = (
             "tests/sql/ph10-cooperative-dossier-review-disposable.sql",
             "tests/sql/ph10-cooperative-draft-disposable.sql",
             "tests/sql/ph10-cooperative-evidence-quarantine-disposable.sql",
             "tests/sql/ph10-cooperative-external-source-review-disposable.sql",
+            "tests/sql/ph10-cooperative-malware-scan-disposable.sql",
         )
         for name in files:
             sql = read(name)
