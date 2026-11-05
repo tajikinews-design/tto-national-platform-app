@@ -438,6 +438,63 @@ export class FoundationCommandsController {
     });
   }
 
+  @Post("tenants/:tenantId/governance/manual-official-notices")
+  @HttpCode(201)
+  async reportManualOfficialGovernanceNotice(
+    @Param("tenantId",new ParseUUIDPipe()) tenantId:string,
+    @Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>
+  ){
+    // Only existing activated tenants with independently authorized managers.
+    // Explicitly disabled for any non-isolated runtime until legal release review.
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("MANUAL_GAZETTE_REGISTRY_NOT_RELEASED");
+    if(!input||typeof input!=="object"||Array.isArray(input))
+      throw new BadRequestException("INVALID_GAZETTE_CLAIM");
+    const requestKey=requireId(input.requestKey);
+    const personName=requireText(input.personFullName,3,160);
+    const officeType=String(input.officeType??"");
+    const signingMode=String(input.signingMode??"");
+    const authorityScope=requireText(input.authorityScope,10,1500);
+    const gazetteIssue=String(input.gazetteIssueNumber??"");
+    const gazetteDate=String(input.gazettePublicationDate??"");
+    const gazetteNotice=String(input.gazetteAnnouncementNumber??"");
+    const from=typeof input.effectiveFrom==="string"?input.effectiveFrom:null;
+    const until=typeof input.effectiveUntil==="string"?input.effectiveUntil:null;
+    const url=typeof input.officialReferenceUrl==="string"?input.officialReferenceUrl:null;
+    const supersedes=typeof input.supersedesClaimId==="string"?requireId(input.supersedesClaimId):null;
+    if(!["BOARD_CHAIR","BOARD_VICE_CHAIR","BOARD_MEMBER","CEO","AUTHORIZED_SIGNATORY","INSPECTOR","OTHER"].includes(officeType)||
+       !["NONE","INDIVIDUAL","JOINT","BOARD_RESOLUTION","OTHER_SPECIFIED"].includes(signingMode)||
+       !/^[0-9]{1,20}$/.test(gazetteIssue)||
+       !/^[0-9A-Za-z-]{1,40}$/.test(gazetteNotice)||
+       !/^\\d{4}-\\d{2}-\\d{2}$/.test(gazetteDate)||
+       (from!==null&&!/^\\d{4}-\\d{2}-\\d{2}$/.test(from))||
+       (until!==null&&!/^\\d{4}-\\d{2}-\\d{2}$/.test(until))||
+       (url!==null&&(!url.startsWith("https://")||url.length>400)))
+      throw new BadRequestException("INVALID_OFFICIAL_GAZETTE_CITATION");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.inTenant(actor,tenantId,async client=>{
+      try{
+        const result=await client.query<{out:Record<string,unknown>}>(
+         "SELECT tto.submit_manual_official_governance_claim("+
+         "$1::uuid,$2::uuid,$3::text,$4::text,$5::text,$6::text,"+
+         "$7::text,$8::date,$9::text,$10::date,$11::date,$12::text,"+
+         "$13::uuid,$14::bytea) AS out",
+         [tenantId,requestKey,personName,officeType,signingMode,authorityScope,
+          gazetteIssue,gazetteDate,gazetteNotice,from,until,url,supersedes,
+          this.db.sessionDigest(auth)]);
+        return {tenantId,...result.rows[0].out};
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("MANAGER_LEGAL_AUTHORITY_REQUIRED");
+        if(code==="23505")throw new ConflictException("GAZETTE_REQUEST_KEY_CONFLICT");
+        if(["22023","22007","22008","23514"].includes(code??""))
+          throw new BadRequestException("INVALID_OFFICIAL_GAZETTE_CITATION");
+        throw e;
+      }
+    });
+  }
+
   // PH10.6: root-only, authenticated, no-plaintext-response ClamAV scan.
   // A CLEAN receipt does not release quarantine or make the document authentic.
   @Post("national/cooperative-onboarding-evidence/:evidenceId/scan")
