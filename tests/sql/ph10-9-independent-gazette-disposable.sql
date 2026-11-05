@@ -67,7 +67,7 @@ END $$;
 RESET ROLE;
 SET LOCAL ROLE tto_app;
 SELECT set_config('tto.actor_id','a1000000-0000-4000-8000-000000000002',true);
-DO $
+DO $gate$
 DECLARE first_result jsonb;second_result jsonb;
 BEGIN
  SELECT tto.record_independent_gazette_finding(
@@ -97,13 +97,13 @@ BEGIN
    decode(repeat('a2',32),'hex'));
   RAISE EXCEPTION 'contradictory idempotency accepted';
  EXCEPTION WHEN unique_violation THEN NULL; END;
-END $;
+END $gate$;
 RESET ROLE;
 UPDATE tto.cooperative_external_legal_review_mandates SET revoked_at=now()
  WHERE reviewer_id='a1000000-0000-4000-8000-000000000002';
 SET LOCAL ROLE tto_app;
 SELECT set_config('tto.actor_id','a1000000-0000-4000-8000-000000000002',true);
-DO $
+DO $gate$
 BEGIN
  BEGIN
   PERFORM tto.record_independent_gazette_finding(
@@ -114,14 +114,14 @@ BEGIN
    decode(repeat('a2',32),'hex'));
   RAISE EXCEPTION 'revoked reviewer was authorized';
  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-END $;
+END $gate$;
 RESET ROLE;
-DO $
+DO $gate$
 BEGIN
  IF (SELECT count(*) FROM tto.cooperative_manual_gazette_review_findings)<>1 THEN
   RAISE EXCEPTION 'unexpected reviewer record count';END IF;
-END $;
-DO $
+END $gate$;
+DO $gate$
 BEGIN
  IF (SELECT count(*) FROM tto.cooperative_manual_gazette_review_findings)<>1 THEN
   RAISE EXCEPTION 'unexpected reviewer result count'; END IF;
