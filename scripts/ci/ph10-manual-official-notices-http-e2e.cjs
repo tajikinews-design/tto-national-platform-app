@@ -306,7 +306,7 @@ async function main(){
   const managerPage=await managerContext.newPage();
   await managerPage.goto(origin+"/official-records",{waitUntil:"domcontentloaded",timeout:25000});
   await managerPage.getByRole("heading",{name:"تاریخچه مستقل گزارش‌های بررسی حقوقی"}).waitFor();
-  await managerPage.getByText("نتیجه نامشخص؛ نیازمند بررسی بیشتر").waitFor({timeout:17000});
+  await managerPage.getByText("نتیجه نامشخص؛ نیازمند بررسی بیشتر").first().waitFor({timeout:17000});
   const reviewedUI=await managerPage.locator("main").innerText();
   assert.ok(reviewedUI.includes(second.claimId));
   assert.ok(reviewedUI.includes("هیچ گزارش، تأیید رسمی"));
