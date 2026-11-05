@@ -159,6 +159,85 @@ async function main(){
  "(SELECT count(*)::int FROM tto.cooperative_onboarding_draft_revisions) revisions,"+
  "(SELECT count(*)::int FROM tto.cooperative_onboarding_evidence_quarantine) evidences");
  assert.deepEqual(invariants.rows[0],{tenants:0,roles:0,dossiers:1,revisions:2,evidences:2});checks++;
+ if(process.env.PH10_COOP_CHROMIUM==="1"){
+  // Authenticated synthetic browser, never external identity or a real document.
+  const {chromium}=require("playwright");
+  const fs=require("node:fs");
+  const browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+  try{
+   const origin="http://localhost:"+webPort;
+   const context=await browser.newContext({viewport:{width:390,height:844},locale:"fa-IR"});
+   await context.addCookies([{name:"tto_session",value:rootToken,domain:"localhost",
+     path:"/",httpOnly:true,secure:false,sameSite:"Lax"}]);
+   const page=await context.newPage();
+   const response=await page.goto(origin+"/cooperatives/onboarding",
+     {waitUntil:"domcontentloaded",timeout:30000});
+   assert.equal(response.status(),200,"onboarding browser route must render");checks++;
+   assert.equal(await page.locator("html").getAttribute("dir"),"rtl");checks++;
+   await page.getByRole("heading",{name:"نشانی‌های رزروشده"}).waitFor({timeout:15000});
+   await page.locator("#coop-slug").selectOption(otherSlug);
+   const inputs=page.locator("form input:not([type=file])");
+   const values=["Synthetic Browser Cooperative","98765432109","3214",
+    "Test Province","Test County","Synthetic address 45",
+    "Synthetic Contact","Synthetic Manager","09123456789",""];
+   assert.equal(await inputs.count(),values.length,"browser form fields drift");
+   for(let i=0;i<values.length;i++)await inputs.nth(i).fill(values[i]);
+   await page.getByRole("button",{name:"ذخیره پیش‌نویس"}).click();
+   await page.getByText("پیش‌نویس امن در پرونده ذخیره شد",{exact:false})
+      .waitFor({timeout:15000});
+   checks++;
+   await page.locator("#coop-evidence-file").setInputFiles({
+     name:"synthetic-ci.pdf",mimeType:"application/pdf",buffer:pdf
+   });
+   await page.getByRole("button",{name:"ارسال به قرنطینه"}).click();
+   await page.getByText("مدرک رمزگذاری و فقط قرنطینه شد",{exact:false})
+      .waitFor({timeout:15000});
+   const correctedRef=await inputs.nth(9).inputValue();
+   assert.match(correctedRef,/^[0-9a-f-]{36}$/i);checks++;
+   await page.getByRole("button",{name:"ثبت پرونده برای بررسی حقوقی"}).click();
+   await page.getByText("پرونده برای بررسی مدارک ثبت شد",{exact:false})
+      .waitFor({timeout:15000});
+   await page.getByRole("button",{name:"شروع بررسی"}).click();
+   await page.getByRole("button",{name:"درخواست اصلاح"}).waitFor({timeout:15000});
+   await page.locator("textarea").fill("Synthetic reviewer requests evidence correction");
+   await page.getByRole("button",{name:"درخواست اصلاح"}).click();
+   await page.getByRole("button",{name:"ارسال مجدد مدرک اصلاح‌شده"})
+      .waitFor({timeout:15000});
+   const fixInput=page.getByText("شناسه مرجع مدرک اصلاح‌شده")
+      .locator("..").locator("input");
+   await fixInput.fill(correctedRef);
+   await page.getByRole("button",{name:"ارسال مجدد مدرک اصلاح‌شده"}).click();
+   await page.getByRole("button",{name:"شروع بررسی"}).waitFor({timeout:15000});
+   await page.getByRole("button",{name:"شروع بررسی"}).click();
+   await page.getByRole("button",{name:"ارجاع برای تأیید مستقل حقوقی"})
+      .waitFor({timeout:15000});
+   await page.locator("textarea").fill("Send synthetic browser dossier for external review");
+   await page.getByRole("button",{name:"ارجاع برای تأیید مستقل حقوقی"}).click();
+   await page.getByText("نتیجه بررسی ثبت شد",{exact:false})
+      .waitFor({timeout:15000});
+   assert.equal(await page.getByText("در انتظار تأیید مستقل خارج از سامانه",
+       {exact:false}).count(),2);
+   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-
+      document.documentElement.clientWidth);
+   assert.ok(overflow<=2,"mobile RTL onboarding horizontal overflow "+overflow);
+   fs.mkdirSync(resolve(ROOT,"ph10-artifacts"),{recursive:true});
+   await page.screenshot({path:resolve(ROOT,"ph10-artifacts/onboarding-mobile-synthetic.png"),
+     fullPage:true});
+   await page.setViewportSize({width:1366,height:900});
+   const wide=await page.evaluate(()=>document.documentElement.scrollWidth-
+      document.documentElement.clientWidth);
+   assert.ok(wide<=2,"desktop onboarding overflow "+wide);
+   await page.screenshot({path:resolve(ROOT,"ph10-artifacts/onboarding-desktop-synthetic.png"),
+     fullPage:true});checks+=3;
+   await context.close();
+   console.log("PH10_COOP_CHROMIUM_RTL_FORM_DRAFT_UPLOAD_REVIEW_PASS");
+  }finally{await browser.close();}
+  const uiData=await db.query("SELECT (SELECT count(*)::int FROM tto.tenants) tenants,"+
+    "(SELECT count(*)::int FROM tto.role_assignments) roles,"+
+    "(SELECT count(*)::int FROM tto.cooperative_onboarding_dossiers) dossiers");
+  assert.deepEqual(uiData.rows[0],{tenants:0,roles:0,dossiers:2});
+  checks++;
+ }
  console.log("PH10_COOP_FULL_BFF_NEST_POSTGRES17_PASS_CHECKS="+checks);
  console.log("PH10_COOP_NO_LEGAL_APPROVAL_NO_TENANT_NO_ROLE_NO_REAL_DOCUMENT");
 }
