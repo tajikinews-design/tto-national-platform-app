@@ -360,10 +360,15 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
     }finally{await capture.detach();}
     console.log('PH10_CHROMIUM_AFTER_SCREENSHOT_'+profile.kind.toUpperCase());
     if(profile.kind==='shareholder'){
+     // Exact evidence for a potential browser hang after the first screenshot.
+     // Abort externally (workflow timeout) rather than accepting an unfinished journey.
+     console.log('PH10_CHROMIUM_BEFORE_ENROLLMENT_NAV_SHAREHOLDER');
      // Real browser button -> Next BFF -> Nest POST -> PostgreSQL, not a mock.
      await page.goto('http://127.0.0.1:'+profile.port+'/modules/nav-06',
-       {waitUntil:'domcontentloaded',timeout:30000});
-     await page.locator('#sw-tenant').waitFor({state:'visible',timeout:25000});
+       {waitUntil:'domcontentloaded',timeout:25000});
+     console.log('PH10_CHROMIUM_AFTER_ENROLLMENT_NAV_SHAREHOLDER');
+     await page.locator('#sw-tenant').waitFor({state:'visible',timeout:20000});
+     console.log('PH10_CHROMIUM_AFTER_ENROLLMENT_SELECTOR_SHAREHOLDER');
      await page.locator('#sw-tenant').selectOption(tenant);
      await page.getByRole('button',{name:'تأیید محدوده و استعلام'}).click();
      const course=page.locator('li').filter({hasText:'PH10 Browser Enrollment Course'});
