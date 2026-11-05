@@ -1,6 +1,6 @@
 import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
-import { createCipheriv, createHash, createHmac, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
 
 @Injectable()
@@ -432,6 +432,99 @@ export class FoundationCommandsController {
         if(code==="42501")throw new ForbiddenException("QUARANTINE_ACCESS_DENIED");
         if(code==="23505")throw new ConflictException("QUARANTINE_UPLOAD_CONFLICT");
         if(code==="22023")throw new BadRequestException("INVALID_QUARANTINE_DOCUMENT");
+        throw e;
+      }
+    });
+  }
+
+  // PH10.5: cryptographic ciphertext integrity only, never source authenticity.
+  @Get("national/cooperative-onboarding-evidence/:evidenceId/integrity")
+  async checkCooperativeQuarantineIntegrity(
+    @Param("evidenceId",new ParseUUIDPipe()) evidenceId:string,
+    @Headers("authorization") auth:string|undefined
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const key=process.env.TTO_COOP_QUARANTINE_KEY_HEX??"";
+    if(!/^[a-fA-F0-9]{64}$/.test(key))
+      throw new ServiceUnavailableException("QUARANTINE_KEY_UNAVAILABLE");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const role=await client.query<{allowed:boolean}>(
+        "SELECT tto.has_national_root() AS allowed");
+      if(role.rows[0]?.allowed!==true)
+        throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const record=await client.query<{ciphertext:Buffer;iv:Buffer;tag:Buffer;
+        content_sha256:Buffer;key_version:string;scan_status:string;
+        authenticity_status:string}>(
+        "SELECT * FROM tto.cooperative_evidence_integrity_packet($1::uuid)",
+        [evidenceId]);
+      if(record.rowCount!==1)
+        throw new BadRequestException("QUARANTINED_EVIDENCE_NOT_FOUND");
+      const item=record.rows[0];
+      if(item.key_version!=="isolated-v1"||item.scan_status!=="QUARANTINED"||
+         item.authenticity_status!=="NOT_VERIFIED")
+        throw new ServiceUnavailableException("EVIDENCE_VALIDATION_NOT_AVAILABLE");
+      try{
+        const decipher=createDecipheriv("aes-256-gcm",Buffer.from(key,"hex"),item.iv);
+        decipher.setAuthTag(item.tag);
+        const bytes=Buffer.concat([decipher.update(item.ciphertext),decipher.final()]);
+        const digest=createHash("sha256").update(bytes).digest();
+        if(digest.length!==item.content_sha256.length||
+           !timingSafeEqual(digest,item.content_sha256))
+          throw Error("INTEGRITY_MISMATCH");
+      }catch{
+        // No plaintext, decryption error or digest is returned or logged.
+        throw new ServiceUnavailableException("EVIDENCE_INTEGRITY_UNCONFIRMED");
+      }
+      return {evidenceId,integrity:"MATCH",authenticity:"NOT_VERIFIED",
+        malwareStatus:"QUARANTINED",externalSourceVerified:false,
+        legalApproval:false,tenantCreated:false,managerRoleGranted:false};
+    });
+  }
+
+  // PH10.5: separate appointed reviewer's reported source comparison.
+  // The submission never confirms legal authenticity or releases quarantined data.
+  @Post("national/cooperative-onboarding/:dossierId/source-checks")
+  @HttpCode(201)
+  async recordExternalCooperativeSourceCheck(
+    @Param("dossierId",new ParseUUIDPipe()) dossierId:string,
+    @Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const evidenceId=requireId(input?.evidenceId);
+    const requestKey=requireId(input?.requestKey);
+    const sourceKind=input?.sourceKind;
+    const sourceReference=input?.sourceReference;
+    const sourceHashHex=input?.sourceHashHex;
+    const finding=input?.finding;
+    const rationale=input?.rationale;
+    if(typeof sourceKind!=="string"||
+       !["NATIONAL_REGISTRY","OFFICIAL_GAZETTE","COOPERATIVE_AUTHORITY"].includes(sourceKind)||
+       typeof sourceReference!=="string"||sourceReference.trim().length<8||
+       sourceReference.length>240||
+       typeof sourceHashHex!=="string"||!/^[a-fA-F0-9]{64}$/.test(sourceHashHex)||
+       typeof finding!=="string"||
+       !["MATCH_REPORTED_UNVERIFIED","MISMATCH_REPORTED","INCONCLUSIVE"].includes(finding)||
+       typeof rationale!=="string"||rationale.trim().length<10||rationale.length>1500)
+      throw new BadRequestException("INVALID_EXTERNAL_SOURCE_CHECK");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      try{
+        const out=await client.query<{result:Record<string,unknown>}>(
+          "SELECT tto.record_independent_cooperative_source_check("+
+          "$1::uuid,$2::uuid,$3::uuid,$4::text,$5::text,$6::bytea,$7::text,$8::text) AS result",
+          [dossierId,evidenceId,requestKey,sourceKind,sourceReference,
+           Buffer.from(sourceHashHex,"hex"),finding,rationale]
+        );
+        return {dossierId,evidenceId,...out.rows[0].result};
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("INDEPENDENT_REVIEWER_REQUIRED");
+        if(code==="23505")throw new ConflictException("SOURCE_CHECK_REPLAY_CONFLICT");
+        if(code==="22023")throw new BadRequestException("INVALID_SOURCE_CHECK");
         throw e;
       }
     });
