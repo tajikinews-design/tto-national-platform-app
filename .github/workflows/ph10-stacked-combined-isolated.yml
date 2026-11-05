@@ -1,7 +1,7 @@
 name: PH10 stacked PR160 + integrated PR147 full isolation (NO DEPLOY)
 on:
   push:
-    branches: [feat/ph10-cooperative-dossier-lifecycle-20261105]
+    branches: [feat/ph10-cooperative-dossier-lifecycle-20261105, design/ph10-9-gazette-independent-review-20261105]
 permissions:
   contents: read
 concurrency:
