@@ -215,8 +215,20 @@ async function main(){
    await page.getByRole("button",{name:"ارجاع برای تأیید مستقل حقوقی"}).click();
    await page.getByText("نتیجه بررسی ثبت شد",{exact:false})
       .waitFor({timeout:15000});
-   assert.equal(await page.getByText("در انتظار تأیید مستقل خارج از سامانه",
-       {exact:false}).count(),2);
+   // The review UI refreshes asynchronously after the successful POST.
+   // Wait for both *rendered* states, rather than counting during loading.
+   await page.waitForFunction(() => {
+    const text=document.querySelector("main")?.innerText??"";
+    return text.split("در انتظار تأیید مستقل خارج از سامانه").length-1===2;
+   },null,{timeout:15000});
+   const rendered=await page.locator("main").innerText();
+   assert.equal(rendered.split("در انتظار تأیید مستقل خارج از سامانه").length-1,2);
+   const dbStates=await db.query(
+     "SELECT state FROM tto.cooperative_onboarding_dossiers WHERE workspace_id IN ($1,$2)",
+     [workspaceId,otherWorkspaceId]
+   );
+   assert.deepEqual(dbStates.rows.map(x=>x.state).sort(),
+     ["EXTERNAL_APPROVAL_REQUIRED","EXTERNAL_APPROVAL_REQUIRED"]);checks++;
    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-
       document.documentElement.clientWidth);
    assert.ok(overflow<=2,"mobile RTL onboarding horizontal overflow "+overflow);
