@@ -1,7 +1,8 @@
 import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
-import { createHash, createHmac, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
+import { scanQuarantineBytes } from "./clamd-evidence";
 
 @Injectable()
 export class Database {
@@ -305,10 +306,10 @@ export class FoundationCommandsController {
       if(role.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
       const r=await client.query<{
         slug:string;workspace_state:string;dossier_id:string|null;dossier_state:string|null;
-        legal_name:string|null;candidate_manager_name:string|null;submitted_at:string|null
+        legal_name:string|null;candidate_manager_name:string|null;submitted_at:string|null;review_version:number|null
       }>(
        "SELECT w.slug,w.state AS workspace_state,d.dossier_id,d.state AS dossier_state, "+
-       "d.legal_name,d.candidate_manager_name,d.submitted_at "+
+       "d.legal_name,d.candidate_manager_name,d.submitted_at,d.review_version "+
        "FROM tto.cooperative_workspace_addresses w "+
        "LEFT JOIN tto.cooperative_onboarding_dossiers d ON d.workspace_id=w.workspace_id "+
        "WHERE w.state='RESERVED' ORDER BY w.created_at DESC LIMIT 100"
@@ -345,6 +346,9 @@ export class FoundationCommandsController {
     return this.db.withActor(actor,async client=>{
       const role=await client.query<{allowed:boolean}>("SELECT tto.has_national_root() AS allowed");
       if(role.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      // Shared transaction lock with save_cooperative_onboarding_draft prevents
+      // saving a new draft after concurrent dossier submission commits.
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,42))",[slug]);
       const reserved=await client.query<{workspace_id:string}>(
         "SELECT workspace_id FROM tto.cooperative_workspace_addresses "+
         "WHERE slug=$1 AND state='RESERVED'",[slug]);
@@ -375,6 +379,416 @@ export class FoundationCommandsController {
       }
       return {dossierId:id,slug,status:"PENDING_LEGAL_REVIEW",tenantCreated:false,
         managerRoleGranted:false,managerMobileVerified:false};
+    });
+  }
+
+  // PH10.4: isolated pre-tenant encrypted quarantine. No file is made readable.
+  @Post("national/cooperative-onboarding-evidence")
+  @HttpCode(201)
+  async uploadQuarantinedCooperativeEvidence(
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const key=process.env.TTO_COOP_QUARANTINE_KEY_HEX??"";
+    if(!/^[a-fA-F0-9]{64}$/.test(key))
+      throw new ServiceUnavailableException("QUARANTINE_ENCRYPTION_NOT_CONFIGURED");
+    const slug=requireText(input?.slug,3,40);
+    if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
+      throw new BadRequestException("INVALID_WORKSPACE_SLUG");
+    const uploadKey=requireId(input?.uploadKey);
+    const contentBase64=input?.contentBase64;
+    const mime=input?.mimeType;
+    if(typeof mime!=="string"||!["application/pdf","image/png","image/jpeg"].includes(mime)||
+      typeof contentBase64!=="string"||contentBase64.length>700000||
+      !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(contentBase64))
+      throw new BadRequestException("INVALID_EVIDENCE_ENCODING_OR_MIME");
+    const plain=Buffer.from(contentBase64,"base64");
+    if(plain.length<8||plain.length>524288||plain.toString("base64")!==contentBase64)
+      throw new BadRequestException("INVALID_EVIDENCE_SIZE");
+    const isPdf=plain.subarray(0,5).equals(Buffer.from("%PDF-"));
+    const isPng=plain.subarray(0,8).equals(Buffer.from("89504e470d0a1a0a","hex"));
+    const isJpeg=plain[0]===0xff&&plain[1]===0xd8&&plain[2]===0xff;
+    if((mime==="application/pdf"&&!isPdf)||(mime==="image/png"&&!isPng)||
+       (mime==="image/jpeg"&&!isJpeg))
+      throw new BadRequestException("EVIDENCE_SIGNATURE_MISMATCH");
+    const filename="document."+(isPdf?"pdf":isPng?"png":"jpg");
+    const sha=createHash("sha256").update(plain).digest();
+    const iv=randomBytes(12);
+    const cipher=createCipheriv("aes-256-gcm",Buffer.from(key,"hex"),iv);
+    const encrypted=Buffer.concat([cipher.update(plain),cipher.final()]);
+    const tag=cipher.getAuthTag();
+    // Never log document bytes, hashes, key material, or transport body.
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      try{
+        const result=await client.query<{out:Record<string,unknown>}>(
+          "SELECT tto.store_quarantined_cooperative_evidence($1::text,$2::uuid,$3::text,"+
+          "$4::text,$5::bytea,$6::bytea,$7::bytea,$8::bytea) AS out",
+          [slug,uploadKey,filename,mime,sha,iv,tag,encrypted]
+        );
+        return result.rows[0].out;
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("QUARANTINE_ACCESS_DENIED");
+        if(code==="23505")throw new ConflictException("QUARANTINE_UPLOAD_CONFLICT");
+        if(code==="22023")throw new BadRequestException("INVALID_QUARANTINE_DOCUMENT");
+        throw e;
+      }
+    });
+  }
+
+  // PH10.8 manager-only, session-bound historical self-report read. No approval.
+  @Get("tenants/:tenantId/governance/manual-official-notices")
+  async listManualOfficialGovernanceNotices(
+    @Param("tenantId",new ParseUUIDPipe()) tenantId:string,
+    @Headers("authorization") auth:string|undefined
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("MANUAL_GAZETTE_REGISTRY_NOT_RELEASED");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.inTenant(actor,tenantId,async client=>{
+      try{
+        const result=await client.query<{out:Record<string,unknown>}>(
+          "SELECT tto.list_manual_official_governance_claims($1::uuid,$2::bytea) AS out",
+          [tenantId,this.db.sessionDigest(auth)]);
+        const value=result.rows[0]?.out;
+        if(!value||value.selfReportedOnly!==true||value.officiallyVerified!==false||
+           value.legalApproval!==false||value.roleGranted!==false||
+           !Array.isArray(value.items))
+          throw new ServiceUnavailableException("GAZETTE_HISTORY_UNAVAILABLE");
+        return {tenantId,...value};
+      }catch(e){
+        if((e as {code?:string}).code==="42501")
+          throw new ForbiddenException("MANAGER_LEGAL_AUTHORITY_REQUIRED");
+        throw e;
+      }
+    });
+  }
+
+  @Post("tenants/:tenantId/governance/manual-official-notices")
+  @HttpCode(201)
+  async reportManualOfficialGovernanceNotice(
+    @Param("tenantId",new ParseUUIDPipe()) tenantId:string,
+    @Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>
+  ){
+    // Only existing activated tenants with independently authorized managers.
+    // Explicitly disabled for any non-isolated runtime until legal release review.
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("MANUAL_GAZETTE_REGISTRY_NOT_RELEASED");
+    if(!input||typeof input!=="object"||Array.isArray(input))
+      throw new BadRequestException("INVALID_GAZETTE_CLAIM");
+    const requestKey=requireId(input.requestKey);
+    const personName=requireText(input.personFullName,3,160);
+    const officeType=String(input.officeType??"");
+    const signingMode=String(input.signingMode??"");
+    const authorityScope=requireText(input.authorityScope,10,1500);
+    const gazetteIssue=String(input.gazetteIssueNumber??"");
+    const gazetteDate=String(input.gazettePublicationDate??"");
+    const gazetteNotice=String(input.gazetteAnnouncementNumber??"");
+    const from=typeof input.effectiveFrom==="string"?input.effectiveFrom:null;
+    const until=typeof input.effectiveUntil==="string"?input.effectiveUntil:null;
+    const url=typeof input.officialReferenceUrl==="string"?input.officialReferenceUrl:null;
+    const supersedes=typeof input.supersedesClaimId==="string"?requireId(input.supersedesClaimId):null;
+    if(!["BOARD_CHAIR","BOARD_VICE_CHAIR","BOARD_MEMBER","CEO","AUTHORIZED_SIGNATORY","INSPECTOR","OTHER"].includes(officeType)||
+       !["NONE","INDIVIDUAL","JOINT","BOARD_RESOLUTION","OTHER_SPECIFIED"].includes(signingMode)||
+       !/^[0-9]{1,20}$/.test(gazetteIssue)||
+       !/^[0-9A-Za-z-]{1,40}$/.test(gazetteNotice)||
+       !/^\d{4}-\d{2}-\d{2}$/.test(gazetteDate)||
+       (from!==null&&!/^\d{4}-\d{2}-\d{2}$/.test(from))||
+       (until!==null&&!/^\d{4}-\d{2}-\d{2}$/.test(until))||
+       (url!==null&&(!url.startsWith("https://")||url.length>400)))
+      throw new BadRequestException("INVALID_OFFICIAL_GAZETTE_CITATION");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.inTenant(actor,tenantId,async client=>{
+      try{
+        const result=await client.query<{out:Record<string,unknown>}>(
+         "SELECT tto.submit_manual_official_governance_claim("+
+         "$1::uuid,$2::uuid,$3::text,$4::text,$5::text,$6::text,"+
+         "$7::text,$8::date,$9::text,$10::date,$11::date,$12::text,"+
+         "$13::uuid,$14::bytea) AS out",
+         [tenantId,requestKey,personName,officeType,signingMode,authorityScope,
+          gazetteIssue,gazetteDate,gazetteNotice,from,until,url,supersedes,
+          this.db.sessionDigest(auth)]);
+        return {tenantId,...result.rows[0].out};
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("MANAGER_LEGAL_AUTHORITY_REQUIRED");
+        if(code==="23505")throw new ConflictException("GAZETTE_REQUEST_KEY_CONFLICT");
+        if(["22023","22007","22008","23514"].includes(code??""))
+          throw new BadRequestException("INVALID_OFFICIAL_GAZETTE_CITATION");
+        throw e;
+      }
+    });
+  }
+
+  // PH10.6: root-only, authenticated, no-plaintext-response ClamAV scan.
+  // A CLEAN receipt does not release quarantine or make the document authentic.
+  @Post("national/cooperative-onboarding-evidence/:evidenceId/scan")
+  @HttpCode(201)
+  async scanCooperativeQuarantineEvidence(
+    @Param("evidenceId",new ParseUUIDPipe()) evidenceId:string,
+    @Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const requestKey=requireId(input?.requestKey);
+    const key=process.env.TTO_COOP_QUARANTINE_KEY_HEX??"";
+    if(!/^[a-fA-F0-9]{64}$/.test(key)||
+       !process.env.TTO_COOP_CLAMD_SOCKET)
+      throw new ServiceUnavailableException("QUARANTINE_SCANNER_NOT_CONFIGURED");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const permitted=await client.query<{allowed:boolean}>(
+        "SELECT tto.has_national_root() AS allowed");
+      if(permitted.rows[0]?.allowed!==true)
+        throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const record=await client.query<{ciphertext:Buffer;iv:Buffer;tag:Buffer;
+        content_sha256:Buffer;key_version:string;scan_status:string;
+        authenticity_status:string}>(
+        "SELECT * FROM tto.cooperative_evidence_integrity_packet($1::uuid)",
+        [evidenceId]);
+      if(record.rowCount!==1)
+        throw new BadRequestException("QUARANTINED_EVIDENCE_NOT_FOUND");
+      const item=record.rows[0];
+      if(item.key_version!=="isolated-v1"||item.scan_status!=="QUARANTINED"||
+         item.authenticity_status!=="NOT_VERIFIED")
+        throw new ServiceUnavailableException("SCANNER_SCOPE_INVALID");
+      let bytes:Buffer;
+      try{
+        const decipher=createDecipheriv("aes-256-gcm",Buffer.from(key,"hex"),item.iv);
+        decipher.setAuthTag(item.tag);
+        bytes=Buffer.concat([decipher.update(item.ciphertext),decipher.final()]);
+        const digest=createHash("sha256").update(bytes).digest();
+        if(digest.length!==item.content_sha256.length||
+           !timingSafeEqual(digest,item.content_sha256))
+          throw Error("MISMATCH");
+      }catch{
+        throw new ServiceUnavailableException("EVIDENCE_INTEGRITY_UNCONFIRMED");
+      }
+      let scan;
+      try{scan=await scanQuarantineBytes(bytes);}
+      catch{
+        throw new ServiceUnavailableException("MALWARE_SCANNER_UNAVAILABLE");
+      }finally{
+        bytes.fill(0);
+      }
+      try{
+        const out=await client.query<{result:Record<string,unknown>}>(
+          "SELECT tto.record_cooperative_malware_scan("+
+          "$1::uuid,$2::uuid,$3::bytea,$4::text,$5::text,$6::text,$7::bytea) AS result",
+          [evidenceId,requestKey,item.content_sha256,scan.verdict,
+           scan.engine,scan.signature,this.db.sessionDigest(auth)]);
+        return {evidenceId,...out.rows[0].result};
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="23505")throw new ConflictException("SCAN_RECEIPT_REPLAY_CONFLICT");
+        if(code==="42501")throw new ForbiddenException("SCAN_RECEIPT_PERMISSION_DENIED");
+        if(code==="22023")throw new BadRequestException("INVALID_SCAN_RECEIPT");
+        throw e;
+      }
+    });
+  }
+
+  // PH10.5: cryptographic ciphertext integrity only, never source authenticity.
+  @Get("national/cooperative-onboarding-evidence/:evidenceId/integrity")
+  async checkCooperativeQuarantineIntegrity(
+    @Param("evidenceId",new ParseUUIDPipe()) evidenceId:string,
+    @Headers("authorization") auth:string|undefined
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const key=process.env.TTO_COOP_QUARANTINE_KEY_HEX??"";
+    if(!/^[a-fA-F0-9]{64}$/.test(key))
+      throw new ServiceUnavailableException("QUARANTINE_KEY_UNAVAILABLE");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const role=await client.query<{allowed:boolean}>(
+        "SELECT tto.has_national_root() AS allowed");
+      if(role.rows[0]?.allowed!==true)
+        throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const record=await client.query<{ciphertext:Buffer;iv:Buffer;tag:Buffer;
+        content_sha256:Buffer;key_version:string;scan_status:string;
+        authenticity_status:string}>(
+        "SELECT * FROM tto.cooperative_evidence_integrity_packet($1::uuid)",
+        [evidenceId]);
+      if(record.rowCount!==1)
+        throw new BadRequestException("QUARANTINED_EVIDENCE_NOT_FOUND");
+      const item=record.rows[0];
+      if(item.key_version!=="isolated-v1"||item.scan_status!=="QUARANTINED"||
+         item.authenticity_status!=="NOT_VERIFIED")
+        throw new ServiceUnavailableException("EVIDENCE_VALIDATION_NOT_AVAILABLE");
+      try{
+        const decipher=createDecipheriv("aes-256-gcm",Buffer.from(key,"hex"),item.iv);
+        decipher.setAuthTag(item.tag);
+        const bytes=Buffer.concat([decipher.update(item.ciphertext),decipher.final()]);
+        const digest=createHash("sha256").update(bytes).digest();
+        if(digest.length!==item.content_sha256.length||
+           !timingSafeEqual(digest,item.content_sha256))
+          throw Error("INTEGRITY_MISMATCH");
+      }catch{
+        // No plaintext, decryption error or digest is returned or logged.
+        throw new ServiceUnavailableException("EVIDENCE_INTEGRITY_UNCONFIRMED");
+      }
+      return {evidenceId,integrity:"MATCH",authenticity:"NOT_VERIFIED",
+        malwareStatus:"QUARANTINED",externalSourceVerified:false,
+        legalApproval:false,tenantCreated:false,managerRoleGranted:false};
+    });
+  }
+
+  // PH10.5: separate appointed reviewer's reported source comparison.
+  // The submission never confirms legal authenticity or releases quarantined data.
+  @Post("national/cooperative-onboarding/:dossierId/source-checks")
+  @HttpCode(201)
+  async recordExternalCooperativeSourceCheck(
+    @Param("dossierId",new ParseUUIDPipe()) dossierId:string,
+    @Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const evidenceId=requireId(input?.evidenceId);
+    const requestKey=requireId(input?.requestKey);
+    const sourceKind=input?.sourceKind;
+    const sourceReference=input?.sourceReference;
+    const sourceHashHex=input?.sourceHashHex;
+    const finding=input?.finding;
+    const rationale=input?.rationale;
+    if(typeof sourceKind!=="string"||
+       !["NATIONAL_REGISTRY","OFFICIAL_GAZETTE","COOPERATIVE_AUTHORITY"].includes(sourceKind)||
+       typeof sourceReference!=="string"||sourceReference.trim().length<8||
+       sourceReference.length>240||
+       typeof sourceHashHex!=="string"||!/^[a-fA-F0-9]{64}$/.test(sourceHashHex)||
+       typeof finding!=="string"||
+       !["MATCH_REPORTED_UNVERIFIED","MISMATCH_REPORTED","INCONCLUSIVE"].includes(finding)||
+       typeof rationale!=="string"||rationale.trim().length<10||rationale.length>1500)
+      throw new BadRequestException("INVALID_EXTERNAL_SOURCE_CHECK");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      try{
+        const out=await client.query<{result:Record<string,unknown>}>(
+          "SELECT tto.record_independent_cooperative_source_check("+
+          "$1::uuid,$2::uuid,$3::uuid,$4::text,$5::text,$6::bytea,$7::text,$8::text,$9::bytea) AS result",
+          [dossierId,evidenceId,requestKey,sourceKind,sourceReference,
+           Buffer.from(sourceHashHex,"hex"),finding,rationale,this.db.sessionDigest(auth)]
+        );
+        return {dossierId,evidenceId,...out.rows[0].result};
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("INDEPENDENT_REVIEWER_REQUIRED");
+        if(code==="23505")throw new ConflictException("SOURCE_CHECK_REPLAY_CONFLICT");
+        if(code==="22023")throw new BadRequestException("INVALID_SOURCE_CHECK");
+        throw e;
+      }
+    });
+  }
+
+  // PH10.3: draft claims only; no legal registration or tenant role.
+  @Get("national/cooperative-onboarding-drafts")
+  async listNationalCooperativeDrafts(@Headers("authorization") auth:string|undefined){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const check=await client.query<{allowed:boolean}>("SELECT tto.has_national_root() AS allowed");
+      if(check.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const rows=await client.query<{slug:string;payload:Record<string,string>;version:number}>(
+        "SELECT w.slug,d.payload,d.version FROM tto.cooperative_onboarding_drafts d "+
+        "JOIN tto.cooperative_workspace_addresses w ON w.workspace_id=d.workspace_id "+
+        "WHERE w.state='RESERVED' AND NOT EXISTS (SELECT 1 FROM "+
+        "tto.cooperative_onboarding_dossiers s WHERE s.workspace_id=d.workspace_id) "+
+        "ORDER BY d.updated_at DESC LIMIT 100"
+      );
+      return {items:rows.rows,tenantCreated:false};
+    });
+  }
+
+  @Post("national/cooperative-onboarding-drafts")
+  @HttpCode(200)
+  async saveNationalCooperativeDraft(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const slug=requireText(input?.slug,3,40);
+    if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
+      throw new BadRequestException("INVALID_WORKSPACE_SLUG");
+    if(typeof input?.expectedVersion!=="number"||
+       !Number.isSafeInteger(input.expectedVersion)||input.expectedVersion<0)
+      throw new BadRequestException("INVALID_DRAFT_VERSION");
+    const requestKey=requireId(input?.requestKey);
+    const payload=input?.payload;
+    if(!payload||typeof payload!=="object"||Array.isArray(payload))
+      throw new BadRequestException("INVALID_DRAFT_PAYLOAD");
+    const allowed=new Set(["legalName","nationalId","registrationNumber","province",
+      "county","legalAddress","representativeName","candidateManagerName",
+      "candidateManagerMobile","evidenceReference"]);
+    const record=payload as Record<string,unknown>;
+    if(Object.keys(record).some(key=>!allowed.has(key)||typeof record[key]!=="string"||
+       (record[key] as string).length>300)||JSON.stringify(record).length>4096)
+      throw new BadRequestException("INVALID_DRAFT_FIELDS");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      try{
+        const result=await client.query<{out:Record<string,unknown>}>(
+          "SELECT tto.save_cooperative_onboarding_draft($1::text,$2::jsonb,$3::integer,$4::uuid) AS out",
+          [slug,JSON.stringify(record),input.expectedVersion,requestKey]
+        );
+        return result.rows[0].out;
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("DRAFT_PERMISSION_DENIED");
+        if(code==="23505"||code==="40001")
+          throw new ConflictException("DRAFT_VERSION_OR_KEY_CONFLICT");
+        if(code==="22023")throw new BadRequestException("INVALID_DRAFT");
+        throw e;
+      }
+    });
+  }
+
+  // PH10.2: auditable review only. Never grants legal authority or provisions a tenant.
+  @Post("national/cooperative-onboarding/:dossierId/actions")
+  @HttpCode(200)
+  async reviewNationalCooperativeOnboarding(
+    @Param("dossierId",new ParseUUIDPipe()) dossierId:string,
+    @Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>
+  ){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ONBOARDING_PREVIEW_ONLY");
+    const action=input?.action;
+    const allowed=new Set(["START_REVIEW","REQUEST_CHANGES","REJECT",
+                           "RESUBMIT","REFER_EXTERNAL_REVIEW","RECOMMEND_EXTERNAL_APPROVAL"]);
+    if(typeof action!=="string"||!allowed.has(action))
+      throw new BadRequestException("INVALID_REVIEW_ACTION");
+    const expectedVersion=input?.expectedVersion;
+    if(typeof expectedVersion!=="number"||!Number.isSafeInteger(expectedVersion)||
+       expectedVersion<1)throw new BadRequestException("INVALID_REVIEW_VERSION");
+    const requestKey=requireId(input?.requestKey);
+    const reason=input?.reason;
+    if(reason!==undefined&&(typeof reason!=="string"||reason.length>1500))
+      throw new BadRequestException("INVALID_REVIEW_REASON");
+    const evidence=input?.evidenceReference;
+    if(evidence!==undefined&&(typeof evidence!=="string"||
+       evidence.length>180))throw new BadRequestException("INVALID_EVIDENCE_REFERENCE");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      try{
+        const result=await client.query<{out:Record<string,unknown>}>(
+          "SELECT tto.review_cooperative_onboarding($1::uuid,$2::text,$3::integer,"+
+          "$4::uuid,$5::text,$6::text) AS out",
+          [dossierId,action,expectedVersion,requestKey,reason??null,evidence??null]
+        );
+        return result.rows[0].out;
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="42501")throw new ForbiddenException("REVIEW_PERMISSION_DENIED");
+        if(code==="23505"||code==="40001")
+          throw new ConflictException("REVIEW_VERSION_OR_IDEMPOTENCY_CONFLICT");
+        if(code==="22023")throw new BadRequestException("INVALID_REVIEW_TRANSITION");
+        throw e;
+      }
     });
   }
 
