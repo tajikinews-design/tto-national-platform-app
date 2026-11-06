@@ -1723,15 +1723,41 @@ export class Ph10Phase08ReadController {
  @Get(":tenantId/ph08/learning/retired-history")
  async retiredLearning(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
   @Headers("authorization") auth?:string){
-  return this.scoped(tenant,auth,
-   "SELECT event_id,course_title,registration_state FROM tto.ph10_member_retired_training_history()");
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const role=await c.query<{allowed:boolean}>("SELECT tto.has_tenant_role($1,'MEMBER') AS allowed",[tenant]);
+   if(role.rows[0]?.allowed!==true)throw new ForbiddenException({code:"RETIRED_LEARNING_MEMBER_REQUIRED"});
+   const result=await c.query("SELECT event_id,course_title,registration_state FROM tto.ph10_member_retired_training_history()");
+   return {items:result.rows,tenantScoped:true,readOnly:true};
+  });
  }
  // PH08 MKT-AT-004: visible sponsorship label; NEVER official notice.
  @Get(":tenantId/ph08/market/sponsored-creatives")
  async sponsoredAds(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
   @Headers("authorization") auth?:string){
-  return this.scoped(tenant,auth,
-   "SELECT creative_id,caption,sponsored,official_notice FROM tto.ph10_member_sponsored_creatives()");
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const role=await c.query<{allowed:boolean}>("SELECT tto.has_tenant_role($1,'MEMBER') AS allowed",[tenant]);
+   if(role.rows[0]?.allowed!==true)throw new ForbiddenException({code:"SPONSORED_CREATIVE_MEMBER_REQUIRED"});
+   const result=await c.query("SELECT creative_id,caption,sponsored,official_notice FROM tto.ph10_member_sponsored_creatives()");
+   return {items:result.rows,tenantScoped:true,readOnly:true};
+  });
+ }
+ // PH08 MKT-AT-001: isolated member supplier INQUIRY. No public offer,
+ // seller permission, funds, booking, order, or share-market authority.
+ @Post(":tenantId/ph08/market/supplier-proposals")
+ async supplierInquiry(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined,
+  @Body() input:Record<string,unknown>){
+  const description=requireText(input?.description,10,500);
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const q=await c.query<{proposal_id:string|null}>(
+    "SELECT tto.ph10_submit_supplier_inquiry($1) AS proposal_id",[description]);
+   const id=q.rows[0]?.proposal_id;
+   if(!id)throw new ForbiddenException({code:"SUPPLIER_INQUIRY_MEMBER_DENIED"});
+   return {submitted:true,proposalId:id,publicOfferCreated:false,legalApproval:false};
+  });
  }
  @Get(":tenantId/ph08/procurement/tenders")
  async tenders(@Param("tenantId",new ParseUUIDPipe()) tenant:string,

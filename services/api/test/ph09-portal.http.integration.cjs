@@ -837,8 +837,7 @@ async function main(){
  await db.query("INSERT INTO tto.ph08_event_registrations(registration_id,event_id,registered_by,state) VALUES($1,$2,$3,'CANCELLED')",[randomUUID(),retiredEvent,user]);
  const retiredHistory=await request('GET',p8+'/learning/retired-history',memberToken,200);
  assert.equal(retiredHistory.items.some(v=>v.event_id===retiredEvent&&v.course_title==='Synthetic retired learning'),true);
- const unrelatedHistory=await request('GET',p8+'/learning/retired-history',managerToken,200);
- assert.equal(unrelatedHistory.items.length,0);
+ await request('GET',p8+'/learning/retired-history',managerToken,403);
  await request('GET',p8Other+'/learning/retired-history',memberToken,403);
  console.log('PH10_REAL_HTTP_PH08_LEARN_AT005_RETIRED_COURSE_MEMBER_HISTORY_PASS');
  // MKT-AT-004: sponsored creatives always carry sponsored=true,
@@ -852,10 +851,28 @@ async function main(){
  assert.equal(sponsored.items[0].creative_id,adLocal);
  assert.equal(sponsored.items[0].sponsored,true);
  assert.equal(sponsored.items[0].official_notice,false);
- const managerAds=await request('GET',p8+'/market/sponsored-creatives',managerToken,200);
- assert.equal(managerAds.items.length,0);
+ await request('GET',p8+'/market/sponsored-creatives',managerToken,403);
  await request('GET',p8Other+'/market/sponsored-creatives',memberToken,403);
  console.log('PH10_REAL_HTTP_PH08_MKT_AT004_SPONSORED_LABEL_TENANT_PRIVACY_PASS');
+
+ // MKT-AT-001: a member can propose a private supplier inquiry, but it
+ // cannot mint a public cooperative seller offer or transfer funds/shares.
+ const inquiryPath=p8+'/market/supplier-proposals';
+ const inquiryBody=JSON.stringify({description:'Synthetic nonpublic member supplier inquiry; no offering'});
+ const offerBefore=(await db.query("SELECT count(*)::integer AS n FROM tto.ph08_market_offers WHERE seller_tenant_id=$1",[tenant])).rows[0].n;
+ await request('POST',inquiryPath,managerToken,403,inquiryBody);
+ await request('POST',p8Other+'/market/supplier-proposals',memberToken,403,inquiryBody);
+ const inquiry=await request('POST',inquiryPath,memberToken,201,inquiryBody);
+ assert.equal(inquiry.submitted,true);
+ assert.equal(inquiry.publicOfferCreated,false);
+ assert.equal(inquiry.legalApproval,false);
+ const savedInquiry=await db.query("SELECT status,proposed_by FROM tto.ph08_supplier_proposals WHERE proposal_id=$1",[inquiry.proposalId]);
+ assert.equal(savedInquiry.rows[0].status,'SUBMITTED');
+ assert.equal(savedInquiry.rows[0].proposed_by,user);
+ const offerAfter=(await db.query("SELECT count(*)::integer AS n FROM tto.ph08_market_offers WHERE seller_tenant_id=$1",[tenant])).rows[0].n;
+ assert.equal(offerAfter,offerBefore);
+ console.log('PH10_REAL_HTTP_PH08_MKT_AT001_SUPPLIER_INQUIRY_NEVER_PUBLIC_OFFER_PASS');
+
 
 
  console.log('PH10_REAL_HTTP_TOTAL_PHASE09_PLUS_PHASE08_REQUESTS='+checks);
