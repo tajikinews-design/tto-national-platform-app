@@ -100,6 +100,19 @@ class EvidenceTruth(unittest.TestCase):
                           "relatedHttpMarker":"FAKE_UNIT_FIXTURE_ONLY",
                           "bffAuthenticatedCrossLayerScoped":"NOT_PROVEN"}
                          for rid in ids[81:117]]},
+            "ph10_ops_four_exact_evidence.json":{
+                "commitSha":SHA,"workflowRunId":RUN,
+                "operationsSourceSpecificScopedPass":3,"operationsDesignOnly":1,
+                "tenantBearingTablesCompared":7,"migrationFilesCleanReplayed":18,
+                "formalAcceptanceCount":0,"source155FullUserJourneysAccepted":False,
+                "cases":[{"acceptanceId":ident,"commitSha":SHA,"workflowRunId":RUN,
+                          "formalAcceptance":"NOT_ACCEPTED","fullSourceUserJourneyPassed":False,
+                          "scopedTechnicalPassed":ident!="OPS-AT-001",
+                          "evidenceLayer":"TEST_ONLY_DESIGN" if ident=="OPS-AT-001" else "TEST_ONLY_PG17",
+                          "testPath":"tests/test_ph10_155_crossjob_evidence.py",
+                          "assertionMarker":None if ident=="OPS-AT-001" else "TEST_MARKER_ONLY",
+                          "scopedResult":"SYNTHETIC_TEST_FIXTURE"}
+                         for ident in ("OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008")]},
             "ph10_page_api_inventory.json":{
                 "headSha":SHA,"pages":[{"portal":p} for p in
                           ("shareholder","cooperative-management","national-admin")]},
@@ -123,6 +136,11 @@ class EvidenceTruth(unittest.TestCase):
         c["scopedMarkerVerified"]=False
         self.write()
         with self.assertRaisesRegex(AssertionError,"SOURCE100_UNEXPECTED_INDIVIDUAL_RESULT"):
+            gate.joined(SHA,RUN,self.root)
+    def test_ops_tampered_release_proof_fails(self):
+        self.artifacts["ph10_ops_four_exact_evidence.json"]["cases"][1]["scopedTechnicalPassed"]=False
+        self.write()
+        with self.assertRaisesRegex(AssertionError,"OPS_UNEXPECTED_SCOPE"):
             gate.joined(SHA,RUN,self.root)
     def test_mismatched_commit_fail_closed(self):
         self.artifacts["ph10_ph04_auth8_exact_evidence.json"]["run"]["commitSha"]="b"*40
