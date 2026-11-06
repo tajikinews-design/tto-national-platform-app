@@ -1591,8 +1591,10 @@ export class Ph10Phase08ReadController {
  @Param("pollId",new ParseUUIDPipe()) poll:string,
  @Headers("authorization") auth:string|undefined,
  @Body() input:Record<string,unknown>){
-  const answer=requireText(input?.answer,1,400);
+  // Authenticate before parsing domain fields so anonymous requests fail
+  // closed with 401 even when the JSON body is absent or malformed.
   const actor=await this.db.sessionActor(auth);
+  const answer=requireText(input?.answer,1,400);
   return this.db.inTenant(actor,tenant,async c=>{
    const r=await c.query<{accepted:boolean}>(
      "SELECT tto.ph10_submit_member_poll($1,$2) AS accepted",[poll,answer]);
