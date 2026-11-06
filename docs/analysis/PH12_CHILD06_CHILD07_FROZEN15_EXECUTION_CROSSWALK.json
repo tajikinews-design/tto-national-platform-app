@@ -14,13 +14,13 @@
     "acceptanceIds": 15
   },
   "currentTestRun": {
-    "workflowRunId": 42259971088,
-    "sha": "57a4714b295e79f243fcd7b49f6ab98b7ce02e0f",
+    "workflowRunId": 42262963537,
+    "sha": "4743d4b042fb4ba98ae3533354d5b096027dd399",
     "conclusion": "SUCCESS",
-    "meaning": "BOUNDED_PG17_67_MIGRATION_SCHEMA_AND_SYNTHETIC_CONSISTENCY_ASSERTIONS_ONLY",
+    "meaning": "BOUNDED_PG17_68_MIGRATIONS_SOURCE_OWNER_HOLD_GUARD_AND_NEGATIVE_SQL_ASSERTIONS",
     "repoHeadMayAdvanceForDocumentation": true
   },
-  "status": "TECHNICAL_PARTIAL_FORMAL_ACCEPTANCE_HOLD",
+  "status": "SCOPED_SQL_GREEN_FORMAL_15_OF_15_HOLD",
   "sourceTextWarning": "Original Child06/07 acceptance identifiers were preserved, but per-test scenarios are engineering-derived from locked invariants; not a verbatim author-signed scenario acceptance.",
   "noLiveTransfer": true,
   "noMerge": true,
@@ -34,9 +34,12 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: negative only, no formal source promotion",
-      "latestBoundedCiRun": 42259971088,
+      "latestBoundedCiRun": 42262963537,
       "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
-      "additionalEvidence": "PH12_NONMEMBER_IMPLICIT_MEMBERSHIP_OR_ROLE; PH12_NONMEMBER_SPOOFED_RELATIONSHIP"
+      "additionalEvidence": "PH12_NONMEMBER_IMPLICIT_MEMBERSHIP_OR_ROLE; PH12_NONMEMBER_SPOOFED_RELATIONSHIP",
+      "latestNegativeSqlEvidence": [
+        "PH12_NONMEMBER_IMPLICIT_MASTER"
+      ]
     },
     {
       "id": "MEMBER-AT-002",
@@ -46,8 +49,9 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: DB constraint, no real sourced importer",
-      "latestBoundedCiRun": 42259971088,
-      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": []
     },
     {
       "id": "MEMBER-AT-003",
@@ -57,9 +61,12 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: rights Rule Registry approval missing",
-      "latestBoundedCiRun": 42259971088,
+      "latestBoundedCiRun": 42262963537,
       "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
-      "additionalEvidence": "PH12_SHARE_ENTITLEMENT_LEAK; PH12_NONMEMBER_SPOOFED_RELATIONSHIP"
+      "additionalEvidence": "PH12_SHARE_ENTITLEMENT_LEAK; PH12_NONMEMBER_SPOOFED_RELATIONSHIP",
+      "latestNegativeSqlEvidence": [
+        "PH12_NONMEMBER_OFFICIAL_SOURCE_UNAUTHORIZED"
+      ]
     },
     {
       "id": "MEMBER-AT-004",
@@ -69,8 +76,9 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: no real non-member API entitlement proof",
-      "latestBoundedCiRun": 42259971088,
-      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": []
     },
     {
       "id": "MEMBER-AT-005",
@@ -80,8 +88,11 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: tenant FK and synthetic read, 3-panel E2E pending",
-      "latestBoundedCiRun": 42259971088,
-      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": [
+        "PH12_PRIVATE_RECONCILIATION_EXPOSED"
+      ]
     },
     {
       "id": "MEMBER-AT-006",
@@ -91,8 +102,9 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: source-owner legal authority and independent reviewer pending",
-      "latestBoundedCiRun": 42259971088,
-      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": []
     },
     {
       "id": "MEMBER-AT-007",
@@ -102,9 +114,15 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: no independently approved CF02 delivery parity proof",
-      "latestBoundedCiRun": 42259971088,
+      "latestBoundedCiRun": 42262963537,
       "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
-      "additionalEvidence": "PH12_CHILD06_VERSION_GAP_ALLOWED; PH12_STALE_CF02_VERSION_NOT_DETECTED"
+      "additionalEvidence": "PH12_CHILD06_VERSION_GAP_ALLOWED; PH12_STALE_CF02_VERSION_NOT_DETECTED",
+      "latestNegativeSqlEvidence": [
+        "PH12_CF02_EVENT_CONFLICT_ACCEPTED",
+        "PH12_IMPORTED_VERSION_ROLLBACK_ACCEPTED",
+        "PH12_IMPORTED_EVENT_TAMPER_ACCEPTED",
+        "PH12_IMPORTED_STATUS_TAMPER_ACCEPTED"
+      ]
     },
     {
       "id": "SHARE-AT-001",
@@ -114,8 +132,11 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: fail-closed proven, positive legally sourced transfer intentionally impossible",
-      "latestBoundedCiRun": 42259971088,
-      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": [
+        "PH12_FUTURE_LEDGER_SNAPSHOT_ACCEPTED"
+      ]
     },
     {
       "id": "SHARE-AT-002",
@@ -125,8 +146,9 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: production rule evaluation not integrated",
-      "latestBoundedCiRun": 42259971088,
-      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": []
     },
     {
       "id": "SHARE-AT-003",
@@ -136,9 +158,10 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: new canonical account-linked lock concurrency not yet implemented",
-      "latestBoundedCiRun": 42259971088,
+      "latestBoundedCiRun": 42262963537,
       "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
-      "additionalEvidence": "PH12_WRONG_OWNER_LOCK_ALLOWED; PH12_OVERSIZED_LOCK_ALLOWED (new model staged only; legacy concurrent test separate)"
+      "additionalEvidence": "PH12_WRONG_OWNER_LOCK_ALLOWED; PH12_OVERSIZED_LOCK_ALLOWED (new model staged only; legacy concurrent test separate)",
+      "latestNegativeSqlEvidence": []
     },
     {
       "id": "SHARE-AT-004",
@@ -148,8 +171,11 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: independent payment/fee evidence still not operational",
-      "latestBoundedCiRun": 42259971088,
-      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": [
+        "PH12_UNAPPROVED_ALIGNMENT_FAKE_GREEN"
+      ]
     },
     {
       "id": "SHARE-AT-005",
@@ -159,8 +185,9 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: full authority verification/SoD not integrated",
-      "latestBoundedCiRun": 42259971088,
-      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": []
     },
     {
       "id": "SHARE-AT-006",
@@ -170,8 +197,11 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: no real legal-transfer ledger writer or 2-leg atomic finalization",
-      "latestBoundedCiRun": 42259971088,
-      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": [
+        "PH12_OPENING_MISMATCH_NOT_DETECTED"
+      ]
     },
     {
       "id": "SHARE-AT-007",
@@ -181,9 +211,10 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: new case has no dedicated authorised user read adapter",
-      "latestBoundedCiRun": 42259971088,
+      "latestBoundedCiRun": 42262963537,
       "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
-      "additionalEvidence": "PH12_WRONG_SELLER_CASE_ALLOWED; PH12_OVERSIZED_BUY_MATCH_ALLOWED; PH12_CROSS_TENANT_TRANSFER_ALLOWED"
+      "additionalEvidence": "PH12_WRONG_SELLER_CASE_ALLOWED; PH12_OVERSIZED_BUY_MATCH_ALLOWED; PH12_CROSS_TENANT_TRANSFER_ALLOWED",
+      "latestNegativeSqlEvidence": []
     },
     {
       "id": "SHARE-AT-008",
@@ -193,8 +224,9 @@
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
       "remainingRisk": "PARTIAL: non-existence of module-specific wallet, no live settlement verified",
-      "latestBoundedCiRun": 42259971088,
-      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": []
     }
   ],
   "consistencyExtension": {
@@ -215,5 +247,7 @@
       "PH12_LOCK_MUTATION_ALLOWED"
     ],
     "formalOriginalAcceptanceStill": "HOLD"
-  }
+  },
+  "decisionPacket": "docs/contracts/PH12_CHILD06_CHILD07_SOURCE_OWNER_DECISION_PACKET_2026-11-06.json",
+  "decisionPacketStatus": "3_SOURCE_OWNER_GATES_PENDING_NO_FAKE_APPROVAL"
 }
