@@ -1690,6 +1690,35 @@ export class Ph10Phase08ReadController {
    return {versionReserved:true,newVersion:expected+1,fieldsChanged:false,legalApproval:false};
   });
  }
+ // PH08 LEARN-AT-003: manager-only vacancy-based waitlist promotion.
+ // Existing PG17 security-definer routine serializes the event and candidate.
+ @Post(":tenantId/ph08/learning/events/:eventId/waitlist/promote")
+ async promoteWaitlist(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("eventId",new ParseUUIDPipe()) event:string,
+  @Headers("authorization") auth?:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const role=await c.query<{allowed:boolean}>("SELECT tto.has_tenant_role($1,'COOPERATIVE_MANAGER') AS allowed",[tenant]);
+   if(role.rows[0]?.allowed!==true)throw new ForbiddenException({code:"WAITLIST_MANAGER_REQUIRED"});
+   const v=await c.query<{promoted:boolean}>("SELECT tto.ph08_waitlist_promote($1) AS promoted",[event]);
+   if(v.rows[0]?.promoted!==true)throw new ForbiddenException({code:"WAITLIST_NO_VERIFIED_VACANCY"});
+   return {promoted:true,courseCompleted:false,certificateIssued:false,legalApproval:false};
+  });
+ }
+ // PH08 PROC-AT-005: source-backed eligibility predicate only. This does not
+ // grant a procurement role or permission to see sealed bid contents.
+ @Get(":tenantId/ph08/procurement/tenders/:tenderId/evaluator-eligibility")
+ async evaluateEligibility(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("tenderId",new ParseUUIDPipe()) tender:string,
+  @Headers("authorization") auth?:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const role=await c.query<{allowed:boolean}>("SELECT tto.has_tenant_role($1,'COOPERATIVE_MANAGER') AS allowed",[tenant]);
+   if(role.rows[0]?.allowed!==true)throw new ForbiddenException({code:"EVALUATOR_MANAGER_REQUIRED"});
+   const v=await c.query<{eligible:boolean}>("SELECT tto.ph08_can_evaluate($1) AS eligible",[tender]);
+   return {eligible:v.rows[0]?.eligible===true,legalApproval:false,mayReadSealedBid:false};
+  });
+ }
  @Get(":tenantId/ph08/procurement/tenders")
  async tenders(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
   @Headers("authorization") auth?:string){

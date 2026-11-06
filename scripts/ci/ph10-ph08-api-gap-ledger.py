@@ -7,6 +7,8 @@ FROZEN=ROOT/"docs/analysis/ACCEPTANCE_IDS.json"
 SOURCE=ROOT/"docs/analysis/PH08_OFFICIAL_SOURCE36.json"
 OUT=ROOT/"ph10-artifacts/ph10_ph08_36_http_gap_ledger.json"
 MARKERS={
+ "LEARN-AT-003":"PH10_REAL_HTTP_PH08_LEARN_AT003_REAL_VACANCY_PROMOTION_PASS",
+ "PROC-AT-005":"PH10_REAL_HTTP_PH08_PROC_AT005_CONFLICT_OF_INTEREST_ELIGIBILITY_GUARD_PASS",
  "PROJ-AT-003":"PH10_REAL_HTTP_PH08_PROJ_AT003_MANAGER_MILESTONE_SINGLE_AUDIT_EVENT_PASS",
  "PROJ-AT-006":"PH10_REAL_HTTP_PH08_PROJ_AT006_VERSION_ONLY_CONCURRENT_CAS_PASS",
  "VOICE-AT-005":"PH10_REAL_HTTP_PH08_VOICE_AT005_SMALL_COHORT_MEMBER_ONLY_SUPPRESSION_PASS",
@@ -59,7 +61,7 @@ def source():
    last=path.split("/ph08/")[-1].replace("{eventId}",":eventId").replace("{pollId}",":pollId").replace("{voucherId}",":voucherId")
    assert last in text,"NEST_ROUTE_MISSING:"+last
  assert set(MARKERS).isdisjoint(ABSENT_ROUTE_MARKERS)
- assert len(MARKERS)==19 and len(ABSENT_ROUTE_MARKERS)==4
+ assert len(MARKERS)==21 and len(ABSENT_ROUTE_MARKERS)==4
  for ident,marker in {**MARKERS,**ABSENT_ROUTE_MARKERS}.items():
   assert ident in {x["id"] for x in raw} and marker in test,"RELATED_OR_ABSENCE_MARKER_MISSING:"+ident
  for c in raw:assert (ROOT/c["sqlFile"]).is_file(),"SOURCE_SQL_MISSING:"+c["id"]

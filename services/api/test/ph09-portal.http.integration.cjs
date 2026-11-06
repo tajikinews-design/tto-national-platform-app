@@ -790,6 +790,44 @@ async function main(){
  const seatCount=await db.query("SELECT count(*)::integer AS n FROM tto.ph08_event_registrations WHERE event_id=$1 AND state='CONFIRMED'",[oneSeatEvent]);
  assert.equal(seatCount.rows[0].n,1);
  console.log('PH10_REAL_HTTP_PH08_LEARN_AT002_SINGLE_ACTOR_CONCURRENT_CAPACITY_BOUNDARY_PASS');
+
+ // LEARN-AT-003: a manager may promote one waitlisted enrollee only
+ // after a real seat becomes free. No certificate or completion is issued.
+ const promoEvent='9c500000-0000-4000-8000-000000000097';
+ await db.query("INSERT INTO tto.ph08_training_events(event_id,course_id,tenant_id,capacity,refund_policy_version) VALUES($1,$2,$3,1,'PH10_REFUND_V1')",[promoEvent,p8course,tenant]);
+ await db.query("INSERT INTO tto.ph08_event_registrations(registration_id,event_id,registered_by,state) VALUES($1,$2,$3,'CONFIRMED'),($4,$2,$5,'WAITLIST')",
+  [randomUUID(),promoEvent,manager,randomUUID(),user]);
+ const promoteUri=p8+'/learning/events/'+promoEvent+'/waitlist/promote';
+ await request('POST',promoteUri,memberToken,403);
+ await request('POST',p8Other+'/learning/events/'+promoEvent+'/waitlist/promote',managerToken,403);
+ await request('POST',promoteUri,managerToken,403);
+ await db.query("UPDATE tto.ph08_event_registrations SET state='CANCELLED' WHERE event_id=$1 AND registered_by=$2",[promoEvent,manager]);
+ const promotion=await request('POST',promoteUri,managerToken,201);
+ assert.equal(promotion.promoted,true);
+ assert.equal(promotion.certificateIssued,false);
+ await request('POST',promoteUri,managerToken,403);
+ const promotedUser=await db.query("SELECT state FROM tto.ph08_event_registrations WHERE event_id=$1 AND registered_by=$2",[promoEvent,user]);
+ assert.equal(promotedUser.rows[0].state,'CONFIRMED');
+ console.log('PH10_REAL_HTTP_PH08_LEARN_AT003_REAL_VACANCY_PROMOTION_PASS');
+ // PROC-AT-005: after a synthetically opened deadline, a manager with an
+ // unresolved evaluator conflict must be marked ineligible; closing it
+ // changes read-only eligibility, never grants legal authority or bid access.
+ const conflictTender='9ca00000-0000-4000-8000-000000000097';
+ await db.query("INSERT INTO tto.ph08_sourcing_tenders(tender_id,tenant_id,deadline,opened_at,criteria_version,source_policy) VALUES($1,$2,now()-interval '2 hours',now()-interval '1 hour',1,$3)",
+  [conflictTender,tenant,evidence]);
+ await db.query("INSERT INTO tto.ph08_evaluator_conflicts(tender_id,evaluator_id,status) VALUES($1,$2,'OPEN')",[conflictTender,manager]);
+ const eligibilityUri=p8+'/procurement/tenders/'+conflictTender+'/evaluator-eligibility';
+ await request('GET',eligibilityUri,memberToken,403);
+ await request('GET',p8Other+'/procurement/tenders/'+conflictTender+'/evaluator-eligibility',managerToken,403);
+ let eligibility=await request('GET',eligibilityUri,managerToken,200);
+ assert.equal(eligibility.eligible,false);
+ assert.equal(eligibility.mayReadSealedBid,false);
+ await db.query("UPDATE tto.ph08_evaluator_conflicts SET status='RESOLVED' WHERE tender_id=$1 AND evaluator_id=$2",[conflictTender,manager]);
+ eligibility=await request('GET',eligibilityUri,managerToken,200);
+ assert.equal(eligibility.eligible,true);
+ assert.equal(eligibility.legalApproval,false);
+ console.log('PH10_REAL_HTTP_PH08_PROC_AT005_CONFLICT_OF_INTEREST_ELIGIBILITY_GUARD_PASS');
+
  console.log('PH10_REAL_HTTP_TOTAL_PHASE09_PLUS_PHASE08_REQUESTS='+checks);
  console.log('PH09_REAL_NEST_HTTP_REQUESTS_PASS='+checks);
 }
