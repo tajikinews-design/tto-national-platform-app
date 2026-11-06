@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 INDEX="docs/analysis/PH01_148_ENTITY_FIELD_PHYSICAL_CANDIDATES.json"
 SOURCE="docs/analysis/PH01_SOURCE_148_ENTITY_FIELD_INDEX.json"
-SIMPLE=re.compile(r"^[a-z_][a-z0-9_]*\\??$",re.I)
+SIMPLE=re.compile(r"^[a-z_][a-z0-9_]*[?]?$",re.I)
 SAFE=re.compile(r"^[a-z_][a-z0-9_]*$",re.I)
 
 def load(rel):
