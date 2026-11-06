@@ -26,6 +26,7 @@ jobs:
           set -euo pipefail
           python3 -m unittest discover -s tests -p test_ph12_physical_parity.py -v
           python3 tests/test_ph12_child06_07_canonical.py
+          python3 tests/test_ph12_child06_07_owner_gate.py
       - name: Start disposable PostgreSQL17 (no hosted DB)
         run: |
           set -euo pipefail
