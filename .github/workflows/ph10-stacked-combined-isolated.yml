@@ -182,7 +182,7 @@ jobs:
           timeout --signal=TERM --kill-after=5s 150s npm install --prefix /tmp/tto-ph10-auth --no-audit --no-fund playwright@1.56.1
           browser_ready=false
           for attempt in 1 2; do
-            if timeout --signal=TERM --kill-after=5s 360s               node /tmp/tto-ph10-auth/node_modules/playwright/cli.js install --with-deps --only-shell chromium; then
+            if timeout --signal=TERM --kill-after=5s 360s               node /tmp/tto-ph10-auth/node_modules/playwright/cli.js install --only-shell chromium; then
               browser_ready=true
               break
             fi
@@ -190,6 +190,21 @@ jobs:
             sleep 5
           done
           test "$browser_ready" = true || { echo "PH10_CHROMIUM_INSTALL_FAILED_CLOSED"; exit 1; }
+          # Do not run apt-get under the browser install timeout: interrupted
+          # apt children can retain dpkg's lock and poison the retry. Instead
+          # verify that this runner can actually launch the downloaded browser.
+          node - <<'NODE'
+          const {chromium}=require('/tmp/tto-ph10-auth/node_modules/playwright');
+          (async()=>{
+            const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+            const page=await browser.newPage();
+            try{
+              await page.goto('data:text/html,<html dir="rtl"><body>PH10_RUNTIME</body></html>');
+              if(await page.locator('html').getAttribute('dir')!=='rtl')throw Error('PH10_CHROMIUM_RTL_SMOKE_FAILED');
+              console.log('PH10_CHROMIUM_REAL_LAUNCH_NO_APT_PASS');
+            }finally{await browser.close();}
+          })().catch(error=>{console.error(error);process.exit(1)});
+          NODE
           echo PH10_CHROMIUM_REAL_BROWSER_REQUIRED_READY
       - name: Build and exercise actual Nest HTTP in same database
         env:
