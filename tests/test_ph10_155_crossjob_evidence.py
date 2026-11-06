@@ -118,7 +118,7 @@ class EvidenceTruth(unittest.TestCase):
                 "realBrowserPortalSources":3,"actualBrowserRolePaths":6,
                 "declaredBffSourceBindings":11,"realSourceSpecificCommands":1,
                 "grcArticle129SourcePolicyPrecheck":1,
-                "nationalJitExpiredSessionDenied":1,
+                "nationalJitRevokedSessionDenied":1,
                 "full155UserJourneysAccepted":False,"release":"HOLD",
                 "cases":[{"portal":p,"navId":n,"sourceAcceptanceId":ident,
                            "formalAcceptance":"NOT_ACCEPTED",
@@ -171,7 +171,7 @@ class EvidenceTruth(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError,"OPS_UNEXPECTED_SCOPE"):
             gate.joined(SHA,RUN,self.root)
     def test_missing_national_jit_revocation_fails(self):
-        self.artifacts["ph10_three_portal_role_source_evidence.json"]["nationalJitExpiredSessionDenied"]=0
+        self.artifacts["ph10_three_portal_role_source_evidence.json"]["nationalJitRevokedSessionDenied"]=0
         self.write()
         with self.assertRaisesRegex(AssertionError,"THREE_PORTAL_ROLE_SOURCE_RUNTIME_INCOMPLETE"):
             gate.joined(SHA,RUN,self.root)
