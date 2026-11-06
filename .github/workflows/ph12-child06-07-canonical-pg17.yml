@@ -1,0 +1,70 @@
+name: PH12 CHILD06-07 account-ledger source boundary PG17 (NO DEPLOY)
+on:
+  push:
+    branches: [feat/ph12-child06-child07-canonical-failclosed-20261106]
+permissions:
+  contents: read
+concurrency:
+  group: ph12-child0607-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  scoped-schema-contract-not-legal-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: "true"
+      VERCEL: ""
+      DATABASE_URL: ""
+      TTO_API_BASE_URL: ""
+      TTO_PRODUCTION_DB_URL: ""
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify immutable source indexes and scoped field coverage
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p test_ph12_physical_parity.py -v
+          python3 tests/test_ph12_child06_07_canonical.py
+      - name: Start disposable PostgreSQL17 (no hosted DB)
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name tto-ph12-0607 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto postgres:17-alpine
+          ok=false
+          for attempt in $(seq 1 60); do
+            if docker exec tto-ph12-0607 psql -U postgres -d tto -Atqc 'SELECT 1' >/dev/null 2>&1; then ok=true;break;fi
+            sleep 1
+          done
+          test "$ok" = true || { docker logs tto-ph12-0607 | tail -100; exit 1; }
+      - name: Replay all current migrations and inspect canonical schema in isolated PG17
+        run: |
+          set -euo pipefail
+          count=0
+          for f in database/migrations/[0-9][0-9][0-9][0-9]*.sql; do
+            test -f "$f"
+            docker exec -i tto-ph12-0607 psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" > /dev/null
+            count=$((count+1))
+          done
+          test "$count" -ge 66 || { echo "PH12_NEW_SCHEMA_NOT_INCLUDED";exit 1; }
+          echo "PH12_CHILD0607_DISPOSABLE_PG17_MIGRATIONS_PASS=$count"
+      - name: Source contract positive and denial tests, rollback all synthetic transactions
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph12-0607 psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-child06-child07-canonical-failclosed.sql
+          echo "PH12_CHILD0607_SYNTHETIC_SOURCE_BOUNDARY_PASS_NO_TRANSFER"
+      - name: Verify original transfer blocker and private schema still intact
+        run: |
+          set -euo pipefail
+          sql="SELECT CASE WHEN
+            (SELECT count(*) FROM information_schema.tables WHERE table_schema='tto'
+              AND table_name LIKE 'child07_%')=7
+            AND NOT has_table_privilege('tto_app','tto.child07_ownership_ledger_entries','INSERT')
+            AND (SELECT pg_get_functiondef(p.oid) LIKE '%SELECT false%'
+                 FROM pg_proc p JOIN pg_namespace n ON p.pronamespace=n.oid
+                 WHERE n.nspname='tto' AND p.proname='ph06_try_finalize_transfer')
+            THEN 'PH12_FINALIZE_GUARD_PASS' ELSE 'PH12_GUARD_FAILED' END"
+          result="$(docker exec tto-ph12-0607 psql -U postgres -d tto -Atqc "$sql")"
+          test "$result" = 'PH12_FINALIZE_GUARD_PASS' || { echo "$result";exit 1; }
+      - name: Destroy disposable PG17 container
+        if: always()
+        run: docker rm -f tto-ph12-0607 || true
