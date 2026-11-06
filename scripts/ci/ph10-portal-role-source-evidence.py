@@ -27,7 +27,8 @@ NEEDED=(
  "PH10_BROWSER_GRC_AT001_MANAGER_CLICK_BFF_NEST_PG17_BLOCK_NO_MUTATION_PASS",
  "PH10_NATIONAL_JIT_INDEPENDENT_ROLE_TENANT_CLASSIFICATION_PASS",
  "PH10_BROWSER_NATIONAL_JIT_REVOKED_ACTIVE_SESSION_DENY_AND_RELOAD_NO_DOC_PASS",
- "PH10_REAL_HTTP_PH08_LEARN_AT002_TWO_DISTINCT_MEMBERS_ATOMIC_CAPACITY_AND_PER_ACTOR_BFF_READ_PASS")
+ "PH10_REAL_HTTP_PH08_LEARN_AT002_TWO_DISTINCT_MEMBERS_ATOMIC_CAPACITY_AND_PER_ACTOR_BFF_READ_PASS",
+ "PH10_BROWSER_LEARN_AT002_TWO_DISTINCT_MEMBER_UI_RACE_RELOAD_PG17_PASS")
 def check_sources():
  source={x["id"]:x for x in json.loads((ROOT/"docs/analysis/PH10_OFFICIAL_155_SCENARIOS.json").read_text())["cases"]}
  assert len(source)==155
@@ -63,6 +64,7 @@ def make(log,sha,run):
   realBrowserPortalSources=3,actualBrowserRolePaths=6,declaredBffSourceBindings=11,
   realSourceSpecificCommands=1,grcArticle129SourcePolicyPrecheck=1,
   nationalJitRevokedSessionDenied=1,twoDistinctMemberCapacityReadbackVerified=1,
+  twoDistinctMemberRealBrowserRaceVerified=1,
   full155UserJourneysAccepted=False,release="HOLD",
   cases=rows,assertedMarkers=markers)
 if __name__=="__main__":

@@ -755,6 +755,112 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
 
  }finally{await browserCleanupWithDeadline(()=>browser.close(),'BROWSER');}
 }
+
+async function testTwoMemberBrowserSeatRace(memberToken,secondToken,secondMember){
+ if(process.env.PH10_AUTH_CHROMIUM!=='1')throw Error('PH10_BROWSER_SEAT_RACE_REQUIRED');
+ const {chromium}=require('playwright');
+ const courseId='9c400000-0000-4000-8000-000000000004';
+ const eventId='9c500000-0000-4000-8000-000000000096';
+ const courseTitle='PH10 Two Member Browser One Seat Course';
+ // A fresh, synthetic event prevents prior HTTP assertions from changing
+ // browser race outcomes. This is NOT a paid event or real customer record.
+ await db.query(
+  "INSERT INTO tto.ph08_courses(course_id,tenant_id,title,status) VALUES($1,$2,$3,'ACTIVE')",
+  [courseId,tenant,courseTitle]);
+ await db.query(
+  "INSERT INTO tto.ph08_training_events(event_id,course_id,tenant_id,capacity,refund_policy_version) VALUES($1,$2,$3,1,'PH10_SYNTHETIC_NONPAYMENT_V1')",
+  [eventId,courseId,tenant]);
+ const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+ const contexts=[];
+ try{
+  const actors=[[user,memberToken],[secondMember,secondToken]];
+  const visits=[];
+  for(const [actor,session] of actors){
+   const context=await browser.newContext({locale:'fa-IR',viewport:{width:390,height:844}});
+   contexts.push(context);
+   context.setDefaultTimeout(15000);
+   context.setDefaultNavigationTimeout(30000);
+   await context.addCookies([{
+    name:'tto_session',value:session,domain:'127.0.0.1',path:'/',
+    httpOnly:true,secure:false,sameSite:'Lax'
+   }]);
+   const page=await context.newPage();
+   const response=await page.goto('http://127.0.0.1:31679/modules/nav-06',
+    {waitUntil:'domcontentloaded',timeout:30000});
+   assert.equal(response.status(),200,'LEARN_AT002_BROWSER_PAGE_NOT_AVAILABLE');
+   assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
+   await page.locator('#sw-tenant option[value="'+tenant+'"]')
+    .waitFor({state:'attached',timeout:15000});
+   await page.locator('#sw-tenant').selectOption(tenant);
+   await page.getByRole('button',{name:'تأیید محدوده و استعلام'}).click();
+   const course=page.locator('li').filter({hasText:courseTitle});
+   await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'})
+    .waitFor({state:'visible',timeout:20000});
+   visits.push({actor,page,course});
+  }
+  // The two human-equivalent UI clicks are launched concurrently in
+  // independent Chromium contexts; no direct API POST substitutes a click.
+  const click=async ({page,course})=>{
+   const responsePromise=page.waitForResponse(resp=>
+    resp.request().method()==='POST'&&resp.url().includes(
+     '/ph10/learning/events/'+eventId+'/enroll'),{timeout:25000});
+   await course.getByRole('button',{name:'ثبت‌نام در رویداد آموزشی'}).click();
+   const response=await responsePromise;
+   assert.equal(response.status(),201,'LEARN_AT002_BROWSER_ENROLLMENT_NOT_RECORDED');
+   const result=await response.json();
+   assert.equal(result.registered,true);
+   assert.equal(result.courseCompleted,false);
+   assert.equal(result.certificateIssued,false);
+   return result.registration;
+  };
+  const outcomes=await Promise.all(visits.map(click));
+  assert.deepEqual([...outcomes].sort(),['CONFIRMED','WAITLIST'],
+   'LEARN_AT002_BROWSER_TWO_SEATS_OR_NO_WAITLIST');
+  const sourceRows=await db.query(
+   "SELECT registered_by,state FROM tto.ph08_event_registrations WHERE event_id=$1",
+   [eventId]);
+  assert.equal(sourceRows.rows.length,2);
+  assert.deepEqual(sourceRows.rows.map(x=>x.registered_by).sort(),
+   [user,secondMember].sort());
+  assert.deepEqual(sourceRows.rows.map(x=>x.state).sort(),['CONFIRMED','WAITLIST']);
+  for(let i=0;i<visits.length;i++){
+   const {page,course,actor}=visits[i];
+   const statusText=outcomes[i]==='CONFIRMED'?'ثبت‌نام تأیید شد':'در فهرست انتظار ثبت شد';
+   await course.getByText(statusText).waitFor({state:'visible',timeout:15000});
+   const read=await page.request.get('http://127.0.0.1:31679/api/tenants/'+tenant+
+    '/ph10/NAV-06',{timeout:15000});
+   assert.equal(read.status(),200);
+   const body=await read.json();
+   assert.equal(body.sourceBound,true);
+   assert.equal(body.items.find(x=>x.event_id===eventId)?.registration_state,
+    outcomes[i],'LEARN_AT002_BROWSER_SOURCE_STATE_MISMATCH');
+   assert.equal(sourceRows.rows.find(x=>x.registered_by===actor)?.state,outcomes[i]);
+   await page.reload({waitUntil:'domcontentloaded',timeout:30000});
+   await page.locator('#sw-tenant option[value="'+tenant+'"]')
+    .waitFor({state:'attached',timeout:15000});
+   await page.locator('#sw-tenant').selectOption(tenant);
+   await page.getByRole('button',{name:'تأیید محدوده و استعلام'}).click();
+   const after=page.locator('li').filter({hasText:courseTitle});
+   await after.getByText(statusText).waitFor({state:'visible',timeout:20000});
+   assert.equal(await after.getByRole('button',
+    {name:'ثبت‌نام در رویداد آموزشی'}).count(),0,
+    'LEARN_AT002_BROWSER_RELOAD_ALLOWED_DUPLICATE_CLICK');
+   checks++;
+  }
+  const tally=await db.query(
+   "SELECT count(*) FILTER (WHERE state='CONFIRMED')::int AS confirmed,"+
+   " count(*)::int AS total FROM tto.ph08_event_registrations WHERE event_id=$1",
+   [eventId]);
+  assert.equal(tally.rows[0].confirmed,1,'LEARN_AT002_BROWSER_OVERBOOKED');
+  assert.equal(tally.rows[0].total,2,'LEARN_AT002_BROWSER_MISSING_WAITLIST');
+  console.log('PH10_BROWSER_LEARN_AT002_TWO_DISTINCT_MEMBER_UI_RACE_RELOAD_PG17_PASS');
+ }finally{
+  for(const ctx of contexts.reverse())
+   await browserCleanupWithDeadline(()=>ctx.close(),'LEARN002_MEMBER_CONTEXT');
+  await browserCleanupWithDeadline(()=>browser.close(),'LEARN002_BROWSER');
+ }
+}
+
 async function testFivePreflightBffs(memberToken,managerToken,syntheticOrder,lateTender,openedTender){
  // Real CI: browser/Next BFF -> Nest real HTTP -> disposable PostgreSQL17.
  // Every result remains a preflight, NEVER an executed regulated operation.
@@ -1116,6 +1222,7 @@ async function main(){
   "SELECT count(*)::integer AS n FROM tto.ph08_event_registrations WHERE event_id=$1 AND state='CONFIRMED'",
   [oneSeatEvent])).rows[0].n,1,'LEARN_AT002_RETRY_OVERBOOKED');
  console.log('PH10_REAL_HTTP_PH08_LEARN_AT002_TWO_DISTINCT_MEMBERS_ATOMIC_CAPACITY_AND_PER_ACTOR_BFF_READ_PASS');
+ await testTwoMemberBrowserSeatRace(memberToken,secondToken,secondMember);
  // LEARN-AT-003: a manager may promote one waitlisted enrollee only
  // after a real seat becomes free. No certificate or completion is issued.
  const promoEvent='9c500000-0000-4000-8000-000000000097';
