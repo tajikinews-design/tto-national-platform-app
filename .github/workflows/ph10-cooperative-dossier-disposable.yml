@@ -1,0 +1,154 @@
+name: PH10 cooperative dossier isolated verification
+on:
+  push:
+    branches: [feat/ph10-cooperative-dossier-lifecycle-20261105]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-dossier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: "true"
+      VERCEL: ""
+      APIIR_TOKEN: ""
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: {node-version: "22"}
+      - name: Validate Nest and Next compile without deployment
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.18.0
+          pnpm install --frozen-lockfile
+          pnpm --filter @tto/api typecheck
+          pnpm --filter @tto/national-admin typecheck
+          python3 -m unittest tests/test_ph10_cooperative_onboarding_source_gate.py -v
+      - name: Start ephemeral PostgreSQL17 without hosted credentials
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name tto-ph10-dossier -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto postgres:17-alpine
+          ok=false
+          for i in $(seq 1 90); do
+            if docker exec tto-ph10-dossier psql -U postgres -d tto -Atqc 'SELECT 1' >/dev/null 2>&1; then ok=true;break;fi
+            sleep 0.5
+          done
+          test "$ok" = true
+      - name: Apply exact-branch migrations exclusively inside ephemeral PG17
+        run: |
+          set -euo pipefail
+          for f in database/migrations/[0-9][0-9][0-9][0-9]*.sql; do
+            echo "PH10_DISPOSABLE_MIGRATION=$(basename "$f")"
+            docker exec -i tto-ph10-dossier psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" >/dev/null
+          done
+          echo PH10_DOSSIER_DISPOSABLE_MIGRATIONS_PASS
+      - name: Execute isolated review and anti-replay assertions
+        run: |
+          set -euo pipefail
+          for test_file in \
+            tests/sql/ph10-cooperative-dossier-review-disposable.sql \
+            tests/sql/ph10-cooperative-draft-disposable.sql \
+            tests/sql/ph10-cooperative-evidence-quarantine-disposable.sql \
+            tests/sql/ph10-cooperative-external-source-review-disposable.sql \
+            tests/sql/ph10-cooperative-malware-scan-disposable.sql \
+            tests/sql/ph10-manual-official-governance-claims-disposable.sql; do
+            echo "PH10_DISPOSABLE_CASE=$test_file"
+            docker exec -i tto-ph10-dossier psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$test_file"
+          done
+          echo PH10_DOSSIER_REVIEW_DB_GATE_PASS_NO_LEGAL_APPROVAL
+      - name: Build real Nest API and Next national panel (disposable only)
+        run: |
+          set -euo pipefail
+          pnpm --filter @tto/api build
+          pnpm --filter @tto/national-admin build
+          pnpm --filter @tto/cooperative-management build
+      - name: Install actual ClamAV daemon and disposable synthetic test signature
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq clamav-daemon
+          sudo systemctl stop clamav-daemon || true
+          python3 - <<'PY'
+          import os, hashlib
+          os.makedirs('/tmp/tto-ph10-clamav-db',exist_ok=True)
+          eicar=b'X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'
+          assert len(eicar)==68
+          with open('/tmp/tto-ph10-clamav-db/test.hdb','w') as f:
+              f.write(hashlib.md5(eicar).hexdigest()+':68:PH10.Eicar.Test\n')
+          with open('/tmp/tto-ph10-clamd.conf','w') as f:
+              f.write('''Foreground yes
+          User root
+          LogTime yes
+          LogFile /tmp/tto-ph10-clamd.log
+          LocalSocket /tmp/tto-ph10-clamd.sock
+          LocalSocketMode 666
+          DatabaseDirectory /tmp/tto-ph10-clamav-db
+          MaxFileSize 2M
+          MaxScanSize 3M
+          StreamMaxLength 2M
+          ''')
+          PY
+          clamd --config-file /tmp/tto-ph10-clamd.conf > /tmp/tto-ph10-clamd-stdout.log 2>&1 &
+          echo $! > /tmp/tto-ph10-clamd.pid
+          for n in $(seq 1 100); do
+            test -S /tmp/tto-ph10-clamd.sock && break
+            sleep 0.25
+          done
+          test -S /tmp/tto-ph10-clamd.sock || {
+            cat /tmp/tto-ph10-clamd-stdout.log
+            exit 1
+          }
+      - name: Test real ClamAV EICAR detection and scanner offline negative
+        env:
+          TTO_ISOLATED_DEMO_DB: "true"
+          TTO_COOP_CLAMD_SOCKET: "/tmp/tto-ph10-clamd.sock"
+        run: |
+          set -euo pipefail
+          node scripts/ci/ph10-clamd-engine-smoke.cjs
+      - name: Install pinned Chromium for authenticated synthetic onboarding browser
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/tto-ph10-onboarding-browser --no-audit --no-fund playwright@1.56.1
+          node /tmp/tto-ph10-onboarding-browser/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Execute authenticated national BFF to Nest to PG17 end-to-end workflow
+        env:
+          TTO_ISOLATED_DEMO_DB: "true"
+          TEST_ADMIN_DATABASE_URL: "postgresql://postgres@127.0.0.1:5432/tto"
+          TTO_COOP_QUARANTINE_KEY_HEX: "${{ hashFiles('database/migrations/9999b_ph10_cooperative_evidence_quarantine.sql') }}"
+          NODE_PATH: /tmp/tto-ph10-onboarding-browser/node_modules
+          PH10_COOP_CHROMIUM: "1"
+          TTO_COOP_CLAMD_SOCKET: "/tmp/tto-ph10-clamd.sock"
+        run: |
+          set -euo pipefail
+          test "${#TTO_COOP_QUARANTINE_KEY_HEX}" -eq 64
+          timeout --signal=TERM --kill-after=5s 300s node scripts/ci/ph10-cooperative-onboarding-http-e2e.cjs
+          echo PH10_COOP_FULL_BFF_NEST_POSTGRES17_E2E_GATE_PASS_NO_LEGAL_APPROVAL
+      - name: Exercise manager-entered Official Gazette issue/date/notice through real BFF and Nest
+        env:
+          TTO_ISOLATED_DEMO_DB: "true"
+          TEST_ADMIN_DATABASE_URL: "postgresql://postgres@127.0.0.1:5432/tto"
+          NODE_PATH: /tmp/tto-ph10-onboarding-browser/node_modules
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=5s 140s node scripts/ci/ph10-manual-official-notices-http-e2e.cjs
+          echo PH10_MANUAL_OFFICIAL_GAZETTE_MANAGER_HTTP_PG17_GATE_PASS_NO_LEGAL_APPROVAL
+
+      - name: Upload synthetic onboarding browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ph10-cooperative-onboarding-chromium-synthetic
+          path: ph10-artifacts/onboarding-*.png
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Stop synthetic antivirus daemon and erase test signature
+        if: always()
+        run: |
+          if test -f /tmp/tto-ph10-clamd.pid; then kill "$(cat /tmp/tto-ph10-clamd.pid)" || true; fi
+          rm -rf /tmp/tto-ph10-clamav-db /tmp/tto-ph10-clamd.sock /tmp/tto-ph10-clamd.pid
+      - name: Destroy database even on failure
+        if: always()
+        run: docker rm -f tto-ph10-dossier || true
