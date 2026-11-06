@@ -643,6 +643,14 @@ async function main(){
  await request('POST',p8+'/voice/'+p8poll+'/respond',managerToken,403,'{"answer":"not audience"}');
  await request('POST',p8Other+'/voice/'+p8poll+'/respond',memberToken,403,'{"answer":"cross tenant"}');
  console.log('PH10_REAL_HTTP_PH08_POLL_DUPLICATE_AND_AUDIENCE_PASS');
+ // Frozen VOICE-AT-002: an expired but properly audience-scoped poll cannot accept a late HTTP write.
+ const ph08LatePoll='9c300000-0000-4000-8000-000000000099';
+ await db.query("INSERT INTO tto.ph08_polls(poll_id,tenant_id,title,deadline,min_aggregate_size) VALUES($1,$2,'Synthetic expired API poll',now()-interval '1 minute',5)",[ph08LatePoll,tenant]);
+ await db.query("INSERT INTO tto.ph08_poll_audience(poll_id,user_id) VALUES($1,$2)",[ph08LatePoll,user]);
+ await request('POST',p8+'/voice/'+ph08LatePoll+'/respond',memberToken,403,'{"answer":"late reply"}');
+ const ph08LateCount=await db.query("SELECT count(*)::int AS n FROM tto.ph08_poll_answers WHERE poll_id=$1",[ph08LatePoll]);
+ assert.equal(ph08LateCount.rows[0].n,0,'VOICE-AT-002 expired poll wrote an answer');
+ console.log('PH10_REAL_HTTP_PH08_VOICE_AT002_EXPIRED_NO_EFFECT_PASS');
  y=await request('POST',p8+'/learning/events/'+p8event+'/enroll',memberToken,201);
  assert.equal(y.registration,'CONFIRMED');assert.equal(y.courseCompleted,false);
  await request('POST',p8+'/learning/events/'+p8event+'/enroll',memberToken,409);

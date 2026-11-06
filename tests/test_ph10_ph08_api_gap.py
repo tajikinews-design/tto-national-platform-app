@@ -10,7 +10,7 @@ class Truth(unittest.TestCase):
   self.assertEqual(len(rows),36)
   self.assertEqual({x["module"] for x in rows},set(m.PATHS))
  def test_related_http_not_36_accepted(self):
-  self.assertEqual(len(m.MARKERS),7)
+  self.assertEqual(len(m.MARKERS),8)
   self.assertLess(len(m.MARKERS),36)
  def test_log_echo_not_exact_evidence(self):
   k=m.MARKERS["VOICE-AT-004"]
