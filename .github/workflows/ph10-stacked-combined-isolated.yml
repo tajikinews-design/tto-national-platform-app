@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   frozen155-and-three-portals:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
       CI: "true"
@@ -72,7 +72,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
   source-sql-and-actual-api:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
       CI: "true"
@@ -209,7 +209,7 @@ jobs:
         if: always()
         run: docker rm -f tto-ph10-ci || true
   identity-source-core-real-http:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
       CI: "true"
