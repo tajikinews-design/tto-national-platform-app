@@ -605,6 +605,24 @@ async function main(){
  console.log('PH09_REAL_NEST_DG_HOLD_PRIVILEGE_ATOMIC_DISPOSE_HTTP_PASS');
 
  const p8='/v1/tenants/'+tenant+'/ph08', p8Other='/v1/tenants/'+foreign+'/ph08';
+
+ // Cross-cutting security: every implemented PH08 Nest route MUST reject
+ // an unauthenticated request. No real tenant credentials or operations used.
+ const protectedPH08=[
+  ['GET','/projects/disclosures'],
+  ['GET','/voice/open-polls'],
+  ['POST','/voice/'+p8poll+'/respond','{"answer":"no token"}'],
+  ['GET','/learning/events'],
+  ['POST','/learning/events/'+p8event+'/enroll'],
+  ['GET','/benefits/my-vouchers'],
+  ['POST','/benefits/vouchers/'+p8voucher+'/redeem'],
+  ['GET','/market/offers'],
+  ['GET','/procurement/tenders']
+ ];
+ for(const [method,route,payload] of protectedPH08){
+  await request(method,p8+route,null,401,payload);
+ }
+ console.log('PH10_PH08_ALL_NINE_REAL_NEST_ROUTES_REQUIRE_BEARER_PASS');
  await request('GET',p8+'/projects/disclosures',null,401);
  let y=await request('GET',p8+'/projects/disclosures',memberToken,200);
  assert.equal(y.items.length,1);assert.equal(y.items[0].name,'PH10 Approved Project');
@@ -679,17 +697,6 @@ async function main(){
  await request('POST',p8+'/learning/events/'+p8event+'/enroll',managerToken,403);
  await request('POST',p8Other+'/learning/events/'+p8event+'/enroll',memberToken,403);
  console.log('PH10_REAL_HTTP_PH08_ENROLL_CAPACITY_DUPLICATE_ROLE_PASS');
- // LEARN-AT-002 partial: two concurrent enrollments from the same actor are atomic,
- // but this is NOT a two-different-member capacity stress test.
- const oneSeatEvent='9c500000-0000-4000-8000-000000000098';
- await db.query("INSERT INTO tto.ph08_training_events(event_id,course_id,tenant_id,capacity,refund_policy_version) VALUES($1,$2,$3,1,'PH10_REFUND_V1')",[oneSeatEvent,p8course,tenant]);
- const oneSeatPath=p8+'/learning/events/'+oneSeatEvent+'/enroll';
- const raceEnroll=()=>fetch(root+oneSeatPath,{method:'POST',headers:{authorization:'Bearer '+memberToken}});
- const bothEnroll=await Promise.all([raceEnroll(),raceEnroll()]);
- assert.deepEqual(bothEnroll.map(v=>v.status).sort((a,b)=>a-b),[201,409]);
- const seatCount=await db.query("SELECT count(*)::integer AS n FROM tto.ph08_event_registrations WHERE event_id=$1 AND state='CONFIRMED'",[oneSeatEvent]);
- assert.equal(seatCount.rows[0].n,1);
- console.log('PH10_REAL_HTTP_PH08_LEARN_AT002_SINGLE_ACTOR_CONCURRENT_CAPACITY_BOUNDARY_PASS');
  y=await request('POST',p8+'/benefits/vouchers/'+p8voucher+'/redeem',memberToken,201);
  assert.equal(y.redeemed,true);assert.equal(y.walletCredit,false);assert.equal(y.cashTransfer,false);
  await request('POST',p8+'/benefits/vouchers/'+p8voucher+'/redeem',memberToken,403);
@@ -734,6 +741,17 @@ async function main(){
  await db.query("INSERT INTO tto.ph08_training_events(event_id,course_id,tenant_id,capacity,refund_policy_version) VALUES($1,$2,$3,5,'PH10_REFUND_V1')",
   ['9c500000-0000-4000-8000-000000000003','9c400000-0000-4000-8000-000000000003',tenant]);
  await testActualAuthenticatedBrowser(memberToken,managerToken);
+ // LEARN-AT-002 partial: two concurrent enrollments from the same actor are atomic,
+ // but this is NOT a two-different-member capacity stress test.
+ const oneSeatEvent='9c500000-0000-4000-8000-000000000098';
+ await db.query("INSERT INTO tto.ph08_training_events(event_id,course_id,tenant_id,capacity,refund_policy_version) VALUES($1,$2,$3,1,'PH10_REFUND_V1')",[oneSeatEvent,p8course,tenant]);
+ const oneSeatPath=p8+'/learning/events/'+oneSeatEvent+'/enroll';
+ const raceEnroll=()=>fetch(root+oneSeatPath,{method:'POST',headers:{authorization:'Bearer '+memberToken}});
+ const bothEnroll=await Promise.all([raceEnroll(),raceEnroll()]);
+ assert.deepEqual(bothEnroll.map(v=>v.status).sort((a,b)=>a-b),[201,409]);
+ const seatCount=await db.query("SELECT count(*)::integer AS n FROM tto.ph08_event_registrations WHERE event_id=$1 AND state='CONFIRMED'",[oneSeatEvent]);
+ assert.equal(seatCount.rows[0].n,1);
+ console.log('PH10_REAL_HTTP_PH08_LEARN_AT002_SINGLE_ACTOR_CONCURRENT_CAPACITY_BOUNDARY_PASS');
  console.log('PH10_REAL_HTTP_TOTAL_PHASE09_PLUS_PHASE08_REQUESTS='+checks);
  console.log('PH09_REAL_NEST_HTTP_REQUESTS_PASS='+checks);
 }
