@@ -18,6 +18,23 @@ SHA="a"*40
 RUN="12345678"
 
 class EvidenceTruth(unittest.TestCase):
+    @staticmethod
+    def sql_path(rid):
+        first=rid.split("-AT-")[0]
+        if first in {"GOV","COMM","SUPPORT","TRANS"}:
+            name={"GOV":"governance","COMM":"communications",
+                  "SUPPORT":"support","TRANS":"transparency"}[first]
+            return "tests/sql/ph07-"+name+"-acceptance.sql"
+        if first in {"PROJ","VOICE","LEARN","BEN","MKT","PROC"}:
+            name={"PROJ":"projects","VOICE":"member-voice",
+                  "LEARN":"academy-events","BEN":"member-benefits",
+                  "MKT":"marketplace","PROC":"procurement"}[first]
+            return "tests/sql/ph08-"+name+"-acceptance.sql"
+        name={"OPP":"opportunities","IMPACT":"impact","GRC":"grc",
+              "NI":"network-intelligence","DG":"data-governance",
+              "OPS":"operations"}[first]
+        return "tests/sql/ph09-"+name+"-acceptance.sql"
+
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -33,6 +50,23 @@ class EvidenceTruth(unittest.TestCase):
                            "workflowRunId":RUN if i>=55 else None,
                            "commitSha":SHA if i>=55 else None}
                            for i,rid in enumerate(ids)]},
+            "ph10_source100_individual_sql_evidence.json":{
+                "commitSha":SHA,"workflowRunId":RUN,
+                "completedSqlSuiteSourceIdCount":100,
+                "individualExecutedSqlSignalCount":96,
+                "noIndividualSqlSignalCount":4,
+                "noIndividualSignalIds":["OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008"],
+                "cases":[{"acceptanceId":rid,"sqlSourcePath":self.sql_path(rid),
+                          "scopedMarkerVerified":rid not in
+                              ("OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008"),
+                          "exactAssertionMarker":"SYNTHETIC_UNIT_ONLY" if rid not in
+                              ("OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008") else None,
+                          "evidenceLayer":"FAKE_TEST_SIGNAL",
+                          "scopedResult":"TEST_ONLY",
+                          "stdoutSha256":"test-fixture-only",
+                          "workflowRunId":RUN,"commitSha":SHA,
+                          "fullUserJourneyProven":False,"formalAcceptance":"NOT_ACCEPTED"}
+                         for rid in ids[55:]]},
             "ph10_frozen55_exact_evidence.json":{
                 "run":{"commitSha":SHA,"workflowRunId":RUN},
                 "ph05Ph06SourceScopedPass":39,
@@ -81,7 +115,15 @@ class EvidenceTruth(unittest.TestCase):
         self.assertEqual(len(out["cases"]),155)
         self.assertFalse(out["all155CompleteUserJourneysProven"])
         self.assertEqual(out["sourceIdsFormallyAccepted"],0)
+        self.assertEqual(out["perSourceSqlExecutedMarkersVerified"],96)
+        self.assertEqual(len(out["sourceSqlWithoutPerIdEvidence"]),4)
         self.assertTrue(all(not x["fullSourceUserJourneyPassed"] for x in out["cases"]))
+    def test_false_sql_specific_evidence_fails(self):
+        c=self.artifacts["ph10_source100_individual_sql_evidence.json"]["cases"][0]
+        c["scopedMarkerVerified"]=False
+        self.write()
+        with self.assertRaisesRegex(AssertionError,"SOURCE100_UNEXPECTED_INDIVIDUAL_RESULT"):
+            gate.joined(SHA,RUN,self.root)
     def test_mismatched_commit_fail_closed(self):
         self.artifacts["ph10_ph04_auth8_exact_evidence.json"]["run"]["commitSha"]="b"*40
         self.write()
