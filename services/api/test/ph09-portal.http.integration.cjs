@@ -731,12 +731,12 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
     ['9d000000-0000-4000-8000-000000000001']);
    assert.equal(original.rows.length,1);
    const grant=await db.query(
-    "UPDATE tto.jit_access_grants SET expires_at=now()-interval '1 minute'"+
+    "UPDATE tto.jit_access_grants SET status='REVOKED'"+
     " WHERE tenant_id=$1 AND requester_id=$2 AND scope='DOCUMENT_REVIEW' RETURNING grant_id",
     [tenant,outsider]);
-   assert.ok(grant.rowCount>0,'PH10_JIT_GRANT_FIXTURE_NOT_EXPIRED');
+   assert.ok(grant.rowCount>0,'PH10_JIT_GRANT_FIXTURE_NOT_REVOKED');
    const after=await page.request.get(docUrl,{timeout:15000});
-   assert.equal(after.status(),403,'PH10_JIT_EXPIRED_BFF_RETAINED_ACCESS');
+   assert.equal(after.status(),403,'PH10_JIT_REVOKED_BFF_RETAINED_ACCESS');
    const rejected=await after.json();
    assert.equal(rejected.available,false);
    await page.reload({waitUntil:'domcontentloaded',timeout:30000});
@@ -748,9 +748,9 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
     "SELECT md5(to_jsonb(d)::text) AS fingerprint FROM tto.documents d WHERE document_id=$1",
     ['9d000000-0000-4000-8000-000000000001']);
    assert.equal(saved.rows[0]?.fingerprint,original.rows[0]?.fingerprint,
-    'PH10_JIT_EXPIRE_MUTATED_DOCUMENT');
+    'PH10_JIT_REVOKE_MUTATED_DOCUMENT');
    checks+=3;
-   console.log('PH10_BROWSER_NATIONAL_JIT_EXPIRE_ACTIVE_SESSION_DENY_AND_RELOAD_NO_DOC_PASS');
+   console.log('PH10_BROWSER_NATIONAL_JIT_REVOKED_ACTIVE_SESSION_DENY_AND_RELOAD_NO_DOC_PASS');
   }finally{await browserCleanupWithDeadline(()=>jitCtx.close(),'NATIONAL_JIT_REVOKE');}
 
  }finally{await browserCleanupWithDeadline(()=>browser.close(),'BROWSER');}
