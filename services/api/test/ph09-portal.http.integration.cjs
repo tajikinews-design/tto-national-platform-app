@@ -439,6 +439,12 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
       throw Error('PH10_BROWSER_TRAINING_POST_STATUS_'+enrollStatus+
        ' url='+enrollResponse.url()+' body='+detail);
      }
+     const enrolledBody=await enrollResponse.json();
+     assert.equal(enrolledBody.registered,true);
+     assert.equal(enrolledBody.registration,'CONFIRMED');
+     assert.equal(enrolledBody.courseCompleted,false);
+     assert.equal(enrolledBody.certificateIssued,false);
+     console.log('PH10_BROWSER_LEARN_AT001_ENROLLED_NOT_COURSE_COMPLETED_PASS');
      console.log('PH10_CHROMIUM_NAV06_ENROLL_POST_STATUS_201');
      // If a browser result disagrees with POST, retain response and visible UI
      // evidence rather than hiding the actual failed functional journey.
@@ -559,6 +565,109 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
     console.log('PH10_CHROMIUM_CLOSED_'+profile.kind.toUpperCase());
    }
   }
+
+  // Actual Chromium pages + browser-cookie-backed BFF -> Nest -> PG17.
+  // This is a role/scope SOURCE SLICE, NOT 3 portals x all roles x all workflows.
+  // Canonical source IDs and scope are separately checked in the exact-run ledger.
+  const roleCases=[
+   {id:'SHAREHOLDER_MEMBER',port:31679,token:memberToken,route:'nav-06',nav:'NAV-06',
+    expectedStatus:200,requiredField:'course_title',requiredValue:'PH10 Browser Enrollment Course'},
+   {id:'COOP_MANAGER',port:31678,token:managerToken,route:'nav-10',nav:'NAV-10',
+    expectedStatus:200,requiredField:'kind',requiredValue:'ARTICLE129'},
+   {id:'COOP_MEMBER',port:31678,token:memberToken,route:'nav-10',nav:'NAV-10',
+    expectedStatus:200,requireEmpty:true},
+   {id:'NATIONAL_OPERATOR',port:31680,token:profiles[2].token,route:'nav-09',nav:'NAV-09',
+    expectedStatus:200,requiredField:'title',requiredValue:'Synthetic approved-to-display minute'},
+   {id:'NATIONAL_MEMBER',port:31680,token:memberToken,route:'nav-09',nav:'NAV-09',
+    expectedStatus:403},
+   {id:'NATIONAL_MANAGER',port:31680,token:managerToken,route:'nav-09',nav:'NAV-09',
+    expectedStatus:403}
+  ];
+  for(const actor of roleCases){
+   const ctx=await browser.newContext({locale:'fa-IR',viewport:{width:390,height:844}});
+   ctx.setDefaultTimeout(12000);
+   try{
+    await ctx.addCookies([{name:'tto_session',value:actor.token,domain:'127.0.0.1',
+     path:'/',httpOnly:true,secure:false,sameSite:'Lax'}]);
+    const page=await ctx.newPage();
+    const nav=await page.goto('http://127.0.0.1:'+actor.port+'/modules/'+actor.route,
+     {waitUntil:'domcontentloaded',timeout:30000});
+    assert.equal(nav.status(),200,'PH10_ROLE_REAL_PAGE_MISSING_'+actor.id);
+    assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
+    const source=await page.request.get('http://127.0.0.1:'+actor.port+
+     '/api/tenants/'+tenant+'/ph10/'+actor.nav,{timeout:15000});
+    assert.equal(source.status(),actor.expectedStatus,
+     'PH10_ROLE_SOURCE_HTTP_'+actor.id+'_'+source.status());
+    assert.match(source.headers()['cache-control']??'',/no-store/);
+    const read=await source.json();
+    if(actor.requiredField){
+     assert.equal(read.available,true);
+     assert.equal(read.sourceBound===true||read.scope==='JIT_DOCUMENT_REVIEW_ONLY',true);
+     assert.ok(read.items?.some(x=>x[actor.requiredField]===actor.requiredValue),
+      'PH10_ROLE_SOURCE_RECORD_MISSING_'+actor.id);
+    }
+    if(actor.requireEmpty){
+     assert.equal(read.available,true);
+     assert.deepEqual(read.items,[],'PH10_ROLE_PRIVILEGED_GRC_EXPOSED_TO_MEMBER');
+     assert.equal((await page.locator('body').innerText()).includes('ARTICLE129'),false);
+    }
+    if(actor.expectedStatus===403){
+     assert.equal(read.available,false);
+     assert.equal((await page.locator('body').innerText()).includes('Synthetic approved-to-display minute'),false,
+       'PH10_ROLE_FORBIDDEN_NATIONAL_DOC_RENDERED');
+    }
+    checks++;
+    console.log('PH10_ROLE_BROWSER_'+actor.id+'_SOURCE_SCOPE_PASS');
+    if(actor.id==='SHAREHOLDER_MEMBER'||actor.id==='COOP_MANAGER'||
+       actor.id==='NATIONAL_OPERATOR'){
+     const foreignRead=await page.request.get('http://127.0.0.1:'+actor.port+
+       '/api/tenants/'+foreign+'/ph10/'+actor.nav,{timeout:15000});
+     assert.equal(foreignRead.status(),403,'PH10_ROLE_CROSS_TENANT_ACCEPTED_'+actor.id);
+     checks++;
+     console.log('PH10_ROLE_BROWSER_'+actor.id+'_FOREIGN_TENANT_DENIED_PASS');
+    }
+    if(actor.id==='COOP_MEMBER'){
+     // Role separation must be enforced at the actual member enrollment BFF.
+     const rejected=await page.request.post('http://127.0.0.1:31679/api/tenants/'+tenant+
+       '/ph10/learning/events/9c500000-0000-4000-8000-000000000003/enroll',
+       {timeout:15000});
+     // COOP_MEMBER is the same member session; this is not a manager-deny check.
+     // Never issue an unauthorized test mutation here: source test has already
+     // completed/cancelled its synthetic registration through the real UI.
+     assert.ok([403,409].includes(rejected.status()),
+      'PH10_EXISTING_MEMBER_EVENT_UNEXPECTED_REENROLL_'+rejected.status());
+     checks++;
+    }
+   }finally{
+    await browserCleanupWithDeadline(()=>ctx.close(),'ROLE_MATRIX_'+actor.id);
+   }
+  }
+  // Role-manager enrollment must be rejected by the real BFF (no mutation).
+  const managerCtx=await browser.newContext({locale:'fa-IR',viewport:{width:390,height:844}});
+  try{
+   await managerCtx.addCookies([{name:'tto_session',value:managerToken,domain:'127.0.0.1',
+    path:'/',httpOnly:true,secure:false,sameSite:'Lax'}]);
+   const page=await managerCtx.newPage();
+   await page.goto('http://127.0.0.1:31679/modules/nav-06',{waitUntil:'domcontentloaded'});
+   const rejected=await page.request.post('http://127.0.0.1:31679/api/tenants/'+tenant+
+     '/ph10/learning/events/9c500000-0000-4000-8000-000000000003/enroll',
+     {timeout:15000});
+   assert.equal(rejected.status(),403,'PH10_MANAGER_WAS_ALLOWED_MEMBER_TRAINING_ENROLLMENT');
+   console.log('PH10_ROLE_BROWSER_MANAGER_MEMBER_ENROLLMENT_DENIED_PASS');
+  }finally{await browserCleanupWithDeadline(()=>managerCtx.close(),'ROLE_MANAGER_DENY');}
+  for(const [port,nav] of [[31679,'NAV-06'],[31678,'NAV-10'],[31680,'NAV-09']]){
+   const anon=await browser.newContext({locale:'fa-IR',viewport:{width:390,height:844}});
+   try{
+    const page=await anon.newPage();
+    await page.goto('http://127.0.0.1:'+port+'/modules/'+nav.toLowerCase(),
+     {waitUntil:'domcontentloaded',timeout:30000});
+    const resp=await page.request.get('http://127.0.0.1:'+port+
+      '/api/tenants/'+tenant+'/ph10/'+nav,{timeout:15000});
+    assert.equal(resp.status(),401,'PH10_ROLE_ANON_AUTH_BYPASS_'+nav);
+    checks++;
+   }finally{await browserCleanupWithDeadline(()=>anon.close(),'ROLE_ANON_'+nav);}
+  }
+  console.log('PH10_ROLE_BROWSER_ALL_THREE_PORTAL_ANON_BFF_DENIES_PASS');
  }finally{await browserCleanupWithDeadline(()=>browser.close(),'BROWSER');}
 }
 async function testFivePreflightBffs(memberToken,managerToken,syntheticOrder,lateTender,openedTender){
