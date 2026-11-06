@@ -14,10 +14,11 @@
     "acceptanceIds": 15
   },
   "currentTestRun": {
-    "workflowRunId": 42258965402,
-    "sha": "dceed16de50b16096735105721def1a4938bab7d",
+    "workflowRunId": 42259971088,
+    "sha": "57a4714b295e79f243fcd7b49f6ab98b7ce02e0f",
     "conclusion": "SUCCESS",
-    "meaning": "BOUNDED_PG17_SCHEMA_AND_SYNTHETIC_NEGATIVE_ASSERTIONS_ONLY"
+    "meaning": "BOUNDED_PG17_67_MIGRATION_SCHEMA_AND_SYNTHETIC_CONSISTENCY_ASSERTIONS_ONLY",
+    "repoHeadMayAdvanceForDocumentation": true
   },
   "status": "TECHNICAL_PARTIAL_FORMAL_ACCEPTANCE_HOLD",
   "sourceTextWarning": "Original Child06/07 acceptance identifiers were preserved, but per-test scenarios are engineering-derived from locked invariants; not a verbatim author-signed scenario acceptance.",
@@ -32,7 +33,10 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: negative only, no formal source promotion"
+      "remainingRisk": "PARTIAL: negative only, no formal source promotion",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "additionalEvidence": "PH12_NONMEMBER_IMPLICIT_MEMBERSHIP_OR_ROLE; PH12_NONMEMBER_SPOOFED_RELATIONSHIP"
     },
     {
       "id": "MEMBER-AT-002",
@@ -41,7 +45,9 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: DB constraint, no real sourced importer"
+      "remainingRisk": "PARTIAL: DB constraint, no real sourced importer",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
     },
     {
       "id": "MEMBER-AT-003",
@@ -50,7 +56,10 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: rights Rule Registry approval missing"
+      "remainingRisk": "PARTIAL: rights Rule Registry approval missing",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "additionalEvidence": "PH12_SHARE_ENTITLEMENT_LEAK; PH12_NONMEMBER_SPOOFED_RELATIONSHIP"
     },
     {
       "id": "MEMBER-AT-004",
@@ -59,7 +68,9 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: no real non-member API entitlement proof"
+      "remainingRisk": "PARTIAL: no real non-member API entitlement proof",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
     },
     {
       "id": "MEMBER-AT-005",
@@ -68,7 +79,9 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: tenant FK and synthetic read, 3-panel E2E pending"
+      "remainingRisk": "PARTIAL: tenant FK and synthetic read, 3-panel E2E pending",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
     },
     {
       "id": "MEMBER-AT-006",
@@ -77,7 +90,9 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: source-owner legal authority and independent reviewer pending"
+      "remainingRisk": "PARTIAL: source-owner legal authority and independent reviewer pending",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
     },
     {
       "id": "MEMBER-AT-007",
@@ -86,7 +101,10 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: no independently approved CF02 delivery parity proof"
+      "remainingRisk": "PARTIAL: no independently approved CF02 delivery parity proof",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "additionalEvidence": "PH12_CHILD06_VERSION_GAP_ALLOWED; PH12_STALE_CF02_VERSION_NOT_DETECTED"
     },
     {
       "id": "SHARE-AT-001",
@@ -95,7 +113,9 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: fail-closed proven, positive legally sourced transfer intentionally impossible"
+      "remainingRisk": "PARTIAL: fail-closed proven, positive legally sourced transfer intentionally impossible",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
     },
     {
       "id": "SHARE-AT-002",
@@ -104,7 +124,9 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: production rule evaluation not integrated"
+      "remainingRisk": "PARTIAL: production rule evaluation not integrated",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
     },
     {
       "id": "SHARE-AT-003",
@@ -113,7 +135,10 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: new canonical account-linked lock concurrency not yet implemented"
+      "remainingRisk": "PARTIAL: new canonical account-linked lock concurrency not yet implemented",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "additionalEvidence": "PH12_WRONG_OWNER_LOCK_ALLOWED; PH12_OVERSIZED_LOCK_ALLOWED (new model staged only; legacy concurrent test separate)"
     },
     {
       "id": "SHARE-AT-004",
@@ -122,7 +147,9 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: independent payment/fee evidence still not operational"
+      "remainingRisk": "PARTIAL: independent payment/fee evidence still not operational",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
     },
     {
       "id": "SHARE-AT-005",
@@ -131,7 +158,9 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: full authority verification/SoD not integrated"
+      "remainingRisk": "PARTIAL: full authority verification/SoD not integrated",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
     },
     {
       "id": "SHARE-AT-006",
@@ -140,7 +169,9 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: no real legal-transfer ledger writer or 2-leg atomic finalization"
+      "remainingRisk": "PARTIAL: no real legal-transfer ledger writer or 2-leg atomic finalization",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
     },
     {
       "id": "SHARE-AT-007",
@@ -149,7 +180,10 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: new case has no dedicated authorised user read adapter"
+      "remainingRisk": "PARTIAL: new case has no dedicated authorised user read adapter",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "additionalEvidence": "PH12_WRONG_SELLER_CASE_ALLOWED; PH12_OVERSIZED_BUY_MATCH_ALLOWED; PH12_CROSS_TENANT_TRANSFER_ALLOWED"
     },
     {
       "id": "SHARE-AT-008",
@@ -158,7 +192,28 @@
       "technicalMapping": "PARTIAL_COVERAGE",
       "formalSourceOwnerAcceptance": "PENDING",
       "independentQA": "PENDING",
-      "remainingRisk": "PARTIAL: non-existence of module-specific wallet, no live settlement verified"
+      "remainingRisk": "PARTIAL: non-existence of module-specific wallet, no live settlement verified",
+      "latestBoundedCiRun": 42259971088,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY"
     }
-  ]
+  ],
+  "consistencyExtension": {
+    "migration": "database/migrations/0045_ph12_child06_07_contract_consistency.sql",
+    "test": "tests/sql/ph12-child06-child07-canonical-failclosed.sql",
+    "verifiedSignals": [
+      "PH12_MISSING_CF02_PROJECTION_NOT_DETECTED",
+      "PH12_STALE_CF02_VERSION_NOT_DETECTED",
+      "PH12_OVERSIZED_BUY_REQUEST_ALLOWED",
+      "PH12_SELF_BUY_REQUEST_ALLOWED",
+      "PH12_WRONG_SELLER_CASE_ALLOWED",
+      "PH12_OVERSIZED_TRANSFER_CASE_ALLOWED",
+      "PH12_OVERSIZED_BUY_MATCH_ALLOWED",
+      "PH12_MISSING_SELL_ORDER_FOR_BUY_CASE",
+      "PH12_WRONG_OWNER_LOCK_ALLOWED",
+      "PH12_OVERSIZED_LOCK_ALLOWED",
+      "PH12_CASE_MUTATION_ALLOWED",
+      "PH12_LOCK_MUTATION_ALLOWED"
+    ],
+    "formalOriginalAcceptanceStill": "HOLD"
+  }
 }
