@@ -1,0 +1,36 @@
+name: PH11-13 evidence-truth readiness (NO DEPLOY)
+on:
+  push:
+    branches: [audit/ph11-ph13-readiness-20261106]
+permissions:
+  contents: read
+concurrency:
+  group: ph11-13-readiness
+  cancel-in-progress: true
+jobs:
+  source-truth-diagnostic-not-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      CI: "true"
+      VERCEL: ""
+    steps:
+      - name: Checkout source (read-only)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Refuse fake phase green and fabricated approvals
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p test_ph11_ph13_readiness.py -v
+      - name: Create SHA/run-bound HOLD report
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/ph11-ph13-readiness.py --output ph11-13-artifacts/readiness.json
+      - name: Preserve source-truth diagnostic evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ph11-ph13-readiness-hold-not-release
+          path: ph11-13-artifacts/readiness.json
+          if-no-files-found: error
+          retention-days: 30
