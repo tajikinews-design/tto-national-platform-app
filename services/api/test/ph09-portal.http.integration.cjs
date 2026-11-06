@@ -344,6 +344,36 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
     assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
     assert.equal(await page.getByText(profile.expected).count()>0,true);
     assert.equal((await page.locator('body').innerText()).includes('SEALED_SOURCE_IDENTITY'),false);
+    if(profile.kind==='cooperative'){
+     // Actual manager UI action -> cookie-only Next BFF -> tenant/role gated
+     // Nest GRC policy -> disposable PG17. Inquiry is not legal finalization.
+     const policyPath='/api/tenants/'+tenant+'/ph10/grc/cases/'+case129+'/can-finalize';
+     const pre=await db.query(
+      "SELECT md5(to_jsonb(c)::text) AS fingerprint FROM tto.ph09_grc_cases c WHERE case_id=$1",
+      [case129]);
+     assert.equal(pre.rows.length,1,'PH10_GRC_FIXTURE_MISSING');
+     const preflightReply=page.waitForResponse(reply=>
+      reply.url().includes(policyPath)&&reply.request().method()==='GET',
+      {timeout:20000});
+     await page.getByRole('button',{name:'بررسی امکان نهایی‌سازی پرونده (فقط استعلام)'}).click();
+     const reply=await preflightReply;
+     assert.equal(reply.status(),200,'PH10_GRC_PRECHECK_HTTP_STATUS');
+     const body=await reply.json();
+     assert.equal(body.available,true);
+     assert.equal(body.allowed,false);
+     assert.equal(body.officialApproval,false);
+     assert.equal(body.sourceBound,true);
+     assert.equal(body.readOnly,true);
+     await page.getByText('نهایی‌سازی این پرونده بدون گردش‌کار لازم مسدود است.')
+      .waitFor({state:'visible',timeout:12000});
+     const post=await db.query(
+      "SELECT md5(to_jsonb(c)::text) AS fingerprint FROM tto.ph09_grc_cases c WHERE case_id=$1",
+      [case129]);
+     assert.equal(post.rows[0]?.fingerprint,pre.rows[0]?.fingerprint,
+      'PH10_GRC_PRECHECK_MUTATED_CASE');
+     console.log('PH10_BROWSER_GRC_AT001_MANAGER_CLICK_BFF_NEST_PG17_BLOCK_NO_MUTATION_PASS');
+     checks++;
+    }
     // Capture the real rendered page through Chromium CDP, avoiding
     // Playwright screenshot's font-ready/animation lifecycle wait.
     // Screenshot evidence is mandatory; errors fail the test.
