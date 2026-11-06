@@ -32,6 +32,18 @@ assert "FOREIGN KEY(tenant_id,shareholder_account_id) REFERENCES tto.ph06_shareh
 assert "FOREIGN KEY(tenant_id,evidence_id) REFERENCES tto.evidence_references(tenant_id,evidence_id)" in sql
 assert "tto.relationship_projections" not in sql.split("CREATE TABLE")[1]  # no CF02 ownership
 assert not any(x in sql.upper() for x in ("CREATE TABLE TTO.WALLET", "CREATE TABLE TTO.FUND_RESERVATION"))
+consistency = (ROOT / "database/migrations/0045_ph12_child06_07_contract_consistency.sql").read_text()
+for signal in [
+    "CHILD07_BUY_REQUEST_ORDER_INCONSISTENT",
+    "CHILD07_CASE_SELL_ORDER_INCONSISTENT",
+    "CHILD07_CASE_BUY_REQUEST_INCONSISTENT",
+    "CHILD07_LOCK_CASE_INCONSISTENT",
+    "MISSING_CF02_PROJECTION",
+    "SOURCE_VERSION_MISMATCH",
+]:
+    assert signal in consistency, signal
+assert "REVOKE ALL ON FUNCTION tto.ph12_child06_projection_discrepancy" in consistency
+assert "tto.ph12_child07_guard_reference_mutation()" in consistency
 tests=(ROOT / "tests/sql/ph12-child06-child07-canonical-failclosed.sql").read_text()
 for signal in [
     "PH12_NONMEMBER_IMPLICIT_MEMBERSHIP_OR_ROLE",
@@ -44,7 +56,12 @@ for signal in [
     "PH12_REAL_TRANSFER_LEDGER_ENABLED",
     "PH12_LEDGER_MUTABLE",
     "PH12_LEGACY_TRANSFER_FINALIZE_UNBLOCKED",
-    "PH12_RUNTIME_PRIVILEGE_LEAK"
+    "PH12_RUNTIME_PRIVILEGE_LEAK",
+    "PH12_STALE_CF02_VERSION_NOT_DETECTED",
+    "PH12_WRONG_SELLER_CASE_ALLOWED",
+    "PH12_OVERSIZED_BUY_MATCH_ALLOWED",
+    "PH12_WRONG_OWNER_LOCK_ALLOWED",
+    "PH12_CASE_MUTATION_ALLOWED"
 ]:
     assert signal in tests, signal
 assert tests.strip().endswith("SELECT 'PH12_CHILD06_07_ALL_SYNTHETIC_ROWS_ROLLED_BACK_NO_REAL_SHARES';")
