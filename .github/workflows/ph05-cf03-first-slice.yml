@@ -44,13 +44,20 @@ jobs:
             sleep 0.5
           done
           test "$ready" = true || { docker logs tto-ph05-disposable | tail -60; exit 1; }
-      - name: Apply existing 0001..0015 exact-head migrations to disposable PG only
+      - name: Apply only historical PH05 0001..0019 dependencies to disposable PG17
         run: |
           set -euo pipefail
+          total=0
           for f in database/migrations/[0-9][0-9][0-9][0-9]_*.sql; do
+            version=$(basename "$f")
+            number=${version%%_*}
+            if (( 10#$number > 19 )); then continue; fi
+            total=$((total+1))
             echo "PH05_SYNTHETIC_MIGRATION=$(basename "$f")"
             docker exec -i tto-ph05-disposable psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" > /dev/null
           done
+          test "$total" -ge 19
+          echo "PH05_SYNTHETIC_MIGRATIONS_0001_0019_ONLY_PASS"
           echo "PH05_SYNTHETIC_MIGRATIONS_PASS"
       - name: Execute CF03 audit immutability and held-document deny
         run: |
