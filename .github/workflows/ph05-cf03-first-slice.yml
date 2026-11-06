@@ -1,5 +1,7 @@
 name: PH05 first-slice CF03 immutable audit & legal hold (synthetic PG17 ONLY)
 on:
+  push:
+    branches: [audit/ph10-frozen55-exact-20261106]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches:
@@ -7,11 +9,11 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ph05-source-cf03-${{ github.event.pull_request.number }}
+  group: ph05-source-cf03-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   disposable-cf03-negative:
-    if: github.head_ref == 'feat/ph05-core-foundation-evidence-gates-20261102'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/audit/ph10-frozen55-exact-20261106') || (github.event_name == 'pull_request' && github.head_ref == 'feat/ph05-core-foundation-evidence-gates-20261102')
     runs-on: ubuntu-latest
     timeout-minutes: 18
     env:
