@@ -27,6 +27,7 @@ jobs:
           python3 -m unittest discover -s tests -p test_ph12_physical_parity.py -v
           python3 tests/test_ph12_child06_07_canonical.py
           python3 tests/test_ph12_child06_07_owner_gate.py
+          python3 tests/test_ph12_share_market_v3_section51_truth.py
       - name: Prepare actual Next and Nest for 68-migration HTTP integration (NO DEPLOY)
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
@@ -38,6 +39,8 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
           pnpm check
+          node --test scripts/ci/share-market-v3-preflight.test.cjs
+          echo PH12_SHARE_MARKET_V3_PURE_PREFLIGHT_PASS_NOT_LIVE
       - name: Start disposable PostgreSQL17 (no hosted DB)
         run: |
           set -euo pipefail
