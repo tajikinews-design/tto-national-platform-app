@@ -6,7 +6,7 @@
   "production_host": "ArvanCloud",
   "production_authorized": false,
   "preview_host": "Vercel (protected only)",
-  "updated_at": "2026-10-26",
+  "updated_at": "2026-11-06",
   "all_children_implemented": false,
   "phases": {
     "PHASE-00": {
@@ -140,9 +140,18 @@
       ]
     },
     "PHASE-12": {
-      "status": "NOT_STARTED",
-      "evidence": [],
-      "blockers": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "Child06/07 scoped read-only source reconciliation: isolated PostgreSQL17 68 migrations SUCCESS run 42261366446 at 466ab53ca02bd5b598b32037b38686a48a94c2a5; adaptive security SUCCESS 42261369426; NO MERGE/DEPLOY.",
+        "12 source entities/75 fields manually mapped; 15 frozen MEMBER/SHARE acceptance IDs partial, all formal source semantic signoffs pending. Permanent workbook 1rY1L5oom3RGU13rb8GYqwFqYvnUxES4vwHjPbvIEqK8 tab نقطه ادامه PH12. Draft PR168 and Draft PR169 both unmerged."
+      ],
+      "blockers": [
+        "Single writer Member Master source owner and CF02/legacy cutover not signed",
+        "Non-member shareholder legal rights / CF04 rule not approved",
+        "Child07 official share register and opening balance provenance not attested",
+        "15 exact independent QA/legal sign-offs missing; formal 155/155 still HOLD",
+        "PH12 broader 148/786 semantic and 155/155 formal acceptance, accessibility/UAT, production readiness HOLD"
+      ]
     },
     "PHASE-13": {
       "status": "NOT_STARTED",
@@ -408,5 +417,40 @@
     "real_documents": "NONE",
     "production": "NOT_AUTHORIZED",
     "source_approval": "BLOCKED"
+  },
+  "phase12_child0607_source_checkpoint": {
+    "checkpoint_id": "PH12-CHILD06-07-SOURCE-RECON-2026-11-06",
+    "progress": "SCOPED_TECHNICAL_GREEN_FORMAL_HOLD",
+    "base_branch": "audit/ph12-148-786-schema-parity-20261106",
+    "draft_pr": 169,
+    "upstream_draft_pr": 168,
+    "code_sha": "466ab53ca02bd5b598b32037b38686a48a94c2a5",
+    "ci_runs": {
+      "pg17_68_migrations": 42261366446,
+      "adaptive_security": 42261369426
+    },
+    "workbook_id": "1rY1L5oom3RGU13rb8GYqwFqYvnUxES4vwHjPbvIEqK8",
+    "workbook_sheet": "نقطه ادامه PH12",
+    "source_field_scope": "12 CHILD-06/07 entities; 75 source field phrases; 15 frozen MEMBER/SHARE test IDs",
+    "new_migrations": [
+      "0044_ph12_child06_child07_canonical_failclosed.sql",
+      "0045_ph12_child06_07_contract_consistency.sql",
+      "0046_ph12_child06_07_source_reconciliation_readonly.sql"
+    ],
+    "next_allowed_action": "Only source-owner/legal contract and official-opening-source attestation or additional isolated UAT evidence; no duplicate tables, source promotion, transfer or deployment.",
+    "hard_blocks": [
+      "Single writer Member Master source owner and CF02/legacy cutover not signed",
+      "Non-member shareholder legal rights / CF04 rule not approved",
+      "Child07 official share register and opening balance provenance not attested",
+      "15 exact independent QA/legal sign-offs missing; formal 155/155 still HOLD"
+    ],
+    "non_goals": [
+      "Do not create new CHILD06/07 entities again",
+      "Do not auto-sync Member Master or accept CF02 projection as owner",
+      "No absent-holdings-as-zero",
+      "No wallet or real payment",
+      "No Merge/Deploy/production database writes",
+      "Do not enable legal transfer"
+    ]
   }
 }
