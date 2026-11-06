@@ -104,8 +104,16 @@ docker exec "$name" pg_dump -U postgres -d tto --schema-only --no-owner \
  --no-acl --no-comments -f /tmp/ph10-ops-source-schema.sql
 docker exec "$name" pg_dump -U postgres -d "$temp_migration" --schema-only \
  --no-owner --no-acl --no-comments -f /tmp/ph10-ops-replay-schema.sql
+# PG17 pg_dump may emit freshly randomized psql injection-guard tokens
+# (backslash restrict/unrestrict). They are dump-transport metadata, not DDL.
+# Strip only those token lines before strict full schema comparison.
+for file in /tmp/ph10-ops-source-schema.sql /tmp/ph10-ops-replay-schema.sql; do
+ docker exec "$name" sed -i -e '/^\\restrict /d' -e '/^\\unrestrict /d' "$file"
+done
 if ! docker exec "$name" cmp -s /tmp/ph10-ops-source-schema.sql /tmp/ph10-ops-replay-schema.sql; then
  echo "PH10_OPS005_SCHEMA_RECONCILIATION_NONZERO_CHECK_MIGRATIONS" >&2
+ # Keep substantive differences visible, but never silently downgrade them.
+ docker exec "$name" diff -U2 /tmp/ph10-ops-source-schema.sql /tmp/ph10-ops-replay-schema.sql | head -100 || true
  exit 1
 fi
 echo "PH10_OPS_AT005_CLEAN_MIGRATION_SCHEMA_RECONCILIATION_PASS"
