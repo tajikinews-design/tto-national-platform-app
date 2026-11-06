@@ -168,6 +168,28 @@ async function testCooperativeBff(memberToken,managerToken){
  for(const nav of ['NAV-04','NAV-05','NAV-07','NAV-08','NAV-09','NAV-10']){
   await call(nav,null,401);
  }
+ const grcUrl=(t,c=case129)=>base+'/api/tenants/'+t+'/ph10/grc/cases/'+c+'/can-finalize';
+ async function precheck(t,cookie,expected,c=case129,forged=false){
+  const response=await fetch(grcUrl(t,c),{headers:{
+   ...(cookie?{Cookie:'tto_session='+cookie}:{}),
+   ...(forged?{Authorization:'Bearer '+managerToken,'X-Role':'COOPERATIVE_MANAGER'}:{})
+  }});
+  const body=await response.json();
+  assert.equal(response.status,expected,'PH10_GRC_POLICY_SOURCE_DENY_'+expected+'_'+JSON.stringify(body));
+  assert.match(response.headers.get('cache-control')??'',/no-store/);
+  checks++;
+  return body;
+ }
+ const blocked=await precheck(tenant,managerToken,200);
+ assert.equal(blocked.allowed,false);
+ assert.equal(blocked.officialApproval,false);
+ assert.equal(blocked.readOnly,true);
+ assert.equal(blocked.sourceBound,true);
+ await precheck(tenant,memberToken,403);
+ await precheck(tenant,null,401,case129,true);
+ await precheck(foreign,managerToken,403);
+ await precheck(tenant,managerToken,400,'not-a-uuid');
+ console.log('PH10_GRC_AT001_BFF_MANAGER_BLOCK_MEMBER_ANON_FOREIGN_DENIED_PASS');
  console.log('PH10_NEXT_BFF_ALL_SIX_ROUTES_REQUIRE_COOKIE_PASS');
  console.log('PH10_NEXT_BFF_AUTHENTICATED_ROLE_TENANT_SOURCE_INTEGRATION_PASS');
 }
