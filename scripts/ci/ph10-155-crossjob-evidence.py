@@ -60,6 +60,7 @@ def joined(sha,run_id,artifacts=ART):
          portal.get("actualBrowserRolePaths")==6 and
          portal.get("declaredBffSourceBindings")==11 and
          portal.get("realSourceSpecificCommands")==1 and
+         portal.get("grcArticle129SourcePolicyPrecheck")==1 and
          portal.get("full155UserJourneysAccepted") is False and
          portal.get("release")=="HOLD" and len(portal["cases"])==11,
          "THREE_PORTAL_ROLE_SOURCE_RUNTIME_INCOMPLETE")
@@ -98,7 +99,8 @@ def joined(sha,run_id,artifacts=ART):
     need(set(sql)==set(original_ids),"SQL_SOURCE_DRIFT")
     need(set(source100)==set(original_ids[55:]),"SOURCE100_INDIVIDUAL_ID_DRIFT")
     need(sum(x["realChromiumReadVerified"] for x in portal["cases"])==3 and
-         sum(x["sourceSpecificBrowserCommandVerified"] for x in portal["cases"])==1,
+         sum(x["sourceSpecificBrowserCommandVerified"] for x in portal["cases"])==1 and
+         sum(x["sourceSpecificPolicyPrecheckVerified"] for x in portal["cases"])==1,
          "THREE_PORTAL_ROLE_EVIDENCE_INFLATION")
     need(set(older)==set(original_ids[:55]),"FROZEN55_DRIFT")
     need(set(ac)==set(original_ids[:8]) and set(tc)==set(original_ids[8:16]),
@@ -206,6 +208,7 @@ def joined(sha,run_id,artifacts=ART):
             "threePortalRoleMatrixRealBrowserPaths":6,
             "threePortalSourceIdRelatedMappings":11,
             "threePortalOriginalSourceScopedCommandChecks":1,
+            "threePortalArticle129ScopedPolicyPrechecks":1,
             "allPortalAllRoleFullJourneysAccepted":False,
             "sql100SuiteCompleted":100,"perSourceSqlExecutedMarkersVerified":96,
             "sourceSqlWithoutPerIdEvidence":["OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008"],
