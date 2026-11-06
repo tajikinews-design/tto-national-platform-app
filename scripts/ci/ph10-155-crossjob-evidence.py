@@ -37,6 +37,7 @@ def joined(sha,run_id,artifacts=ART):
     need(original_ids==[x["id"] for x in official] and len(set(original_ids))==155,
          "SOURCE_ID_SEQUENCE_OR_DUPLICATE")
     first=j(artifacts/"ph10_155_exact_run_sql_ledger.json")
+    per_sql=j(artifacts/"ph10_source100_individual_sql_evidence.json")
     f55=j(artifacts/"ph10_frozen55_exact_evidence.json")
     auth=j(artifacts/"ph10_ph04_auth8_exact_evidence.json")
     tenants=j(artifacts/"ph10_ph04_tenant8_exact_evidence.json")
@@ -45,7 +46,7 @@ def joined(sha,run_id,artifacts=ART):
     recovery=(artifacts/"ph10_g5_restore_stdout.log").read_text(encoding="utf-8")
     need("PH10_G5_DISPOSABLE_BACKUP_RESTORE_PASS" in {x.strip() for x in recovery.splitlines()},
          "G5_BACKUP_RESTORE_PROOF_MISSING")
-    for item in (first,f55):
+    for item in (first,f55,per_sql):
         need(item.get("commitSha",item.get("run",{}).get("commitSha"))==sha,
              "SQL_LEDGER_SHA_MISMATCH")
         need(str(item.get("workflowRunId",item.get("run",{}).get("workflowRunId")))==run_id,
@@ -58,6 +59,11 @@ def joined(sha,run_id,artifacts=ART):
          "THREE_PORTAL_INVENTORY_MISSING")
     need(first.get("sqlVerifiedIds")==100 and len(first["cases"])==155,
          "100_SQL_CENSUS_MISSING")
+    need(per_sql.get("completedSqlSuiteSourceIdCount")==100 and
+         per_sql.get("individualExecutedSqlSignalCount")==96 and
+         per_sql.get("noIndividualSqlSignalCount")==4 and
+         per_sql.get("noIndividualSignalIds")==["OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008"],
+         "SOURCE100_96_PLUS_4_TRUTH_CENSUS_MISSING")
     need(f55.get("ph05Ph06SourceScopedPass")==39 and len(f55["cases"])==55,
          "FROZEN55_RUNTIME_MISSING")
     need(p8.get("relatedRealHttpScopedEvidenceCount")==32 and
@@ -67,8 +73,9 @@ def joined(sha,run_id,artifacts=ART):
     need(p8.get("formalEndToEndAcceptedCount")==0,
          "UNTRUSTED_PH08_E2E_PROMOTION")
     keyed=lambda xs:{v["acceptanceId"]:v for v in xs}
-    sql,older,ac,tc,api=map(keyed,(first["cases"],f55["cases"],auth["cases"],tenants["cases"],p8["cases"]))
+    sql,older,ac,tc,api,source100=map(keyed,(first["cases"],f55["cases"],auth["cases"],tenants["cases"],p8["cases"],per_sql["cases"]))
     need(set(sql)==set(original_ids),"SQL_SOURCE_DRIFT")
+    need(set(source100)==set(original_ids[55:]),"SOURCE100_INDIVIDUAL_ID_DRIFT")
     need(set(older)==set(original_ids[:55]),"FROZEN55_DRIFT")
     need(set(ac)==set(original_ids[:8]) and set(tc)==set(original_ids[8:16]),
          "PH04_AUTH_OR_TENANT_COVERAGE_DRIFT")
@@ -117,10 +124,25 @@ def joined(sha,run_id,artifacts=ART):
                   source08[ident]["sqlFile"] if phase=="PH08" else
                   "tests/sql/ph09-"+MODULE09[source09[ident]["module"]]+"-acceptance.sql")
             need((ROOT/path).is_file(),"SOURCE_TEST_NOT_FOUND:"+ident)
-            row.update(evidenceLayer="PHASE_SQL_SUITE_COMPLETION_NOT_INDIVIDUAL_E2E",
-                       testPath=path,assertionMarker="CI_SQL_SUITE_SCOPED_PASS",
+            signal=source100[ident]
+            need(signal["sqlSourcePath"]==path and
+                 signal.get("commitSha")==sha and
+                 str(signal.get("workflowRunId"))==run_id,
+                 "SOURCE100_PER_ID_PROVENANCE_DRIFT:"+ident)
+            verified=signal["scopedMarkerVerified"] is True
+            need(verified==(ident not in {"OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008"}),
+                 "SOURCE100_UNEXPECTED_INDIVIDUAL_RESULT:"+ident)
+            need(signal.get("fullUserJourneyProven") is False and
+                 signal.get("formalAcceptance")=="NOT_ACCEPTED",
+                 "SOURCE100_FALSE_LEGAL_OR_E2E_PROMOTION:"+ident)
+            row.update(evidenceLayer=signal["evidenceLayer"],
+                       testPath=path,
+                       assertionMarker=signal["exactAssertionMarker"],
+                       sourceSqlOutputSha256=signal["stdoutSha256"],
                        job="source-sql-and-actual-api",
-                       scopedTechnicalResult="PASS_SCOPED_SQL")
+                       scopedTechnicalResult=signal["scopedResult"])
+            if ident=="OPS-AT-004":
+                row["independentRecoveryScope"]="RELATED_G5_PG17_RESTORE_NOT_FULL_SOURCE_OPS004"
             if phase=="PH08":
                 extra=api[ident]
                 need(extra["formalAcceptance"]=="NOT_ACCEPTED" and
@@ -143,6 +165,8 @@ def joined(sha,run_id,artifacts=ART):
             "phaseCounts":counts,"sourceIdsClassified":155,"sourceIdsFormallyAccepted":0,
             "all155CompleteUserJourneysProven":False,
             "threePortalInventory":"STATIC_INVENTORY_NOT_ALL_ROLES_E2E",
+            "sql100SuiteCompleted":100,"perSourceSqlExecutedMarkersVerified":96,
+            "sourceSqlWithoutPerIdEvidence":["OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008"],
             "ph08SourceHttp":"32_RELATED_4_ABSENT_ROUTE_NOT_FULL_E2E",
             "g5DisposableBackupRestore":"PASS_IN_CI_NONPRODUCTION",
             "legalSourceAuthenticity":"BLOCKED","release":"HOLD",
@@ -159,7 +183,7 @@ def main():
     ART.mkdir(exist_ok=True)
     (ART/"ph10_155_crossjob_truth_ledger.json").write_text(
         json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    print("PH10_155_EXACT_CROSSJOB_CLASSIFIED=155_SOURCES_SCOPED_ONLY_FORMAL_E2E=0_RELEASE_HOLD")
+    print("PH10_155_EXACT_CROSSJOB_CLASSIFIED=155_PER_SOURCE_SQL=96/100_OPS_GAPS=4_FORMAL_E2E=0_RELEASE_HOLD")
     print("PH10_G5_EXACT_HEAD_PG17_RECOVERY_VERIFIED_NONPRODUCTION")
 
 if __name__=="__main__":
