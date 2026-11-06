@@ -117,6 +117,7 @@ class EvidenceTruth(unittest.TestCase):
                 "run":{"commitSha":SHA,"runId":RUN,"job":"source-sql-and-actual-api"},
                 "realBrowserPortalSources":3,"actualBrowserRolePaths":6,
                 "declaredBffSourceBindings":11,"realSourceSpecificCommands":1,
+                "grcArticle129SourcePolicyPrecheck":1,
                 "full155UserJourneysAccepted":False,"release":"HOLD",
                 "cases":[{"portal":p,"navId":n,"sourceAcceptanceId":ident,
                            "formalAcceptance":"NOT_ACCEPTED",
@@ -125,7 +126,8 @@ class EvidenceTruth(unittest.TestCase):
                                ("shareholder","NAV-06"),
                                ("cooperative-management","NAV-10"),
                                ("national-admin","NAV-09")},
-                           "sourceSpecificBrowserCommandVerified":(p,n)==("shareholder","NAV-06")}
+                           "sourceSpecificBrowserCommandVerified":(p,n)==("shareholder","NAV-06"),
+                           "sourceSpecificPolicyPrecheckVerified":(p,n)==("cooperative-management","NAV-10")}
                           for p,n,ident in [
                            ("shareholder","NAV-06","LEARN-AT-001"),
                            ("shareholder","NAV-07","MKT-AT-006"),
@@ -166,6 +168,11 @@ class EvidenceTruth(unittest.TestCase):
         self.artifacts["ph10_ops_four_exact_evidence.json"]["cases"][1]["scopedTechnicalPassed"]=False
         self.write()
         with self.assertRaisesRegex(AssertionError,"OPS_UNEXPECTED_SCOPE"):
+            gate.joined(SHA,RUN,self.root)
+    def test_missing_grc_policy_precheck_fails(self):
+        self.artifacts["ph10_three_portal_role_source_evidence.json"]["grcArticle129SourcePolicyPrecheck"]=0
+        self.write()
+        with self.assertRaisesRegex(AssertionError,"THREE_PORTAL_ROLE_SOURCE_RUNTIME_INCOMPLETE"):
             gate.joined(SHA,RUN,self.root)
     def test_portal_fabricated_runtime_fails(self):
         self.artifacts["ph10_three_portal_role_source_evidence.json"]["realBrowserPortalSources"]=11
