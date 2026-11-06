@@ -7,6 +7,8 @@ FROZEN=ROOT/"docs/analysis/ACCEPTANCE_IDS.json"
 SOURCE=ROOT/"docs/analysis/PH08_OFFICIAL_SOURCE36.json"
 OUT=ROOT/"ph10-artifacts/ph10_ph08_36_http_gap_ledger.json"
 MARKERS={
+ "LEARN-AT-005":"PH10_REAL_HTTP_PH08_LEARN_AT005_RETIRED_COURSE_MEMBER_HISTORY_PASS",
+ "MKT-AT-004":"PH10_REAL_HTTP_PH08_MKT_AT004_SPONSORED_LABEL_TENANT_PRIVACY_PASS",
  "LEARN-AT-003":"PH10_REAL_HTTP_PH08_LEARN_AT003_REAL_VACANCY_PROMOTION_PASS",
  "PROC-AT-005":"PH10_REAL_HTTP_PH08_PROC_AT005_CONFLICT_OF_INTEREST_ELIGIBILITY_GUARD_PASS",
  "PROJ-AT-003":"PH10_REAL_HTTP_PH08_PROJ_AT003_MANAGER_MILESTONE_SINGLE_AUDIT_EVENT_PASS",
@@ -38,9 +40,9 @@ ABSENT_ROUTE_MARKERS={
 PATHS={
  "PROJ":["GET /v1/tenants/{tenantId}/ph08/projects/disclosures"],
  "VOICE":["GET /v1/tenants/{tenantId}/ph08/voice/open-polls","POST /v1/tenants/{tenantId}/ph08/voice/{pollId}/respond"],
- "LEARN":["GET /v1/tenants/{tenantId}/ph08/learning/events","POST /v1/tenants/{tenantId}/ph08/learning/events/{eventId}/enroll"],
+ "LEARN":["GET /v1/tenants/{tenantId}/ph08/learning/events","POST /v1/tenants/{tenantId}/ph08/learning/events/{eventId}/enroll","GET /v1/tenants/{tenantId}/ph08/learning/retired-history"],
  "BEN":["GET /v1/tenants/{tenantId}/ph08/benefits/my-vouchers","POST /v1/tenants/{tenantId}/ph08/benefits/vouchers/{voucherId}/redeem"],
- "MKT":["GET /v1/tenants/{tenantId}/ph08/market/offers"],
+ "MKT":["GET /v1/tenants/{tenantId}/ph08/market/offers","GET /v1/tenants/{tenantId}/ph08/market/sponsored-creatives"],
  "PROC":["GET /v1/tenants/{tenantId}/ph08/procurement/tenders"],
 }
 NEST=ROOT/"services/api/src/module.ts"
@@ -61,7 +63,7 @@ def source():
    last=path.split("/ph08/")[-1].replace("{eventId}",":eventId").replace("{pollId}",":pollId").replace("{voucherId}",":voucherId")
    assert last in text,"NEST_ROUTE_MISSING:"+last
  assert set(MARKERS).isdisjoint(ABSENT_ROUTE_MARKERS)
- assert len(MARKERS)==21 and len(ABSENT_ROUTE_MARKERS)==4
+ assert len(MARKERS)==23 and len(ABSENT_ROUTE_MARKERS)==4
  for ident,marker in {**MARKERS,**ABSENT_ROUTE_MARKERS}.items():
   assert ident in {x["id"] for x in raw} and marker in test,"RELATED_OR_ABSENCE_MARKER_MISSING:"+ident
  for c in raw:assert (ROOT/c["sqlFile"]).is_file(),"SOURCE_SQL_MISSING:"+c["id"]

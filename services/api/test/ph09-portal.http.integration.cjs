@@ -828,6 +828,36 @@ async function main(){
  assert.equal(eligibility.legalApproval,false);
  console.log('PH10_REAL_HTTP_PH08_PROC_AT005_CONFLICT_OF_INTEREST_ELIGIBILITY_GUARD_PASS');
 
+ // LEARN-AT-005: history remains accessible only to its registered
+ // member after retirement; it does not issue a new certificate.
+ const retiredCourse='9c400000-0000-4000-8000-000000000096';
+ const retiredEvent='9c500000-0000-4000-8000-000000000096';
+ await db.query("INSERT INTO tto.ph08_courses(course_id,tenant_id,title,status) VALUES($1,$2,'Synthetic retired learning','RETIRED')",[retiredCourse,tenant]);
+ await db.query("INSERT INTO tto.ph08_training_events(event_id,course_id,tenant_id,capacity,refund_policy_version) VALUES($1,$2,$3,2,'PH10_REFUND_V1')",[retiredEvent,retiredCourse,tenant]);
+ await db.query("INSERT INTO tto.ph08_event_registrations(registration_id,event_id,registered_by,state) VALUES($1,$2,$3,'CANCELLED')",[randomUUID(),retiredEvent,user]);
+ const retiredHistory=await request('GET',p8+'/learning/retired-history',memberToken,200);
+ assert.equal(retiredHistory.items.some(v=>v.event_id===retiredEvent&&v.course_title==='Synthetic retired learning'),true);
+ const unrelatedHistory=await request('GET',p8+'/learning/retired-history',managerToken,200);
+ assert.equal(unrelatedHistory.items.length,0);
+ await request('GET',p8Other+'/learning/retired-history',memberToken,403);
+ console.log('PH10_REAL_HTTP_PH08_LEARN_AT005_RETIRED_COURSE_MEMBER_HISTORY_PASS');
+ // MKT-AT-004: sponsored creatives always carry sponsored=true,
+ // official_notice=false and are tenant/member scoped.
+ const adLocal='9cc00000-0000-4000-8000-000000000096';
+ const adForeign='9cc00000-0000-4000-8000-000000000095';
+ await db.query("INSERT INTO tto.ph08_ad_creatives(creative_id,tenant_id,caption) VALUES($1,$2,'Synthetic sponsored test creative'),($3,$4,'Foreign synthetic creative')",
+  [adLocal,tenant,adForeign,foreign]);
+ const sponsored=await request('GET',p8+'/market/sponsored-creatives',memberToken,200);
+ assert.equal(sponsored.items.length,1);
+ assert.equal(sponsored.items[0].creative_id,adLocal);
+ assert.equal(sponsored.items[0].sponsored,true);
+ assert.equal(sponsored.items[0].official_notice,false);
+ const managerAds=await request('GET',p8+'/market/sponsored-creatives',managerToken,200);
+ assert.equal(managerAds.items.length,0);
+ await request('GET',p8Other+'/market/sponsored-creatives',memberToken,403);
+ console.log('PH10_REAL_HTTP_PH08_MKT_AT004_SPONSORED_LABEL_TENANT_PRIVACY_PASS');
+
+
  console.log('PH10_REAL_HTTP_TOTAL_PHASE09_PLUS_PHASE08_REQUESTS='+checks);
  console.log('PH09_REAL_NEST_HTTP_REQUESTS_PASS='+checks);
 }

@@ -1719,6 +1719,20 @@ export class Ph10Phase08ReadController {
    return {eligible:v.rows[0]?.eligible===true,legalApproval:false,mayReadSealedBid:false};
   });
  }
+ // PH08 LEARN-AT-005: member-only historical read after course retirement.
+ @Get(":tenantId/ph08/learning/retired-history")
+ async retiredLearning(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,
+   "SELECT event_id,course_title,registration_state FROM tto.ph10_member_retired_training_history()");
+ }
+ // PH08 MKT-AT-004: visible sponsorship label; NEVER official notice.
+ @Get(":tenantId/ph08/market/sponsored-creatives")
+ async sponsoredAds(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  return this.scoped(tenant,auth,
+   "SELECT creative_id,caption,sponsored,official_notice FROM tto.ph10_member_sponsored_creatives()");
+ }
  @Get(":tenantId/ph08/procurement/tenders")
  async tenders(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
   @Headers("authorization") auth?:string){
