@@ -90,7 +90,7 @@ class EvidenceTruth(unittest.TestCase):
     def test_missing_source_id_fails(self):
         self.artifacts["ph10_frozen55_exact_evidence.json"]["cases"].pop()
         self.write()
-        with self.assertRaisesRegex(AssertionError,"FROZEN55_DRIFT"):
+        with self.assertRaisesRegex(AssertionError,"FROZEN55_RUNTIME_MISSING"):
             gate.joined(SHA,RUN,self.root)
     def test_missing_recovery_fails(self):
         (self.root/"ph10_g5_restore_stdout.log").write_text("restore failed\n")
