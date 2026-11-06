@@ -4,6 +4,7 @@ on:
     branches: [feat/ph10-cooperative-dossier-lifecycle-20261105, audit/ph10-frozen55-exact-20261106]
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: ph10-stacked-combined-${{ github.ref }}
   cancel-in-progress: true
@@ -210,7 +211,15 @@ jobs:
       - name: Verify disposable PostgreSQL17 snapshot backup and restore
         run: |
           set -euo pipefail
-          bash scripts/ci/ph10-disposable-backup-restore.sh
+          mkdir -p ph10-artifacts
+          bash scripts/ci/ph10-disposable-backup-restore.sh | tee ph10-artifacts/ph10_g5_restore_stdout.log
+      - name: Upload independently executed G5 disposable restore evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ph10-g5-disposable-recovery
+          path: ph10-artifacts/ph10_g5_restore_stdout.log
+          if-no-files-found: error
+          retention-days: 14
       - name: Explicitly preserve the remaining mandatory integration blockers
         run: |
           echo PH10_ALL155_FULL_USER_JOURNEYS_NOT_YET_PROVEN
@@ -277,3 +286,58 @@ jobs:
       - name: Remove temporary identity Postgres
         if: always()
         run: docker rm -f tto-adaptive-postgres || true
+
+  evidence-155-crossjob-join:
+    needs: [frozen155-and-three-portals, source-sql-and-actual-api, identity-source-core-real-http]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      CI: "true"
+      VERCEL: ""
+    steps:
+      - name: Checkout exact source without write token
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: {persist-credentials: false}
+      - name: Download evidence only from this successful workflow run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: ph10-*
+          path: ph10-artifacts
+          merge-multiple: true
+      - name: Normalize artifact hierarchy and check required evidence
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          root=Path("ph10-artifacts")
+          names=(
+            "ph10_155_exact_run_sql_ledger.json",
+            "ph10_frozen55_exact_evidence.json",
+            "ph10_ph04_auth8_exact_evidence.json",
+            "ph10_ph04_tenant8_exact_evidence.json",
+            "ph10_ph08_36_http_gap_ledger.json",
+            "ph10_page_api_inventory.json",
+            "ph10_g5_restore_stdout.log",
+          )
+          for name in names:
+              paths=[p for p in root.rglob(name) if p.is_file()]
+              if not paths:raise SystemExit("PH10_MISSING_ARTIFACT:"+name)
+              if len({p.read_bytes() for p in paths})>1:
+                  raise SystemExit("PH10_CONFLICTING_ARTIFACT:"+name)
+              if root/name not in paths:
+                  shutil.copy2(paths[0],root/name)
+          print("PH10_REQUIRED_7_CROSSJOB_EVIDENCE_ARTIFACTS_PRESENT")
+          PY
+      - name: Reject fabricated success or missing source IDs
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p test_ph10_155_crossjob_evidence.py -v
+          python3 scripts/ci/ph10-155-crossjob-evidence.py
+      - name: Upload 155-row inspectable synthetic truth report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ph10-crossjob-155-truth-ledger
+          path: ph10-artifacts/ph10_155_crossjob_truth_ledger.json
+          if-no-files-found: error
+          retention-days: 30
