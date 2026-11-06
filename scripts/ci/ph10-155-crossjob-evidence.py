@@ -4,6 +4,7 @@
 A completed source-scoped test never establishes a full end-to-end user journey,
 external source authenticity, or legal acceptance. No test execution here.
 """
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -116,6 +117,44 @@ def joined(sha,run_id,artifacts=ART):
              v["formalAcceptance"]=="NOT_ACCEPTED" and
              v["fullSourceUserJourneyPassed"] is False,"OPS_FALSE_SOURCE_PROMOTION:"+k)
         need(v["scopedTechnicalPassed"]==(k!="OPS-AT-001"),"OPS_UNEXPECTED_SCOPE:"+k)
+    # The 100 PH07/PH08/PH09 identifiers are not 100 executed per-ID
+    # SQL markers. Admit the four OPS cases only through their distinct
+    # exact-run evidence layers; never promote design to runtime proof.
+    ops_contract={
+        "OPS-AT-001":(None,"DESIGN_RECONCILIATION_108_47_ONLY",
+          "docs/analysis/PH09_LEGACY_108_47_TRACEABILITY.json",False,True),
+        "OPS-AT-004":("PH10_OPS_AT004_TENANT_SCOPED_ROW_FINGERPRINT_RESTORE_PASS",
+          "DISPOSABLE_PG17_TENANT_DATA_FINGERPRINT_RESTORE",
+          "scripts/ci/ph10-ops-four-dedicated.sh",True,False),
+        "OPS-AT-005":("PH10_OPS_AT005_CLEAN_MIGRATION_SCHEMA_RECONCILIATION_PASS",
+          "DISPOSABLE_PG17_CLEAN_MIGRATION_SCHEMA_REPLAY",
+          "scripts/ci/ph10-ops-four-dedicated.sh",True,False),
+        "OPS-AT-008":("PH10_OPS_AT008_INDEPENDENT_TRANSACTION_ROLLBACK_SCOPED_PASS",
+          "DISPOSABLE_PG17_SEPARATE_TRANSACTION_ROLLBACK",
+          "scripts/ci/ph10-ops-four-dedicated.sh",True,False)}
+    legacy_source=ROOT/"docs/analysis/PH09_LEGACY_108_47_TRACEABILITY.json"
+    need(ops.get("designReconciliationSha256")==
+         hashlib.sha256(legacy_source.read_bytes()).hexdigest() and
+         ops.get("reconciledLegacyRequirementIds")==108 and
+         ops.get("reconciledLegacyTestIds")==47,
+         "OPS_001_DESIGN_HASH_OR_COUNTS_MISMATCH")
+    operational=0
+    design=0
+    for k,(marker,layer,path,runtime,design_validated) in ops_contract.items():
+        v=ops_rows[k]
+        need(v.get("assertionMarker")==marker and
+             v.get("evidenceLayer")==layer and
+             v.get("testPath")==path and
+             v.get("sourceContract")=="docs/analysis/PH09_OFFICIAL_SOURCE38.json" and
+             v.get("scopedTechnicalPassed") is runtime and
+             v.get("designTraceabilityValidated") is design_validated and
+             v.get("formalAcceptance")=="NOT_ACCEPTED" and
+             v.get("independentOperationalApproval") is False,
+             "OPS_LAYER_OR_ASSERTION_PROVENANCE_MISMATCH:"+k)
+        operational+=int(runtime)
+        design+=int(design_validated)
+    need(operational==3 and design==1,
+         "OPS_96_SQL_PLUS_THREE_RUNTIME_ONE_DESIGN_CENSUS_INVALID")
     source07={v["id"]:v for v in j(ROOT/"docs/analysis/PH07_26_SOURCE_ACCEPTANCE.json")["cases"]}
     source08={v["id"]:v for v in j(ROOT/"docs/analysis/PH08_OFFICIAL_SOURCE36.json")["cases"]}
     source09={v["id"]:v for v in j(ROOT/"docs/analysis/PH09_OFFICIAL_SOURCE38.json")["cases"]}
@@ -218,8 +257,16 @@ def joined(sha,run_id,artifacts=ART):
             "allPortalAllRoleFullJourneysAccepted":False,
             "sql100SuiteCompleted":100,"perSourceSqlExecutedMarkersVerified":96,
             "sourceSqlWithoutPerIdEvidence":["OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008"],
-            "opsOutOfBandScopedRuntimeProven":3,
-            "opsLegacyDesignReconciliationProven":1,
+            "opsOutOfBandScopedRuntimeProven":operational,
+            "opsLegacyDesignReconciliationProven":design,
+            "source100EvidenceLayerCensus":{
+                "individuallyExecutedSqlMarkers":96,
+                "independentScopedPg17Ops":operational,
+                "designReconciliationOnly":design,
+                "identifiersClassified":96+operational+design,
+                "runtimeVerifiedAcrossTheseLayers":96+operational,
+                "fullyAcceptedSourceJourneys":0},
+            "source100AllRuntimeVerified":False,
             "opsFullUserJourneysProven":0,
             "ph08SourceHttp":"32_RELATED_4_ABSENT_ROUTE_NOT_FULL_E2E",
             "g5DisposableBackupRestore":"PASS_IN_CI_NONPRODUCTION",
@@ -238,6 +285,7 @@ def main():
     (ART/"ph10_155_crossjob_truth_ledger.json").write_text(
         json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print("PH10_155_EXACT_CROSSJOB_CLASSIFIED=155_BROWSER_ROLES=6_PORTAL_SOURCES=3_SQL=96/100_OPS_SCOPED=3_FORMAL_E2E=0_RELEASE_HOLD")
+    print("PH10_SOURCE100_LAYERS_SQL=96_PG17_OPS=3_DESIGN_ONLY=1_RUNTIME=99_FULL_E2E=0")
     print("PH10_G5_EXACT_HEAD_PG17_RECOVERY_VERIFIED_NONPRODUCTION")
 
 if __name__=="__main__":

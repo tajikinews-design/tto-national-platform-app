@@ -4,6 +4,7 @@ These fixtures are not actual acceptance evidence; real output is admitted only
 from exact-head CI artifacts produced by independent completed jobs.
 """
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -104,13 +105,32 @@ class EvidenceTruth(unittest.TestCase):
                 "commitSha":SHA,"workflowRunId":RUN,
                 "operationsSourceSpecificScopedPass":3,"operationsDesignOnly":1,
                 "tenantBearingTablesCompared":7,"migrationFilesCleanReplayed":18,
+                "designReconciliationSha256":hashlib.sha256(
+                    (ROOT/"docs/analysis/PH09_LEGACY_108_47_TRACEABILITY.json").read_bytes()
+                ).hexdigest(),
+                "reconciledLegacyRequirementIds":108,
+                "reconciledLegacyTestIds":47,
                 "formalAcceptanceCount":0,"source155FullUserJourneysAccepted":False,
                 "cases":[{"acceptanceId":ident,"commitSha":SHA,"workflowRunId":RUN,
                           "formalAcceptance":"NOT_ACCEPTED","fullSourceUserJourneyPassed":False,
                           "scopedTechnicalPassed":ident!="OPS-AT-001",
-                          "evidenceLayer":"TEST_ONLY_DESIGN" if ident=="OPS-AT-001" else "TEST_ONLY_PG17",
-                          "testPath":"tests/test_ph10_155_crossjob_evidence.py",
-                          "assertionMarker":None if ident=="OPS-AT-001" else "TEST_MARKER_ONLY",
+                          "designTraceabilityValidated":ident=="OPS-AT-001",
+                          "sourceContract":"docs/analysis/PH09_OFFICIAL_SOURCE38.json",
+                          "evidenceLayer":{
+                            "OPS-AT-001":"DESIGN_RECONCILIATION_108_47_ONLY",
+                            "OPS-AT-004":"DISPOSABLE_PG17_TENANT_DATA_FINGERPRINT_RESTORE",
+                            "OPS-AT-005":"DISPOSABLE_PG17_CLEAN_MIGRATION_SCHEMA_REPLAY",
+                            "OPS-AT-008":"DISPOSABLE_PG17_SEPARATE_TRANSACTION_ROLLBACK"
+                          }[ident],
+                          "testPath":"docs/analysis/PH09_LEGACY_108_47_TRACEABILITY.json" if
+                            ident=="OPS-AT-001" else "scripts/ci/ph10-ops-four-dedicated.sh",
+                          "assertionMarker":{
+                            "OPS-AT-001":None,
+                            "OPS-AT-004":"PH10_OPS_AT004_TENANT_SCOPED_ROW_FINGERPRINT_RESTORE_PASS",
+                            "OPS-AT-005":"PH10_OPS_AT005_CLEAN_MIGRATION_SCHEMA_RECONCILIATION_PASS",
+                            "OPS-AT-008":"PH10_OPS_AT008_INDEPENDENT_TRANSACTION_ROLLBACK_SCOPED_PASS"
+                          }[ident],
+                          "independentOperationalApproval":False,
                           "scopedResult":"SYNTHETIC_TEST_FIXTURE"}
                          for ident in ("OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008")]},
             "ph10_three_portal_role_source_evidence.json":{
@@ -160,6 +180,14 @@ class EvidenceTruth(unittest.TestCase):
         self.assertEqual(out["sourceIdsFormallyAccepted"],0)
         self.assertEqual(out["perSourceSqlExecutedMarkersVerified"],96)
         self.assertEqual(len(out["sourceSqlWithoutPerIdEvidence"]),4)
+        self.assertEqual(out["source100EvidenceLayerCensus"],{
+            "individuallyExecutedSqlMarkers":96,
+            "independentScopedPg17Ops":3,
+            "designReconciliationOnly":1,
+            "identifiersClassified":100,
+            "runtimeVerifiedAcrossTheseLayers":99,
+            "fullyAcceptedSourceJourneys":0})
+        self.assertFalse(out["source100AllRuntimeVerified"])
         self.assertTrue(all(not x["fullSourceUserJourneyPassed"] for x in out["cases"]))
     def test_false_sql_specific_evidence_fails(self):
         c=self.artifacts["ph10_source100_individual_sql_evidence.json"]["cases"][0]
@@ -169,6 +197,21 @@ class EvidenceTruth(unittest.TestCase):
             gate.joined(SHA,RUN,self.root)
     def test_ops_tampered_release_proof_fails(self):
         self.artifacts["ph10_ops_four_exact_evidence.json"]["cases"][1]["scopedTechnicalPassed"]=False
+        self.write()
+        with self.assertRaisesRegex(AssertionError,"OPS_UNEXPECTED_SCOPE"):
+            gate.joined(SHA,RUN,self.root)
+    def test_ops_001_design_hash_tamper_fails(self):
+        self.artifacts["ph10_ops_four_exact_evidence.json"]["designReconciliationSha256"]="0"*64
+        self.write()
+        with self.assertRaisesRegex(AssertionError,"OPS_001_DESIGN_HASH_OR_COUNTS_MISMATCH"):
+            gate.joined(SHA,RUN,self.root)
+    def test_ops_004_runtime_marker_tamper_fails(self):
+        self.artifacts["ph10_ops_four_exact_evidence.json"]["cases"][1]["assertionMarker"]="FORGED_PASS"
+        self.write()
+        with self.assertRaisesRegex(AssertionError,"OPS_LAYER_OR_ASSERTION_PROVENANCE_MISMATCH"):
+            gate.joined(SHA,RUN,self.root)
+    def test_ops_001_promoted_to_runtime_fails(self):
+        self.artifacts["ph10_ops_four_exact_evidence.json"]["cases"][0]["scopedTechnicalPassed"]=True
         self.write()
         with self.assertRaisesRegex(AssertionError,"OPS_UNEXPECTED_SCOPE"):
             gate.joined(SHA,RUN,self.root)
