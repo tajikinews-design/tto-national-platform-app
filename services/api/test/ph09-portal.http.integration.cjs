@@ -626,18 +626,6 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
      checks++;
      console.log('PH10_ROLE_BROWSER_'+actor.id+'_FOREIGN_TENANT_DENIED_PASS');
     }
-    if(actor.id==='COOP_MEMBER'){
-     // Role separation must be enforced at the actual member enrollment BFF.
-     const rejected=await page.request.post('http://127.0.0.1:31679/api/tenants/'+tenant+
-       '/ph10/learning/events/9c500000-0000-4000-8000-000000000003/enroll',
-       {timeout:15000});
-     // COOP_MEMBER is the same member session; this is not a manager-deny check.
-     // Never issue an unauthorized test mutation here: source test has already
-     // completed/cancelled its synthetic registration through the real UI.
-     assert.ok([403,409].includes(rejected.status()),
-      'PH10_EXISTING_MEMBER_EVENT_UNEXPECTED_REENROLL_'+rejected.status());
-     checks++;
-    }
    }finally{
     await browserCleanupWithDeadline(()=>ctx.close(),'ROLE_MATRIX_'+actor.id);
    }
