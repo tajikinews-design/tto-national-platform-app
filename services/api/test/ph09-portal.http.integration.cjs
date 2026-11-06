@@ -51,7 +51,7 @@ async function token(uid){
  return raw;
 }
 async function request(method,route,bearer,status,payload){
- const resp=await fetch(root+route,{method,headers:bearer?{authorization:'Bearer '+bearer,...(payload?{'content-type':'application/json'}:{})}:{},...(payload?{body:payload}:{})});
+ const resp=await fetch(root+route,{method,headers:{...(bearer?{authorization:'Bearer '+bearer}:{}),...(payload?{'content-type':'application/json'}:{})},...(payload?{body:payload}:{})});
  const body=await resp.json().catch(()=>null);
  assert.equal(resp.status,status,method+' '+route+' expected '+status+' got '+resp.status+
  ' '+JSON.stringify(body).slice(0,220));
