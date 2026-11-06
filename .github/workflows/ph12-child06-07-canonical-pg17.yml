@@ -64,6 +64,24 @@ jobs:
           set -euo pipefail
           docker exec -i tto-ph12-0607 psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-child06-child07-canonical-failclosed.sql
           echo "PH12_CHILD0607_SYNTHETIC_SOURCE_BOUNDARY_PASS_NO_TRANSFER"
+      - name: Verify all 15 original IDs individually on current 68-migration isolated PG17 (synthetic only)
+        run: |
+          set -euo pipefail
+          proof="$RUNNER_TEMP/ph12-frozen15-per-id.sql.log"
+          docker exec -i tto-ph12-0607 psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph06-member-share-frozen15.sql | tee "$proof"
+          python3 - "$proof" <<'PY'
+          import pathlib,re,sys
+          raw=pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+          pairs=re.findall(r"\\bPH06_(MEMBER|SHARE)_AT(\\d{3})_[A-Z0-9_]*_PASS\\b",raw)
+          got={f"{section}-AT-{num}" for section,num in pairs}
+          expected={f"MEMBER-AT-{i:03d}" for i in range(1,8)}
+          expected|={f"SHARE-AT-{i:03d}" for i in range(1,9)}
+          if got!=expected:
+              raise SystemExit(f"PH12_FROZEN15_MARKER_MISMATCH missing={sorted(expected-got)} extra={sorted(got-expected)}")
+          if "PH06_15_SYNTHETIC_CASES_ROLLED_BACK_NO_REAL_SHARES" not in raw:
+              raise SystemExit("PH12_FROZEN15_ROLLBACK_PROOF_MISSING")
+          print("PH12_68_MIGRATIONS_15_INDIVIDUAL_SQL_SIGNALS_GREEN_SYNTHETIC_ONLY")
+          PY
       - name: Verify original transfer blocker and private schema still intact
         run: |
           set -euo pipefail
