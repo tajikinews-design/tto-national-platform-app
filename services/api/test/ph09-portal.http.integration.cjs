@@ -702,6 +702,11 @@ async function main(){
  for(const [method,route,payload] of protectedPH08){
   await request(method,p8+route,null,401,payload);
  }
+ // Regression: authentication takes precedence over domain validation.
+ // An authenticated malformed domain body still reports 400, not 401.
+ await request('POST',p8+'/voice/'+p8poll+'/respond',null,401,'{}');
+ await request('POST',p8+'/voice/'+p8poll+'/respond',memberToken,400,'{}');
+ console.log('PH10_PH08_POLL_AUTH_PRECEDES_DOMAIN_FIELD_VALIDATION_PASS');
  console.log('PH10_PH08_ALL_NINE_REAL_NEST_ROUTES_REQUIRE_BEARER_PASS');
  await request('GET',p8+'/projects/disclosures',null,401);
  let y=await request('GET',p8+'/projects/disclosures',memberToken,200);
