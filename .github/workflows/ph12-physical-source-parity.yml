@@ -1,0 +1,65 @@
+name: PH12 source148 field786 actual PostgreSQL17 catalog parity (NO DEPLOY)
+on:
+  push:
+    branches: [audit/ph12-148-786-schema-parity-20261106]
+permissions:
+  contents: read
+concurrency:
+  group: ph12-physical-parity-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  current-pg17-literal-audit-not-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: "true"
+      VERCEL: ""
+      DATABASE_URL: ""
+      TTO_API_BASE_URL: ""
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify no fabricated source acceptance or incomplete census
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p test_ph12_physical_parity.py -v
+      - name: Start disposable internal-network PostgreSQL17
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name tto-ph12-ci -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto postgres:17-alpine
+          ok=false
+          for attempt in $(seq 1 60); do
+            if docker exec tto-ph12-ci psql -U postgres -d tto -Atqc "SELECT 1" >/dev/null 2>&1; then ok=true;break;fi
+            sleep 1
+          done
+          test "$ok" = true || { docker logs tto-ph12-ci | tail -100; exit 1; }
+      - name: Replay all exact-head migrations in isolated PG17
+        run: |
+          set -euo pipefail
+          count=0
+          for f in database/migrations/[0-9][0-9][0-9][0-9]*.sql; do
+            test -f "$f"
+            docker exec -i tto-ph12-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" > /dev/null
+            count=$((count+1))
+          done
+          test "$count" -gt 40 || { echo "PH12_LATEST_MIGRATIONS_NOT_REPLAYED";exit 1; }
+          echo "PH12_ALL_CURRENT_MIGRATIONS_DISPOSABLE_PG17_PASS=$count"
+      - name: Collect actual SQL catalog and map source148 field786
+        run: |
+          set -euo pipefail
+          mkdir -p ph12-artifacts
+          catalog_sql="SELECT coalesce(json_agg(json_build_object('table',table_name,'column',column_name,'type',data_type,'nullable',is_nullable) ORDER BY table_name,column_name),'[]'::json) FROM information_schema.columns WHERE table_schema='tto' AND table_name IN (SELECT table_name FROM information_schema.tables WHERE table_schema='tto' AND table_type='BASE TABLE')"
+          docker exec tto-ph12-ci psql -U postgres -d tto -Atqc "$catalog_sql" > ph12-artifacts/current_pg17_catalog.json
+          python3 scripts/ci/ph12-physical-parity.py --catalog ph12-artifacts/current_pg17_catalog.json --output ph12-artifacts/ph12_current_786_mapping.json
+      - name: Preserve exact-head field-by-field audit
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ph12-current-pg17-source148-field786-literal-truth
+          path: ph12-artifacts/
+          retention-days: 30
+          if-no-files-found: warn
+      - name: Remove disposable Postgres
+        if: always()
+        run: docker rm -f tto-ph12-ci || true
