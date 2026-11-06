@@ -732,6 +732,44 @@ async function main(){
  console.log('PH10_REAL_HTTP_PH08_MKT_AT005_ABSENT_TARGETING_ROUTE_GUARD_PASS');
  await request('POST',p8+'/procurement/group-payment-pools',managerToken,404,'{"syntheticAmount":1}');
  console.log('PH10_REAL_HTTP_PH08_PROC_AT004_ABSENT_PAYMENT_POOL_ROUTE_GUARD_PASS');
+ // PH08 VOICE-AT-005: only a MEMBER can see even a redacted aggregate;
+ // 1 < min_aggregate_size=5, so zero cohort values leave no numeric leak.
+ const smallAggregate=await request('GET',p8+'/voice/'+p8poll+'/aggregate',memberToken,200);
+ assert.equal(smallAggregate.count,null);
+ assert.equal(smallAggregate.suppressed,true);
+ assert.equal(smallAggregate.legalResolution,false);
+ await request('GET',p8+'/voice/'+p8poll+'/aggregate',managerToken,403);
+ await request('GET',p8Other+'/voice/'+p8poll+'/aggregate',memberToken,403);
+ console.log('PH10_REAL_HTTP_PH08_VOICE_AT005_SMALL_COHORT_MEMBER_ONLY_SUPPRESSION_PASS');
+ // PH08 PROJ-AT-003: manager source-evidence completion creates exactly
+ // one immutable milestone event; member, duplicate and foreign denied.
+ const ph08Milestone='9cb00000-0000-4000-8000-000000000041';
+ await db.query("INSERT INTO tto.ph08_milestones(milestone_id,project_id,label) VALUES($1,$2,'Synthetic audit milestone')",[ph08Milestone,p8project]);
+ const milestoneUrl=p8+'/projects/milestones/'+ph08Milestone+'/complete';
+ const evidenceJson=JSON.stringify({evidenceId:evidence});
+ await request('POST',milestoneUrl,memberToken,403,evidenceJson);
+ await request('POST',p8Other+'/projects/milestones/'+ph08Milestone+'/complete',managerToken,403,evidenceJson);
+ const milestoneDone=await request('POST',milestoneUrl,managerToken,201,evidenceJson);
+ assert.equal(milestoneDone.completed,true);assert.equal(milestoneDone.legalApproval,false);
+ await request('POST',milestoneUrl,managerToken,403,evidenceJson);
+ const eventEvidence=await db.query("SELECT count(*)::integer AS n FROM tto.ph08_project_events WHERE milestone_id=$1 AND kind='MILESTONE_COMPLETED'",[ph08Milestone]);
+ assert.equal(eventEvidence.rows[0].n,1);
+ console.log('PH10_REAL_HTTP_PH08_PROJ_AT003_MANAGER_MILESTONE_SINGLE_AUDIT_EVENT_PASS');
+ // PH08 PROJ-AT-006: two same-version HTTP writes must serialize 1 success,
+ // 1 conflict. Only the version counter changes; it is not project approval.
+ const casUrl=p8+'/projects/'+p8project+'/versions/cas';
+ const versionBody=JSON.stringify({expectedVersion:1});
+ await request('POST',casUrl,memberToken,403,versionBody);
+ await request('POST',p8Other+'/projects/'+p8project+'/versions/cas',managerToken,403,versionBody);
+ await request('POST',casUrl,managerToken,400,JSON.stringify({expectedVersion:0}));
+ const versionRace=await Promise.all([0,1].map(()=>fetch(root+casUrl,{method:'POST',
+  headers:{authorization:'Bearer '+managerToken,'content-type':'application/json'},body:versionBody})));
+ assert.deepEqual(versionRace.map(v=>v.status).sort((a,b)=>a-b),[201,409]);
+ const currentVersion=await db.query("SELECT version,status FROM tto.ph08_projects WHERE project_id=$1",[p8project]);
+ assert.equal(Number(currentVersion.rows[0].version),2);
+ assert.equal(currentVersion.rows[0].status,'DRAFT');
+ checks+=2;
+ console.log('PH10_REAL_HTTP_PH08_PROJ_AT006_VERSION_ONLY_CONCURRENT_CAS_PASS');
  await testCooperativeBff(memberToken,managerToken);
  await testShareholderBff(memberToken,managerToken);
  await testNationalJitBff(foreignToken,managerToken);

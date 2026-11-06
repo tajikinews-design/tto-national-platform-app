@@ -1641,6 +1641,55 @@ export class Ph10Phase08ReadController {
   @Headers("authorization") auth?:string){
   return this.scoped(tenant,auth,"SELECT offer_id,title,price_snapshot,seller_kind FROM tto.ph10_member_market_offers()");
  }
+ // PH08 frozen VOICE-AT-005: source DB function suppresses small cohorts; no raw poll answers.
+ @Get(":tenantId/ph08/voice/:pollId/aggregate")
+ async pollAggregate(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("pollId",new ParseUUIDPipe()) poll:string,
+  @Headers("authorization") auth?:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const role=await c.query<{allowed:boolean}>("SELECT tto.has_tenant_role($1,'MEMBER') AS allowed",[tenant]);
+   if(role.rows[0]?.allowed!==true)throw new ForbiddenException({code:"POLL_AGGREGATE_MEMBER_REQUIRED"});
+   const v=await c.query<{count:number|null}>("SELECT tto.ph08_poll_public_count($1) AS count",[poll]);
+   const count=v.rows[0]?.count??null;
+   return {count,suppressed:count===null,legalResolution:false,tenantScoped:true};
+  });
+ }
+ // PH08 frozen PROJ-AT-003: existing SOURCE PG17 routine is transactional,
+ // appends one project event and denies cross-tenant/member/non-evidence writes.
+ @Post(":tenantId/ph08/projects/milestones/:milestoneId/complete")
+ async completeProjectMilestone(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("milestoneId",new ParseUUIDPipe()) milestone:string,
+  @Headers("authorization") auth:string|undefined,
+  @Body("evidenceId",new ParseUUIDPipe()) evidenceId:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const role=await c.query<{allowed:boolean}>("SELECT tto.has_tenant_role($1,'COOPERATIVE_MANAGER') AS allowed",[tenant]);
+   if(role.rows[0]?.allowed!==true)throw new ForbiddenException({code:"MILESTONE_MANAGER_REQUIRED"});
+   const v=await c.query<{accepted:boolean}>("SELECT tto.ph08_complete_milestone($1,$2) AS accepted",[milestone,evidenceId]);
+   if(v.rows[0]?.accepted!==true)throw new ForbiddenException({code:"MILESTONE_SCOPE_OR_DUPLICATE_DENIED"});
+   return {completed:true,eventRecorded:true,legalApproval:false};
+  });
+ }
+ // PH08 frozen PROJ-AT-006: version-only optimistic reservation, NO silent
+ // field edit/approval or cross-county activity; full update still separate.
+ @Post(":tenantId/ph08/projects/:projectId/versions/cas")
+ async compareProjectVersion(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("projectId",new ParseUUIDPipe()) project:string,
+  @Headers("authorization") auth:string|undefined,
+  @Body() input:Record<string,unknown>){
+  const expected=input?.expectedVersion;
+  if(typeof expected!=="number"||!Number.isSafeInteger(expected)||expected<1)
+   throw new BadRequestException({code:"PROJECT_VERSION_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const role=await c.query<{allowed:boolean}>("SELECT tto.has_tenant_role($1,'COOPERATIVE_MANAGER') AS allowed",[tenant]);
+   if(role.rows[0]?.allowed!==true)throw new ForbiddenException({code:"PROJECT_VERSION_MANAGER_REQUIRED"});
+   const v=await c.query<{accepted:boolean}>("SELECT tto.ph08_cas_project($1,$2) AS accepted",[project,expected]);
+   if(v.rows[0]?.accepted!==true)throw new ConflictException({code:"PROJECT_VERSION_STALE_OR_INACCESSIBLE"});
+   return {versionReserved:true,newVersion:expected+1,fieldsChanged:false,legalApproval:false};
+  });
+ }
  @Get(":tenantId/ph08/procurement/tenders")
  async tenders(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
   @Headers("authorization") auth?:string){
