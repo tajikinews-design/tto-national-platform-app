@@ -227,6 +227,22 @@ jobs:
           path: ph10-artifacts/ph10_g5_restore_stdout.log
           if-no-files-found: error
           retention-days: 14
+      - name: Independently prove PH09 OPS004 recovery, OPS005 migration replay, OPS008 rollback
+        env:
+          TTO_PH10_OPS_DISPOSABLE: "true"
+          TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/ph10-ops-four-evidence.py --validate
+          bash scripts/ci/ph10-ops-four-dedicated.sh | tee "$RUNNER_TEMP/ph10-ops-four-run.stdout.log"
+          python3 scripts/ci/ph10-ops-four-evidence.py --log "$RUNNER_TEMP/ph10-ops-four-run.stdout.log"
+      - name: Upload exact-head four OPS scope-separated evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ph10-ops-four-synthetic-source-evidence
+          path: ph10-artifacts/ph10_ops_four_exact_evidence.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Explicitly preserve the remaining mandatory integration blockers
         run: |
           echo PH10_ALL155_FULL_USER_JOURNEYS_NOT_YET_PROVEN
@@ -327,6 +343,7 @@ jobs:
             "ph10_ph08_36_http_gap_ledger.json",
             "ph10_page_api_inventory.json",
             "ph10_g5_restore_stdout.log",
+            "ph10_ops_four_exact_evidence.json",
           )
           for name in names:
               paths=[p for p in root.rglob(name) if p.is_file()]
@@ -335,7 +352,7 @@ jobs:
                   raise SystemExit("PH10_CONFLICTING_ARTIFACT:"+name)
               if root/name not in paths:
                   shutil.copy2(paths[0],root/name)
-          print("PH10_REQUIRED_8_CROSSJOB_EVIDENCE_ARTIFACTS_PRESENT")
+          print("PH10_REQUIRED_9_CROSSJOB_EVIDENCE_ARTIFACTS_PRESENT")
           PY
       - name: Reject fabricated success or missing source IDs
         run: |
