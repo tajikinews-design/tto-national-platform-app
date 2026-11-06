@@ -708,6 +708,51 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
    }finally{await browserCleanupWithDeadline(()=>anon.close(),'ROLE_ANON_'+nav);}
   }
   console.log('PH10_ROLE_BROWSER_ALL_THREE_PORTAL_ANON_BFF_DENIES_PASS');
+  // CORE-AUTH-AT-004 related negative-only: revoke the actual synthetic
+  // national DOCUMENT_REVIEW JIT while the bearer session remains valid.
+  // Cached browser content and direct same-origin BFF must fail closed.
+  const jitCtx=await browser.newContext({locale:'fa-IR',viewport:{width:390,height:844}});
+  jitCtx.setDefaultTimeout(12000);
+  try{
+   await jitCtx.addCookies([{name:'tto_session',value:profiles[2].token,
+    domain:'127.0.0.1',path:'/',httpOnly:true,secure:false,sameSite:'Lax'}]);
+   const page=await jitCtx.newPage();
+   const docUrl='http://127.0.0.1:31680/api/tenants/'+tenant+'/ph10/NAV-09';
+   await page.goto('http://127.0.0.1:31680/modules/nav-09',
+    {waitUntil:'domcontentloaded',timeout:30000});
+   await page.locator('#tto-select-national').selectOption(tenant);
+   await page.getByRole('button',{name:'بررسی مجوز محدوده'}).click();
+   await page.getByText('Synthetic approved-to-display minute')
+    .waitFor({state:'visible',timeout:15000});
+   const before=await page.request.get(docUrl,{timeout:15000});
+   assert.equal(before.status(),200,'PH10_JIT_PRE_REVOKE_SOURCE_MISSING');
+   const original=await db.query(
+    "SELECT md5(to_jsonb(d)::text) AS fingerprint FROM tto.documents d WHERE document_id=$1",
+    ['9d000000-0000-4000-8000-000000000001']);
+   assert.equal(original.rows.length,1);
+   const grant=await db.query(
+    "UPDATE tto.jit_access_grants SET expires_at=now()-interval '1 minute'"+
+    " WHERE tenant_id=$1 AND requester_id=$2 AND scope='DOCUMENT_REVIEW' RETURNING grant_id",
+    [tenant,outsider]);
+   assert.ok(grant.rowCount>0,'PH10_JIT_GRANT_FIXTURE_NOT_EXPIRED');
+   const after=await page.request.get(docUrl,{timeout:15000});
+   assert.equal(after.status(),403,'PH10_JIT_EXPIRED_BFF_RETAINED_ACCESS');
+   const rejected=await after.json();
+   assert.equal(rejected.available,false);
+   await page.reload({waitUntil:'domcontentloaded',timeout:30000});
+   await page.waitForTimeout(650);
+   assert.equal((await page.locator('body').innerText()).includes(
+    'Synthetic approved-to-display minute'),false,
+    'PH10_JIT_BROWSER_RELOAD_LEAKS_REVOKED_DOCUMENT');
+   const saved=await db.query(
+    "SELECT md5(to_jsonb(d)::text) AS fingerprint FROM tto.documents d WHERE document_id=$1",
+    ['9d000000-0000-4000-8000-000000000001']);
+   assert.equal(saved.rows[0]?.fingerprint,original.rows[0]?.fingerprint,
+    'PH10_JIT_EXPIRE_MUTATED_DOCUMENT');
+   checks+=3;
+   console.log('PH10_BROWSER_NATIONAL_JIT_EXPIRE_ACTIVE_SESSION_DENY_AND_RELOAD_NO_DOC_PASS');
+  }finally{await browserCleanupWithDeadline(()=>jitCtx.close(),'NATIONAL_JIT_REVOKE');}
+
  }finally{await browserCleanupWithDeadline(()=>browser.close(),'BROWSER');}
 }
 async function testFivePreflightBffs(memberToken,managerToken,syntheticOrder,lateTender,openedTender){
