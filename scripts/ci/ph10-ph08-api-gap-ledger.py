@@ -7,6 +7,14 @@ FROZEN=ROOT/"docs/analysis/ACCEPTANCE_IDS.json"
 SOURCE=ROOT/"docs/analysis/PH08_OFFICIAL_SOURCE36.json"
 OUT=ROOT/"ph10-artifacts/ph10_ph08_36_http_gap_ledger.json"
 MARKERS={
+ "PROJ-AT-004":"PH10_REAL_HTTP_PH08_PROJ_AT004_READONLY_NO_OWNERSHIP_FIELDS_PASS",
+ "VOICE-AT-001":"PH10_REAL_HTTP_PH08_VOICE_AT001_RECORDED_RESPONSE_NONLEGAL_PASS",
+ "LEARN-AT-002":"PH10_REAL_HTTP_PH08_LEARN_AT002_SINGLE_ACTOR_CONCURRENT_CAPACITY_BOUNDARY_PASS",
+ "LEARN-AT-006":"PH10_REAL_HTTP_PH08_LEARN_AT006_REFUND_POLICY_READ_VERSION_PASS",
+ "BEN-AT-004":"PH10_REAL_HTTP_PH08_BEN_AT004_EXPIRED_VOUCHER_NO_WRITE_PASS",
+ "BEN-AT-006":"PH10_REAL_HTTP_PH08_BEN_AT006_NONCASH_NOT_DIVIDEND_READ_PASS",
+ "MKT-AT-006":"PH10_REAL_HTTP_PH08_MKT_AT006_FOREIGN_SELLER_READ_DENIED_PASS",
+ "PROC-AT-002":"PH10_REAL_HTTP_PH08_PROC_AT002_SEALED_BID_METADATA_HIDDEN_PASS",
  "PROJ-AT-005":"PH10_REAL_HTTP_PH08_APPROVED_PROJECT_DISCLOSURE_PASS",
  "VOICE-AT-002":"PH10_REAL_HTTP_PH08_VOICE_AT002_EXPIRED_NO_EFFECT_PASS",
  "VOICE-AT-003":"PH10_REAL_HTTP_PH08_POLL_DUPLICATE_AND_AUDIENCE_PASS",
@@ -15,6 +23,12 @@ MARKERS={
  "BEN-AT-002":"PH10_REAL_HTTP_PH08_VOUCHER_SINGLE_USE_AND_NO_CASH_PASS",
  "BEN-AT-003":"PH10_REAL_HTTP_PH08_VOUCHER_SINGLE_USE_AND_NO_CASH_PASS",
  "BEN-AT-005":"PH10_REAL_HTTP_PH08_VOUCHER_SINGLE_USE_AND_NO_CASH_PASS",
+}
+ABSENT_ROUTE_MARKERS={
+ "PROJ-AT-001":"PH10_REAL_HTTP_PH08_PROJ_AT001_ABSENT_ACTIVATION_ROUTE_GUARD_PASS",
+ "LEARN-AT-004":"PH10_REAL_HTTP_PH08_LEARN_AT004_ABSENT_CERTIFICATE_ROUTE_GUARD_PASS",
+ "MKT-AT-005":"PH10_REAL_HTTP_PH08_MKT_AT005_ABSENT_TARGETING_ROUTE_GUARD_PASS",
+ "PROC-AT-004":"PH10_REAL_HTTP_PH08_PROC_AT004_ABSENT_PAYMENT_POOL_ROUTE_GUARD_PASS",
 }
 PATHS={
  "PROJ":["GET /v1/tenants/{tenantId}/ph08/projects/disclosures"],
@@ -39,10 +53,12 @@ def source():
  for v in PATHS.values():
   for endpoint in v:
    method,path=endpoint.split(" ",1)
-   last=path.split("/ph08/")[-1].replace("{eventId}",":eventId").replace("{pollId}",":pollId")
+   last=path.split("/ph08/")[-1].replace("{eventId}",":eventId").replace("{pollId}",":pollId").replace("{voucherId}",":voucherId")
    assert last in text,"NEST_ROUTE_MISSING:"+last
- for ident,marker in MARKERS.items():
-  assert ident in {x["id"] for x in raw} and marker in test,"RELATED_TEST_MARKER_MISSING:"+ident
+ assert set(MARKERS).isdisjoint(ABSENT_ROUTE_MARKERS)
+ assert len(MARKERS)==16 and len(ABSENT_ROUTE_MARKERS)==4
+ for ident,marker in {**MARKERS,**ABSENT_ROUTE_MARKERS}.items():
+  assert ident in {x["id"] for x in raw} and marker in test,"RELATED_OR_ABSENCE_MARKER_MISSING:"+ident
  for c in raw:assert (ROOT/c["sqlFile"]).is_file(),"SOURCE_SQL_MISSING:"+c["id"]
  return raw
 
@@ -65,23 +81,32 @@ def census(log_path=None):
  for c in cases:
   ident,group=c["id"],c["module"]
   marker=MARKERS.get(ident)
-  found=bool(run and marker and exact(log,marker))
+  absence=ABSENT_ROUTE_MARKERS.get(ident)
+  chosen=marker or absence
+  found=bool(run and chosen and exact(log,chosen))
+  grade=("PASS_RELATED_SCOPED_HTTP" if found and marker else
+         "PASS_ABSENT_ROUTE_GUARD_ONLY" if found and absence else
+         "NO_RELATED_EXACT_HEAD_EXECUTION" if chosen else
+         "NO_SOURCE_ID_SPECIFIC_HTTP_PROOF")
   rows.append({"acceptanceId":ident,"module":group,"scenario":c["scenario"],"expected":c["expected"],
    "sqlSourcePath":c["sqlFile"],"declaredRelatedNestEndpoints":PATHS[group],
-   "relatedHttpMarker":marker,"relatedHttpEvidence":"PASS_RELATED_SCOPED_HTTP" if found else
-     ("NO_RELATED_EXACT_HEAD_EXECUTION" if marker else "NO_SOURCE_ID_SPECIFIC_HTTP_PROOF"),
+   "relatedHttpMarker":chosen,"relatedHttpEvidence":grade,
    "relatedHttpRun":run if found else None,
    "sourceIdFullHttpJourneyPassed":False,"endToEndAccepted":False,
-   "formalAcceptance":"NOT_ACCEPTED","operationalData":"NOT_USED"})
+   "formalAcceptance":"NOT_ACCEPTED","operationalData":"NOT_USED",
+   "remainingTechnicalGap":"DOMAIN_OPERATION_NOT_IMPLEMENTED_OR_NOT_PROVEN" if absence or not marker else "FULL_ORIGINAL_SCENARIO_HTTP_BROWSER_NOT_PROVEN"})
  count=sum(x["relatedHttpEvidence"]=="PASS_RELATED_SCOPED_HTTP" for x in rows)
+ absence_count=sum(x["relatedHttpEvidence"]=="PASS_ABSENT_ROUTE_GUARD_ONLY" for x in rows)
  OUT.parent.mkdir(exist_ok=True)
  OUT.write_text(json.dumps({"schemaVersion":"1.0","phase":"PH08","frozenSourceCount":36,
     "sqlSourceAssertionsAlreadyRunSeparately":36,"relatedRealHttpScopedEvidenceCount":count,
+    "absenceOnlyRouteGuards":absence_count,
+    "remainingNoDirectHttpProbeCount":36-count-absence_count,
     "full36SourceIdHttpJourneyCount":0,"formalEndToEndAcceptedCount":0,"run":run,
     "sourceEvidenceClassification":"RELATED_HTTP_IS_NOT_EXACT_SOURCE_ID_FULL_E2E",
     "cases":rows},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
- print(f"PH08_36_HTTP_GAP_CENSUS_RELATED={count}/36_FULL_SOURCE_ID_HTTP=0/36_FORMAL_E2E=0/36")
- return 0 if not log_path or count==len(MARKERS) else 1
+ print(f"PH08_36_HTTP_GAP_CENSUS_RELATED={count}/36_ABSENT_ONLY={absence_count}_NO_DIRECT_PROBE={36-count-absence_count}_FULL_SOURCE_ID_HTTP=0/36_FORMAL_E2E=0/36")
+ return 0 if not log_path or (count==len(MARKERS) and absence_count==len(ABSENT_ROUTE_MARKERS)) else 1
 
 if __name__=="__main__":
  p=argparse.ArgumentParser();g=p.add_mutually_exclusive_group(required=True)

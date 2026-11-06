@@ -611,6 +611,12 @@ async function main(){
  y=await request('GET',p8Other+'/projects/disclosures',memberToken,200);
  assert.equal(y.items.length,0);
  console.log('PH10_REAL_HTTP_PH08_APPROVED_PROJECT_DISCLOSURE_PASS');
+ // PROJ-AT-004: authenticated disclosure is read-only and never returns a share/title claim.
+ const disclosed=await request('GET',p8+'/projects/disclosures',memberToken,200);
+ assert.equal(disclosed.items.length,1);assert.equal(disclosed.items[0].project_id,p8project);
+ assert.equal(disclosed.readOnly,true);
+ assert.ok(disclosed.items.every(v=>!Object.hasOwn(v,'share_quantity')&&!Object.hasOwn(v,'ownership_certificate')));
+ console.log('PH10_REAL_HTTP_PH08_PROJ_AT004_READONLY_NO_OWNERSHIP_FIELDS_PASS');
  y=await request('GET',p8+'/voice/open-polls',memberToken,200);
  assert.equal(y.items.length,1);assert.equal(y.items[0].poll_id,p8poll);
  y=await request('GET',p8+'/voice/open-polls',managerToken,200);
@@ -621,6 +627,10 @@ async function main(){
  y=await request('GET',p8Other+'/learning/events',memberToken,200);
  assert.equal(y.items.length,0);
  console.log('PH10_REAL_HTTP_PH08_TRAINING_TENANT_SCOPE_PASS');
+ // LEARN-AT-006: published event read retains the explicit policy-version snapshot.
+ const refundVersion=await request('GET',p8+'/learning/events',memberToken,200);
+ assert.equal(refundVersion.items.find(v=>v.event_id===p8event)?.refund_policy_version,'PH10_REFUND_V1');
+ console.log('PH10_REAL_HTTP_PH08_LEARN_AT006_REFUND_POLICY_READ_VERSION_PASS');
  y=await request('GET',p8+'/benefits/my-vouchers',memberToken,200);
  assert.equal(y.items.length,1);assert.equal(y.items[0].voucher_id,p8voucher);
  y=await request('GET',p8+'/benefits/my-vouchers',managerToken,200);
@@ -631,18 +641,30 @@ async function main(){
  y=await request('GET',p8Other+'/market/offers',memberToken,200);
  assert.equal(y.items.length,0);
  console.log('PH10_REAL_HTTP_PH08_MARKET_COOPERATIVE_TENANT_PASS');
+ // MKT-AT-006: foreign cooperative seller is not exposed to tenant member.
+ const foreignSellerRead=await request('GET',p8Other+'/market/offers',memberToken,200);
+ assert.equal(foreignSellerRead.items.some(v=>v.offer_id===p8offer),false);
+ console.log('PH10_REAL_HTTP_PH08_MKT_AT006_FOREIGN_SELLER_READ_DENIED_PASS');
  y=await request('GET',p8+'/procurement/tenders',managerToken,200);
  assert.equal(y.items.length,1);assert.equal(y.items[0].tender_id,p8tender);
  assert.ok(!Object.prototype.hasOwnProperty.call(y.items[0],'sealed_content'));
  y=await request('GET',p8+'/procurement/tenders',memberToken,200);
  assert.equal(y.items.length,0);
  console.log('PH10_REAL_HTTP_PH08_MANAGER_TENDER_METADATA_ONLY_PASS');
+ // PROC-AT-002: exposed tender metadata cannot include sealed bid payload.
+ const tenderManagerView=await request('GET',p8+'/procurement/tenders',managerToken,200);
+ assert.equal(tenderManagerView.items.length,1);
+ assert.ok(tenderManagerView.items.every(v=>!Object.hasOwn(v,'sealed_content')&&!Object.hasOwn(v,'bid_secret')));
+ console.log('PH10_REAL_HTTP_PH08_PROC_AT002_SEALED_BID_METADATA_HIDDEN_PASS');
  y=await request('POST',p8+'/voice/'+p8poll+'/respond',memberToken,201,'{"answer":"support"}');
  assert.equal(y.recorded,true);assert.equal(y.legalVote,false);
  await request('POST',p8+'/voice/'+p8poll+'/respond',memberToken,403,'{"answer":"duplicate"}');
  await request('POST',p8+'/voice/'+p8poll+'/respond',managerToken,403,'{"answer":"not audience"}');
  await request('POST',p8Other+'/voice/'+p8poll+'/respond',memberToken,403,'{"answer":"cross tenant"}');
  console.log('PH10_REAL_HTTP_PH08_POLL_DUPLICATE_AND_AUDIENCE_PASS');
+ // VOICE-AT-001: recorded consultation is never a binding statutory resolution.
+ assert.equal(y.legalVote,false);
+ console.log('PH10_REAL_HTTP_PH08_VOICE_AT001_RECORDED_RESPONSE_NONLEGAL_PASS');
  // Frozen VOICE-AT-002: an expired but properly audience-scoped poll cannot accept a late HTTP write.
  const ph08LatePoll='9c300000-0000-4000-8000-000000000099';
  await db.query("INSERT INTO tto.ph08_polls(poll_id,tenant_id,title,deadline,min_aggregate_size) VALUES($1,$2,'Synthetic expired API poll',now()-interval '1 minute',5)",[ph08LatePoll,tenant]);
@@ -657,12 +679,52 @@ async function main(){
  await request('POST',p8+'/learning/events/'+p8event+'/enroll',managerToken,403);
  await request('POST',p8Other+'/learning/events/'+p8event+'/enroll',memberToken,403);
  console.log('PH10_REAL_HTTP_PH08_ENROLL_CAPACITY_DUPLICATE_ROLE_PASS');
+ // LEARN-AT-002 partial: two concurrent enrollments from the same actor are atomic,
+ // but this is NOT a two-different-member capacity stress test.
+ const oneSeatEvent='9c500000-0000-4000-8000-000000000098';
+ await db.query("INSERT INTO tto.ph08_training_events(event_id,course_id,tenant_id,capacity,refund_policy_version) VALUES($1,$2,$3,1,'PH10_REFUND_V1')",[oneSeatEvent,p8course,tenant]);
+ const oneSeatPath=p8+'/learning/events/'+oneSeatEvent+'/enroll';
+ const raceEnroll=()=>fetch(root+oneSeatPath,{method:'POST',headers:{authorization:'Bearer '+memberToken}});
+ const bothEnroll=await Promise.all([raceEnroll(),raceEnroll()]);
+ assert.deepEqual(bothEnroll.map(v=>v.status).sort((a,b)=>a-b),[201,409]);
+ const seatCount=await db.query("SELECT count(*)::integer AS n FROM tto.ph08_event_registrations WHERE event_id=$1 AND state='CONFIRMED'",[oneSeatEvent]);
+ assert.equal(seatCount.rows[0].n,1);
+ console.log('PH10_REAL_HTTP_PH08_LEARN_AT002_SINGLE_ACTOR_CONCURRENT_CAPACITY_BOUNDARY_PASS');
  y=await request('POST',p8+'/benefits/vouchers/'+p8voucher+'/redeem',memberToken,201);
  assert.equal(y.redeemed,true);assert.equal(y.walletCredit,false);assert.equal(y.cashTransfer,false);
  await request('POST',p8+'/benefits/vouchers/'+p8voucher+'/redeem',memberToken,403);
  await request('POST',p8+'/benefits/vouchers/'+p8voucher+'/redeem',managerToken,403);
  await request('POST',p8Other+'/benefits/vouchers/'+p8voucher+'/redeem',memberToken,403);
  console.log('PH10_REAL_HTTP_PH08_VOUCHER_SINGLE_USE_AND_NO_CASH_PASS');
+ // BEN-AT-004: expired voucher with valid owner must reject, with zero redemption.
+ const expiredBenefit='9c600000-0000-4000-8000-000000000098';
+ const expiredEntitlement='9c700000-0000-4000-8000-000000000098';
+ const expiredVoucher='9c800000-0000-4000-8000-000000000098';
+ await db.query("INSERT INTO tto.ph08_benefits(benefit_id,tenant_id,title,limited,status) VALUES($1,$2,'Expired synthetic reward',false,'ACTIVE')",[expiredBenefit,tenant]);
+ await db.query("INSERT INTO tto.ph08_benefit_entitlements(entitlement_id,benefit_id,tenant_id,holder_id,noncash_units) VALUES($1,$2,$3,$4,1)",[expiredEntitlement,expiredBenefit,tenant,user]);
+ await db.query("INSERT INTO tto.ph08_benefit_vouchers(voucher_id,entitlement_id,expires_at) VALUES($1,$2,now()-interval '1 minute')",[expiredVoucher,expiredEntitlement]);
+ await request('POST',p8+'/benefits/vouchers/'+expiredVoucher+'/redeem',memberToken,403);
+ const expiredUnchanged=await db.query("SELECT redeemed_at IS NULL AS untouched FROM tto.ph08_benefit_vouchers WHERE voucher_id=$1",[expiredVoucher]);
+ assert.equal(expiredUnchanged.rows[0].untouched,true);
+ console.log('PH10_REAL_HTTP_PH08_BEN_AT004_EXPIRED_VOUCHER_NO_WRITE_PASS');
+ // BEN-AT-006 partial: no dividend, cash wallet or transferable-value claim.
+ assert.equal(y.walletCredit,false);
+ assert.equal(y.cashTransfer,false);
+ console.log('PH10_REAL_HTTP_PH08_BEN_AT006_NONCASH_NOT_DIVIDEND_READ_PASS');
+
+ // The following FOUR controls prove only that unimplemented write routes stay
+ // unreachable; they do not certify their unimplemented PH08 source workflows.
+ const projectBefore=await db.query("SELECT status FROM tto.ph08_projects WHERE project_id=$1",[p8project]);
+ await request('POST',p8+'/projects/'+p8project+'/activate',managerToken,404,'{"permitId":null}');
+ const projectAfter=await db.query("SELECT status FROM tto.ph08_projects WHERE project_id=$1",[p8project]);
+ assert.equal(projectAfter.rows[0].status,projectBefore.rows[0].status);
+ console.log('PH10_REAL_HTTP_PH08_PROJ_AT001_ABSENT_ACTIVATION_ROUTE_GUARD_PASS');
+ await request('POST',p8+'/learning/events/'+p8event+'/issue-certificate',memberToken,404);
+ console.log('PH10_REAL_HTTP_PH08_LEARN_AT004_ABSENT_CERTIFICATE_ROUTE_GUARD_PASS');
+ await request('POST',p8+'/market/sensitive-targeting',managerToken,404,'{"protectedAttribute":"synthetic"}');
+ console.log('PH10_REAL_HTTP_PH08_MKT_AT005_ABSENT_TARGETING_ROUTE_GUARD_PASS');
+ await request('POST',p8+'/procurement/group-payment-pools',managerToken,404,'{"syntheticAmount":1}');
+ console.log('PH10_REAL_HTTP_PH08_PROC_AT004_ABSENT_PAYMENT_POOL_ROUTE_GUARD_PASS');
  await testCooperativeBff(memberToken,managerToken);
  await testShareholderBff(memberToken,managerToken);
  await testNationalJitBff(foreignToken,managerToken);
