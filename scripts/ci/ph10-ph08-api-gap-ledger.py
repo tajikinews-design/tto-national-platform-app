@@ -48,6 +48,13 @@ ABSENT_ROUTE_MARKERS={
  "MKT-AT-005":"PH10_REAL_HTTP_PH08_MKT_AT005_ABSENT_TARGETING_ROUTE_GUARD_PASS",
  "PROC-AT-004":"PH10_REAL_HTTP_PH08_PROC_AT004_ABSENT_PAYMENT_POOL_ROUTE_GUARD_PASS",
 }
+BFF_SCOPE_MARKERS={
+ "MKT-AT-002": "PH10_REAL_BFF_PH08_MKT_AT002_CHECKOUT_PREFLIGHT_SCOPED_PASS",
+ "MKT-AT-003": "PH10_REAL_BFF_PH08_MKT_AT003_REFUND_PREFLIGHT_SCOPED_PASS",
+ "PROC-AT-001": "PH10_REAL_BFF_PH08_PROC_AT001_LATE_BID_PREFLIGHT_SCOPED_PASS",
+ "PROC-AT-003": "PH10_REAL_BFF_PH08_PROC_AT003_CRITERIA_LOCK_PREFLIGHT_SCOPED_PASS",
+ "PROC-AT-006": "PH10_REAL_BFF_PH08_PROC_AT006_POLICY_VERSIONS_PREFLIGHT_SCOPED_PASS"
+}
 PATHS={
  "PROJ":["GET /v1/tenants/{tenantId}/ph08/projects/disclosures","GET /v1/tenants/{tenantId}/ph08/projects/branches/{branchId}/authority-state"],
  "VOICE":["GET /v1/tenants/{tenantId}/ph08/voice/open-polls","POST /v1/tenants/{tenantId}/ph08/voice/{pollId}/respond","GET /v1/tenants/{tenantId}/ph08/voice/proposals/{proposalId}/handoff-state"],
@@ -90,6 +97,8 @@ def source():
   assert x["method"]=="GET" and x["realOperation"]=="BLOCKED","MUTATION_GATE_REQUIRED"
   assert x["path"].startswith("/v1/tenants/{tenantId}/ph08/")
   assert x["path"] in [p.split(" ",1)[1] for p in PATHS[original["module"]]],"PATH_UNDECLARED"
+ for ident,marker in BFF_SCOPE_MARKERS.items():
+  assert ident in PREFLIGHT_ONLY_IDS and marker in test,"BFF_TEST_MARKER_MISSING:"+ident
  for c in raw:assert (ROOT/c["sqlFile"]).is_file(),"SOURCE_SQL_MISSING:"+c["id"]
  return raw
 
@@ -115,12 +124,16 @@ def census(log_path=None):
   absence=ABSENT_ROUTE_MARKERS.get(ident)
   chosen=marker or absence
   found=bool(run and chosen and exact(log,chosen))
+  bff_marker=BFF_SCOPE_MARKERS.get(ident)
+  bff_found=bool(run and bff_marker and exact(log,bff_marker))
   grade=("PASS_RELATED_SCOPED_HTTP" if found and marker else
          "PASS_ABSENT_ROUTE_GUARD_ONLY" if found and absence else
          "NO_RELATED_EXACT_HEAD_EXECUTION" if chosen else
          "NO_SOURCE_ID_SPECIFIC_HTTP_PROOF")
   rows.append({"acceptanceId":ident,"module":group,"scenario":c["scenario"],"expected":c["expected"],
    "operationGate":"BLOCKED_PREFLIGHT_ONLY" if ident in PREFLIGHT_ONLY_IDS else ("BLOCKED_ABSENT_ROUTE" if absence else "NOT_FORMAL_E2E"),
+   "bffAuthenticatedCrossLayerScoped":"PASS_READONLY_NEST_PG17" if bff_found else "NOT_PROVEN",
+   "bffMarker":bff_marker,"fullBrowserUserJourneyAccepted":False,
    "sqlSourcePath":c["sqlFile"],"declaredRelatedNestEndpoints":PATHS[group],
    "relatedHttpMarker":chosen,"relatedHttpEvidence":grade,
    "relatedHttpRun":run if found else None,
@@ -129,18 +142,21 @@ def census(log_path=None):
    "remainingTechnicalGap":"DOMAIN_OPERATION_NOT_IMPLEMENTED_OR_NOT_PROVEN" if absence or not marker else "FULL_ORIGINAL_SCENARIO_HTTP_BROWSER_NOT_PROVEN"})
  count=sum(x["relatedHttpEvidence"]=="PASS_RELATED_SCOPED_HTTP" for x in rows)
  absence_count=sum(x["relatedHttpEvidence"]=="PASS_ABSENT_ROUTE_GUARD_ONLY" for x in rows)
+ bff_count=sum(x["bffAuthenticatedCrossLayerScoped"]=="PASS_READONLY_NEST_PG17" for x in rows)
  OUT.parent.mkdir(exist_ok=True)
  OUT.write_text(json.dumps({"schemaVersion":"1.0","phase":"PH08","frozenSourceCount":36,
     "sqlSourceAssertionsAlreadyRunSeparately":36,"relatedRealHttpScopedEvidenceCount":count,
     "absenceOnlyRouteGuards":absence_count,
     "fivePreflightSourceIds":PREFLIGHT_ONLY_IDS,
     "preflightOperationalRelease":"BLOCKED",
+    "bffPreflightReadOnlySourceCount":bff_count,
     "remainingNoDirectHttpProbeCount":36-count-absence_count,
     "full36SourceIdHttpJourneyCount":0,"formalEndToEndAcceptedCount":0,"run":run,
     "sourceEvidenceClassification":"RELATED_HTTP_IS_NOT_EXACT_SOURCE_ID_FULL_E2E",
     "cases":rows},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
  print(f"PH08_36_HTTP_GAP_CENSUS_RELATED={count}/36_ABSENT_ONLY={absence_count}_NO_DIRECT_PROBE={36-count-absence_count}_FULL_SOURCE_ID_HTTP=0/36_FORMAL_E2E=0/36")
- return 0 if not log_path or (count==len(MARKERS) and absence_count==len(ABSENT_ROUTE_MARKERS)) else 1
+ print(f"PH08_READONLY_FIVE_BFF_TO_NEST_TO_PG17={bff_count}/5_FORMAL_E2E=0/155")
+ return 0 if not log_path or (count==len(MARKERS) and absence_count==len(ABSENT_ROUTE_MARKERS) and bff_count==5) else 1
 
 if __name__=="__main__":
  p=argparse.ArgumentParser();g=p.add_mutually_exclusive_group(required=True)

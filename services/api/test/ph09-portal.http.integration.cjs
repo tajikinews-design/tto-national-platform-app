@@ -588,9 +588,11 @@ async function testFivePreflightBffs(memberToken,managerToken,syntheticOrder,lat
  assert.equal(checkout.sellerKind,'COOPERATIVE');
  assert.equal(checkout.paymentEnabled,false);
  assert.equal(checkout.orderCreated,false);
+ console.log('PH10_REAL_BFF_PH08_MKT_AT002_CHECKOUT_PREFLIGHT_SCOPED_PASS');
  const refund=await call(shareholder,'refund',syntheticOrder,memberToken);
  assert.equal(refund.policyVersion,'PH08_REFUND_POLICY_V1');
  assert.equal(refund.refundExecuted,false);
+ console.log('PH10_REAL_BFF_PH08_MKT_AT003_REFUND_PREFLIGHT_SCOPED_PASS');
  await call(shareholder,'refund',syntheticOrder,memberToken,403,foreign);
  for(const [kind,source] of [['bid',lateTender],['criteria',openedTender],['threshold','AUDIT_RFQ_THRESHOLD']]){
   await call(cooperative,kind,source,null,401);
@@ -600,6 +602,12 @@ async function testFivePreflightBffs(memberToken,managerToken,syntheticOrder,lat
   if(kind==='bid'){assert.equal(row.deadlinePassed,true);assert.equal(row.bidSubmissionEnabled,false);}
   if(kind==='criteria'){assert.equal(row.criteriaFrozen,true);assert.equal(row.criteriaEditEnabled,false);}
   if(kind==='threshold'){assert.equal(row.versions.length,2);assert.equal(row.policyMutationEnabled,false);}
+  const markers={
+   bid:'PH10_REAL_BFF_PH08_PROC_AT001_LATE_BID_PREFLIGHT_SCOPED_PASS',
+   criteria:'PH10_REAL_BFF_PH08_PROC_AT003_CRITERIA_LOCK_PREFLIGHT_SCOPED_PASS',
+   threshold:'PH10_REAL_BFF_PH08_PROC_AT006_POLICY_VERSIONS_PREFLIGHT_SCOPED_PASS'
+  };
+  console.log(markers[kind]);
  }
  await call(cooperative,'threshold','lowercase',managerToken,400);
  // Chromium consumes the authenticated same-origin Next route with a real cookie,
