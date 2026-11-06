@@ -94,14 +94,14 @@
     {
       "gateId": "C07_OFFICIAL_OPENING_REGISTER",
       "domain": "CHILD-07",
-      "decisionNeeded": "Identify and attest legally authoritative share register with tenant-specific opening ownership and total-capital reconciliation; separate official ledger entries from imported read snapshots and non-member account eligibility.",
+      "decisionNeeded": "The official register's SOURCE TYPE is resolved by project owner. Authenticate the competent per-cooperative register custodian, documentary registration-proof interface, official opening share register and issued-share conservation, correction/reversal and independently sign off validity. No legal-transfer completion without verified register entry.",
       "decisionOwnerRole": "Official share register source custodian + cooperative authorized legal representative + independent QA",
       "requiredEvidence": [
-        "Signed authoritative official shareholder-register source and evidence document references",
-        "Account-to-owner and tenant mapping, effective-at and prior-owner provenance",
-        "Opening share quantity and total issued shares conservation statement plus signed discrepancy resolution",
-        "Revocation/expiry and source-version checks; independently verified immutable audit",
-        "Legal rule confirmation that payment/fee/valuation/approval does not automatically finalize title"
+        "Certified register identity/custodian mandate for each cooperative; evidence retrieval/verification contract and signed lawful register entry",
+        "Validated official opening register quantities, holder mappings, share classes, total issued shares, as-of version and discrepancy resolutions",
+        "Verified per-transfer official register entry/folio and registration timestamps; independent seller/buyer/quantity/tenant match before any ownership finality",
+        "Corrections/reversals are only accepted from verified official-register entries; stale, absent, contested or mismatched entries block legal transfer",
+        "Independent QA and legal signoff of finality workflow; payment/approval/settlement/trade-match alone NEVER constitute title transfer"
       ],
       "relatedAcceptance": [
         "SHARE-AT-001",
@@ -130,7 +130,9 @@
         "OFFICIAL_REGISTER_WRITES",
         "LEGAL_TRANSFER",
         "PAYMENT_SETTLEMENT"
-      ]
+      ],
+      "productSourceOfTruthDecision": "RESOLVED_BY_PROJECT_OWNER: each cooperative's official share/transfer register is final and legally authoritative; CHILD07 is subordinate workflow/read projection, not a legal ownership master.",
+      "productDecisionStatus": "CONFIRMED_BY_PROJECT_OWNER; INDEPENDENT_LEGAL_SIGNOFF_PENDING"
     }
   ],
   "acceptanceCoverage": [
@@ -331,5 +333,51 @@
     "Do not merge or deploy",
     "Do not process real money or shares"
   ],
-  "nextCheckpoint": "PH12-OWNER-DECISION-REVIEW-01"
+  "nextCheckpoint": "PH12_C07_REGISTRY_CUSTODIAN_AND_OPENING_ATTESTATION_WITH_15_FORMAL_QA",
+  "productAuthorityDecision": {
+    "key": "PH12_SHARE_REGISTER_LEGAL_FINALITY_PRODUCT_RULE",
+    "status": "PROJECT_OWNER_POLICY_CONFIRMED_FORMAL_EXTERNAL_SIGNOFF_PENDING",
+    "decidedOn": "2026-11-06",
+    "recordedFrom": "Direct project owner statement in project conversation; not a signed independent cooperative/legal authority approval",
+    "originalRuleFa": "اطلاعات دفتر سهام مرجع اصلی هر تعاونی است. نقل‌وانتقال در دفتر سهام ثبت می‌شود و مرجع اصلی، نهایی و قانونی دفتر سهام خواهد بود. پلتفرم فقط فرایند را مدیریت می‌کند. نقل‌وانتقال و خریدوفروش سهام تنها پس از ثبت در دفتر سهام شرکت، در پلتفرم قطعی و قابل استناد شناخته می‌شود و بدون آن غیرقابل استناد تلقی خواهد شد.",
+    "scope": "Each cooperative's own official share/transfer register is the ONLY legal source of ownership truth; platform is a workflow/orchestration and verified read-projection, not an independent legally authoritative register.",
+    "invariant": "LEGAL_TRANSFER_FINALIZATION_REQUIRES_VERIFIED_OFFICIAL_COOPERATIVE_SHARE_REGISTER_ENTRY",
+    "ownershipProjectionRule": "CHILD07 reflects the cooperative's verified official register; no platform ledger, payment, trade match, signature, approval, settlement or request independently creates legal ownership.",
+    "preRegistrationState": "Pending requests/trades may be tracked operationally, but MUST NOT be marked TRANSFERRED, OWNERSHIP_FINAL, LEGALLY_EFFECTIVE or credited to the acquirer as legally owned without verified official-register entry.",
+    "postRegistrationState": "Record finality only from authenticated per-tenant register evidence issued or certified by the authorized register custodian; reconcile official entry, owner/account identities and quantities, event/version, effective date and share-class/issued-share conservation.",
+    "evidenceForFinality": [
+      "cooperative_tenant_id",
+      "official_register_id_or_qualified_name",
+      "official_entry_reference_or_folio",
+      "registered_transfer_effective_at",
+      "entry_recorded_at",
+      "authorized_custodian_identity_and_mandate",
+      "document_or_signed_attestation_reference",
+      "source_version_or_register_sequence",
+      "seller_and_buyer_legal_identity_and_shareholder_account_map",
+      "quantity_and_share_class",
+      "independent_reconciliation_outcome"
+    ],
+    "corrections": "Discrepancy or cancellation after entry must follow official register correction/reversal evidence and new source sequence; never silently rewrite ownership in the platform.",
+    "failureMode": "If official-register entry is absent, unverified, stale, mismatched, revoked, or custodian authorization is missing: legal finality and transferable credited shares remain BLOCKED; show pending/disputed status, not final ownership.",
+    "allowedNow": [
+      "PROCESS_DESIGN",
+      "READ_ONLY_VERIFIED_SOURCE_PREVIEW",
+      "SYNTHETIC_TESTS"
+    ],
+    "prohibitedNow": [
+      "UNVERIFIED_OWNERSHIP_PROMOTION",
+      "SETTLEMENT_IMPLIES_TRANSFER",
+      "PRODUCTION_REGISTER_WRITES",
+      "REAL_SHARE_TRANSFER",
+      "MERGE_OR_DEPLOY"
+    ],
+    "explicitlyUnresolved": [
+      "Authenticate each cooperative's legal register custodian and evidence delivery/verification mechanism",
+      "Attest per-tenant opening share register and total issued shares, reconcile mismatches",
+      "Obtain separate competent legal reviewer approval of detailed evidence/rights, and independent 15-ID QA",
+      "Resolve other C06 source and non-member rights gates"
+    ],
+    "formalStatus": "PH12_HOLD_0_OF_3_EXTERNAL_SIGNED_GATES_0_OF_15_FORMAL_ACCEPTANCES"
+  }
 }
