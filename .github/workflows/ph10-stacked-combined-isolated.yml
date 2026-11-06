@@ -176,8 +176,21 @@ jobs:
           echo PH10_FROZEN55_SCOPED_ONLY_PH04_NOT_PROVEN_NO_FORMAL_E2E
       - name: Install isolated authenticated-browser Chromium
         run: |
-          npm install --prefix /tmp/tto-ph10-auth --no-audit --no-fund playwright@1.56.1
-          node /tmp/tto-ph10-auth/node_modules/playwright/cli.js install --with-deps chromium
+          set -euo pipefail
+          # Chromium installation occasionally stalls on an external package
+          # download. Bound each operation; never report a missing browser PASS.
+          timeout --signal=TERM --kill-after=5s 150s npm install --prefix /tmp/tto-ph10-auth --no-audit --no-fund playwright@1.56.1
+          browser_ready=false
+          for attempt in 1 2; do
+            if timeout --signal=TERM --kill-after=5s 360s               node /tmp/tto-ph10-auth/node_modules/playwright/cli.js install --with-deps --only-shell chromium; then
+              browser_ready=true
+              break
+            fi
+            echo "PH10_CHROMIUM_INSTALL_RETRY_${attempt}_NOT_TEST_PASS"
+            sleep 5
+          done
+          test "$browser_ready" = true || { echo "PH10_CHROMIUM_INSTALL_FAILED_CLOSED"; exit 1; }
+          echo PH10_CHROMIUM_REAL_BROWSER_REQUIRED_READY
       - name: Build and exercise actual Nest HTTP in same database
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
