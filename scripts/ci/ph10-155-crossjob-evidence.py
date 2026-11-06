@@ -62,6 +62,7 @@ def joined(sha,run_id,artifacts=ART):
          portal.get("realSourceSpecificCommands")==1 and
          portal.get("grcArticle129SourcePolicyPrecheck")==1 and
          portal.get("nationalJitRevokedSessionDenied")==1 and
+         portal.get("twoDistinctMemberCapacityReadbackVerified")==1 and
          portal.get("full155UserJourneysAccepted") is False and
          portal.get("release")=="HOLD" and len(portal["cases"])==11,
          "THREE_PORTAL_ROLE_SOURCE_RUNTIME_INCOMPLETE")
@@ -211,6 +212,7 @@ def joined(sha,run_id,artifacts=ART):
             "threePortalOriginalSourceScopedCommandChecks":1,
             "threePortalArticle129ScopedPolicyPrechecks":1,
             "threePortalNationalJitRevocationSessionDenial":1,
+            "ph08Learn002TwoDistinctMemberCapacitySourceScope":1,
             "allPortalAllRoleFullJourneysAccepted":False,
             "sql100SuiteCompleted":100,"perSourceSqlExecutedMarkersVerified":96,
             "sourceSqlWithoutPerIdEvidence":["OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008"],
