@@ -1,7 +1,7 @@
 name: PH10 stacked PR160 + integrated PR147 full isolation (NO DEPLOY)
 on:
   push:
-    branches: [feat/ph10-cooperative-dossier-lifecycle-20261105]
+    branches: [feat/ph10-cooperative-dossier-lifecycle-20261105, audit/ph10-frozen55-exact-20261106]
 permissions:
   contents: read
 concurrency:
@@ -153,6 +153,15 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/ci/ph10-exact-run-sql-ledger.py
+      - name: Validate frozen55 and execute PH05/PH06 scoped assertions in disposable PG17
+        env:
+          TTO_PH10_FROZEN55_DISPOSABLE: "true"
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p test_ph10_frozen55_evidence.py -v
+          python3 scripts/ci/ph10-frozen55-exact-evidence.py --validate-source
+          python3 scripts/ci/ph10-frozen55-exact-evidence.py --execute
+          echo PH10_FROZEN55_SCOPED_ONLY_PH04_NOT_PROVEN_NO_FORMAL_E2E
       - name: Install isolated authenticated-browser Chromium
         run: |
           npm install --prefix /tmp/tto-ph10-auth --no-audit --no-fund playwright@1.56.1
@@ -184,6 +193,7 @@ jobs:
           path: |
             ph10-artifacts/ph10-*-authenticated-*.png
             ph10-artifacts/ph10_155_exact_run_sql_ledger.json
+            ph10-artifacts/ph10_frozen55_exact_evidence.json
           retention-days: 14
           if-no-files-found: warn
       - name: Verify disposable PostgreSQL17 snapshot backup and restore
