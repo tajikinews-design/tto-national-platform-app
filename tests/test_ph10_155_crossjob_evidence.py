@@ -21,9 +21,9 @@ class EvidenceTruth(unittest.TestCase):
     @staticmethod
     def sql_path(rid):
         first=rid.split("-AT-")[0]
-        if first in {"GOV","COMM","SUPPORT","TRANS"}:
+        if first in {"GOV","COMM","SUP","TRN"}:
             name={"GOV":"governance","COMM":"communications",
-                  "SUPPORT":"support","TRANS":"transparency"}[first]
+                  "SUP":"support","TRN":"transparency"}[first]
             return "tests/sql/ph07-"+name+"-acceptance.sql"
         if first in {"PROJ","VOICE","LEARN","BEN","MKT","PROC"}:
             name={"PROJ":"projects","VOICE":"member-voice",
