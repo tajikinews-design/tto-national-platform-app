@@ -58,6 +58,7 @@ async function main(){
  const login=await call("POST","/v1/auth/challenges/verify",null,{challengeId:challenge,otp},200);
  assert.equal(typeof login.accessToken,"string");
  await call("POST","/v1/auth/challenges/verify",null,{challengeId:challenge,otp},401);
+ console.log("CORE_AUTH_AT005_OTP_REPLAY_SECOND_REJECT_HTTP_PASS");
  const actorToken=login.accessToken;
  // DED.CORE-AUTH-AT-008: expired challenge must not issue a session.
  const expiredChallenge=randomUUID(),expiredOtp="86410327";
@@ -93,14 +94,18 @@ async function main(){
  await admin.query("UPDATE tto.role_assignments SET revoked_at=now() WHERE assignment_id=$1",[tenantBRole]);
  await call("GET","/v1/tenants/"+b+"/context",actorToken,null,403);
  await call("GET","/v1/tenants/"+a+"/context",actorToken,null,200);
+ console.log("CORE_AUTH_AT001_TWO_TENANT_ROLE_INDEPENDENCE_HTTP_PASS");
  const tenantMismatch=await call("GET","/v1/tenants/"+b+"/context",actorToken,null,403);
  assert.equal(tenantMismatch.code,"CROSS_TENANT_ACCESS_DENIED","DED-002 exact cross-tenant error");
+ console.log("CORE_AUTH_AT002_CROSS_TENANT_URL_EXACT_DENIAL_HTTP_PASS");
  const national=await tokenFor(reviewer);
  await call("GET","/v1/tenants/"+a+"/documents",national,null,403);
+ console.log("CORE_AUTH_AT004_PLATFORM_ADMIN_NO_JIT_TENANT_DENIAL_HTTP_PASS");
  const requested=await call("POST","/v1/tenants/"+a+"/jit/requests",national,
    {purpose:"Synthetic document review request",minutes:10},201);
  assert.equal(requested.status,"PENDING");
  await call("POST","/v1/tenants/"+a+"/jit/requests/"+requested.requestId+"/decision",national,{approve:true},403);
+ console.log("CORE_AUTH_AT007_JIT_REQUESTOR_SELF_APPROVAL_DENIED_HTTP_PASS");
  await call("POST","/v1/tenants/"+a+"/jit/requests/"+requested.requestId+"/decision",actorToken,{approve:true},201);
  const after=await call("GET","/v1/tenants/"+a+"/documents",national,null,200);
  assert.ok(after.items.length>=1);
@@ -150,6 +155,7 @@ async function main(){
   [userC,a]
  );
  await call("GET","/v1/tenants/"+a+"/context",userCToken,null,403);
+ console.log("CORE_AUTH_AT003_EXPIRED_ROLE_ACTIVE_SESSION_HTTP_DENIED_PASS");
  await admin.query(
   "UPDATE tto.role_assignments SET expires_at=NULL WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER'",
   [userC,a]
@@ -251,10 +257,12 @@ async function main(){
   [reviewer,a]
  );
  assert.equal(unauthorizedEffect.rows[0].n,0,"DED-017: no unauthorized role assigned");
+ console.log("CORE_AUTH_AT008_PERMISSION_WITHOUT_LEGAL_AUTHORITY_HTTP_DENIED_PASS");
  const assigned=await admin.query("SELECT assignment_id FROM tto.role_assignments WHERE user_id=$1 AND tenant_id=$2 AND role_code='MEMBER'",[userC,a]);
  assert.equal(assigned.rowCount,1);
  await call("POST","/v1/tenants/"+a+"/roles/"+assigned.rows[0].assignment_id+"/revoke",actorToken,{expectedVersion:1},201);
  await call("GET","/v1/tenants/"+a+"/context",userCToken,null,403);
+ console.log("CORE_AUTH_AT006_REVOKED_ROLE_STALE_TOKEN_HTTP_DENIED_PASS");
  // DED-013: an actor authorized within A must not mutate a document owned by B.
  const foreignDocumentId=randomUUID();
  await admin.query("INSERT INTO tto.documents(document_id,tenant_id,title,classification) VALUES($1,$2,'Synthetic foreign doc','MEMBER')",[foreignDocumentId,b]);

@@ -114,10 +114,15 @@ jobs:
             docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" >/dev/null
           done
           echo PH10_MIGRATIONS_DISPOSABLE_PASS
-      - name: Prove CORE-TENANT-AT-003 exact concurrent duplicate slug boundary
+      - name: PH04 source-ID traceability + 8 actual PG17 assertions and concurrent race
+        env:
+          TTO_PH10_FROZEN55_DISPOSABLE: "true"
         run: |
           set -euo pipefail
-          bash scripts/ci/ph10-concurrent-tenant-slug.sh
+          python3 -m unittest discover -s tests -p test_ph10_ph04_evidence.py -v
+          python3 scripts/ci/ph10-ph04-exact-evidence.py --validate
+          python3 scripts/ci/ph10-ph04-exact-evidence.py --tenant
+          echo PH04_TENANT_SOURCE_SCOPED_ONLY_NO_FORMAL_E2E
       - name: Execute scoped core acceptance slices in exact-head DB
         run: |
           set -euo pipefail
@@ -194,6 +199,7 @@ jobs:
             ph10-artifacts/ph10-*-authenticated-*.png
             ph10-artifacts/ph10_155_exact_run_sql_ledger.json
             ph10-artifacts/ph10_frozen55_exact_evidence.json
+            ph10-artifacts/ph10_ph04_tenant8_exact_evidence.json
           retention-days: 14
           if-no-files-found: warn
       - name: Verify disposable PostgreSQL17 snapshot backup and restore
@@ -249,14 +255,18 @@ jobs:
           PH04_BROWSER_DED004: "1"
         run: |
           set -euo pipefail
-          bash scripts/ci/release-regression.sh
+          bash scripts/ci/release-regression.sh | tee "$RUNNER_TEMP/ph04-identity-source-stdout.log"
+          TTO_PH10_FROZEN55_DISPOSABLE=true python3 scripts/ci/ph10-ph04-exact-evidence.py --auth-log "$RUNNER_TEMP/ph04-identity-source-stdout.log"
+          rm -f "$RUNNER_TEMP/ph04-identity-source-stdout.log"
           echo PH10_PH04_INDEPENDENT_IDENTITY_AUTH_HTTP_CHROMIUM_PASS_NOT_ALL_16_USER_JOURNEYS
       - name: Archive identity browser evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ph10-ph04-identity-chromium
-          path: ph04-screenshots/*.png
+          path: |
+            ph04-screenshots/*.png
+            ph10-artifacts/ph10_ph04_auth8_exact_evidence.json
           retention-days: 7
           if-no-files-found: warn
       - name: Remove temporary identity Postgres
