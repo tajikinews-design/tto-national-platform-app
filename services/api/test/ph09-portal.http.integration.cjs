@@ -933,6 +933,103 @@ async function main(){
  assert.equal(benefitState,'DRAFT');
  console.log('PH10_REAL_HTTP_PH08_BEN_AT001_POLICYLESS_LIMITED_BENEFIT_REJECTED_PASS');
 
+ // MKT-AT-002 checkout SOURCE preflight only: cooperative seller, no order or cash.
+ const checkoutUri=p8+'/market/offers/'+p8offer+'/checkout-preflight';
+ const orderCountBefore=(await db.query("SELECT count(*)::integer AS n FROM tto.ph08_market_orders WHERE offer_id=$1",[p8offer])).rows[0].n;
+ await request('GET',checkoutUri,null,401);
+ await request('GET',checkoutUri,managerToken,403);
+ await request('GET',p8Other+'/market/offers/'+p8offer+'/checkout-preflight',memberToken,403);
+ const checkout=await request('GET',checkoutUri,memberToken,200);
+ assert.equal(checkout.sellerKind,'COOPERATIVE');
+ assert.equal(Number(checkout.priceSnapshot),100);
+ assert.equal(checkout.published,true);
+ assert.equal(checkout.paymentEnabled,false);
+ assert.equal(checkout.orderCreated,false);
+ assert.equal(checkout.transactionAuthorized,false);
+ assert.equal((await db.query("SELECT count(*)::integer AS n FROM tto.ph08_market_orders WHERE offer_id=$1",[p8offer])).rows[0].n,orderCountBefore);
+ console.log('PH10_REAL_HTTP_PH08_MKT_AT002_COOPERATIVE_SELLER_PREFLIGHT_ONLY_PASS');
+ // MKT-AT-003: synthetic order/refund record is a TEST FIXTURE, never a
+ // payment; immutable refund policy snapshot read cannot mutate status.
+ const syntheticOrder='9c920000-0000-4000-8000-000000000094';
+ const syntheticRefund='9c930000-0000-4000-8000-000000000094';
+ await db.query("INSERT INTO tto.ph08_market_orders(order_id,offer_id,buyer_tenant_id,seller_tenant_id,price_snapshot,status) VALUES($1,$2,$3,$3,100,'CREATED')",[syntheticOrder,p8offer,tenant]);
+ await db.query("INSERT INTO tto.ph08_market_refunds(refund_id,order_id,policy_version) VALUES($1,$2,'PH08_REFUND_POLICY_V1')",[syntheticRefund,syntheticOrder]);
+ const refundUri=p8+'/market/orders/'+syntheticOrder+'/refund-policy-preflight';
+ await request('GET',refundUri,managerToken,403);
+ await request('GET',p8Other+'/market/orders/'+syntheticOrder+'/refund-policy-preflight',memberToken,403);
+ const preRefund=await request('GET',refundUri,memberToken,200);
+ assert.equal(preRefund.policyVersion,'PH08_REFUND_POLICY_V1');
+ assert.equal(preRefund.orderStatus,'CREATED');
+ assert.equal(preRefund.refundExecuted,false);
+ assert.equal(preRefund.paymentEnabled,false);
+ const checkRefund=await db.query("SELECT r.policy_version,o.status FROM tto.ph08_market_refunds r JOIN tto.ph08_market_orders o USING(order_id) WHERE r.refund_id=$1",[syntheticRefund]);
+ assert.equal(checkRefund.rows[0].policy_version,'PH08_REFUND_POLICY_V1');
+ assert.equal(checkRefund.rows[0].status,'CREATED');
+ console.log('PH10_REAL_HTTP_PH08_MKT_AT003_VERSIONED_REFUND_PREFLIGHT_ONLY_PASS');
+ // PROC-AT-001: the original trigger prevents post-deadline bid writes,
+ // while this GET cannot submit/inspect a sealed bid.
+ const lateTender='9ca00000-0000-4000-8000-000000000094';
+ await db.query("INSERT INTO tto.ph08_sourcing_tenders(tender_id,tenant_id,deadline,source_policy) VALUES($1,$2,now()-interval '1 minute',$3)",[lateTender,tenant,evidence]);
+ const deadlineUri=p8+'/procurement/tenders/'+lateTender+'/bid-deadline-preflight';
+ await request('GET',deadlineUri,memberToken,403);
+ await request('GET',p8Other+'/procurement/tenders/'+lateTender+'/bid-deadline-preflight',managerToken,403);
+ const lateState=await request('GET',deadlineUri,managerToken,200);
+ assert.equal(lateState.deadlinePassed,true);
+ assert.equal(lateState.bidSubmissionEnabled,false);
+ assert.equal(lateState.sealedBidCreated,false);
+ assert.equal((await db.query("SELECT count(*)::integer AS n FROM tto.ph08_sourcing_bids WHERE tender_id=$1",[lateTender])).rows[0].n,0);
+ console.log('PH10_REAL_HTTP_PH08_PROC_AT001_DEADLINE_PREFLIGHT_NO_BID_PASS');
+ // PROC-AT-003: opened criteria version stays frozen; no amendment event.
+ const openedTender='9ca00000-0000-4000-8000-000000000093';
+ await db.query("INSERT INTO tto.ph08_sourcing_tenders(tender_id,tenant_id,deadline,opened_at,criteria_version,source_policy) VALUES($1,$2,now()-interval '2 hours',now()-interval '1 hour',3,$3)",[openedTender,tenant,evidence]);
+ const lockUri=p8+'/procurement/tenders/'+openedTender+'/criteria-lock-preflight';
+ await request('GET',lockUri,memberToken,403);
+ await request('GET',p8Other+'/procurement/tenders/'+openedTender+'/criteria-lock-preflight',managerToken,403);
+ const lockState=await request('GET',lockUri,managerToken,200);
+ assert.equal(lockState.opened,true);assert.equal(lockState.criteriaFrozen,true);
+ assert.equal(lockState.criteriaEditEnabled,false);assert.equal(lockState.newLegalEventCreated,false);
+ assert.equal(lockState.criteriaVersion,3);
+ let frozenGuard=false;
+ try {await db.query("UPDATE tto.ph08_sourcing_tenders SET criteria_version=4 WHERE tender_id=$1",[openedTender]);}
+ catch(err){frozenGuard=String(err.message).includes('PH08_CRITERIA_FROZEN');}
+ assert.equal(frozenGuard,true);
+ assert.equal(Number((await db.query("SELECT criteria_version FROM tto.ph08_sourcing_tenders WHERE tender_id=$1",[openedTender])).rows[0].criteria_version),3);
+ console.log('PH10_REAL_HTTP_PH08_PROC_AT003_FROZEN_CRITERIA_PREFLIGHT_NO_EDIT_PASS');
+ // PROC-AT-006: two evidence-backed immutable threshold versions are visible,
+ // but an API policy change or legal approval is NEVER enabled by this read.
+ const policy1='9ca20000-0000-4000-8000-000000000094';
+ const policy2='9ca20000-0000-4000-8000-000000000095';
+ await db.query("INSERT INTO tto.ph08_threshold_versions(policy_id,tenant_id,policy_code,version,source_ref,value) VALUES($1,$3,'AUDIT_RFQ_THRESHOLD',1,$4,100),($2,$3,'AUDIT_RFQ_THRESHOLD',2,$4,200)",[policy1,policy2,tenant,evidence]);
+ const thresholdUri=p8+'/procurement/threshold-policies/AUDIT_RFQ_THRESHOLD/version-preflight';
+ await request('GET',thresholdUri,memberToken,403);
+ await request('GET',p8Other+'/procurement/threshold-policies/AUDIT_RFQ_THRESHOLD/version-preflight',managerToken,403);
+ await request('GET',p8+'/procurement/threshold-policies/bad-policy/version-preflight',managerToken,400);
+ const threshold=await request('GET',thresholdUri,managerToken,200);
+ assert.equal(threshold.versions.length,2);assert.equal(threshold.latestVersion,2);
+ assert.equal(threshold.versions[0].version,1);
+ assert.equal(threshold.versions[1].version,2);
+ assert.equal(threshold.policyMutationEnabled,false);
+ assert.equal(threshold.policyAuthorityIssued,false);
+ assert.equal((await db.query("SELECT count(*)::integer AS n FROM tto.ph08_threshold_versions WHERE tenant_id=$1 AND policy_code='AUDIT_RFQ_THRESHOLD'",[tenant])).rows[0].n,2);
+ console.log('PH10_REAL_HTTP_PH08_PROC_AT006_VERSIONED_THRESHOLD_PREFLIGHT_ONLY_PASS');
+
+ // Negative execution-boundary guard: contracts expose read-only preflights.
+ // There must be NO live payment, refund, bid, criteria amendment or threshold-write endpoint.
+ const orderCountBeforeAttempt=(await db.query("SELECT count(*)::integer AS n FROM tto.ph08_market_orders WHERE offer_id=$1",[p8offer])).rows[0].n;
+ const bidCountBeforeAttempt=(await db.query("SELECT count(*)::integer AS n FROM tto.ph08_sourcing_bids WHERE tender_id=$1",[lateTender])).rows[0].n;
+ await request('POST',p8+'/market/offers/'+p8offer+'/checkout-pay',memberToken,404,JSON.stringify({amount:100}));
+ await request('POST',p8+'/market/orders/'+syntheticOrder+'/refund',memberToken,404,JSON.stringify({refundAmount:100}));
+ await request('POST',p8+'/procurement/tenders/'+lateTender+'/bids',managerToken,404,JSON.stringify({sealedContent:'synthetic'}));
+ await request('POST',p8+'/procurement/tenders/'+openedTender+'/criteria-amendments',managerToken,404,JSON.stringify({criteriaVersion:4}));
+ await request('POST',p8+'/procurement/threshold-policies/AUDIT_RFQ_THRESHOLD/activate',managerToken,404,JSON.stringify({version:3}));
+ assert.equal((await db.query("SELECT count(*)::integer AS n FROM tto.ph08_market_orders WHERE offer_id=$1",[p8offer])).rows[0].n,orderCountBeforeAttempt);
+ assert.equal((await db.query("SELECT count(*)::integer AS n FROM tto.ph08_sourcing_bids WHERE tender_id=$1",[lateTender])).rows[0].n,bidCountBeforeAttempt);
+ assert.equal((await db.query("SELECT policy_version FROM tto.ph08_market_refunds WHERE refund_id=$1",[syntheticRefund])).rows[0].policy_version,'PH08_REFUND_POLICY_V1');
+ assert.equal((await db.query("SELECT criteria_version FROM tto.ph08_sourcing_tenders WHERE tender_id=$1",[openedTender])).rows[0].criteria_version,3);
+ console.log('PH10_PH08_FIVE_OPERATIONS_DENIED_NO_FINANCIAL_LEGAL_MUTATION_PASS');
+
+
+
 
 
 

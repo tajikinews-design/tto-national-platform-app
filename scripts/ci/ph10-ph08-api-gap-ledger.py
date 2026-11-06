@@ -6,7 +6,14 @@ ROOT=Path(__file__).resolve().parents[2]
 FROZEN=ROOT/"docs/analysis/ACCEPTANCE_IDS.json"
 SOURCE=ROOT/"docs/analysis/PH08_OFFICIAL_SOURCE36.json"
 OUT=ROOT/"ph10-artifacts/ph10_ph08_36_http_gap_ledger.json"
+PREFLIGHT_ONLY_IDS=["MKT-AT-002","MKT-AT-003","PROC-AT-001","PROC-AT-003","PROC-AT-006"]
+CONTRACT=ROOT/"docs/contracts/PH08_FIVE_BLOCKED_OPERATIONS_CONTRACT_v1.json"
 MARKERS={
+ "MKT-AT-002":"PH10_REAL_HTTP_PH08_MKT_AT002_COOPERATIVE_SELLER_PREFLIGHT_ONLY_PASS",
+ "MKT-AT-003":"PH10_REAL_HTTP_PH08_MKT_AT003_VERSIONED_REFUND_PREFLIGHT_ONLY_PASS",
+ "PROC-AT-001":"PH10_REAL_HTTP_PH08_PROC_AT001_DEADLINE_PREFLIGHT_NO_BID_PASS",
+ "PROC-AT-003":"PH10_REAL_HTTP_PH08_PROC_AT003_FROZEN_CRITERIA_PREFLIGHT_NO_EDIT_PASS",
+ "PROC-AT-006":"PH10_REAL_HTTP_PH08_PROC_AT006_VERSIONED_THRESHOLD_PREFLIGHT_ONLY_PASS",
  "LEARN-AT-005":"PH10_REAL_HTTP_PH08_LEARN_AT005_RETIRED_COURSE_MEMBER_HISTORY_PASS",
  "PROJ-AT-002":"PH10_REAL_HTTP_PH08_PROJ_AT002_FOREIGN_COUNTY_NO_AUTO_AUTHORITY_PASS",
  "VOICE-AT-006":"PH10_REAL_HTTP_PH08_VOICE_AT006_EXPLICIT_HANDOFF_NO_AUTO_PROJECT_PASS",
@@ -46,8 +53,8 @@ PATHS={
  "VOICE":["GET /v1/tenants/{tenantId}/ph08/voice/open-polls","POST /v1/tenants/{tenantId}/ph08/voice/{pollId}/respond","GET /v1/tenants/{tenantId}/ph08/voice/proposals/{proposalId}/handoff-state"],
  "LEARN":["GET /v1/tenants/{tenantId}/ph08/learning/events","POST /v1/tenants/{tenantId}/ph08/learning/events/{eventId}/enroll","GET /v1/tenants/{tenantId}/ph08/learning/retired-history"],
  "BEN":["GET /v1/tenants/{tenantId}/ph08/benefits/my-vouchers","POST /v1/tenants/{tenantId}/ph08/benefits/vouchers/{voucherId}/redeem","GET /v1/tenants/{tenantId}/ph08/benefits/{benefitId}/activation-prerequisites"],
- "MKT":["GET /v1/tenants/{tenantId}/ph08/market/offers","GET /v1/tenants/{tenantId}/ph08/market/sponsored-creatives","POST /v1/tenants/{tenantId}/ph08/market/supplier-proposals"],
- "PROC":["GET /v1/tenants/{tenantId}/ph08/procurement/tenders"],
+ "MKT":["GET /v1/tenants/{tenantId}/ph08/market/offers","GET /v1/tenants/{tenantId}/ph08/market/sponsored-creatives","POST /v1/tenants/{tenantId}/ph08/market/supplier-proposals","GET /v1/tenants/{tenantId}/ph08/market/offers/{offerId}/checkout-preflight","GET /v1/tenants/{tenantId}/ph08/market/orders/{orderId}/refund-policy-preflight"],
+ "PROC":["GET /v1/tenants/{tenantId}/ph08/procurement/tenders","GET /v1/tenants/{tenantId}/ph08/procurement/tenders/{tenderId}/bid-deadline-preflight","GET /v1/tenants/{tenantId}/ph08/procurement/tenders/{tenderId}/criteria-lock-preflight","GET /v1/tenants/{tenantId}/ph08/procurement/threshold-policies/{policyCode}/version-preflight"],
 }
 NEST=ROOT/"services/api/src/module.ts"
 HTTP=ROOT/"services/api/test/ph09-portal.http.integration.cjs"
@@ -64,12 +71,25 @@ def source():
  for v in PATHS.values():
   for endpoint in v:
    method,path=endpoint.split(" ",1)
-   last=path.split("/ph08/")[-1].replace("{eventId}",":eventId").replace("{pollId}",":pollId").replace("{voucherId}",":voucherId").replace("{branchId}",":branchId").replace("{proposalId}",":proposalId").replace("{benefitId}",":benefitId")
+   last=path.split("/ph08/")[-1].replace("{eventId}",":eventId").replace("{pollId}",":pollId").replace("{voucherId}",":voucherId").replace("{branchId}",":branchId").replace("{proposalId}",":proposalId").replace("{benefitId}",":benefitId").replace("{offerId}",":offerId").replace("{orderId}",":orderId").replace("{tenderId}",":tenderId").replace("{policyCode}",":policyCode")
    assert last in text,"NEST_ROUTE_MISSING:"+last
  assert set(MARKERS).isdisjoint(ABSENT_ROUTE_MARKERS)
- assert len(MARKERS)==27 and len(ABSENT_ROUTE_MARKERS)==4
+ assert len(MARKERS)==32 and len(ABSENT_ROUTE_MARKERS)==4
  for ident,marker in {**MARKERS,**ABSENT_ROUTE_MARKERS}.items():
   assert ident in {x["id"] for x in raw} and marker in test,"RELATED_OR_ABSENCE_MARKER_MISSING:"+ident
+ contract=json.loads(CONTRACT.read_text(encoding="utf-8"))
+ assert contract["globalRules"]["readiness"]=="BLOCKED"
+ assert contract["globalRules"]["fullSourceUserJourneyAccepted"] is False
+ assert contract["globalRules"]["legalAuthorityVerified"] is False
+ truth={x["id"]:x for x in raw}
+ declared=contract["contracts"]
+ assert len(declared)==5 and {x["id"] for x in declared}==set(PREFLIGHT_ONLY_IDS),"FIVE_CONTRACT_SET_DRIFT"
+ for x in declared:
+  original=truth[x["id"]]
+  assert x["source"]==original["scenario"] and x["expected"]==original["expected"],"SOURCE_CONTRACT_DRIFT"
+  assert x["method"]=="GET" and x["realOperation"]=="BLOCKED","MUTATION_GATE_REQUIRED"
+  assert x["path"].startswith("/v1/tenants/{tenantId}/ph08/")
+  assert x["path"] in [p.split(" ",1)[1] for p in PATHS[original["module"]]],"PATH_UNDECLARED"
  for c in raw:assert (ROOT/c["sqlFile"]).is_file(),"SOURCE_SQL_MISSING:"+c["id"]
  return raw
 
@@ -100,6 +120,7 @@ def census(log_path=None):
          "NO_RELATED_EXACT_HEAD_EXECUTION" if chosen else
          "NO_SOURCE_ID_SPECIFIC_HTTP_PROOF")
   rows.append({"acceptanceId":ident,"module":group,"scenario":c["scenario"],"expected":c["expected"],
+   "operationGate":"BLOCKED_PREFLIGHT_ONLY" if ident in PREFLIGHT_ONLY_IDS else ("BLOCKED_ABSENT_ROUTE" if absence else "NOT_FORMAL_E2E"),
    "sqlSourcePath":c["sqlFile"],"declaredRelatedNestEndpoints":PATHS[group],
    "relatedHttpMarker":chosen,"relatedHttpEvidence":grade,
    "relatedHttpRun":run if found else None,
@@ -112,6 +133,8 @@ def census(log_path=None):
  OUT.write_text(json.dumps({"schemaVersion":"1.0","phase":"PH08","frozenSourceCount":36,
     "sqlSourceAssertionsAlreadyRunSeparately":36,"relatedRealHttpScopedEvidenceCount":count,
     "absenceOnlyRouteGuards":absence_count,
+    "fivePreflightSourceIds":PREFLIGHT_ONLY_IDS,
+    "preflightOperationalRelease":"BLOCKED",
     "remainingNoDirectHttpProbeCount":36-count-absence_count,
     "full36SourceIdHttpJourneyCount":0,"formalEndToEndAcceptedCount":0,"run":run,
     "sourceEvidenceClassification":"RELATED_HTTP_IS_NOT_EXACT_SOURCE_ID_FULL_E2E",

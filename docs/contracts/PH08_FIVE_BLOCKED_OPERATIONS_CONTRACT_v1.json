@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "TECHNICAL_CONTRACT_DRAFT_NO_LEGAL_OR_PAYMENT_RELEASE",
+  "createdOn": "2026-11-06",
+  "project": "TTO PH10 PH08 frozen acceptance",
+  "referenceCommit": "3fef2a8198d7c60d87f4505e9b6ed1254684bae7",
+  "sourceDocuments": [
+    "docs/analysis/PH08_OFFICIAL_SOURCE36.json",
+    "docs/analysis/ACCEPTANCE_IDS.json"
+  ],
+  "globalRules": {
+    "tenant": "Exact authenticated user/tenant match; reject member/manager missing role with 403; absent ID never cross-tenant readable",
+    "csrfAndReplay": "No state-changing API in this contract. Future POSTs require separate anti-CSRF/idempotency/SoD design",
+    "successMeaning": "200 means scoped preflight evidence only, never legal permission, financial settlement, award or full E2E acceptance",
+    "explicitlyForbidden": [
+      "payment execution",
+      "refund execution",
+      "share operations",
+      "creation of market orders",
+      "creation or opening of sealed procurement bids",
+      "post-opening criteria modification",
+      "policy threshold mutation",
+      "release/deploy/hosted database migration"
+    ],
+    "readiness": "BLOCKED",
+    "fullSourceUserJourneyAccepted": false,
+    "legalAuthorityVerified": false,
+    "backendAuth": "Nest identity/session + role check + tenant-scoped SECURITY DEFINER SQL",
+    "frontEndBff": "Future same-origin BFF must map session and tenant to Nest; NOT yet implemented by this limited preflight contract",
+    "tests": "Disposable PG17 + actual Nest HTTP, positive and negative tenant/role tests, unchanged DB business state; no live data"
+  },
+  "contracts": [
+    {
+      "id": "MKT-AT-002",
+      "source": "Order payment",
+      "expected": "seller=cooperative",
+      "method": "GET",
+      "path": "/v1/tenants/{tenantId}/ph08/market/offers/{offerId}/checkout-preflight",
+      "role": "MEMBER",
+      "response": [
+        "sellerKind",
+        "published",
+        "priceSnapshot",
+        "paymentEnabled=false",
+        "orderCreated=false",
+        "sellerSourceVerified=true"
+      ],
+      "realOperation": "BLOCKED",
+      "missing": [
+        "authorized buyer-party/transaction/price/settlement contract",
+        "external payment abstraction and legal/board authority",
+        "BFF and full marketplace checkout E2E"
+      ]
+    },
+    {
+      "id": "MKT-AT-003",
+      "source": "Refund",
+      "expected": "policy version retained",
+      "method": "GET",
+      "path": "/v1/tenants/{tenantId}/ph08/market/orders/{orderId}/refund-policy-preflight",
+      "role": "MEMBER",
+      "response": [
+        "policyVersion",
+        "orderStatus",
+        "refundExecuted=false",
+        "policySnapshotPreserved=true"
+      ],
+      "realOperation": "BLOCKED",
+      "missing": [
+        "approved refund entitlement/SLA and immutable snapshot rules",
+        "payment provider/settlement reconciliation and rollback",
+        "BFF and full refund journey"
+      ]
+    },
+    {
+      "id": "PROC-AT-001",
+      "source": "Bid after deadline",
+      "expected": "Reject",
+      "method": "GET",
+      "path": "/v1/tenants/{tenantId}/ph08/procurement/tenders/{tenderId}/bid-deadline-preflight",
+      "role": "COOPERATIVE_MANAGER",
+      "response": [
+        "deadlinePassed",
+        "opened",
+        "bidSubmissionEnabled=false",
+        "sealedContentExposed=false"
+      ],
+      "realOperation": "BLOCKED",
+      "missing": [
+        "supplier-specific party role and invite/envelope encryption",
+        "trusted server-side submission authorization/deadline atomicity",
+        "late POST rejection, audit and full bid E2E"
+      ]
+    },
+    {
+      "id": "PROC-AT-003",
+      "source": "Criteria edit after open",
+      "expected": "Blocked/new event required",
+      "method": "GET",
+      "path": "/v1/tenants/{tenantId}/ph08/procurement/tenders/{tenderId}/criteria-lock-preflight",
+      "role": "COOPERATIVE_MANAGER",
+      "response": [
+        "criteriaVersion",
+        "opened",
+        "criteriaFrozen",
+        "criteriaEditEnabled=false",
+        "newEventCreated=false"
+      ],
+      "realOperation": "BLOCKED",
+      "missing": [
+        "new versioned legal amendment / signatures / audit event contract",
+        "SoD and approved publication, supplier notifications",
+        "authenticated POST conflict / concurrency and full E2E"
+      ]
+    },
+    {
+      "id": "PROC-AT-006",
+      "source": "Threshold change",
+      "expected": "versioned policy",
+      "method": "GET",
+      "path": "/v1/tenants/{tenantId}/ph08/procurement/threshold-policies/{policyCode}/version-preflight",
+      "role": "COOPERATIVE_MANAGER",
+      "response": [
+        "policyCode",
+        "versions",
+        "latestVersion",
+        "policyMutationEnabled=false",
+        "legalApproval=false"
+      ],
+      "realOperation": "BLOCKED",
+      "missing": [
+        "official approval/versioned source of truth, GRC authority and signatures",
+        "immutability of retired versions and policy effective-date contract",
+        "authorized change POST and true multi-portal E2E"
+      ]
+    }
+  ]
+}

@@ -1804,6 +1804,83 @@ export class Ph10Phase08ReadController {
      currentStatus:x.current_status,activated:false,legalApproval:false};
   });
  }
+
+ // PH08 MKT-AT-002: cooperative seller snapshot ONLY. No checkout/order/payments.
+ @Get(":tenantId/ph08/market/offers/:offerId/checkout-preflight")
+ async checkoutPreflight(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("offerId",new ParseUUIDPipe()) offer:string,
+  @Headers("authorization") auth?:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const x=await c.query<{seller_kind:string;price_snapshot:string;published:boolean}>(
+    "SELECT seller_kind,price_snapshot,published FROM tto.ph10_member_checkout_preflight($1)",[offer]);
+   if(x.rows.length!==1)throw new ForbiddenException({code:"CHECKOUT_SOURCE_OR_ROLE_DENIED"});
+   return {sellerKind:x.rows[0].seller_kind,priceSnapshot:x.rows[0].price_snapshot,
+    published:x.rows[0].published,sourceVerified:true,orderCreated:false,
+    paymentEnabled:false,transactionAuthorized:false,legalApproval:false};
+  });
+ }
+ // PH08 MKT-AT-003: frozen refund policy read ONLY, no funds or authorization.
+ @Get(":tenantId/ph08/market/orders/:orderId/refund-policy-preflight")
+ async refundPolicyPreflight(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("orderId",new ParseUUIDPipe()) order:string,
+  @Headers("authorization") auth?:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const x=await c.query<{policy_version:string;order_status:string}>(
+    "SELECT policy_version,order_status FROM tto.ph10_member_refund_policy_preflight($1)",[order]);
+   if(x.rows.length!==1)throw new ForbiddenException({code:"REFUND_SOURCE_OR_ROLE_DENIED"});
+   return {policyVersion:x.rows[0].policy_version,orderStatus:x.rows[0].order_status,
+    policySnapshotPreserved:true,refundExecuted:false,paymentEnabled:false,
+    transactionAuthorized:false,legalApproval:false};
+  });
+ }
+ // PH08 PROC-AT-001: evaluate server-side late bid barrier. No bid accepted.
+ @Get(":tenantId/ph08/procurement/tenders/:tenderId/bid-deadline-preflight")
+ async bidDeadlinePreflight(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("tenderId",new ParseUUIDPipe()) tender:string,
+  @Headers("authorization") auth?:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const x=await c.query<{deadline_passed:boolean;opened:boolean}>(
+    "SELECT deadline_passed,opened FROM tto.ph10_manager_bid_deadline_preflight($1)",[tender]);
+   if(x.rows.length!==1)throw new ForbiddenException({code:"BID_DEADLINE_SCOPE_DENIED"});
+   return {deadlinePassed:x.rows[0].deadline_passed,opened:x.rows[0].opened,
+    bidSubmissionEnabled:false,sealedBidCreated:false,sealedContentExposed:false,
+    legalApproval:false};
+  });
+ }
+ // PH08 PROC-AT-003: read criteria lock, not a legal amendment endpoint.
+ @Get(":tenantId/ph08/procurement/tenders/:tenderId/criteria-lock-preflight")
+ async criteriaLockPreflight(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("tenderId",new ParseUUIDPipe()) tender:string,
+  @Headers("authorization") auth?:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const x=await c.query<{criteria_version:number;opened:boolean;criteria_frozen:boolean}>(
+    "SELECT criteria_version,opened,criteria_frozen FROM tto.ph10_manager_criteria_lock_preflight($1)",[tender]);
+   if(x.rows.length!==1)throw new ForbiddenException({code:"CRITERIA_LOCK_SCOPE_DENIED"});
+   return {criteriaVersion:x.rows[0].criteria_version,opened:x.rows[0].opened,
+    criteriaFrozen:x.rows[0].criteria_frozen,criteriaEditEnabled:false,
+    newLegalEventCreated:false,legalApproval:false};
+  });
+ }
+ // PH08 PROC-AT-006: only the source-backed policy version series is exposed.
+ @Get(":tenantId/ph08/procurement/threshold-policies/:policyCode/version-preflight")
+ async thresholdVersionPreflight(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("policyCode") policyCode:string,@Headers("authorization") auth?:string){
+  if(!/^[A-Z][A-Z0-9_]{2,63}$/.test(policyCode))
+   throw new BadRequestException({code:"POLICY_CODE_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const x=await c.query<{policy_version:number;source_ref:string;policy_value:string}>(
+    "SELECT policy_version,source_ref,policy_value FROM tto.ph10_manager_threshold_versions_preflight($1)",[policyCode]);
+   if(x.rows.length<1)throw new ForbiddenException({code:"THRESHOLD_POLICY_SCOPE_DENIED"});
+   const versions=x.rows.map(z=>({version:z.policy_version,sourceRef:z.source_ref,value:z.policy_value}));
+   return {policyCode,versions,latestVersion:versions[versions.length-1].version,
+    policyMutationEnabled:false,policyAuthorityIssued:false,legalApproval:false};
+  });
+ }
  @Get(":tenantId/ph08/procurement/tenders")
  async tenders(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
   @Headers("authorization") auth?:string){
