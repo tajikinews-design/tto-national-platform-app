@@ -103,28 +103,32 @@ CREATE FUNCTION tto.ph12_child07_guard_reference_mutation()
 RETURNS trigger LANGUAGE plpgsql
 SET search_path=pg_catalog,tto AS $fn$
 BEGIN
- IF TG_TABLE_NAME='child07_sell_orders' AND
-   (NEW.tenant_id,NEW.seller_account_id,NEW.qty,NEW.valuation_id)
+ IF TG_TABLE_NAME='child07_sell_orders' THEN
+   IF(NEW.tenant_id,NEW.seller_account_id,NEW.qty,NEW.valuation_id)
    IS DISTINCT FROM
    (OLD.tenant_id,OLD.seller_account_id,OLD.qty,OLD.valuation_id)
- THEN RAISE EXCEPTION 'CHILD07_ORDER_REFERENCE_IMMUTABLE';END IF;
- IF TG_TABLE_NAME='child07_buy_requests' AND
-   (NEW.tenant_id,NEW.buyer_account_id,NEW.sell_order_id,NEW.qty)
+   THEN RAISE EXCEPTION 'CHILD07_ORDER_REFERENCE_IMMUTABLE';END IF;
+ END IF;
+ IF TG_TABLE_NAME='child07_buy_requests' THEN
+   IF(NEW.tenant_id,NEW.buyer_account_id,NEW.sell_order_id,NEW.qty)
    IS DISTINCT FROM
    (OLD.tenant_id,OLD.buyer_account_id,OLD.sell_order_id,OLD.qty)
- THEN RAISE EXCEPTION 'CHILD07_BUY_REFERENCE_IMMUTABLE';END IF;
- IF TG_TABLE_NAME='child07_transfer_cases' AND
-   (NEW.tenant_id,NEW.seller_account_id,NEW.buyer_account_id,NEW.qty,
+   THEN RAISE EXCEPTION 'CHILD07_BUY_REFERENCE_IMMUTABLE';END IF;
+ END IF;
+ IF TG_TABLE_NAME='child07_transfer_cases' THEN
+   IF(NEW.tenant_id,NEW.seller_account_id,NEW.buyer_account_id,NEW.qty,
     NEW.sell_order_id,NEW.buy_request_id,NEW.valuation_id)
    IS DISTINCT FROM
    (OLD.tenant_id,OLD.seller_account_id,OLD.buyer_account_id,OLD.qty,
     OLD.sell_order_id,OLD.buy_request_id,OLD.valuation_id)
- THEN RAISE EXCEPTION 'CHILD07_CASE_REFERENCE_IMMUTABLE';END IF;
- IF TG_TABLE_NAME='child07_share_locks' AND
-   (NEW.tenant_id,NEW.owner_account_id,NEW.qty,NEW.source_case_ref)
+   THEN RAISE EXCEPTION 'CHILD07_CASE_REFERENCE_IMMUTABLE';END IF;
+ END IF;
+ IF TG_TABLE_NAME='child07_share_locks' THEN
+   IF(NEW.tenant_id,NEW.owner_account_id,NEW.qty,NEW.source_case_ref)
    IS DISTINCT FROM
    (OLD.tenant_id,OLD.owner_account_id,OLD.qty,OLD.source_case_ref)
- THEN RAISE EXCEPTION 'CHILD07_LOCK_REFERENCE_IMMUTABLE';END IF;
+   THEN RAISE EXCEPTION 'CHILD07_LOCK_REFERENCE_IMMUTABLE';END IF;
+ END IF;
  RETURN NEW;
 END $fn$;
 CREATE TRIGGER ph12_child07_sell_order_immutable_refs BEFORE UPDATE
