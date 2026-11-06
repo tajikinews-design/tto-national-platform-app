@@ -42,11 +42,12 @@ def joined(sha,run_id,artifacts=ART):
     auth=j(artifacts/"ph10_ph04_auth8_exact_evidence.json")
     tenants=j(artifacts/"ph10_ph04_tenant8_exact_evidence.json")
     p8=j(artifacts/"ph10_ph08_36_http_gap_ledger.json")
+    ops=j(artifacts/"ph10_ops_four_exact_evidence.json")
     route=j(artifacts/"ph10_page_api_inventory.json")
     recovery=(artifacts/"ph10_g5_restore_stdout.log").read_text(encoding="utf-8")
     need("PH10_G5_DISPOSABLE_BACKUP_RESTORE_PASS" in {x.strip() for x in recovery.splitlines()},
          "G5_BACKUP_RESTORE_PROOF_MISSING")
-    for item in (first,f55,per_sql):
+    for item in (first,f55,per_sql,ops):
         need(item.get("commitSha",item.get("run",{}).get("commitSha"))==sha,
              "SQL_LEDGER_SHA_MISMATCH")
         need(str(item.get("workflowRunId",item.get("run",{}).get("workflowRunId")))==run_id,
@@ -72,14 +73,28 @@ def joined(sha,run_id,artifacts=ART):
          "PH08_HTTP_SCOPED_CENSUS_MISSING")
     need(p8.get("formalEndToEndAcceptedCount")==0,
          "UNTRUSTED_PH08_E2E_PROMOTION")
+    need(ops.get("operationsSourceSpecificScopedPass")==3 and
+         ops.get("operationsDesignOnly")==1 and
+         ops.get("tenantBearingTablesCompared",0)>=3 and
+         ops.get("migrationFilesCleanReplayed",0)>=10 and
+         ops.get("formalAcceptanceCount")==0 and
+         ops.get("source155FullUserJourneysAccepted") is False,
+         "OPS_FOUR_EXACT_SCOPE_PROOF_MISSING")
     keyed=lambda xs:{v["acceptanceId"]:v for v in xs}
-    sql,older,ac,tc,api,source100=map(keyed,(first["cases"],f55["cases"],auth["cases"],tenants["cases"],p8["cases"],per_sql["cases"]))
+    sql,older,ac,tc,api,source100,ops_rows=map(keyed,(first["cases"],f55["cases"],auth["cases"],tenants["cases"],p8["cases"],per_sql["cases"],ops["cases"]))
     need(set(sql)==set(original_ids),"SQL_SOURCE_DRIFT")
     need(set(source100)==set(original_ids[55:]),"SOURCE100_INDIVIDUAL_ID_DRIFT")
     need(set(older)==set(original_ids[:55]),"FROZEN55_DRIFT")
     need(set(ac)==set(original_ids[:8]) and set(tc)==set(original_ids[8:16]),
          "PH04_AUTH_OR_TENANT_COVERAGE_DRIFT")
     need(set(api)==set(original_ids[81:117]),"PH08_SOURCE_ID_DRIFT")
+    need(set(ops_rows)=={"OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008"},
+         "OPS_FOUR_ID_DRIFT")
+    for k,v in ops_rows.items():
+        need(v["commitSha"]==sha and str(v["workflowRunId"])==run_id and
+             v["formalAcceptance"]=="NOT_ACCEPTED" and
+             v["fullSourceUserJourneyPassed"] is False,"OPS_FALSE_SOURCE_PROMOTION:"+k)
+        need(v["scopedTechnicalPassed"]==(k!="OPS-AT-001"),"OPS_UNEXPECTED_SCOPE:"+k)
     source07={v["id"]:v for v in j(ROOT/"docs/analysis/PH07_26_SOURCE_ACCEPTANCE.json")["cases"]}
     source08={v["id"]:v for v in j(ROOT/"docs/analysis/PH08_OFFICIAL_SOURCE36.json")["cases"]}
     source09={v["id"]:v for v in j(ROOT/"docs/analysis/PH09_OFFICIAL_SOURCE38.json")["cases"]}
@@ -141,8 +156,14 @@ def joined(sha,run_id,artifacts=ART):
                        sourceSqlOutputSha256=signal["stdoutSha256"],
                        job="source-sql-and-actual-api",
                        scopedTechnicalResult=signal["scopedResult"])
-            if ident=="OPS-AT-004":
-                row["independentRecoveryScope"]="RELATED_G5_PG17_RESTORE_NOT_FULL_SOURCE_OPS004"
+            if ident in ops_rows:
+                scoped=ops_rows[ident]
+                row.update(independentOpsEvidenceLayer=scoped["evidenceLayer"],
+                           independentOpsTestPath=scoped["testPath"],
+                           independentOpsAssertionMarker=scoped["assertionMarker"],
+                           independentOpsScopedTechnicalPassed=scoped["scopedTechnicalPassed"],
+                           independentOpsScopedResult=scoped["scopedResult"])
+                row["opsIndependentBoundary"]="DESIGN_ONLY_NOT_RUNTIME" if ident=="OPS-AT-001" else "PG17_SCOPED_NOT_FULL_SOURCE_E2E"
             if phase=="PH08":
                 extra=api[ident]
                 need(extra["formalAcceptance"]=="NOT_ACCEPTED" and
@@ -167,6 +188,9 @@ def joined(sha,run_id,artifacts=ART):
             "threePortalInventory":"STATIC_INVENTORY_NOT_ALL_ROLES_E2E",
             "sql100SuiteCompleted":100,"perSourceSqlExecutedMarkersVerified":96,
             "sourceSqlWithoutPerIdEvidence":["OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008"],
+            "opsOutOfBandScopedRuntimeProven":3,
+            "opsLegacyDesignReconciliationProven":1,
+            "opsFullUserJourneysProven":0,
             "ph08SourceHttp":"32_RELATED_4_ABSENT_ROUTE_NOT_FULL_E2E",
             "g5DisposableBackupRestore":"PASS_IN_CI_NONPRODUCTION",
             "legalSourceAuthenticity":"BLOCKED","release":"HOLD",
@@ -183,7 +207,7 @@ def main():
     ART.mkdir(exist_ok=True)
     (ART/"ph10_155_crossjob_truth_ledger.json").write_text(
         json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    print("PH10_155_EXACT_CROSSJOB_CLASSIFIED=155_PER_SOURCE_SQL=96/100_OPS_GAPS=4_FORMAL_E2E=0_RELEASE_HOLD")
+    print("PH10_155_EXACT_CROSSJOB_CLASSIFIED=155_PER_SOURCE_SQL=96/100_OPS_INDEPENDENT_SCOPED=3_DESIGN=1_FORMAL_E2E=0_RELEASE_HOLD")
     print("PH10_G5_EXACT_HEAD_PG17_RECOVERY_VERIFIED_NONPRODUCTION")
 
 if __name__=="__main__":
