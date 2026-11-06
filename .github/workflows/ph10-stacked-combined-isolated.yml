@@ -187,7 +187,11 @@ jobs:
           pnpm --filter @tto/national-admin build
           # Bound real browser/HTTP integration independently of the 40-minute job limit.
           # A timeout is a failing test, never a skipped or passed acceptance check.
-          timeout --signal=TERM --kill-after=5s 480s node services/api/test/ph09-portal.http.integration.cjs
+          python3 -m unittest discover -s tests -p test_ph10_ph08_api_gap.py -v
+          python3 scripts/ci/ph10-ph08-api-gap-ledger.py --validate-source
+          timeout --signal=TERM --kill-after=5s 480s node services/api/test/ph09-portal.http.integration.cjs | tee "$RUNNER_TEMP/ph08-real-http-stdout.log"
+          TTO_PH10_FROZEN55_DISPOSABLE=true python3 scripts/ci/ph10-ph08-api-gap-ledger.py --http-log "$RUNNER_TEMP/ph08-real-http-stdout.log"
+          rm -f "$RUNNER_TEMP/ph08-real-http-stdout.log"
           echo PH10_REAL_NEST_AUTHENTICATED_HTTP_PASS
           echo PH10_BROWSER_BOTH_PORTALS_REAL_SOURCE_RENDER_PASS
       - name: Upload authenticated mobile browser evidence
@@ -200,6 +204,7 @@ jobs:
             ph10-artifacts/ph10_155_exact_run_sql_ledger.json
             ph10-artifacts/ph10_frozen55_exact_evidence.json
             ph10-artifacts/ph10_ph04_tenant8_exact_evidence.json
+            ph10-artifacts/ph10_ph08_36_http_gap_ledger.json
           retention-days: 14
           if-no-files-found: warn
       - name: Verify disposable PostgreSQL17 snapshot backup and restore
