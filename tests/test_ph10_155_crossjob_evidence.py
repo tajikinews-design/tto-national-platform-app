@@ -113,6 +113,31 @@ class EvidenceTruth(unittest.TestCase):
                           "assertionMarker":None if ident=="OPS-AT-001" else "TEST_MARKER_ONLY",
                           "scopedResult":"SYNTHETIC_TEST_FIXTURE"}
                          for ident in ("OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008")]},
+            "ph10_three_portal_role_source_evidence.json":{
+                "run":{"commitSha":SHA,"runId":RUN,"job":"source-sql-and-actual-api"},
+                "realBrowserPortalSources":3,"actualBrowserRolePaths":6,
+                "declaredBffSourceBindings":11,"realSourceSpecificCommands":1,
+                "full155UserJourneysAccepted":False,"release":"HOLD",
+                "cases":[{"portal":p,"navId":n,"sourceAcceptanceId":ident,
+                           "formalAcceptance":"NOT_ACCEPTED",
+                           "fullOriginalSourceJourneyAccepted":False,
+                           "realChromiumReadVerified":(p,n) in {
+                               ("shareholder","NAV-06"),
+                               ("cooperative-management","NAV-10"),
+                               ("national-admin","NAV-09")},
+                           "sourceSpecificBrowserCommandVerified":(p,n)==("shareholder","NAV-06")}
+                          for p,n,ident in [
+                           ("shareholder","NAV-06","LEARN-AT-001"),
+                           ("shareholder","NAV-07","MKT-AT-006"),
+                           ("shareholder","NAV-08","PROJ-AT-005"),
+                           ("shareholder","NAV-10","IMPACT-AT-004"),
+                           ("cooperative-management","NAV-04","COMM-AT-005"),
+                           ("cooperative-management","NAV-05","SUP-AT-001"),
+                           ("cooperative-management","NAV-07","MKT-AT-006"),
+                           ("cooperative-management","NAV-08","PROJ-AT-005"),
+                           ("cooperative-management","NAV-09","TRN-AT-006"),
+                           ("cooperative-management","NAV-10","GRC-AT-001"),
+                           ("national-admin","NAV-09","CORE-DOC-AT-008")]]},
             "ph10_page_api_inventory.json":{
                 "headSha":SHA,"pages":[{"portal":p} for p in
                           ("shareholder","cooperative-management","national-admin")]},
@@ -141,6 +166,11 @@ class EvidenceTruth(unittest.TestCase):
         self.artifacts["ph10_ops_four_exact_evidence.json"]["cases"][1]["scopedTechnicalPassed"]=False
         self.write()
         with self.assertRaisesRegex(AssertionError,"OPS_UNEXPECTED_SCOPE"):
+            gate.joined(SHA,RUN,self.root)
+    def test_portal_fabricated_runtime_fails(self):
+        self.artifacts["ph10_three_portal_role_source_evidence.json"]["realBrowserPortalSources"]=11
+        self.write()
+        with self.assertRaisesRegex(AssertionError,"THREE_PORTAL_ROLE_SOURCE_RUNTIME_INCOMPLETE"):
             gate.joined(SHA,RUN,self.root)
     def test_mismatched_commit_fail_closed(self):
         self.artifacts["ph10_ph04_auth8_exact_evidence.json"]["run"]["commitSha"]="b"*40
