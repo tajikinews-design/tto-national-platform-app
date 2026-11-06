@@ -85,6 +85,29 @@ done <<<"$tables"
 source_tenants=$(docker exec "$name" psql -U postgres -d tto -Atqc \
  "SELECT count(*) FROM tto.tenants")
 [[ "$source_tenants" -ge 2 ]] || { echo "PH10_OPS004_CROSS_TENANT_FIXTURE_MISSING" >&2; exit 1; }
+# A zero-row or single-tenant fixture could make identical empty hashes
+# appear to prove isolation. Demand independent, nonempty evidence records
+# belonging to BOTH known synthetic tenants in source and restored PG17.
+# This does not test real backup/DR, and never accesses hosted data.
+for database in tto "$temp_backup"; do
+ for tenant_id in 99000000-0000-4000-8000-000000000001 99000000-0000-4000-8000-000000000002; do
+  present=$(docker exec "$name" psql -U postgres -d "$database" -Atqc \
+   "SELECT count(*) FROM tto.evidence_references WHERE tenant_id='$tenant_id'")
+  [[ "$present" =~ ^[0-9]+$ && "$present" -ge 1 ]] || {
+   echo "PH10_OPS004_NONEMPTY_DISTINCT_TENANT_EVIDENCE_MISSING:$database:$tenant_id" >&2
+   exit 1
+  }
+ done
+done
+# Ensure the restored tenant set is identical to the original, including
+# tenant labels, not merely an equal global count.
+tenant_sql="SELECT md5(coalesce(string_agg(tenant_id::text || ':' || slug || ':' || status,'|' ORDER BY tenant_id::text),'')) FROM tto.tenants"
+tenants_before=$(docker exec "$name" psql -U postgres -d tto -Atqc "$tenant_sql")
+tenants_after=$(docker exec "$name" psql -U postgres -d "$temp_backup" -Atqc "$tenant_sql")
+[[ "$tenants_before" =~ ^[0-9a-f]{32}$ && "$tenants_before" == "$tenants_after" ]] || {
+ echo "PH10_OPS004_TENANT_REGISTRY_CHANGED_ON_RESTORE" >&2;exit 1;
+}
+echo "PH10_OPS004_TWO_NONEMPTY_TENANT_EVIDENCE_RESTORE_PASS"
 echo "PH10_OPS_AT004_TENANT_SCOPED_ROW_FINGERPRINT_RESTORE_PASS"
 echo "PH10_OPS004_TENANT_TABLES_CHECKED=$checked"
 
