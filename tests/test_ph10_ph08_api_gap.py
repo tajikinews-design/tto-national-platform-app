@@ -18,7 +18,7 @@ class Truth(unittest.TestCase):
   cases=m.source()
   self.assertEqual(len(m.PREFLIGHT_ONLY_IDS),5)
   self.assertEqual(set(m.PREFLIGHT_ONLY_IDS),{"MKT-AT-002","MKT-AT-003","PROC-AT-001","PROC-AT-003","PROC-AT-006"})
-  self.assertTrue(all(x["id"] in {c["id"] for c in cases} for x in m.PREFLIGHT_ONLY_IDS))
+  self.assertTrue(all(x in {c["id"] for c in cases} for x in m.PREFLIGHT_ONLY_IDS))
  def test_log_echo_not_exact_evidence(self):
   k=m.MARKERS["VOICE-AT-004"]
   self.assertTrue(m.exact(k,k))
