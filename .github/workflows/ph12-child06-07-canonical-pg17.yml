@@ -27,10 +27,21 @@ jobs:
           python3 -m unittest discover -s tests -p test_ph12_physical_parity.py -v
           python3 tests/test_ph12_child06_07_canonical.py
           python3 tests/test_ph12_child06_07_owner_gate.py
+      - name: Prepare actual Next and Nest for 68-migration HTTP integration (NO DEPLOY)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Compile real apps and API, no external service or production secrets
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.18.0
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm check
       - name: Start disposable PostgreSQL17 (no hosted DB)
         run: |
           set -euo pipefail
-          docker run -d --rm --name tto-ph12-0607 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto postgres:17-alpine
+          docker run -d --rm --name tto-ph12-0607 -p 127.0.0.1:5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto postgres:17-alpine
           ok=false
           for attempt in $(seq 1 60); do
             if docker exec tto-ph12-0607 psql -U postgres -d tto -Atqc 'SELECT 1' >/dev/null 2>&1; then ok=true;break;fi
@@ -66,6 +77,15 @@ jobs:
             THEN 'PH12_FINALIZE_GUARD_PASS' ELSE 'PH12_GUARD_FAILED' END"
           result="$(docker exec tto-ph12-0607 psql -U postgres -d tto -Atqc "$sql")"
           test "$result" = 'PH12_FINALIZE_GUARD_PASS' || { echo "$result";exit 1; }
+      - name: Real three-portal Next-to-Nest HTTP against ALL 68 isolated PG17 migrations
+        env:
+          TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+          TTO_LOOPBACK_E2E: "1"
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=5s 240s node scripts/e2e-cf02-identity-authority.cjs
+          echo "PH12_68_MIGRATIONS_THREE_PORTAL_HTTP_PASS_SYNTHETIC_ONLY_NOT_LEGAL_SOURCE_ACCEPTANCE"
       - name: Destroy disposable PG17 container
         if: always()
         run: docker rm -f tto-ph12-0607 || true
