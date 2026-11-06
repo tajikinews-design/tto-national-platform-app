@@ -1,0 +1,35 @@
+name: PH12 current-SQL source-entity and field gap audit (NO DEPLOY)
+on:
+  push:
+    branches: [audit/ph11-ph13-readiness-20261106]
+permissions:
+  contents: read
+concurrency:
+  group: ph12-schema-audit-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  lexical-audit-not-semantic-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      CI: "true"
+      VERCEL: ""
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Reject false 148-entity 786-field parity
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p test_ph12_source_ddl_candidate_audit.py -v
+      - name: Compare official source field candidates with current migrations
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/ph12-source-ddl-candidate-audit.py --output ph12-artifacts/source_ddl_lexical_gap.json
+      - name: Preserve SHA/run-bound lexical audit only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ph12-148-786-lexical-gap-not-acceptance
+          path: ph12-artifacts/source_ddl_lexical_gap.json
+          if-no-files-found: error
+          retention-days: 30
