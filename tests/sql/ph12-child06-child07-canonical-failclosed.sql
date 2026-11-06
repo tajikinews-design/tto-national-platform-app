@@ -85,6 +85,100 @@ BEGIN
  IF (SELECT status FROM tto.child07_share_locks WHERE source_case_ref=cs)<>'STAGED'
  THEN RAISE EXCEPTION 'PH12_LOCK_INCORRECTLY_ACTIVATED';END IF;
 
+ -- CHILD06 master does not silently project into CF02; drift is a blocking verdict.
+ IF tto.ph12_child06_projection_discrepancy(t1,p2)<>'NO_CANONICAL_RELATIONSHIP'
+ THEN RAISE EXCEPTION 'PH12_NONMEMBER_SPOOFED_RELATIONSHIP';END IF;
+ IF tto.ph12_child06_projection_discrepancy(t1,p1)<>'MISSING_CF02_PROJECTION'
+ THEN RAISE EXCEPTION 'PH12_MISSING_CF02_PROJECTION_NOT_DETECTED';END IF;
+ INSERT INTO tto.relationship_projections(tenant_id,party_id,membership_status,source_event_id,source_version)
+ VALUES(t1,p1,'ACTIVE',gen_random_uuid(),1);
+ IF tto.ph12_child06_projection_discrepancy(t1,p1)<>'SOURCE_VERSION_MISMATCH'
+ THEN RAISE EXCEPTION 'PH12_STALE_CF02_VERSION_NOT_DETECTED';END IF;
+
+ -- Reject invalid buy order quantity and self-dealing while DRAFT.
+ BEGIN
+  INSERT INTO tto.child07_buy_requests(buy_request_id,tenant_id,buyer_account_id,sell_order_id,qty)
+  VALUES(gen_random_uuid(),t1,a2,ord,6);
+  RAISE EXCEPTION 'PH12_OVERSIZED_BUY_REQUEST_ALLOWED';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM<>'CHILD07_BUY_REQUEST_ORDER_INCONSISTENT' THEN RAISE;END IF;
+ END;
+ BEGIN
+  INSERT INTO tto.child07_buy_requests(buy_request_id,tenant_id,buyer_account_id,sell_order_id,qty)
+  VALUES(gen_random_uuid(),t1,a1,ord,2);
+  RAISE EXCEPTION 'PH12_SELF_BUY_REQUEST_ALLOWED';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM<>'CHILD07_BUY_REQUEST_ORDER_INCONSISTENT' THEN RAISE;END IF;
+ END;
+
+ -- Same-tenant different owner/quantity/order cross-references are blocked.
+ BEGIN
+  INSERT INTO tto.child07_transfer_cases(case_id,tenant_id,seller_account_id,buyer_account_id,
+    qty,sell_order_id,valuation_id)
+  VALUES(gen_random_uuid(),t1,a2,a1,2,ord,val);
+  RAISE EXCEPTION 'PH12_WRONG_SELLER_CASE_ALLOWED';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM<>'CHILD07_CASE_SELL_ORDER_INCONSISTENT' THEN RAISE;END IF;
+ END;
+ BEGIN
+  INSERT INTO tto.child07_transfer_cases(case_id,tenant_id,seller_account_id,buyer_account_id,
+    qty,sell_order_id,valuation_id)
+  VALUES(gen_random_uuid(),t1,a1,a2,6,ord,val);
+  RAISE EXCEPTION 'PH12_OVERSIZED_TRANSFER_CASE_ALLOWED';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM<>'CHILD07_CASE_SELL_ORDER_INCONSISTENT' THEN RAISE;END IF;
+ END;
+ BEGIN
+  INSERT INTO tto.child07_transfer_cases(case_id,tenant_id,seller_account_id,buyer_account_id,
+    qty,sell_order_id,buy_request_id,valuation_id)
+  VALUES(gen_random_uuid(),t1,a1,a2,4,ord,req,val);
+  RAISE EXCEPTION 'PH12_OVERSIZED_BUY_MATCH_ALLOWED';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM<>'CHILD07_CASE_BUY_REQUEST_INCONSISTENT' THEN RAISE;END IF;
+ END;
+ BEGIN
+  INSERT INTO tto.child07_transfer_cases(case_id,tenant_id,seller_account_id,buyer_account_id,
+    qty,buy_request_id,valuation_id)
+  VALUES(gen_random_uuid(),t1,a1,a2,1,req,val);
+  RAISE EXCEPTION 'PH12_MISSING_SELL_ORDER_FOR_BUY_CASE';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM<>'CHILD07_CASE_REQUIRES_SELL_ORDER' THEN RAISE;END IF;
+ END;
+ BEGIN
+  INSERT INTO tto.child07_share_locks(lock_id,tenant_id,owner_account_id,qty,source_case_ref)
+  VALUES(gen_random_uuid(),t1,a2,1,cs);
+  RAISE EXCEPTION 'PH12_WRONG_OWNER_LOCK_ALLOWED';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM<>'CHILD07_LOCK_CASE_INCONSISTENT' THEN RAISE;END IF;
+ END;
+ BEGIN
+  INSERT INTO tto.child07_share_locks(lock_id,tenant_id,owner_account_id,qty,source_case_ref)
+  VALUES(gen_random_uuid(),t1,a1,4,cs);
+  RAISE EXCEPTION 'PH12_OVERSIZED_LOCK_ALLOWED';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM<>'CHILD07_LOCK_CASE_INCONSISTENT' THEN RAISE;END IF;
+ END;
+
+ -- Once linked, order, case and lock reference dimensions cannot be rewritten.
+ BEGIN
+  UPDATE tto.child07_sell_orders SET qty=10 WHERE sell_order_id=ord;
+  RAISE EXCEPTION 'PH12_SELL_ORDER_MUTATION_ALLOWED';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM<>'CHILD07_ORDER_REFERENCE_IMMUTABLE' THEN RAISE;END IF;
+ END;
+ BEGIN
+  UPDATE tto.child07_transfer_cases SET qty=1 WHERE case_id=cs;
+  RAISE EXCEPTION 'PH12_CASE_MUTATION_ALLOWED';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM<>'CHILD07_CASE_REFERENCE_IMMUTABLE' THEN RAISE;END IF;
+ END;
+ BEGIN
+  UPDATE tto.child07_share_locks SET qty=1 WHERE source_case_ref=cs;
+  RAISE EXCEPTION 'PH12_LOCK_MUTATION_ALLOWED';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM<>'CHILD07_LOCK_REFERENCE_IMMUTABLE' THEN RAISE;END IF;
+ END;
+
  -- Seller from another tenant cannot be wired into a local contract.
  BEGIN
   INSERT INTO tto.child07_sell_orders(sell_order_id,tenant_id,seller_account_id,qty,valuation_id)
