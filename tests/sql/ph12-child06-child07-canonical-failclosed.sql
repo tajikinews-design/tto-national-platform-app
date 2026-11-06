@@ -13,6 +13,7 @@ DECLARE
  rv uuid:=gen_random_uuid(); val uuid:=gen_random_uuid(); ord uuid:=gen_random_uuid();
  req uuid:=gen_random_uuid(); cs uuid:=gen_random_uuid(); ld uuid:=gen_random_uuid();
  rel uuid:=gen_random_uuid(); changed bigint;
+ app uuid:=gen_random_uuid(); evt uuid; source_ref text:='PH12_SYNTHETIC_NOT_APPROVED';
 BEGIN
  INSERT INTO tto.user_accounts(user_id) VALUES(actor);
  INSERT INTO tto.tenants(tenant_id,slug,display_name,status) VALUES
@@ -240,6 +241,65 @@ BEGIN
  EXCEPTION WHEN raise_exception THEN
   IF SQLERRM<>'IMMUTABLE_AUDIT_OR_EVIDENCE' THEN RAISE;END IF;
  END;
+ -- Read-only authority reconciliation: explicit gaps, no self-promotion.
+ IF tto.ph12_child06_reconcile_sources(t1,p2)<>'CHILD06_CANONICAL_UNAVAILABLE'
+ THEN RAISE EXCEPTION 'PH12_NONMEMBER_IMPLICIT_MASTER';END IF;
+ IF tto.ph12_child06_reconcile_sources(t1,p1)<>'LEGACY_MASTER_UNMAPPED'
+ THEN RAISE EXCEPTION 'PH12_LEGACY_MASTER_MISSING_NOT_DETECTED';END IF;
+ IF tto.ph12_child07_reconcile_opening(t1,a2)<>'NON_MEMBER_SOURCE_ADAPTER_NOT_APPROVED'
+ THEN RAISE EXCEPTION 'PH12_NONMEMBER_OFFICIAL_SOURCE_UNAUTHORIZED';END IF;
+ IF tto.ph12_child07_reconcile_opening(t1,a1)<>'MEMBERSHIP_SOURCE_NOT_RECONCILED'
+ THEN RAISE EXCEPTION 'PH12_MEMBER_RECONCILIATION_NOT_BLOCKING';END IF;
+ SELECT source_event_id INTO evt FROM tto.child06_cooperative_relationships
+  WHERE tenant_id=t1 AND party_id=p1 AND source_version=2;
+ INSERT INTO tto.ph06_membership_applications(application_id,tenant_id,party_id)
+ VALUES(app,t1,p1);
+ INSERT INTO tto.ph06_membership_events(event_id,tenant_id,party_id,application_id,
+  source_version,relationship_status,source_event_ref)
+ VALUES(evt,t1,p1,app,2,'SUSPENDED',source_ref);
+ INSERT INTO tto.ph06_membership_current(tenant_id,party_id,current_status,source_version,event_id)
+ VALUES(t1,p1,'SUSPENDED',1,evt);
+ IF tto.ph12_child06_reconcile_sources(t1,p1)<>'LEGACY_VERSION_CONFLICT'
+ THEN RAISE EXCEPTION 'PH12_LEGACY_VERSION_GAP_IGNORED';END IF;
+ UPDATE tto.ph06_membership_current SET source_version=2 WHERE tenant_id=t1 AND party_id=p1;
+ IF tto.ph12_child06_reconcile_sources(t1,p1)<>'CF02_VERSION_CONFLICT'
+ THEN RAISE EXCEPTION 'PH12_CF02_VERSION_GAP_IGNORED';END IF;
+ UPDATE tto.relationship_projections SET membership_status='SUSPENDED',
+  source_event_id=evt,source_version=2 WHERE tenant_id=t1 AND party_id=p1;
+ IF tto.ph12_child06_reconcile_sources(t1,p1)<>'MEMBER_SOURCE_SNAPSHOT_UNAVAILABLE'
+ THEN RAISE EXCEPTION 'PH12_MEMBER_SNAPSHOT_MISSING_NOT_DETECTED';END IF;
+ INSERT INTO tto.member_source_snapshots(tenant_id,party_id,source_ref,source_event_id,
+ source_version,membership_status,source_as_of)
+ VALUES(t1,p1,source_ref,evt,2,'SUSPENDED',now()-interval '1 minute');
+ IF tto.ph12_child06_reconcile_sources(t1,p1)<>'MEMBER_SOURCE_APPROVAL_MISSING'
+ THEN RAISE EXCEPTION 'PH12_UNAPPROVED_MEMBER_SOURCE_NOT_BLOCKED';END IF;
+ IF tto.ph12_child07_reconcile_opening(t1,a1)<>'OFFICIAL_OPENING_LEDGER_UNAVAILABLE'
+ THEN RAISE EXCEPTION 'PH12_MISSING_OPENING_MISREPORTED_AS_ZERO';END IF;
+ INSERT INTO tto.child07_ownership_ledger_entries(entry_id,tenant_id,
+ shareholder_account_id,share_qty,direction,source_kind,source_reference,effective_at,evidence_id)
+ VALUES(gen_random_uuid(),t1,a1,5,'CREDIT','OPENING_VERIFIED',gen_random_uuid(),now(),e1);
+ IF tto.ph12_child07_reconcile_opening(t1,a1)<>'CHILD06_SHAREHOLDER_SOURCE_ACCOUNT_UNMAPPED'
+ THEN RAISE EXCEPTION 'PH12_MISSING_SOURCE_ACCOUNT_NOT_DETECTED';END IF;
+ INSERT INTO tto.shareholder_source_accounts(tenant_id,party_id,shareholder_account_id,
+ source_ref,source_version,account_status)
+ VALUES(t1,p1,a1,source_ref,1,'ACTIVE');
+ IF tto.ph12_child07_reconcile_opening(t1,a1)<>'CHILD07_IMPORTED_HOLDING_UNAVAILABLE'
+ THEN RAISE EXCEPTION 'PH12_MISSING_IMPORTED_HOLDING_MISREPORTED_AS_ZERO';END IF;
+ INSERT INTO tto.shareholding_source_snapshots(snapshot_id,tenant_id,shareholder_account_id,
+ source_ref,ledger_entry_ref,ledger_version,share_quantity,ledger_as_of)
+ VALUES(gen_random_uuid(),t1,a1,source_ref,gen_random_uuid(),1,6,now()-interval '1 minute');
+ IF tto.ph12_child07_reconcile_opening(t1,a1)<>'OPENING_QUANTITY_MISMATCH'
+ THEN RAISE EXCEPTION 'PH12_OPENING_MISMATCH_NOT_DETECTED';END IF;
+ -- Imported snapshots are append-only. A newer synthetic snapshot resolves quantity
+ -- disagreement, but does not grant official source status or legal rights.
+ INSERT INTO tto.shareholding_source_snapshots(snapshot_id,tenant_id,shareholder_account_id,
+ source_ref,ledger_entry_ref,ledger_version,share_quantity,ledger_as_of)
+ VALUES(gen_random_uuid(),t1,a1,source_ref,gen_random_uuid(),2,5,now()-interval '1 minute');
+ IF tto.ph12_child07_reconcile_opening(t1,a1)<>'MEMBER_SOURCE_APPROVAL_MISSING'
+ THEN RAISE EXCEPTION 'PH12_UNAPPROVED_ALIGNMENT_FAKE_GREEN';END IF;
+ IF has_function_privilege('tto_app','tto.ph12_child06_reconcile_sources(uuid,uuid)','EXECUTE')
+ OR has_function_privilege('tto_app','tto.ph12_child07_reconcile_opening(uuid,uuid)','EXECUTE')
+ THEN RAISE EXCEPTION 'PH12_PRIVATE_RECONCILIATION_EXPOSED';END IF;
  IF tto.ph06_try_finalize_transfer(cs,actor) THEN
   RAISE EXCEPTION 'PH12_LEGACY_TRANSFER_FINALIZE_UNBLOCKED';END IF;
  -- No app CRUD privileges on any new canonical entity or classification write.
