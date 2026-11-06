@@ -265,12 +265,30 @@ BEGIN
  IF tto.ph12_child06_reconcile_sources(t1,p1)<>'CF02_VERSION_CONFLICT'
  THEN RAISE EXCEPTION 'PH12_CF02_VERSION_GAP_IGNORED';END IF;
  UPDATE tto.relationship_projections SET membership_status='SUSPENDED',
+  source_event_id=gen_random_uuid(),source_version=2 WHERE tenant_id=t1 AND party_id=p1;
+ IF tto.ph12_child06_reconcile_sources(t1,p1)<>'CF02_EVENT_CONFLICT'
+ THEN RAISE EXCEPTION 'PH12_CF02_EVENT_CONFLICT_ACCEPTED';END IF;
+ UPDATE tto.relationship_projections SET membership_status='SUSPENDED',
   source_event_id=evt,source_version=2 WHERE tenant_id=t1 AND party_id=p1;
  IF tto.ph12_child06_reconcile_sources(t1,p1)<>'MEMBER_SOURCE_SNAPSHOT_UNAVAILABLE'
  THEN RAISE EXCEPTION 'PH12_MEMBER_SNAPSHOT_MISSING_NOT_DETECTED';END IF;
  INSERT INTO tto.member_source_snapshots(tenant_id,party_id,source_ref,source_event_id,
  source_version,membership_status,source_as_of)
  VALUES(t1,p1,source_ref,evt,2,'SUSPENDED',now()-interval '1 minute');
+ UPDATE tto.member_source_snapshots SET source_version=1
+ WHERE tenant_id=t1 AND party_id=p1;
+ IF tto.ph12_child06_reconcile_sources(t1,p1)<>'IMPORTED_VERSION_CONFLICT'
+ THEN RAISE EXCEPTION 'PH12_IMPORTED_VERSION_ROLLBACK_ACCEPTED';END IF;
+ UPDATE tto.member_source_snapshots SET source_version=2,source_event_id=gen_random_uuid()
+ WHERE tenant_id=t1 AND party_id=p1;
+ IF tto.ph12_child06_reconcile_sources(t1,p1)<>'IMPORTED_EVENT_CONFLICT'
+ THEN RAISE EXCEPTION 'PH12_IMPORTED_EVENT_TAMPER_ACCEPTED';END IF;
+ UPDATE tto.member_source_snapshots SET source_event_id=evt,membership_status='ACTIVE'
+ WHERE tenant_id=t1 AND party_id=p1;
+ IF tto.ph12_child06_reconcile_sources(t1,p1)<>'IMPORTED_STATUS_CONFLICT'
+ THEN RAISE EXCEPTION 'PH12_IMPORTED_STATUS_TAMPER_ACCEPTED';END IF;
+ UPDATE tto.member_source_snapshots SET membership_status='SUSPENDED'
+ WHERE tenant_id=t1 AND party_id=p1;
  IF tto.ph12_child06_reconcile_sources(t1,p1)<>'MEMBER_SOURCE_APPROVAL_MISSING'
  THEN RAISE EXCEPTION 'PH12_UNAPPROVED_MEMBER_SOURCE_NOT_BLOCKED';END IF;
  IF tto.ph12_child07_reconcile_opening(t1,a1)<>'OFFICIAL_OPENING_LEDGER_UNAVAILABLE'
@@ -295,6 +313,15 @@ BEGIN
  INSERT INTO tto.shareholding_source_snapshots(snapshot_id,tenant_id,shareholder_account_id,
  source_ref,ledger_entry_ref,ledger_version,share_quantity,ledger_as_of)
  VALUES(gen_random_uuid(),t1,a1,source_ref,gen_random_uuid(),2,5,now()-interval '1 minute');
+ -- A newer imported holding cannot use a future as-of to hijack reconciliation.
+ INSERT INTO tto.shareholding_source_snapshots(snapshot_id,tenant_id,shareholder_account_id,
+  source_ref,ledger_entry_ref,ledger_version,share_quantity,ledger_as_of)
+ VALUES(gen_random_uuid(),t1,a1,source_ref,gen_random_uuid(),3,5,now()+interval '1 day');
+ IF tto.ph12_child07_reconcile_opening(t1,a1)<>'CHILD07_IMPORTED_HOLDING_FUTURE'
+ THEN RAISE EXCEPTION 'PH12_FUTURE_LEDGER_SNAPSHOT_ACCEPTED';END IF;
+ INSERT INTO tto.shareholding_source_snapshots(snapshot_id,tenant_id,shareholder_account_id,
+  source_ref,ledger_entry_ref,ledger_version,share_quantity,ledger_as_of)
+ VALUES(gen_random_uuid(),t1,a1,source_ref,gen_random_uuid(),4,5,now()-interval '1 minute');
  IF tto.ph12_child07_reconcile_opening(t1,a1)<>'MEMBER_SOURCE_APPROVAL_MISSING'
  THEN RAISE EXCEPTION 'PH12_UNAPPROVED_ALIGNMENT_FAKE_GREEN';END IF;
  IF has_function_privilege('tto_app','tto.ph12_child06_reconcile_sources(uuid,uuid)','EXECUTE')
