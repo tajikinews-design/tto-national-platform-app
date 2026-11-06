@@ -873,6 +873,67 @@ async function main(){
  assert.equal(offerAfter,offerBefore);
  console.log('PH10_REAL_HTTP_PH08_MKT_AT001_SUPPLIER_INQUIRY_NEVER_PUBLIC_OFFER_PASS');
 
+ // PROJ-AT-002: an out-of-county branch may exist as a draft but never
+ // acquires independent-business authority on read or by virtue of creation.
+ const branchId='9cd00000-0000-4000-8000-000000000095';
+ const localCounty=(await db.query("SELECT county_code FROM tto.ph08_projects WHERE project_id=$1",[p8project])).rows[0].county_code;
+ await db.query("INSERT INTO tto.ph08_branches(branch_id,project_id,county_code) VALUES($1,$2,$3)",
+  [branchId,p8project,localCounty+'_OUTSIDE']);
+ const branchPath=p8+'/projects/branches/'+branchId+'/authority-state';
+ await request('GET',branchPath,memberToken,403);
+ await request('GET',p8Other+'/projects/branches/'+branchId+'/authority-state',managerToken,403);
+ const branchStatus=await request('GET',branchPath,managerToken,200);
+ assert.equal(branchStatus.outsideCounty,true);
+ assert.equal(branchStatus.independentActivityApproved,false);
+ assert.equal(branchStatus.authorityEvidencePresent,false);
+ assert.equal(branchStatus.automaticApproval,false);
+ const branchUnchanged=await db.query("SELECT independent_activity_approved,authority_evidence IS NULL AS missing FROM tto.ph08_branches WHERE branch_id=$1",[branchId]);
+ assert.equal(branchUnchanged.rows[0].independent_activity_approved,false);
+ assert.equal(branchUnchanged.rows[0].missing,true);
+ console.log('PH10_REAL_HTTP_PH08_PROJ_AT002_FOREIGN_COUNTY_NO_AUTO_AUTHORITY_PASS');
+ // VOICE-AT-006: proposal acceptance and explicitly evidence-bound handoff
+ // are distinct from lawful project creation (which must not occur here).
+ const proposalId='9ce00000-0000-4000-8000-000000000095';
+ const handoffId='9cf00000-0000-4000-8000-000000000095';
+ const projectCountBefore=(await db.query("SELECT count(*)::integer AS n FROM tto.ph08_projects WHERE tenant_id=$1",[tenant])).rows[0].n;
+ await db.query("INSERT INTO tto.ph08_proposals(proposal_id,tenant_id,title,status) VALUES($1,$2,'Synthetic nonbinding proposal','ACCEPTED')",[proposalId,tenant]);
+ const handoffPath=p8+'/voice/proposals/'+proposalId+'/handoff-state';
+ await request('GET',handoffPath,memberToken,403);
+ await request('GET',p8Other+'/voice/proposals/'+proposalId+'/handoff-state',managerToken,403);
+ const beforeHandoff=await request('GET',handoffPath,managerToken,200);
+ assert.equal(beforeHandoff.proposalStatus,'ACCEPTED');
+ assert.equal(beforeHandoff.explicitHandoff,false);
+ assert.equal(beforeHandoff.automaticProjectCreated,false);
+ await db.query("INSERT INTO tto.ph08_proposal_handoffs(handoff_id,proposal_id,target_domain,approved_evidence) VALUES($1,$2,'PROJECTS',$3)",
+  [handoffId,proposalId,evidence]);
+ const afterHandoff=await request('GET',handoffPath,managerToken,200);
+ assert.equal(afterHandoff.explicitHandoff,true);
+ assert.equal(afterHandoff.targetDomain,'PROJECTS');
+ assert.equal(afterHandoff.legalResolution,false);
+ const projectCountAfter=(await db.query("SELECT count(*)::integer AS n FROM tto.ph08_projects WHERE tenant_id=$1",[tenant])).rows[0].n;
+ assert.equal(projectCountAfter,projectCountBefore);
+ console.log('PH10_REAL_HTTP_PH08_VOICE_AT006_EXPLICIT_HANDOFF_NO_AUTO_PROJECT_PASS');
+ // BEN-AT-001: a limited benefit with NO allocation policy remains DRAFT.
+ const policylessBenefit='9cb00000-0000-4000-8000-000000000095';
+ await db.query("INSERT INTO tto.ph08_benefits(benefit_id,tenant_id,title,limited,status) VALUES($1,$2,'Limited synthetic benefit',true,'DRAFT')",
+  [policylessBenefit,tenant]);
+ const prereqPath=p8+'/benefits/'+policylessBenefit+'/activation-prerequisites';
+ await request('GET',prereqPath,memberToken,403);
+ await request('GET',p8Other+'/benefits/'+policylessBenefit+'/activation-prerequisites',managerToken,403);
+ const prereq=await request('GET',prereqPath,managerToken,200);
+ assert.equal(prereq.limited,true);
+ assert.equal(prereq.allocationPolicyPresent,false);
+ assert.equal(prereq.prerequisitesMet,false);
+ assert.equal(prereq.activated,false);
+ let invalidActivationRejected=false;
+ try {await db.query("UPDATE tto.ph08_benefits SET status='ACTIVE' WHERE benefit_id=$1",[policylessBenefit]);}
+ catch(e){invalidActivationRejected=e.code==='23514';}
+ assert.equal(invalidActivationRejected,true);
+ const benefitState=(await db.query("SELECT status FROM tto.ph08_benefits WHERE benefit_id=$1",[policylessBenefit])).rows[0].status;
+ assert.equal(benefitState,'DRAFT');
+ console.log('PH10_REAL_HTTP_PH08_BEN_AT001_POLICYLESS_LIMITED_BENEFIT_REJECTED_PASS');
+
+
 
 
  console.log('PH10_REAL_HTTP_TOTAL_PHASE09_PLUS_PHASE08_REQUESTS='+checks);

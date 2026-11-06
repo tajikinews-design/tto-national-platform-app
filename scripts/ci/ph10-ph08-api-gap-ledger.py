@@ -8,6 +8,9 @@ SOURCE=ROOT/"docs/analysis/PH08_OFFICIAL_SOURCE36.json"
 OUT=ROOT/"ph10-artifacts/ph10_ph08_36_http_gap_ledger.json"
 MARKERS={
  "LEARN-AT-005":"PH10_REAL_HTTP_PH08_LEARN_AT005_RETIRED_COURSE_MEMBER_HISTORY_PASS",
+ "PROJ-AT-002":"PH10_REAL_HTTP_PH08_PROJ_AT002_FOREIGN_COUNTY_NO_AUTO_AUTHORITY_PASS",
+ "VOICE-AT-006":"PH10_REAL_HTTP_PH08_VOICE_AT006_EXPLICIT_HANDOFF_NO_AUTO_PROJECT_PASS",
+ "BEN-AT-001":"PH10_REAL_HTTP_PH08_BEN_AT001_POLICYLESS_LIMITED_BENEFIT_REJECTED_PASS",
  "MKT-AT-001":"PH10_REAL_HTTP_PH08_MKT_AT001_SUPPLIER_INQUIRY_NEVER_PUBLIC_OFFER_PASS",
  "MKT-AT-004":"PH10_REAL_HTTP_PH08_MKT_AT004_SPONSORED_LABEL_TENANT_PRIVACY_PASS",
  "LEARN-AT-003":"PH10_REAL_HTTP_PH08_LEARN_AT003_REAL_VACANCY_PROMOTION_PASS",
@@ -39,10 +42,10 @@ ABSENT_ROUTE_MARKERS={
  "PROC-AT-004":"PH10_REAL_HTTP_PH08_PROC_AT004_ABSENT_PAYMENT_POOL_ROUTE_GUARD_PASS",
 }
 PATHS={
- "PROJ":["GET /v1/tenants/{tenantId}/ph08/projects/disclosures"],
- "VOICE":["GET /v1/tenants/{tenantId}/ph08/voice/open-polls","POST /v1/tenants/{tenantId}/ph08/voice/{pollId}/respond"],
+ "PROJ":["GET /v1/tenants/{tenantId}/ph08/projects/disclosures","GET /v1/tenants/{tenantId}/ph08/projects/branches/{branchId}/authority-state"],
+ "VOICE":["GET /v1/tenants/{tenantId}/ph08/voice/open-polls","POST /v1/tenants/{tenantId}/ph08/voice/{pollId}/respond","GET /v1/tenants/{tenantId}/ph08/voice/proposals/{proposalId}/handoff-state"],
  "LEARN":["GET /v1/tenants/{tenantId}/ph08/learning/events","POST /v1/tenants/{tenantId}/ph08/learning/events/{eventId}/enroll","GET /v1/tenants/{tenantId}/ph08/learning/retired-history"],
- "BEN":["GET /v1/tenants/{tenantId}/ph08/benefits/my-vouchers","POST /v1/tenants/{tenantId}/ph08/benefits/vouchers/{voucherId}/redeem"],
+ "BEN":["GET /v1/tenants/{tenantId}/ph08/benefits/my-vouchers","POST /v1/tenants/{tenantId}/ph08/benefits/vouchers/{voucherId}/redeem","GET /v1/tenants/{tenantId}/ph08/benefits/{benefitId}/activation-prerequisites"],
  "MKT":["GET /v1/tenants/{tenantId}/ph08/market/offers","GET /v1/tenants/{tenantId}/ph08/market/sponsored-creatives","POST /v1/tenants/{tenantId}/ph08/market/supplier-proposals"],
  "PROC":["GET /v1/tenants/{tenantId}/ph08/procurement/tenders"],
 }
@@ -61,10 +64,10 @@ def source():
  for v in PATHS.values():
   for endpoint in v:
    method,path=endpoint.split(" ",1)
-   last=path.split("/ph08/")[-1].replace("{eventId}",":eventId").replace("{pollId}",":pollId").replace("{voucherId}",":voucherId")
+   last=path.split("/ph08/")[-1].replace("{eventId}",":eventId").replace("{pollId}",":pollId").replace("{voucherId}",":voucherId").replace("{branchId}",":branchId").replace("{proposalId}",":proposalId").replace("{benefitId}",":benefitId")
    assert last in text,"NEST_ROUTE_MISSING:"+last
  assert set(MARKERS).isdisjoint(ABSENT_ROUTE_MARKERS)
- assert len(MARKERS)==24 and len(ABSENT_ROUTE_MARKERS)==4
+ assert len(MARKERS)==27 and len(ABSENT_ROUTE_MARKERS)==4
  for ident,marker in {**MARKERS,**ABSENT_ROUTE_MARKERS}.items():
   assert ident in {x["id"] for x in raw} and marker in test,"RELATED_OR_ABSENCE_MARKER_MISSING:"+ident
  for c in raw:assert (ROOT/c["sqlFile"]).is_file(),"SOURCE_SQL_MISSING:"+c["id"]

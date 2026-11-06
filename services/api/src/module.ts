@@ -1759,6 +1759,51 @@ export class Ph10Phase08ReadController {
    return {submitted:true,proposalId:id,publicOfferCreated:false,legalApproval:false};
   });
  }
+ // PH08 PROJ-AT-002: county branch status inspection only; NEVER auto-authorize.
+ @Get(":tenantId/ph08/projects/branches/:branchId/authority-state")
+ async branchAuthority(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("branchId",new ParseUUIDPipe()) branch:string,
+  @Headers("authorization") auth?:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const result=await c.query<{outside_county:boolean;independent_activity_approved:boolean;authority_evidence_present:boolean}>(
+    "SELECT outside_county,independent_activity_approved,authority_evidence_present FROM tto.ph10_manager_branch_authority_state($1)",[branch]);
+   if(result.rows.length!==1)throw new ForbiddenException({code:"BRANCH_MANAGER_OR_SCOPE_DENIED"});
+   const x=result.rows[0];
+   return {outsideCounty:x.outside_county,independentActivityApproved:x.independent_activity_approved,
+     authorityEvidencePresent:x.authority_evidence_present,automaticApproval:false,legalApproval:false};
+  });
+ }
+ // PH08 VOICE-AT-006: accepted proposal cannot implicitly become a project.
+ @Get(":tenantId/ph08/voice/proposals/:proposalId/handoff-state")
+ async proposalHandoff(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("proposalId",new ParseUUIDPipe()) proposal:string,
+  @Headers("authorization") auth?:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const result=await c.query<{proposal_status:string;handoff_exists:boolean;target_domain:string|null;legal_resolution:boolean}>(
+    "SELECT proposal_status,handoff_exists,target_domain,legal_resolution FROM tto.ph10_manager_proposal_handoff_state($1)",[proposal]);
+   if(result.rows.length!==1)throw new ForbiddenException({code:"PROPOSAL_MANAGER_OR_SCOPE_DENIED"});
+   const x=result.rows[0];
+   return {proposalStatus:x.proposal_status,explicitHandoff:x.handoff_exists,
+     targetDomain:x.target_domain,legalResolution:false,automaticProjectCreated:false};
+  });
+ }
+ // PH08 BEN-AT-001: read-only policy prereq; no activation mutation.
+ @Get(":tenantId/ph08/benefits/:benefitId/activation-prerequisites")
+ async benefitPreflight(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("benefitId",new ParseUUIDPipe()) benefit:string,
+  @Headers("authorization") auth?:string){
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async c=>{
+   const result=await c.query<{limited:boolean;policy_present:boolean;may_activate:boolean;current_status:string}>(
+    "SELECT limited,policy_present,may_activate,current_status FROM tto.ph10_manager_limited_benefit_policy($1)",[benefit]);
+   if(result.rows.length!==1)throw new ForbiddenException({code:"BENEFIT_MANAGER_OR_SCOPE_DENIED"});
+   const x=result.rows[0];
+   return {limited:x.limited,allocationPolicyPresent:x.policy_present,prerequisitesMet:x.may_activate,
+     currentStatus:x.current_status,activated:false,legalApproval:false};
+  });
+ }
  @Get(":tenantId/ph08/procurement/tenders")
  async tenders(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
   @Headers("authorization") auth?:string){
