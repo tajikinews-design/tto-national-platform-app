@@ -561,6 +561,78 @@ async function testActualAuthenticatedBrowser(memberToken,managerToken){
   }
  }finally{await browserCleanupWithDeadline(()=>browser.close(),'BROWSER');}
 }
+async function testFivePreflightBffs(memberToken,managerToken,syntheticOrder,lateTender,openedTender){
+ // Real CI: browser/Next BFF -> Nest real HTTP -> disposable PostgreSQL17.
+ // Every result remains a preflight, NEVER an executed regulated operation.
+ const shareholder='http://127.0.0.1:31679',cooperative='http://127.0.0.1:31678';
+ async function call(base,kind,id,token,expected=200,tenantId=tenant){
+  const uri=base+'/api/tenants/'+tenantId+'/ph10/preflight/'+kind+'/'+id;
+  const res=await fetch(uri,{headers:token?{Cookie:'tto_session='+token}:{}});
+  const json=await res.json().catch(()=>null);
+  assert.equal(res.status,expected,'PH10_PREFLIGHT_NEXT_BFF_'+kind+' '+JSON.stringify(json).slice(0,240));
+  assert.match(res.headers.get('cache-control')??'',/no-store/);
+  checks++;
+  if(expected===200){
+   assert.equal(json.available,true);
+   assert.equal(json.readOnly,true);
+   assert.equal(json.preflightOnly,true);
+   assert.equal(json.operationGate,'BLOCKED');
+   assert.equal(json.legalApproval,false);
+  }
+  return json;
+ }
+ await call(shareholder,'checkout',p8offer,null,401);
+ await call(shareholder,'checkout',p8offer,managerToken,403);
+ await call(shareholder,'checkout',p8offer,memberToken,403,foreign);
+ const checkout=await call(shareholder,'checkout',p8offer,memberToken);
+ assert.equal(checkout.sellerKind,'COOPERATIVE');
+ assert.equal(checkout.paymentEnabled,false);
+ assert.equal(checkout.orderCreated,false);
+ const refund=await call(shareholder,'refund',syntheticOrder,memberToken);
+ assert.equal(refund.policyVersion,'PH08_REFUND_POLICY_V1');
+ assert.equal(refund.refundExecuted,false);
+ await call(shareholder,'refund',syntheticOrder,memberToken,403,foreign);
+ for(const [kind,source] of [['bid',lateTender],['criteria',openedTender],['threshold','AUDIT_RFQ_THRESHOLD']]){
+  await call(cooperative,kind,source,null,401);
+  await call(cooperative,kind,source,memberToken,403);
+  await call(cooperative,kind,source,managerToken,403,foreign);
+  const row=await call(cooperative,kind,source,managerToken);
+  if(kind==='bid'){assert.equal(row.deadlinePassed,true);assert.equal(row.bidSubmissionEnabled,false);}
+  if(kind==='criteria'){assert.equal(row.criteriaFrozen,true);assert.equal(row.criteriaEditEnabled,false);}
+  if(kind==='threshold'){assert.equal(row.versions.length,2);assert.equal(row.policyMutationEnabled,false);}
+ }
+ await call(cooperative,'threshold','lowercase',managerToken,400);
+ // Chromium consumes the authenticated same-origin Next route with a real cookie,
+ // not a mock of either the BFF or the backend.
+ if(process.env.PH10_AUTH_CHROMIUM==='1'){
+  const {chromium}=require('playwright');
+  const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+  try{
+   for(const item of [
+    {base:shareholder,token:memberToken,kind:'checkout',source:p8offer,field:'paymentEnabled'},
+    {base:cooperative,token:managerToken,kind:'criteria',source:openedTender,field:'criteriaEditEnabled'}
+   ]){
+    const context=await browser.newContext({locale:'fa-IR',viewport:{width:390,height:844}});
+    try{
+     await context.addCookies([{name:'tto_session',value:item.token,domain:'127.0.0.1',path:'/',httpOnly:true,secure:false,sameSite:'Lax'}]);
+     const page=await context.newPage();
+     await page.goto(item.base+(item.kind==='checkout'?'/modules/nav-07':'/modules/nav-10'),{waitUntil:'domcontentloaded',timeout:30000});
+     const result=await page.evaluate(async url=>{
+      const response=await fetch(url,{credentials:'same-origin'});
+      return {status:response.status,data:await response.json()};
+     },item.base+'/api/tenants/'+tenant+'/ph10/preflight/'+item.kind+'/'+item.source);
+     assert.equal(result.status,200);
+     assert.equal(result.data.operationGate,'BLOCKED');
+     assert.equal(result.data[item.field],false);
+     assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
+     checks++;
+    }finally{await context.close();}
+   }
+   console.log('PH10_PH08_CHROMIUM_SAME_ORIGIN_PREFLIGHT_BFF_NEST_PG17_PASS');
+  }finally{await browser.close();}
+ }
+ console.log('PH10_PH08_FIVE_PREFLIGHT_BFF_NEST_REAL_PG17_SCOPE_PASS_NOT_FULL_USER_JOURNEYS');
+}
 async function main(){
  await db.connect();await seed();
  const memberToken=await token(user),managerToken=await token(manager),foreignToken=await token(outsider);
@@ -1027,6 +1099,7 @@ async function main(){
  assert.equal((await db.query("SELECT policy_version FROM tto.ph08_market_refunds WHERE refund_id=$1",[syntheticRefund])).rows[0].policy_version,'PH08_REFUND_POLICY_V1');
  assert.equal((await db.query("SELECT criteria_version FROM tto.ph08_sourcing_tenders WHERE tender_id=$1",[openedTender])).rows[0].criteria_version,3);
  console.log('PH10_PH08_FIVE_OPERATIONS_DENIED_NO_FINANCIAL_LEGAL_MUTATION_PASS');
+ await testFivePreflightBffs(memberToken,managerToken,syntheticOrder,lateTender,openedTender);
 
 
 
