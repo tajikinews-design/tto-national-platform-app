@@ -72,7 +72,7 @@ jobs:
           python3 - "$proof" <<'PY'
           import pathlib,re,sys
           raw=pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
-          pairs=re.findall(r"\\bPH06_(MEMBER|SHARE)_AT(\\d{3})_[A-Z0-9_]*_PASS\\b",raw)
+          pairs=re.findall(r"PH06_(MEMBER|SHARE)_AT([0-9]{3})_[A-Z0-9_]*_PASS",raw)
           got={f"{section}-AT-{num}" for section,num in pairs}
           expected={f"MEMBER-AT-{i:03d}" for i in range(1,8)}
           expected|={f"SHARE-AT-{i:03d}" for i in range(1,9)}
