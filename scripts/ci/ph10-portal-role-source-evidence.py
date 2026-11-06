@@ -25,7 +25,8 @@ NEEDED=(
  "PH09_REAL_NEST_GRC_MANAGER_NO_WHISTLEBLOWER_HTTP_PASS",
  "PH10_GRC_AT001_BFF_MANAGER_BLOCK_MEMBER_ANON_FOREIGN_DENIED_PASS",
  "PH10_BROWSER_GRC_AT001_MANAGER_CLICK_BFF_NEST_PG17_BLOCK_NO_MUTATION_PASS",
- "PH10_NATIONAL_JIT_INDEPENDENT_ROLE_TENANT_CLASSIFICATION_PASS")
+ "PH10_NATIONAL_JIT_INDEPENDENT_ROLE_TENANT_CLASSIFICATION_PASS",
+ "PH10_BROWSER_NATIONAL_JIT_EXPIRE_ACTIVE_SESSION_DENY_AND_RELOAD_NO_DOC_PASS")
 def check_sources():
  source={x["id"]:x for x in json.loads((ROOT/"docs/analysis/PH10_OFFICIAL_155_SCENARIOS.json").read_text())["cases"]}
  assert len(source)==155
@@ -60,6 +61,7 @@ def make(log,sha,run):
  return dict(schemaVersion="1",run={"commitSha":sha,"runId":run,"job":"source-sql-and-actual-api"},
   realBrowserPortalSources=3,actualBrowserRolePaths=6,declaredBffSourceBindings=11,
   realSourceSpecificCommands=1,grcArticle129SourcePolicyPrecheck=1,
+  nationalJitExpiredSessionDenied=1,
   full155UserJourneysAccepted=False,release="HOLD",
   cases=rows,assertedMarkers=markers)
 if __name__=="__main__":
