@@ -11,15 +11,35 @@ const VIEWS:Record<string,{title:string;fields:readonly {key:string;label:string
 };
 type RecordItem=Record<string,string|number|null>;
 type State={kind:"loading"|"ready"|"denied"|"error";items:RecordItem[]};
+type PolicyState={kind:"loading"|"blocked"|"permitted"|"denied"|"unavailable"};
 export function CooperativeSourceReadPanel({tenantId,moduleId}:{
  tenantId:string;moduleId:string;
 }){
  const view=VIEWS[moduleId];
  const [state,setState]=useState<State>({kind:"loading",items:[]});
+ const [policy,setPolicy]=useState<Record<string,PolicyState>>({});
+ async function inspectArticle129(caseId:string){
+  if(moduleId!=="NAV-10"||!(/^[a-f0-9-]{36}$/).test(caseId)||policy[caseId]?.kind==="loading")return;
+  setPolicy(old=>({...old,[caseId]:{kind:"loading"}}));
+  try{
+   const response=await fetch("/api/tenants/"+tenantId+"/ph10/grc/cases/"+caseId+"/can-finalize",{
+    credentials:"same-origin",cache:"no-store"});
+   if(response.status===401||response.status===403){
+    setPolicy(old=>({...old,[caseId]:{kind:"denied"}}));return;
+   }
+   if(response.status!==200)throw Error("UNAVAILABLE");
+   const result=await response.json() as {available?:unknown;allowed?:unknown;
+    readOnly?:unknown;officialApproval?:unknown;sourceBound?:unknown};
+   if(result.available!==true||typeof result.allowed!=="boolean"||
+      result.readOnly!==true||result.officialApproval!==false||result.sourceBound!==true)
+    throw Error("POLICY_CONTRACT_INVALID");
+   setPolicy(old=>({...old,[caseId]:{kind:result.allowed?"permitted":"blocked"}}));
+  }catch{setPolicy(old=>({...old,[caseId]:{kind:"unavailable"}}));}
+ }
  useEffect(()=>{
   if(!view)return;
   const controller=new AbortController();
-  setState({kind:"loading",items:[]});
+  setState({kind:"loading",items:[]});setPolicy({});
   fetch("/api/tenants/"+tenantId+"/ph10/"+moduleId,{
    credentials:"same-origin",cache:"no-store",signal:controller.signal
   }).then(async response=>{
@@ -48,6 +68,20 @@ export function CooperativeSourceReadPanel({tenantId,moduleId}:{
      {view.fields.map(field=><span key={field.key} style={{display:"block"}}>
       <strong>{field.label}: </strong>{item[field.key]??"ثبت نشده"}
      </span>)}
+     {moduleId==="NAV-10"&&item.kind==="ARTICLE129"&&
+      typeof item.case_id==="string"&&(/^[a-f0-9-]{36}$/).test(item.case_id)?<>
+       <button type="button" disabled={policy[item.case_id]?.kind==="loading"}
+        onClick={()=>{void inspectArticle129(item.case_id as string);}}>
+        بررسی امکان نهایی‌سازی پرونده (فقط استعلام)
+       </button>
+       {policy[item.case_id]?<p role="status" aria-live="polite">{
+        policy[item.case_id].kind==="loading"?"در حال بررسی مجوز مستقل پرونده…":
+        policy[item.case_id].kind==="blocked"?"نهایی‌سازی این پرونده بدون گردش‌کار لازم مسدود است.":
+        policy[item.case_id].kind==="permitted"?"شرط فنی بررسی شد؛ تأیید حقوقی یا مجوز انجام عملیات صادر نشده است.":
+        policy[item.case_id].kind==="denied"?"مجوز بررسی این پرونده وجود ندارد.":
+        "استعلام سیاست نهایی‌سازی ممکن نیست؛ هیچ مجوزی صادر نشده است."
+       }</p>:null}
+      </>:null}
     </li>)}</ul>}
  </section>;
 }
