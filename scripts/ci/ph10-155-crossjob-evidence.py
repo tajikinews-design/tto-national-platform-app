@@ -43,6 +43,7 @@ def joined(sha,run_id,artifacts=ART):
     tenants=j(artifacts/"ph10_ph04_tenant8_exact_evidence.json")
     p8=j(artifacts/"ph10_ph08_36_http_gap_ledger.json")
     ops=j(artifacts/"ph10_ops_four_exact_evidence.json")
+    portal=j(artifacts/"ph10_three_portal_role_source_evidence.json")
     route=j(artifacts/"ph10_page_api_inventory.json")
     recovery=(artifacts/"ph10_g5_restore_stdout.log").read_text(encoding="utf-8")
     need("PH10_G5_DISPOSABLE_BACKUP_RESTORE_PASS" in {x.strip() for x in recovery.splitlines()},
@@ -52,9 +53,21 @@ def joined(sha,run_id,artifacts=ART):
              "SQL_LEDGER_SHA_MISMATCH")
         need(str(item.get("workflowRunId",item.get("run",{}).get("workflowRunId")))==run_id,
              "SQL_LEDGER_RUN_MISMATCH")
-    for item in (auth,tenants,p8):
+    for item in (auth,tenants,p8,portal):
         run_matches(item["run"] if "run" in item else None,sha,run_id)
     need(route.get("headSha")==sha, "PAGE_INVENTORY_SHA_MISMATCH")
+    need(portal.get("realBrowserPortalSources")==3 and
+         portal.get("actualBrowserRolePaths")==6 and
+         portal.get("declaredBffSourceBindings")==11 and
+         portal.get("realSourceSpecificCommands")==1 and
+         portal.get("full155UserJourneysAccepted") is False and
+         portal.get("release")=="HOLD" and len(portal["cases"])==11,
+         "THREE_PORTAL_ROLE_SOURCE_RUNTIME_INCOMPLETE")
+    for m in portal["cases"]:
+        need(m["formalAcceptance"]=="NOT_ACCEPTED" and
+             m["fullOriginalSourceJourneyAccepted"] is False and
+             m["sourceAcceptanceId"] in original_ids,
+             "THREE_PORTAL_FALSE_ACCEPTANCE")
     need({x["portal"] for x in route["pages"]} ==
          {"shareholder","cooperative-management","national-admin"},
          "THREE_PORTAL_INVENTORY_MISSING")
@@ -84,6 +97,9 @@ def joined(sha,run_id,artifacts=ART):
     sql,older,ac,tc,api,source100,ops_rows=map(keyed,(first["cases"],f55["cases"],auth["cases"],tenants["cases"],p8["cases"],per_sql["cases"],ops["cases"]))
     need(set(sql)==set(original_ids),"SQL_SOURCE_DRIFT")
     need(set(source100)==set(original_ids[55:]),"SOURCE100_INDIVIDUAL_ID_DRIFT")
+    need(sum(x["realChromiumReadVerified"] for x in portal["cases"])==3 and
+         sum(x["sourceSpecificBrowserCommandVerified"] for x in portal["cases"])==1,
+         "THREE_PORTAL_ROLE_EVIDENCE_INFLATION")
     need(set(older)==set(original_ids[:55]),"FROZEN55_DRIFT")
     need(set(ac)==set(original_ids[:8]) and set(tc)==set(original_ids[8:16]),
          "PH04_AUTH_OR_TENANT_COVERAGE_DRIFT")
@@ -186,6 +202,11 @@ def joined(sha,run_id,artifacts=ART):
             "phaseCounts":counts,"sourceIdsClassified":155,"sourceIdsFormallyAccepted":0,
             "all155CompleteUserJourneysProven":False,
             "threePortalInventory":"STATIC_INVENTORY_NOT_ALL_ROLES_E2E",
+            "threePortalAuthenticatedBrowserReadSlices":3,
+            "threePortalRoleMatrixRealBrowserPaths":6,
+            "threePortalSourceIdRelatedMappings":11,
+            "threePortalOriginalSourceScopedCommandChecks":1,
+            "allPortalAllRoleFullJourneysAccepted":False,
             "sql100SuiteCompleted":100,"perSourceSqlExecutedMarkersVerified":96,
             "sourceSqlWithoutPerIdEvidence":["OPS-AT-001","OPS-AT-004","OPS-AT-005","OPS-AT-008"],
             "opsOutOfBandScopedRuntimeProven":3,
@@ -207,7 +228,7 @@ def main():
     ART.mkdir(exist_ok=True)
     (ART/"ph10_155_crossjob_truth_ledger.json").write_text(
         json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    print("PH10_155_EXACT_CROSSJOB_CLASSIFIED=155_PER_SOURCE_SQL=96/100_OPS_INDEPENDENT_SCOPED=3_DESIGN=1_FORMAL_E2E=0_RELEASE_HOLD")
+    print("PH10_155_EXACT_CROSSJOB_CLASSIFIED=155_BROWSER_ROLES=6_PORTAL_SOURCES=3_SQL=96/100_OPS_SCOPED=3_FORMAL_E2E=0_RELEASE_HOLD")
     print("PH10_G5_EXACT_HEAD_PG17_RECOVERY_VERIFIED_NONPRODUCTION")
 
 if __name__=="__main__":
