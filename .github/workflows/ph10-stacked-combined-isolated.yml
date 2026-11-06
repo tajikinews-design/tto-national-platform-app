@@ -135,8 +135,11 @@ jobs:
       - name: Execute 26 PH07 source acceptance cases
         run: |
           set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ph10-source100-markers"
+          python3 scripts/ci/ph10-source100-individual-evidence.py --validate
           for m in governance communications support transparency; do
-            docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "tests/sql/ph07-${m}-acceptance.sql"
+            f="tests/sql/ph07-${m}-acceptance.sql"
+            docker exec -i tto-ph10-ci psql -U postgres -d tto -qAt -v ON_ERROR_STOP=1 < "$f" | tee "$RUNNER_TEMP/ph10-source100-markers/$(basename "$f").log"
           done
           echo PH10_PH07_26_SOURCE_ASSERTIONS_PASS
       - name: Execute 36 PH08 source acceptance cases
@@ -144,7 +147,8 @@ jobs:
           set -euo pipefail
           docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph08-fixture-seed.sql
           for m in projects member-voice academy-events member-benefits marketplace procurement; do
-            docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "tests/sql/ph08-${m}-acceptance.sql"
+            f="tests/sql/ph08-${m}-acceptance.sql"
+            docker exec -i tto-ph10-ci psql -U postgres -d tto -qAt -v ON_ERROR_STOP=1 < "$f" | tee "$RUNNER_TEMP/ph10-source100-markers/$(basename "$f").log"
           done
           echo PH10_PH08_36_SOURCE_ASSERTIONS_PASS
       - name: Execute 38 PH09 source acceptance cases and cross-tenant restore
@@ -152,12 +156,14 @@ jobs:
           set -euo pipefail
           docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph09-fixture-seed.sql
           for m in opportunities impact grc network-intelligence data-governance operations; do
-            docker exec -i tto-ph10-ci psql -U postgres -d tto -v ON_ERROR_STOP=1 < "tests/sql/ph09-${m}-acceptance.sql"
+            f="tests/sql/ph09-${m}-acceptance.sql"
+            docker exec -i tto-ph10-ci psql -U postgres -d tto -qAt -v ON_ERROR_STOP=1 < "$f" | tee "$RUNNER_TEMP/ph10-source100-markers/$(basename "$f").log"
           done
           echo PH10_PH09_38_SOURCE_SCOPED_ASSERTIONS_PASS
       - name: Record exact-run SQL-only evidence for 100 of 155 frozen IDs
         run: |
           set -euo pipefail
+          TTO_PH10_SOURCE100_DISPOSABLE=true python3 scripts/ci/ph10-source100-individual-evidence.py --runtime
           python3 scripts/ci/ph10-exact-run-sql-ledger.py
       - name: Validate frozen55 and execute PH05/PH06 scoped assertions in disposable PG17
         env:
@@ -203,6 +209,7 @@ jobs:
           path: |
             ph10-artifacts/ph10-*-authenticated-*.png
             ph10-artifacts/ph10_155_exact_run_sql_ledger.json
+            ph10-artifacts/ph10_source100_individual_sql_evidence.json
             ph10-artifacts/ph10_frozen55_exact_evidence.json
             ph10-artifacts/ph10_ph04_tenant8_exact_evidence.json
             ph10-artifacts/ph10_ph08_36_http_gap_ledger.json
@@ -313,6 +320,7 @@ jobs:
           root=Path("ph10-artifacts")
           names=(
             "ph10_155_exact_run_sql_ledger.json",
+            "ph10_source100_individual_sql_evidence.json",
             "ph10_frozen55_exact_evidence.json",
             "ph10_ph04_auth8_exact_evidence.json",
             "ph10_ph04_tenant8_exact_evidence.json",
@@ -327,7 +335,7 @@ jobs:
                   raise SystemExit("PH10_CONFLICTING_ARTIFACT:"+name)
               if root/name not in paths:
                   shutil.copy2(paths[0],root/name)
-          print("PH10_REQUIRED_7_CROSSJOB_EVIDENCE_ARTIFACTS_PRESENT")
+          print("PH10_REQUIRED_8_CROSSJOB_EVIDENCE_ARTIFACTS_PRESENT")
           PY
       - name: Reject fabricated success or missing source IDs
         run: |
