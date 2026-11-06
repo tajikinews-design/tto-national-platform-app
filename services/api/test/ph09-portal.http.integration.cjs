@@ -1058,18 +1058,64 @@ async function main(){
  await db.query("INSERT INTO tto.ph08_training_events(event_id,course_id,tenant_id,capacity,refund_policy_version) VALUES($1,$2,$3,5,'PH10_REFUND_V1')",
   ['9c500000-0000-4000-8000-000000000003','9c400000-0000-4000-8000-000000000003',tenant]);
  await testActualAuthenticatedBrowser(memberToken,managerToken);
- // LEARN-AT-002 partial: two concurrent enrollments from the same actor are atomic,
- // but this is NOT a two-different-member capacity stress test.
+ // LEARN-AT-002 scoped two-distinct-member concurrency, not full original
+ // UI journey. Both request through the REAL Nest HTTP path to disposable PG17.
+ // Unique synthetic second member is never granted management or legal authority.
+ const secondMember='99100000-0000-4000-8000-000000000004';
+ await db.query('INSERT INTO tto.user_accounts(user_id) VALUES($1)',[secondMember]);
+ await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'MEMBER')",
+  [randomUUID(),secondMember,tenant]);
+ const secondToken=await token(secondMember);
  const oneSeatEvent='9c500000-0000-4000-8000-000000000098';
  await db.query("INSERT INTO tto.ph08_training_events(event_id,course_id,tenant_id,capacity,refund_policy_version) VALUES($1,$2,$3,1,'PH10_REFUND_V1')",[oneSeatEvent,p8course,tenant]);
  const oneSeatPath=p8+'/learning/events/'+oneSeatEvent+'/enroll';
- const raceEnroll=()=>fetch(root+oneSeatPath,{method:'POST',headers:{authorization:'Bearer '+memberToken}});
- const bothEnroll=await Promise.all([raceEnroll(),raceEnroll()]);
- assert.deepEqual(bothEnroll.map(v=>v.status).sort((a,b)=>a-b),[201,409]);
- const seatCount=await db.query("SELECT count(*)::integer AS n FROM tto.ph08_event_registrations WHERE event_id=$1 AND state='CONFIRMED'",[oneSeatEvent]);
- assert.equal(seatCount.rows[0].n,1);
- console.log('PH10_REAL_HTTP_PH08_LEARN_AT002_SINGLE_ACTOR_CONCURRENT_CAPACITY_BOUNDARY_PASS');
-
+ const raceEnroll=async(bearer)=>fetch(root+oneSeatPath,{
+  method:'POST',headers:{authorization:'Bearer '+bearer}});
+ const bothEnroll=await Promise.all([raceEnroll(memberToken),raceEnroll(secondToken)]);
+ assert.deepEqual(bothEnroll.map(v=>v.status),[201,201],
+  'LEARN_AT002_BOTH_DISTINCT_AUTHENTICATED_ACTORS_NOT_RECORDED');
+ const bothBodies=await Promise.all(bothEnroll.map(v=>v.json()));
+ assert.deepEqual(bothBodies.map(v=>v.registration).sort(),['CONFIRMED','WAITLIST'],
+  'LEARN_AT002_ATOMIC_CAPACITY_OR_WAITLIST_NOT_EXACT');
+ for(const body of bothBodies){
+  assert.equal(body.courseCompleted,false);
+  assert.equal(body.certificateIssued,false);
+ }
+ const dbStates=await db.query(
+  "SELECT registered_by,state FROM tto.ph08_event_registrations WHERE event_id=$1 ORDER BY registered_by",
+  [oneSeatEvent]);
+ assert.equal(dbStates.rows.length,2,'LEARN_AT002_DUPLICATE_OR_MISSING_REGISTRATION');
+ assert.deepEqual(dbStates.rows.map(z=>z.registered_by).sort(),[user,secondMember].sort());
+ assert.deepEqual(dbStates.rows.map(z=>z.state).sort(),['CONFIRMED','WAITLIST']);
+ const confirmedCount=await db.query(
+  "SELECT count(*)::integer AS n FROM tto.ph08_event_registrations WHERE event_id=$1 AND state='CONFIRMED'",
+  [oneSeatEvent]);
+ assert.equal(confirmedCount.rows[0].n,1,'LEARN_AT002_OVERBOOKED_EVENT');
+ // Canonical per-actor BFF readback must match PG17 and never return the other
+ // member's registration. It also must not expose another tenant.
+ for(const [actorId,actorToken] of [[user,memberToken],[secondMember,secondToken]]){
+  const resp=await fetch('http://127.0.0.1:31679/api/tenants/'+tenant+'/ph10/NAV-06',
+   {headers:{Cookie:'tto_session='+actorToken}});
+  assert.equal(resp.status,200,'LEARN_AT002_MEMBER_BFF_READ_FAILED');
+  const data=await resp.json();
+  assert.equal(data.sourceBound,true);
+  const item=data.items.find(y=>y.event_id===oneSeatEvent);
+  assert.ok(item,'LEARN_AT002_EVENT_MISSING_FROM_BFF_READBACK');
+  assert.equal(item.registration_state,dbStates.rows.find(z=>z.registered_by===actorId)?.state);
+  assert.equal(data.items.some(y=>y.registered_by===user||
+   y.registered_by===secondMember),false,'LEARN_AT002_EXPOSED_PERSONAL_ID');
+  checks++;
+ }
+ await request('POST',oneSeatPath,secondToken,409);
+ await request('POST',oneSeatPath,managerToken,403);
+ await request('POST',p8Other+'/learning/events/'+oneSeatEvent+'/enroll',secondToken,403);
+ assert.equal((await db.query(
+  "SELECT count(*)::integer AS n FROM tto.ph08_event_registrations WHERE event_id=$1",
+  [oneSeatEvent])).rows[0].n,2,'LEARN_AT002_RETRY_CREATED_DUPLICATE');
+ assert.equal((await db.query(
+  "SELECT count(*)::integer AS n FROM tto.ph08_event_registrations WHERE event_id=$1 AND state='CONFIRMED'",
+  [oneSeatEvent])).rows[0].n,1,'LEARN_AT002_RETRY_OVERBOOKED');
+ console.log('PH10_REAL_HTTP_PH08_LEARN_AT002_TWO_DISTINCT_MEMBERS_ATOMIC_CAPACITY_AND_PER_ACTOR_BFF_READ_PASS');
  // LEARN-AT-003: a manager may promote one waitlisted enrollee only
  // after a real seat becomes free. No certificate or completion is issued.
  const promoEvent='9c500000-0000-4000-8000-000000000097';
