@@ -44,6 +44,15 @@ for signal in [
     assert signal in consistency, signal
 assert "REVOKE ALL ON FUNCTION tto.ph12_child06_projection_discrepancy" in consistency
 assert "tto.ph12_child07_guard_reference_mutation()" in consistency
+reconciliation = (ROOT / "database/migrations/0046_ph12_child06_07_source_reconciliation_readonly.sql").read_text()
+for name in [
+    "ph12_child06_reconcile_sources", "ph12_child07_reconcile_opening",
+    "MEMBER_SOURCE_APPROVAL_MISSING", "OPENING_QUANTITY_MISMATCH",
+    "NON_MEMBER_SOURCE_ADAPTER_NOT_APPROVED",
+    "OFFICIAL_OPENING_LEDGER_UNAVAILABLE",
+    "CHILD07_IMPORTED_HOLDING_UNAVAILABLE"]:
+    assert name in reconciliation, name
+assert "REVOKE ALL ON FUNCTION tto.ph12_child06_reconcile_sources(uuid,uuid)" in reconciliation
 tests=(ROOT / "tests/sql/ph12-child06-child07-canonical-failclosed.sql").read_text()
 for signal in [
     "PH12_NONMEMBER_IMPLICIT_MEMBERSHIP_OR_ROLE",
@@ -61,7 +70,12 @@ for signal in [
     "PH12_WRONG_SELLER_CASE_ALLOWED",
     "PH12_OVERSIZED_BUY_MATCH_ALLOWED",
     "PH12_WRONG_OWNER_LOCK_ALLOWED",
-    "PH12_CASE_MUTATION_ALLOWED"
+    "PH12_CASE_MUTATION_ALLOWED",
+    "PH12_UNAPPROVED_ALIGNMENT_FAKE_GREEN",
+    "PH12_NONMEMBER_OFFICIAL_SOURCE_UNAUTHORIZED",
+    "PH12_MISSING_OPENING_MISREPORTED_AS_ZERO",
+    "PH12_OPENING_MISMATCH_NOT_DETECTED",
+    "PH12_PRIVATE_RECONCILIATION_EXPOSED"
 ]:
     assert signal in tests, signal
 assert tests.strip().endswith("SELECT 'PH12_CHILD06_07_ALL_SYNTHETIC_ROWS_ROLLED_BACK_NO_REAL_SHARES';")
