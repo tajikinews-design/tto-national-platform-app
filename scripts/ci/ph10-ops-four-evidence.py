@@ -51,6 +51,8 @@ def report(log,sha,run):
     design_hash=validate_design()
     lines=exact_lines(log)
     assert "PH10_OPS_NO_REAL_RELEASE_OR_DATA_USED" in lines
+    assert "PH10_OPS004_TWO_NONEMPTY_TENANT_EVIDENCE_RESTORE_PASS" in lines,\
+        "OPS004_TWO_DISTINCT_NONEMPTY_TENANT_RESTORE_PROOF_MISSING"
     table_line=[x for x in lines if x.startswith("PH10_OPS004_TENANT_TABLES_CHECKED=")]
     migration_line=[x for x in lines if x.startswith("PH10_OPS005_MIGRATION_FILES_REPLAYED=")]
     assert len(table_line)==len(migration_line)==1,"OPS_METRICS_ABSENT_OR_AMBIGUOUS"
