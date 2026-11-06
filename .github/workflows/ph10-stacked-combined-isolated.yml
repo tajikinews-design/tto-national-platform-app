@@ -300,8 +300,19 @@ jobs:
           test "$ok" = true
       - name: Install pinned Chromium for PH04 denied-button true browser testing
         run: |
-          npm install --prefix /tmp/tto-ph10-ph04 --no-audit --no-fund playwright@1.56.1
-          node /tmp/tto-ph10-ph04/node_modules/playwright/cli.js install --with-deps chromium
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=5s 150s npm install --prefix /tmp/tto-ph10-ph04 --no-audit --no-fund playwright@1.56.1
+          identity_browser_ready=false
+          for attempt in 1 2; do
+            if timeout --signal=TERM --kill-after=5s 360s node /tmp/tto-ph10-ph04/node_modules/playwright/cli.js install --with-deps --only-shell chromium; then
+              identity_browser_ready=true
+              break
+            fi
+            echo "PH10_IDENTITY_CHROMIUM_INSTALL_RETRY_${attempt}_NOT_TEST_PASS"
+            sleep 5
+          done
+          test "$identity_browser_ready" = true || { echo "PH10_IDENTITY_CHROMIUM_INSTALL_FAILED_CLOSED"; exit 1; }
+          echo PH10_IDENTITY_CHROMIUM_REAL_BROWSER_REQUIRED_READY
       - name: Run historical migrations + actual PH04 authenticated HTTP and DED-004
         env:
           NODE_PATH: /tmp/tto-ph10-ph04/node_modules
