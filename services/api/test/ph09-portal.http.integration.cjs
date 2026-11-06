@@ -760,7 +760,7 @@ async function testTwoMemberBrowserSeatRace(memberToken,secondToken,secondMember
  if(process.env.PH10_AUTH_CHROMIUM!=='1')throw Error('PH10_BROWSER_SEAT_RACE_REQUIRED');
  const {chromium}=require('playwright');
  const courseId='9c400000-0000-4000-8000-000000000004';
- const eventId='9c500000-0000-4000-8000-000000000096';
+ const eventId='9c500000-0000-4000-8000-000000000095';
  const courseTitle='PH10 Two Member Browser One Seat Course';
  // A fresh, synthetic event prevents prior HTTP assertions from changing
  // browser race outcomes. This is NOT a paid event or real customer record.
