@@ -48,7 +48,7 @@ CREATE FUNCTION tto.ph12_child07_reconcile_opening(p_tenant uuid,p_account uuid)
  RETURNS text LANGUAGE plpgsql STABLE SECURITY DEFINER
  SET search_path=pg_catalog,tto AS $fn$
 DECLARE account record; imported_account record; snap record;
- opening_total numeric; opening_count bigint;
+ opening_total numeric; opening_count bigint; membership_verdict text;
 BEGIN
  IF p_tenant IS NULL OR p_account IS NULL THEN RETURN 'INVALID_SCOPE';END IF;
  SELECT party_id,status,shareholder_type,classification_evidence_id,
@@ -63,8 +63,9 @@ BEGIN
  -- independent non-member shareholder. Never treat unavailable as 0 shares.
  IF account.shareholder_type='NON_MEMBER'
  THEN RETURN 'NON_MEMBER_SOURCE_ADAPTER_NOT_APPROVED';END IF;
- IF tto.ph12_child06_reconcile_sources(p_tenant,account.party_id)
-    <>'ALIGNED_CANDIDATE_NOT_FORMAL_ACCEPTANCE'
+ membership_verdict:=tto.ph12_child06_reconcile_sources(p_tenant,account.party_id);
+ IF membership_verdict NOT IN ('ALIGNED_CANDIDATE_NOT_FORMAL_ACCEPTANCE',
+  'MEMBER_SOURCE_APPROVAL_MISSING')
  THEN RETURN 'MEMBERSHIP_SOURCE_NOT_RECONCILED';END IF;
  SELECT count(*),sum(share_qty)::numeric INTO opening_count,opening_total
  FROM tto.child07_ownership_ledger_entries
@@ -85,6 +86,8 @@ BEGIN
  IF snap.ledger_as_of>now() THEN RETURN 'CHILD07_IMPORTED_HOLDING_FUTURE';END IF;
  IF opening_total<>snap.share_quantity::numeric
  THEN RETURN 'OPENING_QUANTITY_MISMATCH';END IF;
+ IF membership_verdict='MEMBER_SOURCE_APPROVAL_MISSING'
+ THEN RETURN 'MEMBER_SOURCE_APPROVAL_MISSING';END IF;
  IF NOT tto.valid_read_source(p_tenant,'CHILD07_HOLDINGS',snap.source_ref)
  THEN RETURN 'CHILD07_SOURCE_APPROVAL_MISSING';END IF;
  RETURN 'OPENING_ALIGNED_CANDIDATE_NOT_FORMAL_ACCEPTANCE';
