@@ -45,8 +45,8 @@ jobs:
             docker exec -i tto-ph12-0607 psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" > /dev/null
             count=$((count+1))
           done
-          test "$count" -ge 66 || { echo "PH12_NEW_SCHEMA_NOT_INCLUDED";exit 1; }
-          echo "PH12_CHILD0607_DISPOSABLE_PG17_MIGRATIONS_PASS=$count"
+          test "$count" -ge 67 || { echo "PH12_NEW_SCHEMA_NOT_INCLUDED";exit 1; }
+          echo "PH12_CHILD0607_DISPOSABLE_PG17_67_MIGRATIONS_PASS=$count"
       - name: Source contract positive and denial tests, rollback all synthetic transactions
         run: |
           set -euo pipefail
