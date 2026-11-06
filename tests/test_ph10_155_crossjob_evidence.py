@@ -210,6 +210,16 @@ class EvidenceTruth(unittest.TestCase):
         self.write()
         with self.assertRaisesRegex(AssertionError,"OPS_LAYER_OR_ASSERTION_PROVENANCE_MISMATCH"):
             gate.joined(SHA,RUN,self.root)
+    def test_ops_005_migration_replay_marker_tamper_fails(self):
+        self.artifacts["ph10_ops_four_exact_evidence.json"]["cases"][2]["assertionMarker"]="FORGED_MIGRATION_PASS"
+        self.write()
+        with self.assertRaisesRegex(AssertionError,"OPS_LAYER_OR_ASSERTION_PROVENANCE_MISMATCH"):
+            gate.joined(SHA,RUN,self.root)
+    def test_ops_008_rollback_marker_tamper_fails(self):
+        self.artifacts["ph10_ops_four_exact_evidence.json"]["cases"][3]["assertionMarker"]="FORGED_ROLLBACK_PASS"
+        self.write()
+        with self.assertRaisesRegex(AssertionError,"OPS_LAYER_OR_ASSERTION_PROVENANCE_MISMATCH"):
+            gate.joined(SHA,RUN,self.root)
     def test_ops_001_promoted_to_runtime_fails(self):
         self.artifacts["ph10_ops_four_exact_evidence.json"]["cases"][0]["scopedTechnicalPassed"]=True
         self.write()
