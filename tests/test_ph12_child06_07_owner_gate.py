@@ -47,7 +47,11 @@ assert previous["authorizationState"] == "LEGAL_AND_SOURCE_NOT_APPROVED"
 assert previous["runtimeActivationSupported"] is False
 assert status["production_authorized"] is False
 ckpt = status["phase12_child0607_source_checkpoint"]
-assert ckpt["progress"] == "SCOPED_TECHNICAL_GREEN_FORMAL_HOLD"
+assert ckpt["progress"] == "SYNTHETIC_SOURCE_CONFLICT_TESTS_GREEN_THREE_FORMAL_OWNER_GATES_HOLD"
+assert len(ckpt["owner_gates"]) == 3
+assert all(gate["status"] == "HOLD" for gate in ckpt["owner_gates"])
+assert ckpt["original_15_acceptance"]["independentQaApproved"] == 0
+assert ckpt["original_15_acceptance"]["legalSourceOwnerApproved"] == 0
 assert ckpt["draft_pr"] == 169
 assert status["phases"]["PHASE-12"]["status"] == "IN_PROGRESS"
 assert len(ckpt["hard_blocks"]) >= 4
