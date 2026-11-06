@@ -7,6 +7,8 @@ BEGIN;
 -- Secure tenant-scoped FKs to references without modifying source records.
 CREATE UNIQUE INDEX ph12_evidence_tenant_reference_key
  ON tto.evidence_references(tenant_id,evidence_id);
+CREATE UNIQUE INDEX ph12_document_tenant_reference_key
+ ON tto.documents(tenant_id,document_id);
 
 -- Existing Child06 ShareholderAccount remains the identity master.
 -- Unclassified legacy rows stay NULL/unentitled until independent sourced review.
@@ -24,6 +26,7 @@ ALTER TABLE tto.ph06_shareholder_accounts
   OR
   (shareholder_type IS NOT NULL AND classification_evidence_id IS NOT NULL
    AND classification_rule_version_id IS NOT NULL
+   AND classification_source_ref IS NOT NULL
    AND length(trim(classification_source_ref))>=8)),
  ADD CONSTRAINT ph12_account_evidence_tenant
  FOREIGN KEY(tenant_id,classification_evidence_id)
@@ -50,9 +53,26 @@ CREATE TABLE tto.child06_cooperative_relationships(
  UNIQUE(tenant_id,relationship_id),
  FOREIGN KEY(tenant_id,basis_ref) REFERENCES tto.evidence_references(tenant_id,evidence_id)
 );
-CREATE UNIQUE INDEX child06_one_active_relationship
- ON tto.child06_cooperative_relationships(tenant_id,party_id)
- WHERE status='ACTIVE' AND valid_until IS NULL;
+-- A relationship is an immutable sequence of explicit source versions. The
+-- latest version is current truth; older ACTIVE history must not block SUSPENDED/ENDED.
+CREATE FUNCTION tto.ph12_child06_check_relationship_version() RETURNS trigger
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,tto AS $fn$
+DECLARE latest_version bigint; latest_valid_from timestamptz;
+BEGIN
+ PERFORM pg_advisory_xact_lock(hashtextextended(
+   'CHILD06:'||NEW.tenant_id::text||':'||NEW.party_id::text,0));
+ SELECT source_version,valid_from INTO latest_version,latest_valid_from
+ FROM tto.child06_cooperative_relationships
+ WHERE tenant_id=NEW.tenant_id AND party_id=NEW.party_id
+ ORDER BY source_version DESC LIMIT 1;
+ IF NEW.source_version<>coalesce(latest_version,0)+1
+    OR (latest_valid_from IS NOT NULL AND NEW.valid_from<latest_valid_from)
+ THEN RAISE EXCEPTION 'CHILD06_STALE_OR_GAPPED_SOURCE_VERSION';END IF;
+ RETURN NEW;
+END $fn$;
+CREATE TRIGGER ph12_child06_relationship_version_guard BEFORE INSERT
+ ON tto.child06_cooperative_relationships FOR EACH ROW
+ EXECUTE FUNCTION tto.ph12_child06_check_relationship_version();
 
 CREATE TABLE tto.child06_relationship_decisions(
  decision_id uuid PRIMARY KEY,
@@ -88,7 +108,7 @@ CREATE TABLE tto.child06_member_profiles(
 CREATE TABLE tto.child07_valuation_reports(
  valuation_id uuid PRIMARY KEY,
  tenant_id uuid NOT NULL REFERENCES tto.tenants(tenant_id),
- document_ref uuid NOT NULL REFERENCES tto.documents(document_id),
+ document_ref uuid NOT NULL,
  expert_ref text NOT NULL CHECK(length(trim(expert_ref))>=8),
  value_amount bigint NOT NULL CHECK(value_amount>=0),
  valid_from timestamptz NOT NULL,
@@ -97,6 +117,7 @@ CREATE TABLE tto.child07_valuation_reports(
  evidence_id uuid NOT NULL,
  CHECK(valid_to IS NULL OR valid_to>valid_from),
  UNIQUE(tenant_id,valuation_id),
+ FOREIGN KEY(tenant_id,document_ref) REFERENCES tto.documents(tenant_id,document_id),
  FOREIGN KEY(tenant_id,evidence_id) REFERENCES tto.evidence_references(tenant_id,evidence_id)
 );
 CREATE TABLE tto.child07_capital_offers(
@@ -232,7 +253,8 @@ DO $guard$ DECLARE tbl text; BEGIN
   EXECUTE format('REVOKE ALL ON tto.%I FROM PUBLIC,tto_app',tbl);
  END LOOP;
 END $guard$;
-REVOKE ALL ON FUNCTION tto.ph12_child07_gate_ledger_insert() FROM PUBLIC,tto_app;
+REVOKE ALL ON FUNCTION tto.ph12_child07_gate_ledger_insert(),
+ tto.ph12_child06_check_relationship_version() FROM PUBLIC,tto_app;
 COMMENT ON TABLE tto.child07_ownership_ledger_entries IS
  'PH12 candidate official account-linked ledger, private and staged; live transfers prohibited, formal source acceptance HOLD';
 COMMIT;
