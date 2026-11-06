@@ -76,7 +76,7 @@ BEGIN
  INSERT INTO tto.child07_sell_orders(sell_order_id,tenant_id,seller_account_id,qty,valuation_id)
  VALUES(ord,t1,a1,5,val);
  INSERT INTO tto.child07_buy_requests(buy_request_id,tenant_id,buyer_account_id,sell_order_id,qty)
- VALUES(req,t1,a2,5,3);
+ VALUES(req,t1,a2,ord,3);
  INSERT INTO tto.child07_transfer_cases(case_id,tenant_id,seller_account_id,buyer_account_id,
  qty,sell_order_id,buy_request_id,valuation_id,status)
  VALUES(cs,t1,a1,a2,3,ord,req,val,'REQUESTED');
