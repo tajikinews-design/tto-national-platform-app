@@ -49,6 +49,8 @@ let checks=0;
  status(first,201);assert.equal(first.status,"QUEUED");assert.equal(first.idempotent,false);
  const repeat=await api("POST",sellPath,SELLER,{quantity:10,saleMode:"FULL_OFFER"},key1);
  status(repeat,201);assert.equal(repeat.offerId,first.offerId);assert.equal(repeat.idempotent,true);
+ status(await api("POST",sellPath,SELLER,{quantity:11,saleMode:"FULL_OFFER"},key1),
+   409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
  const second=await api("POST",sellPath,SELLER,{quantity:20,saleMode:"FULL_OFFER"},"sell-case-0000000002");
  status(second,201);assert.equal(second.status,"QUEUED");
  // Only market manager may publish, and only the oldest queued offer.
@@ -92,6 +94,8 @@ let checks=0;
  assert.equal(win.state,"COOP_REVIEW");assert.equal(win.boardApprovalGranted,false);
  const winAgain=await api("POST",buyPath,winner,{quantity:10},winKey);
  status(winAgain,201);assert.equal(winAgain.idempotent,true);
+ status(await api("POST",buyPath,winner,{quantity:9},winKey),
+   409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
  status(await api("POST",`/lab/tenants/${T}/offers/${second.offerId}/buy`,
    NONMEMBER,{quantity:20}),409,"BUYER_LEGAL_ELIGIBILITY_NOT_CONFIRMED");
  status(await api("POST",`/lab/tenants/${T}/offers/${second.offerId}/buy`,
@@ -108,6 +112,8 @@ let checks=0;
  assert.equal(reviewed.boardApprovalGranted,false);
  const reviewAgain=await api("POST",reviewPath,REVIEWER,{verdict:"REFER_TO_BOARD"},reviewKey);
  status(reviewAgain,200);assert.equal(reviewAgain.reviewId,reviewed.reviewId);
+ status(await api("POST",`/lab/tenants/${T}/buy-requests/${"00000000-0000-4000-8000-000000000001"}/review`,
+   REVIEWER,{verdict:"REFER_TO_BOARD"},reviewKey),409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
  // BOARD_SECRETARIAT may only record evidence as a staged UNVERIFIED_DRAFT.
  // It cannot approve any legally binding board decision or enable payment.
  const boardPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/board-decision-draft`;
@@ -128,6 +134,8 @@ let checks=0;
  assert.equal(draft.sellerContinuationEnabled,false);
  const draftAgain=await api("POST",boardPath,BOARD_SECRETARY,decision,boardKey);
  status(draftAgain,201);assert.equal(draft.decisionId,draftAgain.decisionId);
+ status(await api("POST",boardPath,BOARD_SECRETARY,{...decision,resolutionReference:"TEST-NEW-RESOLUTION-2026"},boardKey),
+   409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
  const dbDraft=await pool.query("SELECT evidence_status,verified_by,decision FROM market_v3_disposable.board_decision_drafts WHERE decision_id=$1",[draft.decisionId]);
  assert.equal(dbDraft.rows[0].evidence_status,"UNVERIFIED_DRAFT");
  assert.equal(dbDraft.rows[0].verified_by,null);
