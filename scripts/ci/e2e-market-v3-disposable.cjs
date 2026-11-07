@@ -14,6 +14,7 @@ const NONMEMBER="a7777777-7777-4777-8777-777777777777";
 const MANAGER="a4444444-4444-4444-8444-444444444444";
 const REVIEWER="a5555555-5555-4555-8555-555555555555";
 const BOARD_SECRETARY="a9999999-9999-4999-8999-999999999999";
+const BOARD_META_REVIEWER="aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1";
 const OUTSIDER="a8888888-8888-4888-8888-888888888888";
 const token=process.env.TTO_MARKET_LAB_SECRET;
 assert.match(token||"",/^[a-f0-9]{64}$/);
@@ -140,6 +141,41 @@ let checks=0;
  assert.equal(dbDraft.rows[0].evidence_status,"UNVERIFIED_DRAFT");
  assert.equal(dbDraft.rows[0].verified_by,null);
  assert.equal(dbDraft.rows[0].decision,"APPROVE");
+ // Independent board metadata cross-check is NOT validation of signatures or legal mandate.
+ const metadataPath=`/lab/tenants/${T}/board-drafts/${draft.decisionId}/metadata-check`;
+ const metadataRefs={meetingReference:decision.meetingReference,
+   resolutionReference:decision.resolutionReference,
+   attachmentReference:decision.attachmentReference,
+   legalBasisReference:decision.legalBasisReference};
+ status(await api("POST",metadataPath,BOARD_SECRETARY,metadataRefs),403,"ROLE_OR_TENANT_DENIED");
+ status(await api("POST",metadataPath,REVIEWER,metadataRefs),403,"ROLE_OR_TENANT_DENIED");
+ status(await api("POST",metadataPath,BOARD_META_REVIEWER,
+   {...metadataRefs,attachmentReference:"TEST-WRONG-EVIDENCE-2026"}),409,
+   "BOARD_METADATA_SOURCE_MISMATCH");
+ const metadataKey="board-independent-meta-01";
+ const checked=await api("POST",metadataPath,BOARD_META_REVIEWER,metadataRefs,metadataKey);
+ status(checked,201);
+ assert.equal(checked.evidenceCheck,"LAB_METADATA_MATCHED_NOT_SIGNED");
+ assert.equal(checked.legalBoardApprovalGranted,false);
+ assert.equal(checked.sellerContinuationEnabled,false);
+ const checkedAgain=await api("POST",metadataPath,BOARD_META_REVIEWER,metadataRefs,metadataKey);
+ status(checkedAgain,201);assert.equal(checkedAgain.checkId,checked.checkId);
+ const proof=await pool.query(
+  "SELECT checked_by,entered_by,outcome FROM market_v3_disposable.board_evidence_metadata_reviews WHERE check_id=$1",
+  [checked.checkId]);
+ assert.equal(proof.rowCount,1);
+ assert.notEqual(proof.rows[0].checked_by,proof.rows[0].entered_by);
+ assert.equal(proof.rows[0].outcome,"LAB_METADATA_MATCHED_NOT_SIGNED");
+ const unchanged=await pool.query(
+  "SELECT evidence_status,verified_by FROM market_v3_disposable.board_decision_drafts WHERE decision_id=$1",
+  [draft.decisionId]);
+ assert.equal(unchanged.rows[0].evidence_status,"UNVERIFIED_DRAFT");
+ assert.equal(unchanged.rows[0].verified_by,null);
+ // Append-only test: updates to evidence-check rows must fail at SQL boundary.
+ await assert.rejects(async()=>pool.query(
+  "UPDATE market_v3_disposable.board_evidence_metadata_reviews SET outcome=outcome WHERE check_id=$1",
+  [checked.checkId]),/LAB_REVIEW_APPEND_ONLY/);
+ console.log("PH12_MARKET_V3_BOARD_INDEPENDENT_METADATA_ONLY_NO_LEGAL_SIGNOFF_PASS");
  // Verification state and pricing must be source-derived; fake or expired source must fail.
  await pool.query("UPDATE market_v3_disposable.price_source_versions SET evidence_state='UNVERIFIED' WHERE source_id='TEST-PRICE-RULE'");
  status(await api("POST",sellPath,SELLER,{quantity:1,saleMode:"FULL_OFFER"},
