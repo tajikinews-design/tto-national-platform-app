@@ -60,6 +60,29 @@ class TariffPortalContract(unittest.TestCase):
   self.assertIn("Ph12TariffDraftController",nest)
   self.assertIn("PH12_TARIFF_DRAFT_INTAKE_DISABLED",nest)
   self.assertIn("feeActivated:false",nest)
+ def test_board_document_case_requires_verified_file_and_independent_reviewer(self):
+  sql=(ROOT/"database/migrations/0048_ph12_tariff_board_document_review.sql").read_text("utf-8")
+  proxy=(ROOT/"apps/cooperative-management/lib/ph12-board-case-proxy.ts").read_text("utf-8")
+  nest=(ROOT/"services/api/src/module.ts").read_text("utf-8")
+  ui=(ROOT/"apps/cooperative-management/app/share-market/board-review/page.tsx").read_text("utf-8")
+  for x in ["FORCE ROW LEVEL SECURITY","ph12_tariff_board_evidence_cases",
+   "ph12_tariff_board_review_events","document_versions","file_objects",
+   "scan_status='CLEAN'","file_sha256","DOCUMENT_REVIEWER",
+   "METADATA_CHECKED_SIGNER_AUTHORITY_UNVERIFIED",
+   "DOCUMENT_INTAKE_AUTHORITY_UNVERIFIED","PH12_BOARD_FOUR_EYES_REQUIRED",
+   "PH12_BOARD_EVIDENCE_APPEND_ONLY"]:
+   self.assertIn(x,sql)
+  self.assertNotIn("'ACTIVE'",sql)
+  self.assertIn("Ph12TariffBoardDocumentController",nest)
+  for x in ["signerIdentityAuthenticated:false","signerAuthorityAuthenticated:false",
+   "boardLegallyApproved:false","tariffActivated:false"]:
+   self.assertIn(x,nest)
+  for x in ['req.headers.get("origin")',"tto_session",
+   "BOARD_DOCUMENT_REVIEW_NOT_RELEASED","signerAuthorityAuthenticated!==false",
+   "tariffActivated!==false","trustedBackendHeaders(req)"]:
+   self.assertIn(x,proxy)
+  self.assertIn("بررسی مستندات هیئت‌مدیره",ui)
+  self.assertIn("اختیار هیئت‌مدیره هنوز تأیید نشده",ui)
  def test_product_controls_versioning_board_refs_and_two_signers(self):
   page=PAGE.read_text("utf-8");lab=LAB.read_text("utf-8");home=HOME.read_text("utf-8")
   for x in ["boardResolutionReference","boardEvidenceReference",
