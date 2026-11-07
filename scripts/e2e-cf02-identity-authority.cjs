@@ -72,7 +72,7 @@ async function portal(slug,port){
  const cwd=resolve(ROOT,"apps",slug);
  const origin="http://127.0.0.1:"+port;
  await launch(slug,[resolve(cwd,"node_modules/next/dist/bin/next"),"start","-p",String(port)],cwd,
- {NODE_ENV:"test",CI:"true",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",TTO_LOOPBACK_E2E:"1",TTO_API_BASE_URL:API,PORT:String(port),NEXT_TELEMETRY_DISABLED:"1",APIIR_TOKEN:""},
+ {NODE_ENV:"test",CI:"true",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",TTO_PH12_PUBLIC_ORIGIN:origin,TTO_LOOPBACK_E2E:"1",TTO_API_BASE_URL:API,PORT:String(port),NEXT_TELEMETRY_DISABLED:"1",APIIR_TOKEN:""},
  origin+"/");
  return {origin,slug};
 }
@@ -248,23 +248,13 @@ async function main(){
  await status(await fetch(foreignBoardPath,{headers:managerCookie}),403,"cross-tenant board cases denied");
  await status(await boardPost(boardPath,boardSubmission,{Authorization:"Bearer "+tokenMap.get(MANAGER)}),401,
    "session cookie required for board evidence intake");
+ await status(await boardPost(boardPath,boardSubmission,{...managerCookie,Origin:"https://cross-site.invalid"}),403,
+   "untrusted Cross-Origin board dossier POST denied");
  await status(await boardPost(boardPath,
    {...boardSubmission,documentId:randomUUID()}),403,"untrusted board source document denied");
- const mismatch=await boardPost(boardPath,
-   {...boardSubmission,resolutionNumber:"TEST-MISMATCH-NO-LEGAL-1"});
- if(mismatch.status!==400){
-   const detail=await mismatch.clone().json().catch(()=>({code:"NON_JSON"}));
-   console.error("PH12_BOARD_MISMATCH_DIAGNOSTIC",mismatch.status,detail.code);
-   // Real token-scoped role/source under synthetic admin probe, not prod access.
-   await db.query("BEGIN");
-   try{
-     await db.query("SELECT set_config('tto.actor_id',$1,true),set_config('tto.tenant_id',$2,true)",
-       [MANAGER,A]);
-     const authProbe=await db.query("SELECT tto.has_tenant_role($1,'COOPERATIVE_MANAGER') AS role, tto.has_verified_authority($1,'ROLE_MANAGEMENT') AS authority",[A]);
-     console.error("PH12_BOARD_MANAGEMENT_SCOPE_PROBE",authProbe.rows[0]);
-   }finally{await db.query("ROLLBACK")}
- }
- await status(mismatch,400,"board resolution reference must match stored draft");
+ await status(await boardPost(boardPath,
+   {...boardSubmission,resolutionNumber:"TEST-MISMATCH-NO-LEGAL-1"}),400,
+   "board resolution reference must match stored draft");
  const submit=await status(await boardPost(boardPath,boardSubmission),201,
    "manager recorded source-bound document version hash");
  ok(submit.status==="DOCUMENT_INTAKE_AUTHORITY_UNVERIFIED"&&
