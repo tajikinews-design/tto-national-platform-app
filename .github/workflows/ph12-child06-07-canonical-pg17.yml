@@ -28,6 +28,7 @@ jobs:
           python3 tests/test_ph12_child06_07_canonical.py
           python3 tests/test_ph12_child06_07_owner_gate.py
           python3 tests/test_ph12_share_market_v3_section51_truth.py
+          python3 tests/test_ph12_tariff_portal_contract.py
       - name: Prepare actual Next and Nest for 68-migration HTTP integration (NO DEPLOY)
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
