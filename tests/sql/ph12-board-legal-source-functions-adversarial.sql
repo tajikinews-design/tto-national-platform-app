@@ -27,7 +27,8 @@ BEGIN
    repeat('a',64),clock_timestamp()-interval '1 hour',
    clock_timestamp()+interval '1 day','PENDING_OFFICIAL_VERIFICATION',gen_random_uuid());
   RAISE EXCEPTION 'PH12_MISSING_CONTEXT_WAS_ALLOWED';
- EXCEPTION WHEN insufficient_privilege THEN NULL;
+ EXCEPTION WHEN insufficient_privilege THEN
+  IF SQLERRM = 'PH12_MISSING_CONTEXT_WAS_ALLOWED' THEN RAISE; END IF;
  END;
 END $$;
 ROLLBACK TO SAVEPOINT no_context;
