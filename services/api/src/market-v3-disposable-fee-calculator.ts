@@ -12,7 +12,7 @@ export interface LabFeePolicy {
   maximum_amount:string|null;
 }
 export function calculateDisposableFee(
- fee:LabFeePolicy,gross:bigint
+ fee:LabFeePolicy,gross:bigint,verifiedCustomBase:bigint|null=null
 ):{total:bigint;buyerAmount:bigint;sellerAmount:bigint}{
   if(gross<=0n)throw Error("LAB_FEE_GROSS_INVALID");
   const mode=fee.calculation_mode,payer=fee.payer_mode;
@@ -20,7 +20,11 @@ export function calculateDisposableFee(
     throw Error("LAB_FEE_MODE_UNSUPPORTED");
   if(!["BUYER","SELLER","SPLIT"].includes(payer))
     throw Error("LAB_FEE_PAYER_UNSUPPORTED");
-  if(fee.percentage_basis!=="TRADE_GROSS_VALUE"&&fee.percentage_basis!=="SHARE_VALUE")
+  if(fee.percentage_basis!=="TRADE_GROSS_VALUE"&&fee.percentage_basis!=="SHARE_VALUE"&&
+     fee.percentage_basis!=="CUSTOM_APPROVED_BASE")
+    throw Error("LAB_FEE_BASIS_UNSUPPORTED");
+  if(fee.percentage_basis==="CUSTOM_APPROVED_BASE"&&
+     (verifiedCustomBase===null||verifiedCustomBase<=0n))
     throw Error("LAB_FEE_CUSTOM_BASE_NOT_VERIFIED");
   if(!Number.isInteger(fee.percentage_rate_bps)||fee.percentage_rate_bps<0||
      fee.percentage_rate_bps>10000)throw Error("LAB_FEE_PERCENT_INVALID");
@@ -33,7 +37,8 @@ export function calculateDisposableFee(
     throw Error("LAB_FEE_PAYER_SPLIT_MISMATCH");
   const fixed=BigInt(fee.fixed_amount??"0");
   if(fixed<0n)throw Error("LAB_FEE_NEGATIVE_FIXED");
-  const percent=(gross*BigInt(fee.percentage_rate_bps)+5000n)/10000n;
+  const percentBase=fee.percentage_basis==="CUSTOM_APPROVED_BASE"?verifiedCustomBase!:gross;
+  const percent=(percentBase*BigInt(fee.percentage_rate_bps)+5000n)/10000n;
   let total=(mode==="PERCENTAGE"?0n:fixed)+(mode==="FIXED"?0n:percent);
   const minimum=fee.minimum_amount==null?null:BigInt(fee.minimum_amount);
   const maximum=fee.maximum_amount==null?null:BigInt(fee.maximum_amount);
