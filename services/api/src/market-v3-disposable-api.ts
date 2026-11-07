@@ -119,9 +119,13 @@ export function createDisposableMarketApi(){
         const result=await transaction(pool,async c=>{
           await actor(c,tenant,actorId,"SELLER");
           await serialize(c,`sell:${tenant}:${actorId}:${key}`);
-          const previous=await c.query(`SELECT offer_id,status FROM ${LAB}.offers
+          const previous=await c.query(`SELECT offer_id,status,requested_quantity,sale_mode FROM ${LAB}.offers
             WHERE tenant_id=$1 AND seller_id=$2 AND idempotency_key=$3`,[tenant,actorId,key]);
-          if(previous.rowCount)return {offerId:previous.rows[0].offer_id,status:previous.rows[0].status,idempotent:true};
+          if(previous.rowCount){
+            if(BigInt(previous.rows[0].requested_quantity)!==qty||
+               previous.rows[0].sale_mode!==input.saleMode)deny(409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
+            return {offerId:previous.rows[0].offer_id,status:previous.rows[0].status,idempotent:true};
+          }
           const h=await c.query(`SELECT * FROM ${LAB}.holdings WHERE tenant_id=$1 AND actor_id=$2 FOR UPDATE`,[tenant,actorId]);
           const own=h.rows[0];
           if(!own||!own.source_verified)deny(409,"OFFICIAL_HOLDING_SOURCE_UNAVAILABLE");
@@ -257,9 +261,13 @@ export function createDisposableMarketApi(){
                new Date(entitlementSource.effective_until)>new Date()))
             deny(409,"BUYER_LEGAL_ELIGIBILITY_NOT_CONFIRMED");
           await serialize(c,`buy:${tenant}:${actorId}:${key}`);
-          const previous=await c.query(`SELECT buy_request_id,state FROM ${LAB}.buy_requests
+          const previous=await c.query(`SELECT buy_request_id,state,offer_id,quantity FROM ${LAB}.buy_requests
             WHERE tenant_id=$1 AND buyer_id=$2 AND idempotency_key=$3`,[tenant,actorId,key]);
-          if(previous.rowCount)return {buyRequestId:previous.rows[0].buy_request_id,state:previous.rows[0].state,idempotent:true};
+          if(previous.rowCount){
+            if(previous.rows[0].offer_id!==offerId||BigInt(previous.rows[0].quantity)!==qty)
+              deny(409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
+            return {buyRequestId:previous.rows[0].buy_request_id,state:previous.rows[0].state,idempotent:true};
+          }
           const o=await c.query(`SELECT * FROM ${LAB}.offers WHERE offer_id=$1 AND tenant_id=$2 FOR UPDATE`,[offerId,tenant]);
           if(!o.rows[0])deny(404,"OFFER_NOT_FOUND");
           if(o.rows[0].status!=="LISTED")deny(409,"OFFER_NOT_AVAILABLE");
@@ -288,9 +296,12 @@ export function createDisposableMarketApi(){
         const result=await transaction(pool,async c=>{
           await actor(c,tenant,actorId,"COOP_OPERATOR");
           await serialize(c,`review:${tenant}:${requestId}:${key}`);
-          const prev=await c.query(`SELECT review_id FROM ${LAB}.coop_reviews
+          const prev=await c.query(`SELECT review_id,buy_request_id FROM ${LAB}.coop_reviews
             WHERE tenant_id=$1 AND reviewer_id=$2 AND idempotency_key=$3`,[tenant,actorId,key]);
-          if(prev.rowCount)return {reviewId:prev.rows[0].review_id,state:"BOARD_APPROVAL_PENDING",idempotent:true};
+          if(prev.rowCount){
+            if(prev.rows[0].buy_request_id!==requestId)deny(409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
+            return {reviewId:prev.rows[0].review_id,state:"BOARD_APPROVAL_PENDING",idempotent:true};
+          }
           const b=await c.query(`SELECT * FROM ${LAB}.buy_requests WHERE buy_request_id=$1 AND tenant_id=$2 FOR UPDATE`,[requestId,tenant]);
           if(!b.rows[0])deny(404,"BUY_REQUEST_NOT_FOUND");
           if(b.rows[0].state!=="COOP_REVIEW")deny(409,"COOPERATIVE_REVIEW_ALREADY_DECIDED");
@@ -324,9 +335,20 @@ export function createDisposableMarketApi(){
         const saved=await transaction(pool,async c=>{
           await actor(c,tenant,actorId,"BOARD_SECRETARIAT");
           await serialize(c,`board-draft:${tenant}:${requestId}`);
-          const previous=await c.query(`SELECT decision_id FROM ${LAB}.board_decision_drafts
+          const previous=await c.query(`SELECT decision_id,buy_request_id,meeting_reference,resolution_reference,
+              attachment_reference,legal_basis_reference,decision_date,decision
+            FROM ${LAB}.board_decision_drafts
             WHERE tenant_id=$1 AND entered_by=$2 AND idempotency_key=$3`,[tenant,actorId,key]);
-          if(previous.rows[0])return {decisionId:previous.rows[0].decision_id,idempotent:true};
+          if(previous.rows[0]){
+            const prior=previous.rows[0];
+            if(prior.buy_request_id!==requestId||prior.meeting_reference!==meeting||
+               prior.resolution_reference!==resolution||prior.attachment_reference!==evidence||
+               prior.legal_basis_reference!==basis||prior.decision!==decision||
+               String(prior.decision_date instanceof Date?
+                  prior.decision_date.toISOString().slice(0,10):prior.decision_date).slice(0,10)!==date)
+              deny(409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
+            return {decisionId:prior.decision_id,idempotent:true};
+          }
           const b=await c.query(`SELECT state FROM ${LAB}.buy_requests
             WHERE tenant_id=$1 AND buy_request_id=$2 FOR UPDATE`,[tenant,requestId]);
           if(!b.rows[0])deny(404,"BUY_REQUEST_NOT_FOUND");
