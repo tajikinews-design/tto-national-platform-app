@@ -100,12 +100,10 @@ BEGIN
  IF EXISTS(SELECT 1 FROM tto.ph12_tariff_drafts d
   WHERE d.tenant_id=tid AND d.fee_code=c AND d.proposed_version>=v)
  THEN RAISE EXCEPTION 'PH12_DRAFT_VERSION_CONFLICT' USING ERRCODE='23505';END IF;
- INSERT INTO tto.ph12_tariff_drafts(tenant_id,fee_code,proposed_version,
+ INSERT INTO tto.ph12_tariff_drafts AS d (tenant_id,fee_code,proposed_version,
     payload,created_by,request_key)
  VALUES(tid,c,v,p_data,actor,p_request_key)
- RETURNING tto.ph12_tariff_drafts.draft_id,
-   tto.ph12_tariff_drafts.fee_code,tto.ph12_tariff_drafts.proposed_version,
-   tto.ph12_tariff_drafts.status INTO created;
+ RETURNING d.draft_id,d.fee_code,d.proposed_version,d.status INTO created;
  RETURN QUERY SELECT created.draft_id,created.fee_code,
    created.proposed_version,created.status,false;
 END $$;
