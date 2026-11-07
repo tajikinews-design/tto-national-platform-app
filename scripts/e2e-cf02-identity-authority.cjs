@@ -250,9 +250,21 @@ async function main(){
    "session cookie required for board evidence intake");
  await status(await boardPost(boardPath,
    {...boardSubmission,documentId:randomUUID()}),403,"untrusted board source document denied");
- await status(await boardPost(boardPath,
-   {...boardSubmission,resolutionNumber:"TEST-MISMATCH-NO-LEGAL-1"}),400,
-   "board resolution reference must match stored draft");
+ const mismatch=await boardPost(boardPath,
+   {...boardSubmission,resolutionNumber:"TEST-MISMATCH-NO-LEGAL-1"});
+ if(mismatch.status!==400){
+   const detail=await mismatch.clone().json().catch(()=>({code:"NON_JSON"}));
+   console.error("PH12_BOARD_MISMATCH_DIAGNOSTIC",mismatch.status,detail.code);
+   // Real token-scoped role/source under synthetic admin probe, not prod access.
+   await db.query("BEGIN");
+   try{
+     await db.query("SELECT set_config('tto.actor_id',$1,true),set_config('tto.tenant_id',$2,true)",
+       [MANAGER,A]);
+     const authProbe=await db.query("SELECT tto.has_tenant_role($1,'COOPERATIVE_MANAGER') AS role, tto.has_verified_authority($1,'ROLE_MANAGEMENT') AS authority",[A]);
+     console.error("PH12_BOARD_MANAGEMENT_SCOPE_PROBE",authProbe.rows[0]);
+   }finally{await db.query("ROLLBACK")}
+ }
+ await status(mismatch,400,"board resolution reference must match stored draft");
  const submit=await status(await boardPost(boardPath,boardSubmission),201,
    "manager recorded source-bound document version hash");
  ok(submit.status==="DOCUMENT_INTAKE_AUTHORITY_UNVERIFIED"&&
