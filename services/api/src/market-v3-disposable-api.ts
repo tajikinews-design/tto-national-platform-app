@@ -6,7 +6,7 @@
  * This module has NO payment, board authorization, registry or finalization route.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { timingSafeEqual, randomUUID } from "node:crypto";
+import { timingSafeEqual, randomUUID, createHash } from "node:crypto";
 import { Pool, type PoolClient } from "pg";
 
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
@@ -361,6 +361,58 @@ export function createDisposableMarketApi(){
           return {decisionId:x.rows[0].decision_id,idempotent:false};
         });
         return json(res,201,{...saved,evidenceStatus:"UNVERIFIED_DRAFT",
+          legalBoardApprovalGranted:false,sellerContinuationEnabled:false,
+          legalOwnershipChanged:false});
+      }
+      // Separate, append-only reviewer records only syntactic metadata consistency.
+      // It NEVER verifies the actual board resolution, legal mandate, signature,
+      // payer, banking evidence, registry or transfer and cannot advance trade state.
+      if(req.method==="POST"&&parts.length===6&&parts[3]==="board-drafts"&&
+         uuid.test(parts[4])&&parts[5]==="metadata-check"){
+        const decisionId=parts[4];
+        const input=await body(req);
+        const refs=["meetingReference","resolutionReference","attachmentReference","legalBasisReference"];
+        if(!refs.every(k=>typeof input[k]==="string"&&
+             /^[A-Za-z0-9_.:-]{8,180}$/.test(input[k] as string)))
+          deny(422,"BOARD_METADATA_REFERENCES_REQUIRED");
+        const result=await transaction(pool,async c=>{
+          await actor(c,tenant,actorId,"BOARD_EVIDENCE_REVIEWER");
+          await serialize(c,`board-metadata:${tenant}:${decisionId}`);
+          const row=await c.query(`SELECT * FROM ${LAB}.board_decision_drafts
+            WHERE tenant_id=$1 AND decision_id=$2 FOR SHARE`,[tenant,decisionId]);
+          const draft=row.rows[0];
+          if(!draft)deny(404,"BOARD_DRAFT_NOT_FOUND");
+          if(draft.entered_by===actorId)deny(403,"FOUR_EYES_REVIEW_REQUIRED");
+          const source=[draft.meeting_reference,draft.resolution_reference,
+             draft.attachment_reference,draft.legal_basis_reference];
+          if(source.some((value:string,index:number)=>value!==input[refs[index]]))
+            deny(409,"BOARD_METADATA_SOURCE_MISMATCH");
+          const digest=createHash("sha256").update(JSON.stringify({
+            tenantId:tenant,decisionId,meeting:source[0],
+            resolution:source[1],attachment:source[2],legalBasis:source[3],
+            decision:draft.decision,date:draft.decision_date
+          })).digest("hex");
+          const previous=await c.query(`SELECT check_id,decision_id,metadata_digest_sha256
+            FROM ${LAB}.board_evidence_metadata_reviews
+            WHERE tenant_id=$1 AND checked_by=$2 AND idempotency_key=$3`,
+            [tenant,actorId,key]);
+          if(previous.rows[0]){
+            if(previous.rows[0].decision_id!==decisionId||
+               previous.rows[0].metadata_digest_sha256!==digest)
+              deny(409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
+            return {checkId:previous.rows[0].check_id,idempotent:true};
+          }
+          const existing=await c.query(`SELECT check_id FROM ${LAB}.board_evidence_metadata_reviews
+            WHERE tenant_id=$1 AND decision_id=$2`,[tenant,decisionId]);
+          if(existing.rows[0])deny(409,"BOARD_METADATA_ALREADY_CHECKED");
+          const inserted=await c.query(`INSERT INTO ${LAB}.board_evidence_metadata_reviews
+            (check_id,tenant_id,decision_id,entered_by,checked_by,metadata_digest_sha256,
+             outcome,idempotency_key)
+            VALUES($1,$2,$3,$4,$5,$6,'LAB_METADATA_MATCHED_NOT_SIGNED',$7)
+            RETURNING check_id`,[randomUUID(),tenant,decisionId,draft.entered_by,actorId,digest,key]);
+          return {checkId:inserted.rows[0].check_id,idempotent:false};
+        });
+        return json(res,201,{...result,evidenceCheck:"LAB_METADATA_MATCHED_NOT_SIGNED",
           legalBoardApprovalGranted:false,sellerContinuationEnabled:false,
           legalOwnershipChanged:false});
       }
