@@ -11,7 +11,7 @@ import { Pool, type PoolClient } from "pg";
 
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const LAB="market_v3_disposable";
-type Role="SELLER"|"BUYER"|"COOP_MARKET_MANAGER"|"COOP_OPERATOR"|"BOARD_SECRETARIAT";
+type Role="SELLER"|"BUYER"|"COOP_MARKET_MANAGER"|"COOP_OPERATOR"|"BOARD_SECRETARIAT"|"BOARD_EVIDENCE_REVIEWER";
 class LabError extends Error {
   constructor(readonly status:number,readonly code:string){ super(code); }
 }
