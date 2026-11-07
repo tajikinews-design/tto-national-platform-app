@@ -242,7 +242,7 @@ async function main(){
     signerClaims:[{signerId:APPROVER,claimedRole:"BOARD_CHAIR"}]
  };
  const boardPost=(url,body,headers=managerCookie)=>
-   fetch(url,{method:"POST",headers:{...headers,Origin:origin,
+   fetch(url,{method:"POST",headers:{Origin:origin,...headers,
      "Content-Type":"application/json"},body:JSON.stringify(body),cache:"no-store"});
  await status(await fetch(boardPath),401,"anonymous cannot list board cases");
  await status(await fetch(foreignBoardPath,{headers:managerCookie}),403,"cross-tenant board cases denied");
