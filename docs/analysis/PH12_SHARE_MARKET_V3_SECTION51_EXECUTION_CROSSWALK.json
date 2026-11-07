@@ -13,7 +13,7 @@
     "steps": 27,
     "officialChangesToWorkflow": 0,
     "realTradeAuthorizations": 0,
-    "disposableHttpVerticalSliceStages": 9,
+    "disposableHttpVerticalSliceStages": 12,
     "realLiveTradeCommandStages": 0
   },
   "nonNegotiable": [
@@ -123,8 +123,10 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
-        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+        "status": "DISPOSABLE_HTTP_SELLER_SCOPED_QUEUE_ETA",
+        "scope": "business-calendar, approved tenant lab policy, estimated/not guaranteed, FIFO row_number() in PostgreSQL",
+        "run": 42360180389,
+        "securityRun": 42360184005
       }
     },
     {
@@ -140,8 +142,10 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
-        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+        "status": "DISPOSABLE_HTTP_FIFO_MARKET_SCHEDULING",
+        "scope": "manager-only QUEUED→SCHEDULED with tenant capacity and estimated date",
+        "run": 42360180389,
+        "securityRun": 42360184005
       }
     },
     {
@@ -157,9 +161,10 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "HTTP_FIFO_LISTING_DISPOSABLE",
-        "scope": "manager role and oldest queue entry, capacity policy",
-        "run": 42353005059
+        "status": "DISPOSABLE_HTTP_SOURCE_VERSIONED_PRICING_AND_LISTING",
+        "scope": "seller price uses exact policy/source version, expert and approval refs, temporal validity; publish must be scheduled",
+        "run": 42360180389,
+        "securityRun": 42360184005
       }
     },
     {
@@ -211,9 +216,10 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "HTTP_BUYER_ELIGIBILITY_DISPOSABLE",
-        "scope": "buyer membership class and source flag from fixtures; cap checks",
-        "run": 42353005059
+        "status": "DISPOSABLE_HTTP_BUYER_SOURCE_VERSION_AND_CAP_DENIAL",
+        "scope": "tenant-scoped source event/version, active legal basis, expiry, cap incl pending; unknown/nonmember denied",
+        "run": 42360180389,
+        "securityRun": 42360184005
       }
     },
     {
@@ -247,8 +253,10 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
-        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+        "status": "DISPOSABLE_HTTP_BOARD_UNVERIFIED_DRAFT_ONLY",
+        "scope": "secretariat role records meeting/resolution/attachment/legal-basis/date; remains UNVERIFIED_DRAFT; no board authorization",
+        "run": 42360180389,
+        "securityRun": 42360184005
       }
     },
     {
@@ -514,14 +522,30 @@
     "independentlySignedHumanUat": 0
   },
   "lastVerifiedTechnicalCheckpoint": {
-    "sha": "5db0510c834620e66927a177f2aef47950a22ded",
-    "pg17Run": 42353005059,
-    "securityRun": 42353008073,
+    "sha": "8acbc3b5b0dba7ef6ccde5ec24e1fa9c8c5e77b0",
+    "pg17Run": 42360180389,
+    "securityRun": 42360184005,
     "pg17Migrations": 68,
-    "labHttpChecks": 29,
-    "classification": "SYNTHETIC_DISPOSABLE_ONLY_NO_SIGNED_ACCEPTANCE",
+    "labHttpChecks": 43,
+    "classification": "SOURCE_VERSIONED_LAB_FIXTURES_SYNTHETIC_NOT_SIGNED_NOT_PRODUCTION",
+    "pg17AllStepsPassed": true,
+    "exactSourceStepCount": 27,
+    "partialSyntheticHttpEvidenceStepCount": 12,
     "productionApisEnabled": false,
+    "officialShareRegisterIntegrated": false,
+    "realBoardApprovalVerified": false,
+    "officialBuyerAuthorityIntegrated": false,
+    "officialPriceSourceIntegrated": false,
     "noShareOwnershipChanges": true,
     "noPaymentOrOfficialRegisterWrites": true
-  }
+  },
+  "residualGates": [
+    "No publicly served market command: lab API is imported nowhere into production Nest module; only CI loopback with ephemeral Postgres",
+    "No official valuation report or price approval connected: fixture assertions are NOT official",
+    "No formal membership/entitlement/cap rule source connected: versioned fixture is NOT legal approval",
+    "Board decision APPROVE is recorded only as unverified draft, with verified_by NULL and no permission transition",
+    "No production queue scheduling release with legal tenant config/calendar, no user-facing real workflow",
+    "15 frozen historical SQL assertions ≠ 15 signed source-authored acceptance and independent QA",
+    "No source owner signoffs and no verified opening share register; legal ownership cannot change"
+  ]
 }
