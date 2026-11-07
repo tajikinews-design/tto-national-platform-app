@@ -10,6 +10,7 @@ import { timingSafeEqual, randomUUID, createHash } from "node:crypto";
 import { Pool, type PoolClient } from "pg";
 import {handlePostBoardLab,PostBoardLabError} from "./market-v3-disposable-postboard";
 import {handleFeeEvidenceLab} from "./market-v3-disposable-fees";
+import {calculateDisposableFee} from "./market-v3-disposable-fee-calculator";
 
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const LAB="market_v3_disposable";
@@ -295,8 +296,7 @@ export function createDisposableMarketApi(){
           for(const fee of fees.rows){
             if(seenFees.has(fee.fee_id))continue;
             seenFees.add(fee.fee_id);
-            if(fee.calculation_mode!=="FIXED"||fee.payer_mode!=="BUYER"||
-               !fee.approval_reference||!fee.legal_basis_reference)
+            if(!fee.approval_reference||!fee.legal_basis_reference)
               deny(409,"UNSUPPORTED_OR_UNVERIFIED_FEE_RULE");
             feeSnapshots.push(fee);
           }
@@ -304,14 +304,21 @@ export function createDisposableMarketApi(){
             (buy_request_id,tenant_id,offer_id,buyer_id,quantity,state,idempotency_key)
             VALUES($1,$2,$3,$4,$5,'COOP_REVIEW',$6) RETURNING buy_request_id,state`,
             [randomUUID(),tenant,offerId,actorId,qty.toString(),key]);
+          const gross=BigInt(o.rows[0].requested_quantity)*BigInt(o.rows[0].unit_price);
           for(const fee of feeSnapshots){
+            let computed;
+            try{computed=calculateDisposableFee(fee as unknown as Parameters<typeof calculateDisposableFee>[0],gross);}
+            catch{deny(409,"UNSUPPORTED_OR_UNVERIFIED_FEE_RULE");}
             await c.query(`INSERT INTO ${LAB}.lab_fee_policy_snapshots
               (tenant_id,buy_request_id,fee_id,source_version,category,payer_mode,
-               fee_amount,approval_reference,legal_basis_reference)
-              VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+               fee_amount,approval_reference,legal_basis_reference,
+               buyer_amount,seller_amount,calculation_mode,percentage_rate_bps)
+              VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
               [tenant,b.rows[0].buy_request_id,fee.fee_id,fee.source_version,
-                fee.legal_fee_type,fee.payer_mode,fee.fixed_amount,
-                fee.approval_reference,fee.legal_basis_reference]);
+                fee.legal_fee_type,fee.payer_mode,computed.total.toString(),
+                fee.approval_reference,fee.legal_basis_reference,
+                computed.buyerAmount.toString(),computed.sellerAmount.toString(),
+                fee.calculation_mode,fee.percentage_rate_bps]);
           }
           await c.query(`UPDATE ${LAB}.offers SET status='RESERVED' WHERE offer_id=$1`,[offerId]);
           return {buyRequestId:b.rows[0].buy_request_id,state:b.rows[0].state,idempotent:false};
