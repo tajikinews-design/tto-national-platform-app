@@ -222,6 +222,17 @@ let checks=0;
    "SYNTHETIC_SIGNATURE_NOT_VERIFIED");
  const payInstructions=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-payment-instructions`;
  status(await api("GET",payInstructions,winner),403,"BUYER_NOT_AUTHORIZED_FOR_TRADE");
+ // A previously valid LAB attestation does NOT survive source-key expiry.
+ // This simulates a source-offline/revoked-at-cutover window without using
+ // any real signer, legal approval or operational payment data.
+ await pool.query("UPDATE market_v3_disposable.lab_source_keys SET valid_until='2026-03-01' WHERE tenant_id=$1 AND source_id=$2",[T,labSourceId]);
+ status(await api("POST",continuePath,SELLER,{accept:true}),409,
+   "VALID_LAB_BOARD_SOURCE_REQUIRED");
+ const beforeRestoration=await pool.query(
+   "SELECT count(*)::integer AS n FROM market_v3_disposable.lab_trade_progress");
+ assert.equal(beforeRestoration.rows[0].n,0);
+ await pool.query("UPDATE market_v3_disposable.lab_source_keys SET valid_until='2028-01-01' WHERE tenant_id=$1 AND source_id=$2",[T,labSourceId]);
+ console.log("PH12_MARKET_V3_EXPIRED_BOARD_SOURCE_CANNOT_UNLOCK_PAYMENT_PASS");
  status(await api("POST",continuePath,SELLER_UNPAID,{accept:true}),403,"SELLER_NOT_OWNER");
  status(await api("POST",continuePath,SELLER,{accept:false}),422,
    "EXPLICIT_SELLER_CONTINUATION_REQUIRED");
@@ -272,6 +283,10 @@ let checks=0;
  status(receivedAgain,201);assert.equal(receivedAgain.receiptId,received.receiptId);
  status(await api("POST",receiptPath,SELLER,{response:"NOT_RECEIVED"},receiptKey),
    409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
+ status(await api("POST",receiptPath,SELLER,{response:"NOT_RECEIVED"},
+   "attempt-rewrite-receipt-00001"),409,"SELLER_CONFIRMATION_NOT_READY");
+ status(await api("POST",paymentPath,winner,evidence,
+   "attempt-new-payment-report-00001"),409,"PAYMENT_REPORT_NOT_EXPECTED");
  const trueState=await pool.query(`SELECT state,bank_reference,expected_gross
    FROM market_v3_disposable.lab_trade_progress
    WHERE tenant_id=$1 AND buy_request_id=$2`,[T,win.buyRequestId]);
