@@ -61,8 +61,19 @@ async function handler(req:NextRequest,params:Promise<{tenantId:string}>,method:
  if(method==="POST"){
   const origin=req.headers.get("origin");
   if(!origin)return deny(403,"ORIGIN_REQUIRED");
-  try{if(new URL(origin).origin!==new URL(req.url).origin)return deny(403,"ORIGIN_DENIED");}
-  catch{return deny(403,"ORIGIN_DENIED");}
+  try{
+    const actual=new URL(req.url),incoming=new URL(origin);
+    // Next's isolated CI loopback server can canonicalize localhost <-> 127.0.0.1.
+    // ONLY in CI, same protocol/port and BOTH known loopback names are equivalent.
+    // Hosted preview and production always require an exact same-origin match.
+    const labAliases=process.env.CI==="true"&&
+      process.env.TTO_LOOPBACK_E2E==="1"&&!process.env.VERCEL&&
+      actual.protocol==="http:"&&incoming.protocol==="http:"&&
+      actual.port===incoming.port&&
+      ["localhost","127.0.0.1"].includes(actual.hostname)&&
+      ["localhost","127.0.0.1"].includes(incoming.hostname);
+    if(incoming.origin!==actual.origin&&!labAliases)return deny(403,"ORIGIN_DENIED");
+  }catch{return deny(403,"ORIGIN_DENIED");}
   if(req.headers.get("content-type")?.split(";")[0]!=="application/json")
    return deny(415,"JSON_REQUIRED");
  }
