@@ -165,7 +165,7 @@ async function main(){
   boardEvidenceReference:"TEST-DOC-UNVERIFIED-001"};
  const key=randomUUID(),origin=cm.origin;
  const postDraft=(url,payload,headers=managerCookie)=>
-   fetch(url,{method:"POST",headers:{...headers,Origin:origin,
+   fetch(url,{method:"POST",headers:{Origin:origin,...headers,
     "Content-Type":"application/json"},body:JSON.stringify(payload),cache:"no-store"});
  await status(await fetch(draftBff),401,"unsigned tariff drafts refuse anonymous read");
  await status(await fetch(draftOther,{headers:managerCookie}),403,
@@ -183,7 +183,12 @@ async function main(){
    "client cannot replace manager session with forged bearer");
  await status(await postDraft(draftBff,{requestKey:key,tariff},
    {...managerCookie,Origin:"https://attacker.invalid"}),403,"cross-site tariff draft denied");
- const saved=await status(await postDraft(draftBff,{requestKey:key,tariff}),201,
+ const saveResponse=await postDraft(draftBff,{requestKey:key,tariff});
+ if(saveResponse.status!==201){
+  const diagnostic=await saveResponse.json().catch(()=>({code:"NON_JSON"}));
+  console.error("PH12_TARIFF_DRAFT_POST_DIAGNOSTIC",saveResponse.status,diagnostic.code??"UNKNOWN");
+ }
+ const saved=await status(saveResponse,201,
    "persistent manager draft created under real role+authority");
  ok(saved.tenantId===A&&saved.status==="DRAFT_UNVERIFIED"&&
     saved.feeActivated===false&&saved.boardVerified===false&&
