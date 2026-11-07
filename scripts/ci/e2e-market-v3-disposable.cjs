@@ -284,6 +284,54 @@ let checks=0;
  const labAuthority=await pool.query(`SELECT attestation_type FROM
    market_v3_disposable.lab_board_attestations WHERE buy_request_id=$1`,[win.buyRequestId]);
  assert.equal(labAuthority.rows[0].attestation_type,"SYNTHETIC_SIGNATURE_TEST_NOT_LEGAL");
+
+ // Separate second transaction proves disagreement is NOT converted into receipt.
+ // Only synthetic PG17 fixture: the source cap is widened for the synthetic second buyer.
+ const losingBuyer=winner===BUYER1?BUYER2:BUYER1;
+ await pool.query("UPDATE market_v3_disposable.buyer_entitlement_sources SET cap_shares=50 WHERE tenant_id=$1 AND buyer_id=$2",[T,losingBuyer]);
+ const secondBuy=await api("POST",`/lab/tenants/${T}/offers/${second.offerId}/buy`,
+   losingBuyer,{quantity:20},"dispute-buyer-request-001");
+ status(secondBuy,201);assert.equal(secondBuy.state,"COOP_REVIEW");
+ const secondReview=await api("POST",`/lab/tenants/${T}/buy-requests/${secondBuy.buyRequestId}/review`,
+   REVIEWER,{verdict:"REFER_TO_BOARD"},"dispute-coop-review-001");
+ status(secondReview,200);
+ const secondDraft=await api("POST",`/lab/tenants/${T}/buy-requests/${secondBuy.buyRequestId}/board-decision-draft`,
+   BOARD_SECRETARY,decision,"dispute-board-draft-001");
+ status(secondDraft,201);
+ const secondMetadata=await api("POST",`/lab/tenants/${T}/board-drafts/${secondDraft.decisionId}/metadata-check`,
+   BOARD_META_REVIEWER,metadataRefs,"dispute-metadata-check-001");
+ status(secondMetadata,201);
+ const secondMessage=syntheticBoardSigningMessage({
+   tenantId:T,requestId:secondBuy.buyRequestId,decisionId:secondDraft.decisionId,
+   sourceId:labSourceId,sourceVersion:labSourceVersion,
+   meetingReference:decision.meetingReference,resolutionReference:decision.resolutionReference,
+   attachmentReference:decision.attachmentReference,legalBasisReference:decision.legalBasisReference,
+   decisionDate:decision.decisionDate,decision:decision.decision
+ });
+ const secondSig=sign(null,secondMessage,pair.privateKey).toString("base64");
+ const secondAttest=await api("POST",`/lab/tenants/${T}/buy-requests/${secondBuy.buyRequestId}/test-board-source-attestation`,
+   BOARD_META_REVIEWER,{sourceId:labSourceId,sourceVersion:labSourceVersion,signature:secondSig},
+   "dispute-test-attest-001");
+ status(secondAttest,201);
+ const secondContinue=await api("POST",`/lab/tenants/${T}/buy-requests/${secondBuy.buyRequestId}/test-seller-continuation`,
+   SELLER,{accept:true},"dispute-seller-continue-001");
+ status(secondContinue,201);assert.equal(secondContinue.expectedGross,"20000");
+ const secondEvidence={...evidence,amount:20000,trackingReference:"TEST-TRACK-2026-0002",
+   receiptReference:"TEST-RECEIPT-2026-0002"};
+ const secondPayment=await api("POST",`/lab/tenants/${T}/buy-requests/${secondBuy.buyRequestId}/test-payment-report`,
+   losingBuyer,secondEvidence,"dispute-payment-report-001");
+ status(secondPayment,201);assert.equal(secondPayment.state,"PAYMENT_REPORTED");
+ const secondResponse=await api("POST",`/lab/tenants/${T}/buy-requests/${secondBuy.buyRequestId}/test-seller-receipt`,
+   SELLER,{response:"AMOUNT_MISMATCH"},"dispute-seller-response-001");
+ status(secondResponse,201);assert.equal(secondResponse.state,"PAYMENT_DISPUTED");
+ assert.equal(secondResponse.readyForOfficialRegister,false);
+ const disputeDb=await pool.query(
+   "SELECT state FROM market_v3_disposable.lab_trade_progress WHERE tenant_id=$1 AND buy_request_id=$2",
+   [T,secondBuy.buyRequestId]);
+ assert.equal(disputeDb.rows[0].state,"PAYMENT_DISPUTED");
+ assert.equal(secondResponse.legalOwnershipChanged,false);
+ console.log("PH12_MARKET_V3_PAYMENT_DISPUTE_NO_AUTO_CONFIRMATION_PASS");
+
  console.log("PH12_MARKET_V3_TEST_ONLY_ED25519_SOURCE_AND_DIRECT_PAYMENT_EVIDENCE_PASS");
 
  // Verification state and pricing must be source-derived; fake or expired source must fail.
