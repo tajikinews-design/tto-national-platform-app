@@ -352,6 +352,81 @@ let checks=0;
  const oldFeeStill=await api("GET",feePath,winner);
  status(oldFeeStill,200);assert.equal(oldFeeStill.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").fee_amount,"300");
  assert.equal(oldFeeStill.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").source_version,"1");
+
+ // v3 fee calculation: FIXED/BUYER, PERCENTAGE/SELLER, COMBINED/SPLIT.
+ const componentPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-fee-components`;
+ const components=await api("GET",componentPath,winner);
+ status(components,200);assert.equal(components.components.length,3);
+ const byId=new Map(components.components.map(f=>[f.fee_id,f]));
+ const fixed=byId.get("TEST-COOP-TRANSFER-ADMIN");
+ assert.equal(fixed.fee_amount,"300");assert.equal(fixed.buyer_amount,"300");
+ assert.equal(fixed.seller_amount,"0");
+ const percent=byId.get("TEST-PERCENT-SERVICE");
+ assert.equal(percent.calculation_mode,"PERCENTAGE");
+ assert.equal(percent.fee_amount,"250");assert.equal(percent.buyer_amount,"0");
+ assert.equal(percent.seller_amount,"250");
+ const split=byId.get("TEST-COMBINED-SPLIT");
+ assert.equal(split.calculation_mode,"FIXED_PLUS_PERCENTAGE");
+ assert.equal(split.fee_amount,"200");assert.equal(split.buyer_amount,"120");
+ assert.equal(split.seller_amount,"80");assert.equal(split.payer_mode,"SPLIT");
+ for(const f of components.components)
+   assert.equal(BigInt(f.buyer_amount)+BigInt(f.seller_amount),BigInt(f.fee_amount));
+ status(await api("GET",componentPath,OUTSIDER),403,"ROLE_OR_TENANT_DENIED");
+ const compPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-fee-component-report`;
+ const reviewPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-fee-document-review`;
+ const sellerFee={feeId:"TEST-PERCENT-SERVICE",payerSide:"SELLER",amount:250,
+  beneficiaryReference:"TEST-COOP-ACCOUNT-001",evidenceReference:"TEST-SELLER-FEE-REPORT-001"};
+ status(await api("POST",compPath,winner,sellerFee),403,"FEE_SIDE_ROLE_DENIED");
+ status(await api("POST",compPath,SELLER,{...sellerFee,amount:251}),
+  409,"FEE_COMPONENT_AMOUNT_MISMATCH");
+ const compKey="test-fee-seller-report-001";
+ const rSeller=await api("POST",compPath,SELLER,sellerFee,compKey);
+ status(rSeller,201);assert.equal(rSeller.evidenceStatus,"UNVERIFIED_EXTERNAL_REPORT");
+ assert.equal(rSeller.legalFeePaid,false);
+ const rSellerAgain=await api("POST",compPath,SELLER,sellerFee,compKey);
+ status(rSellerAgain,201);assert.equal(rSellerAgain.reportId,rSeller.reportId);
+ status(await api("POST",compPath,SELLER,
+  {...sellerFee,evidenceReference:"TEST-ALTERED-REFERENCE-002"},compKey),
+  409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
+ const splitBuyer={feeId:"TEST-COMBINED-SPLIT",payerSide:"BUYER",amount:120,
+  beneficiaryReference:"TEST-COOP-ACCOUNT-001",evidenceReference:"TEST-SPLIT-BUYER-REPORT-001"};
+ const splitSeller={...splitBuyer,payerSide:"SELLER",amount:80,
+  evidenceReference:"TEST-SPLIT-SELLER-REPORT-001"};
+ const rb=await api("POST",compPath,winner,splitBuyer,"test-split-buyer-fee-001");
+ const rs=await api("POST",compPath,SELLER,splitSeller,"test-split-seller-fee-001");
+ status(rb,201);status(rs,201);assert.notEqual(rb.reportId,rs.reportId);
+ const check={reportId:rSeller.reportId,decision:"CHECK_METADATA",
+  reviewReason:"TEST-METADATA-REVIEW-ONLY",sourceDocumentReference:"TEST-REVIEW-DOC-001"};
+ status(await api("POST",reviewPath,winner,check),403,"FINANCE_REVIEW_ROLE_REQUIRED");
+ status(await api("POST",reviewPath,SELLER,check),403,"FINANCE_REVIEW_ROLE_REQUIRED");
+ const financeKey="test-coop-finance-check-001";
+ const checked=await api("POST",reviewPath,FINANCE,check,financeKey);
+ status(checked,201);assert.equal(checked.decision,"LAB_DOCUMENT_CHECKED_NOT_PAID");
+ assert.equal(checked.legalFeePaid,false);assert.equal(checked.appointmentEnabled,false);
+ const replay=await api("POST",reviewPath,FINANCE,check,financeKey);
+ status(replay,201);assert.equal(replay.reviewId,checked.reviewId);
+ status(await api("POST",reviewPath,FINANCE,{...check,decision:"REJECT_DOCUMENT"},financeKey),
+  409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
+ const rejected=await api("POST",reviewPath,FINANCE,{
+  reportId:rb.reportId,decision:"REJECT_DOCUMENT",
+  reviewReason:"TEST-REFERENCE-MISMATCH",
+  sourceDocumentReference:"TEST-DOCUMENT-REJECT-001"
+ },"test-coop-finance-reject-001");
+ status(rejected,201);assert.equal(rejected.decision,"LAB_DOCUMENT_REJECTED");
+ assert.equal(rejected.legalFeePaid,false);
+ await assert.rejects(async()=>pool.query(
+  "UPDATE market_v3_disposable.lab_fee_component_reports SET amount=amount WHERE report_id=$1",
+  [rSeller.reportId]),/LAB_REVIEW_APPEND_ONLY/);
+ await assert.rejects(async()=>pool.query(
+  "DELETE FROM market_v3_disposable.lab_fee_documentary_reviews WHERE review_id=$1",
+  [checked.reviewId]),/LAB_REVIEW_APPEND_ONLY/);
+ const statuses=await pool.query(
+  "SELECT status FROM market_v3_disposable.lab_fee_policy_snapshots WHERE tenant_id=$1 AND buy_request_id=$2",
+  [T,win.buyRequestId]);
+ assert.ok(statuses.rows.every(x=>!["PAID","WAIVED","REFUNDED"].includes(x.status)));
+ const blocked=await api("GET",appointmentPath,winner);
+ status(blocked,200);assert.equal(blocked.readyForAppointment,false);
+ console.log("PH12_MARKET_V3_FEE_MODES_SPLIT_AND_DOCUMENTARY_REVIEW_NO_LEGAL_PAID_PASS");
  console.log("PH12_MARKET_V3_FEE_POLICY_SNAPSHOT_AND_NO_CUSTODY_PASS");
 
  const labAuthority=await pool.query(`SELECT attestation_type FROM
