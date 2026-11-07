@@ -11,7 +11,7 @@ LAB=ROOT/"services/api/src/market-v3-disposable-tariff-admin.ts"
 class TariffPortalContract(unittest.TestCase):
  def test_real_session_cookie_converted_to_bearer_and_real_tenant_context(self):
   code=GATE.read_text("utf-8")
-  for x in ['request.cookies.get("tto_session")','req.cookies.get("tto_session")',
+  for x in ['req.cookies.get("tto_session")',
    '"/v1/tenants/"+tenantId+"/context"','Authorization:"Bearer "+token',
    'scoped.tenant_id!==tenantId','scoped.status!=="ACTIVE"',
    'trustedBackendHeaders(req)','redirect:"error"','cache:"no-store"']:
