@@ -224,11 +224,11 @@ async function main(){
  // A board resolution's file is a known clean, tenant-scoped CF03 version.
  // The record and claimed signers are still NOT authentic board authority.
  const signedDoc=randomUUID(),fileId=randomUUID();
- const sha=createHash("sha256").update("synthetic-unsigned-board-tariff-2026").digest();
+ const boardHash=createHash("sha256").update("synthetic-unsigned-board-tariff-2026").digest();
  await db.query("INSERT INTO tto.documents(document_id,tenant_id,title,classification,status) VALUES($1,$2,'Synthetic tariff board resolution','RESTRICTED','PUBLISHED')",
     [signedDoc,A]);
  await db.query("INSERT INTO tto.file_objects(file_object_id,tenant_id,storage_key,sha256,classification,scan_status) VALUES($1,$2,$3,$4,'RESTRICTED','CLEAN')",
-    [fileId,A,"ci-board-test-immutable-v1",sha]);
+    [fileId,A,"ci-board-test-immutable-v1",boardHash]);
  await db.query("INSERT INTO tto.document_versions(document_id,version_num,file_object_id,tenant_id) VALUES($1,1,$2,$3)",
     [signedDoc,fileId,A]);
  const boardPath=cm.origin+"/api/tenants/"+A+"/share-market/tariff-board-cases";
@@ -270,7 +270,7 @@ async function main(){
    "one board evidence case per tariff draft");
  const boardList=await status(await fetch(boardPath,{headers:managerCookie}),200,
    "manager reads metadata of tenant-scoped documents");
- ok(boardList.items.length===1&&boardList.items[0].documentSha256===sha.toString("hex")&&
+ ok(boardList.items.length===1&&boardList.items[0].documentSha256===boardHash.toString("hex")&&
     boardList.items[0].signerClaims[0].signerId===APPROVER&&
     boardList.signerAuthorityAuthenticated===false,
     "file digest+version stored but signer authority remains unverified");
