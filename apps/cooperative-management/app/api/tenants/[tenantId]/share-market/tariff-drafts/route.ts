@@ -53,6 +53,11 @@ async function gate(req:NextRequest,tenantId:string){
 }
 async function handler(req:NextRequest,params:Promise<{tenantId:string}>,method:"GET"|"POST"){
  const {tenantId}=await params;
+ // Authentication and verified cooperative management grant are checked
+ // before mutation-specific CSRF policy. Anonymous callers never learn
+ // whether a guessed tenant exists merely from a POST Origin mismatch.
+ const proof=await gate(req,tenantId);
+ if(proof.error)return proof.error;
  if(method==="POST"){
   const origin=req.headers.get("origin");
   if(!origin)return deny(403,"ORIGIN_REQUIRED");
@@ -61,8 +66,6 @@ async function handler(req:NextRequest,params:Promise<{tenantId:string}>,method:
   if(req.headers.get("content-type")?.split(";")[0]!=="application/json")
    return deny(415,"JSON_REQUIRED");
  }
- const proof=await gate(req,tenantId);
- if(proof.error)return proof.error;
  const {base,headers}=proof;
  if(!base||!headers)return deny(503,"TENANT_GATE_UNAVAILABLE");
  let rawBody:string|undefined;
