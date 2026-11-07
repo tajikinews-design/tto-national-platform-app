@@ -160,8 +160,21 @@ export async function handleTariffAdminLab(input:Input):
     [tenant,reportId,requestId]);
    if(!r.rows[0])deny(404,"RECEIPT_REPORT_NOT_FOUND");
    if(r.rows[0].payer_id===actorId)deny(403,"FOUR_EYES_REVIEW_REQUIRED");
-   const checked=await c.query(`SELECT * FROM ${LAB}.lab_coop_receipt_checks
-    WHERE tenant_id=$1 AND report_id=$2`,[tenant,reportId]);
+   // Re-check underlying source and original finance mandate at endorsement
+   // time. A once-valid metadata match never survives revocation.
+   const checked=await c.query(`SELECT r.check_id FROM ${LAB}.lab_coop_receipt_checks r
+    JOIN ${LAB}.lab_coop_statement_sources s ON s.tenant_id=r.tenant_id
+      AND s.source_reference=r.source_reference AND s.source_version=r.source_version
+    JOIN ${LAB}.lab_finance_mandates m ON m.tenant_id=r.tenant_id
+      AND m.reviewer_id=r.reviewer_id AND m.mandate_version=r.mandate_version
+    WHERE r.tenant_id=$1 AND r.report_id=$2
+      AND s.evidence_state='LAB_TEST_ATTESTED'
+      AND s.valid_from<=clock_timestamp() AND s.valid_until>clock_timestamp()
+      AND m.state='LAB_ATTESTED'
+      AND m.valid_from<=clock_timestamp() AND m.valid_until>clock_timestamp()
+      AND m.mandate_version=(SELECT max(z.mandate_version)
+        FROM ${LAB}.lab_finance_mandates z
+        WHERE z.tenant_id=r.tenant_id AND z.reviewer_id=r.reviewer_id)`,[tenant,reportId]);
    if(!checked.rows[0])deny(409,"SOURCE_BOUND_RECEIPT_CHECK_REQUIRED");
    const existing=await c.query(`SELECT * FROM ${LAB}.lab_dual_receipt_endorsements
     WHERE tenant_id=$1 AND actor_id=$2 AND idempotency_key=$3`,[tenant,actorId,key]);
