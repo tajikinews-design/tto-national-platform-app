@@ -16,19 +16,22 @@ export async function ph12BoardCaseProxy(req:NextRequest,tenantId:string,
  if(method==="POST"){
   const origin=req.headers.get("origin");
   if(!origin)return denied(403,"ORIGIN_REQUIRED");
+  // The reverse proxy may normalize req.url to an internal host. Instead of
+  // trusting its dynamic Host, compare to the explicitly configured public
+  // site origin; missing config intentionally disables all board-case POSTs.
+  const configured=process.env.TTO_PH12_PUBLIC_ORIGIN;
+  if(!configured)return denied(503,"TRUSTED_PUBLIC_ORIGIN_UNCONFIGURED");
   try{
-   const actual=new URL(req.url).origin,submitted=new URL(origin).origin;
-   if(submitted!==actual){
-    if(process.env.CI==="true")
-     console.error("PH12_CSRF_TEST_DIAGNOSTIC",submitted,actual,req.headers.get("host"));
+   const expected=new URL(configured),submitted=new URL(origin);
+   const lab=process.env.CI==="true"&&process.env.TTO_LOOPBACK_E2E==="1"&&
+     !process.env.VERCEL&&/^http:\/\/127\.0\.0\.1:[0-9]{4,5}$/.test(configured);
+   if(expected.origin!==configured||expected.username||expected.password||
+      expected.pathname!=="/"||expected.search||expected.hash||
+      (expected.protocol!=="https:"&&!lab)||
+      submitted.origin!==configured||submitted.username||submitted.password||
+      submitted.pathname!=="/"||submitted.search||submitted.hash)
     return denied(403,"CROSS_ORIGIN_DENIED");
-   }
-  }catch{
-   if(process.env.CI==="true")
-    console.error("PH12_CSRF_PARSE_DIAGNOSTIC",String(origin).slice(0,120),
-      String(req.url).slice(0,120),req.headers.get("host"));
-   return denied(403,"CROSS_ORIGIN_DENIED");
-  }
+  }catch{return denied(403,"CROSS_ORIGIN_DENIED");}
   if(req.headers.get("content-type")?.split(";")[0]!=="application/json")
     return denied(415,"JSON_REQUIRED");
  }
