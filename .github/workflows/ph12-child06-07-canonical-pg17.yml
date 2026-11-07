@@ -70,6 +70,7 @@ jobs:
           docker exec -i tto-ph12-0607 psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-market-v3-board-independent-evidence-lab.sql
           docker exec -i tto-ph12-0607 psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-market-v3-postboard-direct-payment-lab.sql
           docker exec -i tto-ph12-0607 psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-market-v3-fee-evidence-lab.sql
+          docker exec -i tto-ph12-0607 psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-market-v3-multi-fees-review-lab.sql
           echo PH12_MARKET_V3_DISPOSABLE_SOURCE_POLICY_AND_BOARD_DRAFT_SCHEMA_CREATED
       - name: Run disposable v3 market HTTP API against actual PG17 with tenancy and concurrency proofs
         env:
