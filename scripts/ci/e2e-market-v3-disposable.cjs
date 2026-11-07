@@ -16,6 +16,7 @@ const REVIEWER="a5555555-5555-4555-8555-555555555555";
 const BOARD_SECRETARY="a9999999-9999-4999-8999-999999999999";
 const BOARD_META_REVIEWER="aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1";
 const FINANCE="aeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+const CEO="abcd0000-1111-4111-8111-111111111111";
 const OUTSIDER="a8888888-8888-4888-8888-888888888888";
 const token=process.env.TTO_MARKET_LAB_SECRET;
 assert.match(token||"",/^[a-f0-9]{64}$/);
@@ -419,6 +420,26 @@ let checks=0;
  const crossKey="test-receipt-crosscheck-0001";
  const crossOkay=await api("POST",crossPath,FINANCE,cross,crossKey);
  status(crossOkay,201);assert.equal(crossOkay.evidenceStatus,"LAB_REFERENCE_MATCHED_NOT_OFFICIAL_PAID");
+ const dualPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-dual-receipt-endorse`;
+ const dualBody={reportId:rSeller.reportId,reference:"TEST-RECEIPT-FINANCE-2026"};
+ status(await api("POST",dualPath,SELLER,dualBody),403,"DUAL_ROLE_REQUIRED");
+ const financeDual=await api("POST",dualPath,FINANCE,dualBody,"test-dual-finance-0001");
+ status(financeDual,201);assert.equal(financeDual.financeReviewed,true);
+ assert.equal(financeDual.ceoReviewed,false);assert.equal(financeDual.officialFeePaid,false);
+ const ceoDual=await api("POST",dualPath,CEO,
+   {...dualBody,reference:"TEST-RECEIPT-CEO-2026"},"test-dual-ceo-0001");
+ status(ceoDual,201);assert.equal(ceoDual.bothLabEndorsementsPresent,true);
+ assert.equal(ceoDual.reviewState,"LAB_DUAL_REVIEW_COMPLETE_NOT_LEGAL_PAID");
+ assert.equal(ceoDual.officialFeePaid,false);
+ status(await api("POST",dualPath,CEO,
+   {...dualBody,reference:"TEST-CHANGED-CEO-REF"},"test-dual-ceo-0001"),
+   409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
+ await pool.query("UPDATE market_v3_disposable.lab_ceo_mandates SET state='LAB_REVOKED' WHERE tenant_id=$1 AND ceo_id=$2",[T,CEO]);
+ status(await api("POST",dualPath,CEO,
+   {...dualBody,reference:"TEST-REVOKED-CEO-REF"}),403,"BOARD_MANDATE_SOURCE_NOT_VERIFIED");
+ await pool.query("UPDATE market_v3_disposable.lab_ceo_mandates SET state='LAB_ATTESTED' WHERE tenant_id=$1 AND ceo_id=$2",[T,CEO]);
+ console.log("PH12_MARKET_V3_FINANCE_CEO_DUAL_ENDORSEMENT_NO_REAL_PAID_PASS");
+
  assert.equal(crossOkay.officialFeePaid,false);assert.equal(crossOkay.appointmentEnabled,false);
  const crossAgain=await api("POST",crossPath,FINANCE,cross,crossKey);
  status(crossAgain,201);assert.equal(crossAgain.checkId,crossOkay.checkId);
@@ -468,6 +489,39 @@ let checks=0;
  // Only synthetic PG17 fixture: the source cap is widened for the synthetic second buyer.
  const losingBuyer=winner===BUYER1?BUYER2:BUYER1;
  await pool.query("UPDATE market_v3_disposable.buyer_entitlement_sources SET cap_shares=50 WHERE tenant_id=$1 AND buyer_id=$2",[T,losingBuyer]);
+ // Admin-configurable tariff replaces any code-level tariff change.
+ // The old trade retains v1 even after a referenced v2 is added in management.
+ const adminTariffs=`/lab/tenants/${T}/test-tariffs`;
+ const tariffPayload={feeId:"TEST-COMBINED-SPLIT",version:2,
+   title:"Test versioned transfer fee from cooperative management",
+   feeType:"COOP_APPROVED_FEE",calculationMode:"FIXED_PLUS_PERCENTAGE",
+   payerMode:"SPLIT",fixedAmount:180,percentBps:100,
+   percentageBasis:"TRADE_GROSS_VALUE",buyerPercent:60,sellerPercent:40,
+   effectiveFrom:"2026-01-01T00:00:00Z",effectiveTo:"2028-01-01T00:00:00Z",
+   legalBasisReference:"TEST-COOP-LEGAL-RULE-2026"};
+ status(await api("POST",adminTariffs,BUYER1,tariffPayload),403,"ROLE_OR_TENANT_DENIED");
+ const draftTariff=await api("POST",adminTariffs,MANAGER,tariffPayload,
+   "test-tariff-admin-version-002");
+ status(draftTariff,201);assert.equal(draftTariff.status,"DRAFT");
+ const tariffList=await api("GET",adminTariffs,MANAGER);
+ status(tariffList,200);assert.equal(tariffList.tariffDrafts.length,1);
+ const boardTariffUrl=`/lab/tenants/${T}/test-tariffs/${draftTariff.draftId}/test-board-record`;
+ const record={resolutionReference:"TEST-BOARD-TARIFF-RES-2026",
+  evidenceReference:"TEST-TARIFF-BOARD-FILE-2026"};
+ status(await api("POST",boardTariffUrl,MANAGER,record),403,"ROLE_OR_TENANT_DENIED");
+ const tariffBoard=await api("POST",boardTariffUrl,BOARD_SECRETARY,record,
+   "test-tariff-board-0001");
+ status(tariffBoard,201);assert.equal(tariffBoard.version,"2");
+ assert.equal(tariffBoard.legalBoardApproval,false);
+ status(await api("POST",boardTariffUrl,BOARD_SECRETARY,record,
+   "test-tariff-board-second"),409,"TARIFF_ALREADY_REFERENCED");
+ const oldTradePolicy=await pool.query(
+   "SELECT source_version,fee_amount FROM market_v3_disposable.lab_fee_policy_snapshots WHERE tenant_id=$1 AND buy_request_id=$2 AND fee_id='TEST-COMBINED-SPLIT'",[T,win.buyRequestId]);
+ assert.equal(oldTradePolicy.rows[0].source_version,"1");
+ assert.equal(oldTradePolicy.rows[0].fee_amount,"200");
+ status(await api("POST",adminTariffs,MANAGER,tariffPayload,
+   "test-tariff-repeated-version"),409,"TARIFF_VERSION_MUST_INCREASE");
+ console.log("PH12_MARKET_V3_TENANT_TARIFF_MANAGEMENT_VERSIONED_BOARD_REFERENCE_PASS");
  // A CUSTOM_APPROVED_BASE source is tenant+offer+fee+version bound.
  // Without a fresh source even a valid buyer cannot create a Trade.
  await pool.query(`INSERT INTO market_v3_disposable.lab_fee_policy_sources
@@ -513,6 +567,12 @@ let checks=0;
  assert.equal(secondFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").fee_amount,"400");
  assert.equal(secondFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").source_version,"2");
  assert.equal(secondFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").status,"UNPAID");
+ const nextSplit=secondFee.feeSnapshots.find(f=>f.fee_id==="TEST-COMBINED-SPLIT");
+ assert.equal(nextSplit.source_version,"2");
+ assert.equal(nextSplit.fee_amount,"380"); // fixed 180 + 1% of 20000
+ const nextAmounts=await pool.query("SELECT buyer_amount,seller_amount FROM market_v3_disposable.lab_fee_policy_snapshots WHERE tenant_id=$1 AND buy_request_id=$2 AND fee_id='TEST-COMBINED-SPLIT'",[T,secondBuy.buyRequestId]);
+ assert.equal(nextAmounts.rows[0].buyer_amount,"228");
+ assert.equal(nextAmounts.rows[0].seller_amount,"152");
  const secondReview=await api("POST",`/lab/tenants/${T}/buy-requests/${secondBuy.buyRequestId}/review`,
    REVIEWER,{verdict:"REFER_TO_BOARD"},"dispute-coop-review-001");
  status(secondReview,200);
