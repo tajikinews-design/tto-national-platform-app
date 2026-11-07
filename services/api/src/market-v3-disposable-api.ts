@@ -130,10 +130,15 @@ export function createDisposableMarketApi(){
           const prior=await c.query(`SELECT coalesce(sum(requested_quantity),0) AS locked FROM ${LAB}.offers
             WHERE tenant_id=$1 AND seller_id=$2 AND status IN ('QUEUED','SCHEDULED','LISTED','RESERVED','COOP_REVIEWED')`,[tenant,actorId]);
           if(BigInt(own.registered_quantity)-BigInt(prior.rows[0].locked)<qty)deny(409,"INSUFFICIENT_AVAILABLE_SHARES");
-          const price=await c.query(`SELECT * FROM ${LAB}.price_source_versions
-            WHERE tenant_id=$1 AND source_id='TEST-PRICE-RULE' AND evidence_state='LAB_TEST_ATTESTED'
-              AND valid_from<=clock_timestamp() AND valid_until>clock_timestamp()
-            ORDER BY version DESC LIMIT 1`,[tenant]);
+          const price=await c.query(`SELECT source.* FROM ${LAB}.price_source_versions source
+            JOIN ${LAB}.market_policy policy ON policy.tenant_id=source.tenant_id
+            WHERE source.tenant_id=$1
+              AND policy.pricing_rule_version=source.source_id||'-v'||source.version::text
+              AND policy.unit_price=source.unit_price
+              AND policy.valuation_valid=true
+              AND source.evidence_state='LAB_TEST_ATTESTED'
+              AND source.valid_from<=clock_timestamp() AND source.valid_until>clock_timestamp()
+            ORDER BY source.version DESC LIMIT 1`,[tenant]);
           if(!price.rows[0]||!price.rows[0].expert_report_reference||
             !price.rows[0].approval_reference)deny(409,"VERSIONED_PRICING_SOURCE_REQUIRED");
           const p=price.rows[0];
