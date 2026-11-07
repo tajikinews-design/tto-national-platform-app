@@ -21,7 +21,7 @@ class TariffPortalContract(unittest.TestCase):
   self.assertNotIn("next/headers",code)
  def test_no_real_trade_fee_activation_or_legal_board_claim(self):
   gate=GATE.read_text("utf-8")
-  for x in ["liveTariffWrites:false","serverSideTariffDraftPersistence:false",
+  for x in ["liveTariffWrites:false","serverSideTariffDraftPersistence:process.env.TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED",
    "officialTariffActivation:false","boardResolutionVerified:false",
    "financeAndCeoMandatesVerified:false","officialFeePaid:false",
    "ownershipTransferEnabled:false","appointmentEnabled:false"]:
@@ -35,14 +35,31 @@ class TariffPortalContract(unittest.TestCase):
    self.assertIn(x,page)
   self.assertIn('tenantContextVerified!==true',page)
   self.assertIn('data.liveTariffWrites!==false',page)
-  self.assertIn('data.serverSideTariffDraftPersistence!==false',page)
-  self.assertIn('disabled={!gate}',page)
-  self.assertIn('<form onSubmit={addDraft}',page)
+  self.assertIn('typeof data.serverSideTariffDraftPersistence!=="boolean"',page)
+  self.assertIn('disabled={!gate||busy}',page)
+  self.assertIn('<form onSubmit={e=>void addDraft(e)}',page)
   self.assertIn("setDrafts(old=>[...old",page)
   self.assertNotIn("localStorage",page)
   self.assertNotIn("sessionStorage",page)
-  self.assertNotIn('fetch("/api/tenants/"+encodeURIComponent(tenantId),{method:"POST"',page)
+  self.assertIn('"/share-market/tariff-drafts"',page)
   self.assertIn('SELF_PREPARED_NOT_SUBMITTED',page)
+ def test_persistent_draft_store_does_not_grant_live_fee_authority(self):
+  source=(ROOT/"database/migrations/0047_ph12_tariff_drafts_private.sql").read_text("utf-8")
+  bff=(ROOT/"apps/cooperative-management/app/api/tenants/[tenantId]/share-market/tariff-drafts/route.ts").read_text("utf-8")
+  nest=(ROOT/"services/api/src/module.ts").read_text("utf-8")
+  for field in ["DRAFT_UNVERIFIED","FORCE ROW LEVEL SECURITY","ph12_tariff_draft_immutable",
+    "has_verified_authority","ph12_create_tariff_draft","ph12_list_tariff_drafts",
+    "REVOKE ALL ON tto.ph12_tariff_drafts FROM PUBLIC,tto_app"]:
+   self.assertIn(field,source)
+  for field in ["TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED","trustedBackendHeaders",
+   '"/v1/me/tenant-options"','roleManagementAuthority===true',
+   "Origin","DRAFT_UNVERIFIED","feeActivated!==false",
+   "realPaymentConfirmed!==false","legalShareTransfer!==false"]:
+   self.assertIn(field,bff)
+  self.assertNotIn("LAB_TEST_ATTESTED",source)
+  self.assertIn("Ph12TariffDraftController",nest)
+  self.assertIn("PH12_TARIFF_DRAFT_INTAKE_DISABLED",nest)
+  self.assertIn("feeActivated:false",nest)
  def test_product_controls_versioning_board_refs_and_two_signers(self):
   page=PAGE.read_text("utf-8");lab=LAB.read_text("utf-8");home=HOME.read_text("utf-8")
   for x in ["boardResolutionReference","boardEvidenceReference",
