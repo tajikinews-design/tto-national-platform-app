@@ -352,7 +352,7 @@ let checks=0;
  const seen=new Map(h.rows.map(x=>[x.actor_id,Number(x.registered_quantity)]));
  assert.equal(seen.get(SELLER),100);assert.equal(seen.get(BUYER1),10);assert.equal(seen.get(BUYER2),10);
  const trades=await pool.query("SELECT count(*)::integer AS n FROM market_v3_disposable.buy_requests");
- assert.equal(trades.rows[0].n,1);
+ assert.equal(trades.rows[0].n,2); // two synthetic deals: one received and one disputed
  const reviews=await pool.query("SELECT state FROM market_v3_disposable.buy_requests WHERE buy_request_id=$1",[win.buyRequestId]);
  assert.equal(reviews.rows[0].state,"BOARD_APPROVAL_PENDING");
  console.log("PH12_MARKET_V3_ISOLATED_HTTP_QUEUE_BUY_COOP_PASS="+checks);
