@@ -307,19 +307,41 @@ export function createDisposableMarketApi(){
             [randomUUID(),tenant,offerId,actorId,qty.toString(),key]);
           const gross=BigInt(o.rows[0].requested_quantity)*BigInt(o.rows[0].unit_price);
           for(const fee of feeSnapshots){
+            // CUSTOM_APPROVED_BASE is never calculated from client-provided data.
+            // Resolve the latest tenant+offer+fee source and FAIL CLOSED if revoked,
+            // stale, missing or unverified. Old versions never become fallback.
+            let customSource:null|{base_amount:string;source_version:string;
+              source_reference:string}=null;
+            if(fee.percentage_basis==="CUSTOM_APPROVED_BASE"){
+              const source=await c.query(`SELECT base_amount,source_version,
+                source_reference,evidence_state,valid_from,valid_until
+                FROM ${LAB}.lab_custom_fee_base_sources
+                WHERE tenant_id=$1 AND offer_id=$2 AND fee_id=$3
+                ORDER BY source_version DESC LIMIT 1`,[tenant,offerId,fee.fee_id]);
+              const x=source.rows[0];
+              if(!x||x.evidence_state!=="LAB_TEST_ATTESTED"||
+                 new Date(x.valid_from).getTime()>Date.now()||
+                 new Date(x.valid_until).getTime()<=Date.now())
+                deny(409,"CUSTOM_FEE_BASE_SOURCE_NOT_VERIFIED");
+              customSource=x;
+            }
             let computed;
-            try{computed=calculateDisposableFee(fee as unknown as Parameters<typeof calculateDisposableFee>[0],gross);}
+            try{computed=calculateDisposableFee(fee as unknown as Parameters<typeof calculateDisposableFee>[0],gross,
+              customSource===null?null:BigInt(customSource.base_amount));}
             catch{deny(409,"UNSUPPORTED_OR_UNVERIFIED_FEE_RULE");}
             await c.query(`INSERT INTO ${LAB}.lab_fee_policy_snapshots
               (tenant_id,buy_request_id,fee_id,source_version,category,payer_mode,
                fee_amount,approval_reference,legal_basis_reference,
-               buyer_amount,seller_amount,calculation_mode,percentage_rate_bps)
-              VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+               buyer_amount,seller_amount,calculation_mode,percentage_rate_bps,
+               verified_custom_base_amount,custom_base_source_version,custom_base_source_reference)
+              VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
               [tenant,b.rows[0].buy_request_id,fee.fee_id,fee.source_version,
                 fee.legal_fee_type,fee.payer_mode,computed.total.toString(),
                 fee.approval_reference,fee.legal_basis_reference,
                 computed.buyerAmount.toString(),computed.sellerAmount.toString(),
-                fee.calculation_mode,fee.percentage_rate_bps]);
+                fee.calculation_mode,fee.percentage_rate_bps,
+                customSource?.base_amount??null,customSource?.source_version??null,
+                customSource?.source_reference??null]);
           }
           await c.query(`UPDATE ${LAB}.offers SET status='RESERVED' WHERE offer_id=$1`,[offerId]);
           return {buyRequestId:b.rows[0].buy_request_id,state:b.rows[0].state,idempotent:false};
