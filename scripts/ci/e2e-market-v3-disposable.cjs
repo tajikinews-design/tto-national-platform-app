@@ -400,26 +400,26 @@ let checks=0;
  status(await api("POST",feeDocReviewPath,winner,check),403,"FINANCE_REVIEW_ROLE_REQUIRED");
  status(await api("POST",feeDocReviewPath,SELLER,check),403,"FINANCE_REVIEW_ROLE_REQUIRED");
  const financeKey="test-coop-finance-check-001";
- const checked=await api("POST",feeDocReviewPath,FINANCE,check,financeKey);
- status(checked,201);assert.equal(checked.decision,"LAB_DOCUMENT_CHECKED_NOT_PAID");
- assert.equal(checked.legalFeePaid,false);assert.equal(checked.appointmentEnabled,false);
- const replay=await api("POST",feeDocReviewPath,FINANCE,check,financeKey);
- status(replay,201);assert.equal(replay.reviewId,checked.reviewId);
+ const feeChecked=await api("POST",feeDocReviewPath,FINANCE,check,financeKey);
+ status(feeChecked,201);assert.equal(feeChecked.decision,"LAB_DOCUMENT_CHECKED_NOT_PAID");
+ assert.equal(feeChecked.legalFeePaid,false);assert.equal(feeChecked.appointmentEnabled,false);
+ const feeReplay=await api("POST",feeDocReviewPath,FINANCE,check,financeKey);
+ status(feeReplay,201);assert.equal(feeReplay.reviewId,feeChecked.reviewId);
  status(await api("POST",feeDocReviewPath,FINANCE,{...check,decision:"REJECT_DOCUMENT"},financeKey),
   409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
- const rejected=await api("POST",feeDocReviewPath,FINANCE,{
+ const feeRejected=await api("POST",feeDocReviewPath,FINANCE,{
   reportId:rb.reportId,decision:"REJECT_DOCUMENT",
   reviewReason:"TEST-REFERENCE-MISMATCH",
   sourceDocumentReference:"TEST-DOCUMENT-REJECT-001"
  },"test-coop-finance-reject-001");
- status(rejected,201);assert.equal(rejected.decision,"LAB_DOCUMENT_REJECTED");
- assert.equal(rejected.legalFeePaid,false);
+ status(feeRejected,201);assert.equal(feeRejected.decision,"LAB_DOCUMENT_REJECTED");
+ assert.equal(feeRejected.legalFeePaid,false);
  await assert.rejects(async()=>pool.query(
   "UPDATE market_v3_disposable.lab_fee_component_reports SET amount=amount WHERE report_id=$1",
   [rSeller.reportId]),/LAB_REVIEW_APPEND_ONLY/);
  await assert.rejects(async()=>pool.query(
   "DELETE FROM market_v3_disposable.lab_fee_documentary_reviews WHERE review_id=$1",
-  [checked.reviewId]),/LAB_REVIEW_APPEND_ONLY/);
+  [feeChecked.reviewId]),/LAB_REVIEW_APPEND_ONLY/);
  const statuses=await pool.query(
   "SELECT status FROM market_v3_disposable.lab_fee_policy_snapshots WHERE tenant_id=$1 AND buy_request_id=$2",
   [T,win.buyRequestId]);
