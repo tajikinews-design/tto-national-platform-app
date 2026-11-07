@@ -9,6 +9,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { timingSafeEqual, randomUUID, createHash } from "node:crypto";
 import { Pool, type PoolClient } from "pg";
 import {handlePostBoardLab,PostBoardLabError} from "./market-v3-disposable-postboard";
+import {handleFeeEvidenceLab} from "./market-v3-disposable-fees";
 
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const LAB="market_v3_disposable";
@@ -444,6 +445,8 @@ export function createDisposableMarketApi(){
           legalBoardApprovalGranted:false,sellerContinuationEnabled:false,
           legalOwnershipChanged:false});
       }
+      const feeEvidence=await handleFeeEvidenceLab({req,parts,tenant,actorId,key,pool,parseBody:()=>body(req)});
+      if(feeEvidence)return json(res,feeEvidence.status,feeEvidence.value);
       const postBoard=await handlePostBoardLab({
         req,parts,tenant,actorId,key,pool,parseBody:()=>body(req)
       });
