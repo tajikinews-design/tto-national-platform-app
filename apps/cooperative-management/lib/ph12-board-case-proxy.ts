@@ -23,7 +23,12 @@ export async function ph12BoardCaseProxy(req:NextRequest,tenantId:string,
      console.error("PH12_CSRF_TEST_DIAGNOSTIC",submitted,actual,req.headers.get("host"));
     return denied(403,"CROSS_ORIGIN_DENIED");
    }
-  }catch{return denied(403,"CROSS_ORIGIN_DENIED");}
+  }catch{
+   if(process.env.CI==="true")
+    console.error("PH12_CSRF_PARSE_DIAGNOSTIC",String(origin).slice(0,120),
+      String(req.url).slice(0,120),req.headers.get("host"));
+   return denied(403,"CROSS_ORIGIN_DENIED");
+  }
   if(req.headers.get("content-type")?.split(";")[0]!=="application/json")
     return denied(415,"JSON_REQUIRED");
  }
