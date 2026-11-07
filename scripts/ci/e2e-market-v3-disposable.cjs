@@ -29,10 +29,10 @@ let checks=0;
     ...(method==="POST"?{body:JSON.stringify(body||{})}:{})
    });
    const j=await r.json();
-   checks++;return {status:r.status,...j};
+   checks++;return {httpStatus:r.status,...j};
  }
  function status(result,expected,code=undefined){
-   assert.equal(result.status,expected,JSON.stringify(result));
+   assert.equal(result.httpStatus,expected,JSON.stringify(result));
    if(code)assert.equal(result.code,code);
  }
  // Reject requests without correct test-secret, with no fallback to a browser claim.
@@ -66,9 +66,9 @@ let checks=0;
    api("POST",buyPath,BUYER1,{quantity:10},"buy-race-00000000001"),
    api("POST",buyPath,BUYER2,{quantity:10},"buy-race-00000000002")
  ]);
- assert.deepEqual(races.map(x=>x.status).sort(),[201,409]);
- assert.equal(races.filter(x=>x.status===201).length,1);
- const winnerIndex=races[0].status===201?0:1;
+ assert.deepEqual(races.map(x=>x.httpStatus).sort(),[201,409]);
+ assert.equal(races.filter(x=>x.httpStatus===201).length,1);
+ const winnerIndex=races[0].httpStatus===201?0:1;
  const winner=winnerIndex===0?BUYER1:BUYER2;
  const winKey=winnerIndex===0?"buy-race-00000000001":"buy-race-00000000002";
  const win=races[winnerIndex];
