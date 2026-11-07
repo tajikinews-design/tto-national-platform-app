@@ -2055,5 +2055,50 @@ export class Ph12TariffBoardDocumentController {
  }
 }
 
-@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController,Ph12TariffDraftController,Ph12TariffBoardDocumentController],providers:[ApiIrSmsOtpProvider]})
+
+/** PH12 legal source intake: no legal approval and no ACTIVE transition. */
+@Controller("v1/tenants")
+export class Ph12BoardLegalSourceController {
+ constructor(private readonly db:Database){}
+ @Post(":tenantId/ph12/share-market/tariff-board-cases/:caseId/legal-source-checks")
+ @HttpCode(201)
+ async record(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("caseId",new ParseUUIDPipe()) caseId:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"PH12_LEGAL_SOURCE_INTAKE_DISABLED"});
+  const fields=["requestKey","sourceCategory","sourceReference","sourceVersion",
+   "sha256","observedAt","expiresAt","result"];
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+    Object.keys(v).some(k=>!fields.includes(k))||
+    fields.some(k=>typeof v[k]!=="string"))
+   throw new BadRequestException({code:"PH12_LEGAL_SOURCE_INPUT_INVALID"});
+  if(!["PENDING_OFFICIAL_VERIFICATION","SOURCE_REJECTED"].includes(v.result as string))
+   throw new BadRequestException({code:"PH12_LEGAL_SOURCE_UNAPPROVED_STATUS"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+     "SELECT * FROM tto.ph12_record_board_legal_source_check($1::uuid,$2::text,$3::text,$4::text,$5::text,$6::timestamptz,$7::timestamptz,$8::text,$9::uuid)",
+     [caseId,v.sourceCategory,v.sourceReference,v.sourceVersion,v.sha256,
+      v.observedAt,v.expiresAt,v.result,v.requestKey]);
+    const row=q.rows[0];
+    return {tenantId:tenant,caseId,checkId:row.check_id,
+     state:row.verification_state,replayed:row.replayed,
+     signerIdentityAuthenticated:false,signerAuthorityAuthenticated:false,
+     boardLegallyApproved:false,tariffActivated:false,
+     officialFeePaid:false,legalShareTransfer:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"PH12_LEGAL_SOURCE_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"PH12_LEGAL_SOURCE_REPLAY_CONFLICT"});
+   if(code==="22023"||code==="22007"||code==="22P02")
+    throw new BadRequestException({code:"PH12_LEGAL_SOURCE_INPUT_INVALID"});
+   throw e;
+  }
+ }
+}
+
+@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController,Ph12TariffDraftController,Ph12TariffBoardDocumentController,Ph12BoardLegalSourceController],providers:[ApiIrSmsOtpProvider]})
 export class AppModule {}
