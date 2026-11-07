@@ -2,6 +2,8 @@ name: PH12 board legal source PG17 & API compile (NO DEPLOY)
 on:
   push:
     branches: [feat/ph12-board-legal-gate-hold-20261107]
+  pull_request:
+    branches: [feat/ph12-child06-child07-canonical-failclosed-20261106]
   workflow_dispatch:
 permissions:
   contents: read
