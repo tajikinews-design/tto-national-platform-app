@@ -3,6 +3,16 @@
 -- LAB ONLY: no statutory validation, real accounts, real funds or legal PAID.
 \set ON_ERROR_STOP on
 BEGIN;
+ALTER TABLE market_v3_disposable.lab_fee_policy_snapshots
+ ADD COLUMN verified_custom_base_amount bigint,
+ ADD COLUMN custom_base_source_version bigint,
+ ADD COLUMN custom_base_source_reference text,
+ ADD CONSTRAINT custom_base_source_snapshot_consistent CHECK (
+   (verified_custom_base_amount IS NULL AND custom_base_source_version IS NULL
+    AND custom_base_source_reference IS NULL) OR
+   (verified_custom_base_amount>0 AND custom_base_source_version>0
+    AND length(custom_base_source_reference)>=8)
+ );
 CREATE TABLE market_v3_disposable.lab_custom_fee_base_sources(
  tenant_id uuid NOT NULL,
  offer_id uuid NOT NULL,
