@@ -69,7 +69,7 @@ export async function GET(req:NextRequest,
     tenantContextVerified:true,tenantId,
     draftPreparationAllowed:true,
     // These flags cannot be changed by the browser or fake board document.
-    serverSideTariffDraftPersistence:false,
+    serverSideTariffDraftPersistence:process.env.TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED==="true",
     liveTariffWrites:false,officialTariffActivation:false,
     boardResolutionVerified:false,financeAndCeoMandatesVerified:false,
     officialFeePaid:false,appointmentEnabled:false,ownershipTransferEnabled:false,
