@@ -348,7 +348,8 @@ let checks=0;
    SELECT tenant_id,fee_id,2,fee_title,legal_fee_type,calculation_mode,
     payer_mode,400,'TEST-COOP-RESOLUTION-v2',legal_basis_reference,
     valid_from,valid_until,evidence_status
-   FROM market_v3_disposable.lab_fee_policy_sources WHERE tenant_id=$1 AND source_version=1`,[T]);
+   FROM market_v3_disposable.lab_fee_policy_sources
+   WHERE tenant_id=$1 AND source_version=1 AND fee_id='TEST-COOP-TRANSFER-ADMIN'`,[T]);
  const oldFeeStill=await api("GET",feePath,winner);
  status(oldFeeStill,200);assert.equal(oldFeeStill.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").fee_amount,"300");
  assert.equal(oldFeeStill.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").source_version,"1");
