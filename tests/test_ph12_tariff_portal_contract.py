@@ -53,7 +53,7 @@ class TariffPortalContract(unittest.TestCase):
    self.assertIn(field,source)
   for field in ["TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED","trustedBackendHeaders",
    '"/v1/me/tenant-options"','roleManagementAuthority===true',
-   "Origin","DRAFT_UNVERIFIED","feeActivated!==false",
+   'req.headers.get("origin")',"DRAFT_UNVERIFIED","feeActivated!==false",
    "realPaymentConfirmed!==false","legalShareTransfer!==false"]:
    self.assertIn(field,bff)
   self.assertNotIn("LAB_TEST_ATTESTED",source)
