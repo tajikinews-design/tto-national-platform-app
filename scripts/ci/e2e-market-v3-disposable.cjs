@@ -176,6 +176,116 @@ let checks=0;
   "UPDATE market_v3_disposable.board_evidence_metadata_reviews SET outcome=outcome WHERE check_id=$1",
   [checked.checkId]),/LAB_REVIEW_APPEND_ONLY/);
  console.log("PH12_MARKET_V3_BOARD_INDEPENDENT_METADATA_ONLY_NO_LEGAL_SIGNOFF_PASS");
+
+ // Sign a wholly synthetic board fixture with an ephemeral Ed25519 key.
+ // The test key is created in this runner, NEVER stored in source or legal docs.
+ const {generateKeyPairSync,sign}=require("node:crypto");
+ const {syntheticBoardSigningMessage}=
+   require("../../services/api/dist/market-v3-disposable-postboard.js");
+ const pair=generateKeyPairSync("ed25519");
+ const labSourceId="TEST-BOARD-AUTHORITY";
+ const labSourceVersion=1;
+ await pool.query(`INSERT INTO market_v3_disposable.lab_source_keys
+    (tenant_id,source_id,source_version,public_key_pem,valid_from,valid_until,source_status)
+    VALUES($1,$2,$3,$4,'2026-01-01','2028-01-01','LAB_TEST_ONLY')`,
+    [T,labSourceId,labSourceVersion,
+     pair.publicKey.export({type:"spki",format:"pem"}).toString()]);
+ const signedMessage=syntheticBoardSigningMessage({
+   tenantId:T,requestId:win.buyRequestId,decisionId:draft.decisionId,
+   sourceId:labSourceId,sourceVersion:labSourceVersion,
+   meetingReference:decision.meetingReference,
+   resolutionReference:decision.resolutionReference,
+   attachmentReference:decision.attachmentReference,
+   legalBasisReference:decision.legalBasisReference,
+   decisionDate:decision.decisionDate,decision:decision.decision
+ });
+ const signature=sign(null,signedMessage,pair.privateKey).toString("base64");
+ const signedPayload={sourceId:labSourceId,sourceVersion:labSourceVersion,signature};
+ const attestPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-board-source-attestation`;
+ const continuePath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-seller-continuation`;
+ status(await api("POST",continuePath,SELLER,{accept:true}),409,
+   "VALID_LAB_BOARD_SOURCE_REQUIRED");
+ status(await api("POST",attestPath,BOARD_SECRETARY,signedPayload),403,"ROLE_OR_TENANT_DENIED");
+ const wrongSignature=sign(null,Buffer.from("tampered"),pair.privateKey).toString("base64");
+ status(await api("POST",attestPath,BOARD_META_REVIEWER,
+   {...signedPayload,signature:wrongSignature}),409,"SYNTHETIC_SIGNATURE_NOT_VERIFIED");
+ status(await api("POST",attestPath,BOARD_META_REVIEWER,
+   {...signedPayload,sourceVersion:2}),409,"TRUSTED_LAB_SOURCE_UNAVAILABLE");
+ const attestKey="synthetic-board-attest-001";
+ const attest=await api("POST",attestPath,BOARD_META_REVIEWER,signedPayload,attestKey);
+ status(attest,201);assert.equal(attest.attestationType,"LAB_SIGNED_SOURCE_TEST_ONLY");
+ assert.equal(attest.legalBoardApprovalGranted,false);
+ const attRepeat=await api("POST",attestPath,BOARD_META_REVIEWER,signedPayload,attestKey);
+ status(attRepeat,201);assert.equal(attRepeat.attestationId,attest.attestationId);
+ status(await api("POST",attestPath,BOARD_META_REVIEWER,
+   {...signedPayload,signature:wrongSignature},attestKey),409,
+   "SYNTHETIC_SIGNATURE_NOT_VERIFIED");
+ const payInstructions=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-payment-instructions`;
+ status(await api("GET",payInstructions,winner),403,"BUYER_NOT_AUTHORIZED_FOR_TRADE");
+ status(await api("POST",continuePath,SELLER_UNPAID,{accept:true}),403,"SELLER_NOT_OWNER");
+ status(await api("POST",continuePath,SELLER,{accept:false}),422,
+   "EXPLICIT_SELLER_CONTINUATION_REQUIRED");
+ const continuationKey="seller-test-continue-0001";
+ const cont=await api("POST",continuePath,SELLER,{accept:true},continuationKey);
+ status(cont,201);assert.equal(cont.state,"PAYMENT_PENDING");
+ assert.equal(cont.customerCanOnlyPaySellerExternally,true);
+ assert.equal(cont.legalBoardApprovalGranted,false);
+ const contRepeat=await api("POST",continuePath,SELLER,{accept:true},continuationKey);
+ status(contRepeat,201);assert.equal(contRepeat.idempotent,true);
+ status(await api("GET",payInstructions,SELLER),403,"ROLE_OR_TENANT_DENIED");
+ status(await api("GET",payInstructions,winnerIndex===0?BUYER2:BUYER1),403,
+   "BUYER_NOT_AUTHORIZED_FOR_TRADE");
+ const instructions=await api("GET",payInstructions,winner);
+ status(instructions,200);
+ assert.equal(instructions.bankReference,"TEST-BANK-SELLER-001");
+ assert.equal(instructions.expectedGross,"10000");
+ assert.equal(instructions.directBuyerToSellerOnly,true);
+ // Buyer reports EXTERNAL money movement as unverified evidence; the service does not pay.
+ const paymentPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-payment-report`;
+ const evidence={amount:10000,bankLabel:"TEST-EXTERNAL-BANK",
+   trackingReference:"TEST-TRACK-2026-0001",
+   receiptReference:"TEST-RECEIPT-2026-0001",paymentDate:"2026-11-07"};
+ status(await api("POST",paymentPath,SELLER,evidence),403,"ROLE_OR_TENANT_DENIED");
+ status(await api("POST",paymentPath,winner,{...evidence,amount:9999}),409,
+   "REPORTED_AMOUNT_NOT_TRADE_GROSS");
+ const receiptPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-seller-receipt`;
+ status(await api("POST",receiptPath,SELLER,{response:"RECEIVED_FULL"}),409,
+   "SELLER_CONFIRMATION_NOT_READY");
+ const paymentKey="payment-evidence-000001";
+ const rep=await api("POST",paymentPath,winner,evidence,paymentKey);
+ status(rep,201);assert.equal(rep.state,"PAYMENT_REPORTED");
+ assert.equal(rep.receiptNotYetConfirmed,true);
+ const repRepeat=await api("POST",paymentPath,winner,evidence,paymentKey);
+ status(repRepeat,201);assert.equal(repRepeat.reportId,rep.reportId);
+ status(await api("POST",paymentPath,winner,
+   {...evidence,receiptReference:"TEST-DIFFERENT-RECEIPT-0001"},paymentKey),
+   409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
+ status(await api("POST",receiptPath,winner,{response:"RECEIVED_FULL"}),403,
+   "ROLE_OR_TENANT_DENIED");
+ const receiptKey="seller-receipt-test-00001";
+ const received=await api("POST",receiptPath,SELLER,{response:"RECEIVED_FULL"},receiptKey);
+ status(received,201);assert.equal(received.state,"PAYMENT_CONFIRMED");
+ assert.equal(received.mandatoryFeesResolved,false);
+ assert.equal(received.readyForOfficialRegister,false);
+ assert.equal(received.realPaymentProcessed,false);
+ const receivedAgain=await api("POST",receiptPath,SELLER,{response:"RECEIVED_FULL"},receiptKey);
+ status(receivedAgain,201);assert.equal(receivedAgain.receiptId,received.receiptId);
+ status(await api("POST",receiptPath,SELLER,{response:"NOT_RECEIVED"},receiptKey),
+   409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
+ const trueState=await pool.query(`SELECT state,bank_reference,expected_gross
+   FROM market_v3_disposable.lab_trade_progress
+   WHERE tenant_id=$1 AND buy_request_id=$2`,[T,win.buyRequestId]);
+ assert.equal(trueState.rows[0].state,"PAYMENT_CONFIRMED");
+ assert.equal(trueState.rows[0].expected_gross,"10000");
+ const neverLegal=await pool.query(`SELECT evidence_status,verified_by
+   FROM market_v3_disposable.board_decision_drafts WHERE decision_id=$1`,[draft.decisionId]);
+ assert.equal(neverLegal.rows[0].evidence_status,"UNVERIFIED_DRAFT");
+ assert.equal(neverLegal.rows[0].verified_by,null);
+ const labAuthority=await pool.query(`SELECT attestation_type FROM
+   market_v3_disposable.lab_board_attestations WHERE buy_request_id=$1`,[win.buyRequestId]);
+ assert.equal(labAuthority.rows[0].attestation_type,"SYNTHETIC_SIGNATURE_TEST_NOT_LEGAL");
+ console.log("PH12_MARKET_V3_TEST_ONLY_ED25519_SOURCE_AND_DIRECT_PAYMENT_EVIDENCE_PASS");
+
  // Verification state and pricing must be source-derived; fake or expired source must fail.
  await pool.query("UPDATE market_v3_disposable.price_source_versions SET evidence_state='UNVERIFIED' WHERE source_id='TEST-PRICE-RULE'");
  status(await api("POST",sellPath,SELLER,{quantity:1,saleMode:"FULL_OFFER"},
