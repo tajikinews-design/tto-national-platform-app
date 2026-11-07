@@ -1,0 +1,50 @@
+name: PH12 board legal source PG17 & API compile (NO DEPLOY)
+on:
+  push:
+    branches: [feat/ph12-board-legal-gate-hold-20261107]
+  pull_request:
+    branches: [feat/ph12-child06-child07-canonical-failclosed-20261106]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ph12-disposable-pg17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Build API type safety
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.18.0
+          pnpm install --frozen-lockfile
+          pnpm --dir services/api typecheck
+      - name: Start isolated PG17
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name tto-ph12-legal -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto postgres:17-alpine
+          for i in $(seq 1 60); do
+            if docker exec tto-ph12-legal psql -U postgres -d tto -Atqc "SELECT 1" >/dev/null 2>&1; then break;fi
+            sleep 1
+          done
+          docker exec tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 -Atqc "SELECT 1"
+      - name: Replay all migrations including 0049 and 0050
+        run: |
+          set -euo pipefail
+          count=0
+          for f in database/migrations/[0-9][0-9][0-9][0-9]*.sql; do
+            docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" >/dev/null
+            count=$((count+1))
+          done
+          test "$count" -ge 72
+          docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-board-legal-source-checks-hold.sql
+          docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-board-legal-source-functions-adversarial.sql
+          echo "PH12_LEGAL_SOURCE_DISPOSABLE_PG17_SCHEMA_PASS count=$count"
+      - name: Destroy isolated PG17
+        if: always()
+        run: docker rm -f tto-ph12-legal || true
