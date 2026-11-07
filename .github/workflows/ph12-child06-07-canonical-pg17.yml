@@ -62,6 +62,23 @@ jobs:
           done
           test "$count" -ge 68 || { echo "PH12_NEW_SCHEMA_NOT_INCLUDED";exit 1; }
           echo "PH12_CHILD0607_DISPOSABLE_PG17_68_MIGRATIONS_PASS=$count"
+      - name: Prepare disposable market-v3 SQL fixture (NEVER a production migration)
+        run: |
+          set -euo pipefail
+          docker exec -i tto-ph12-0607 psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-market-v3-disposable-fixture.sql
+          echo PH12_MARKET_V3_DISPOSABLE_SCHEMA_CREATED
+      - name: Run disposable v3 market HTTP API against actual PG17 with tenancy and concurrency proofs
+        env:
+          CI: "true"
+          TTO_MARKET_DISPOSABLE_LAB: "1"
+          VERCEL: ""
+          TTO_PRODUCTION_DB_URL: ""
+          DATABASE_URL: ""
+        run: |
+          set -euo pipefail
+          export TTO_MARKET_LAB_SECRET="$(openssl rand -hex 32)"
+          timeout --signal=TERM --kill-after=5s 180s node scripts/ci/e2e-market-v3-disposable.cjs
+          echo PH12_MARKET_V3_DISPOSABLE_HTTP_COMPLETE_NOT_LEGAL_ACCEPTANCE
       - name: Source contract positive and denial tests, rollback all synthetic transactions
         run: |
           set -euo pipefail
