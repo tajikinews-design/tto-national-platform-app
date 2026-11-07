@@ -16,8 +16,14 @@ export async function ph12BoardCaseProxy(req:NextRequest,tenantId:string,
  if(method==="POST"){
   const origin=req.headers.get("origin");
   if(!origin)return denied(403,"ORIGIN_REQUIRED");
-  try{if(new URL(origin).origin!==new URL(req.url).origin)
-    return denied(403,"CROSS_ORIGIN_DENIED");}catch{return denied(403,"CROSS_ORIGIN_DENIED");}
+  try{
+   const actual=new URL(req.url).origin,submitted=new URL(origin).origin;
+   if(submitted!==actual){
+    if(process.env.CI==="true")
+     console.error("PH12_CSRF_TEST_DIAGNOSTIC",submitted,actual,req.headers.get("host"));
+    return denied(403,"CROSS_ORIGIN_DENIED");
+   }
+  }catch{return denied(403,"CROSS_ORIGIN_DENIED");}
   if(req.headers.get("content-type")?.split(";")[0]!=="application/json")
     return denied(415,"JSON_REQUIRED");
  }
