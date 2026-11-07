@@ -221,6 +221,99 @@ async function main(){
  await status(await postDraft(draftOther,{requestKey:randomUUID(),tariff}),
    403,"cross-cooperative draft creation denied");
  console.log("PH12_REAL_SESSION_TARIFF_DRAFT_PG17_PERSISTENCE_AND_FAILCLOSED_PASS");
+ // A board resolution's file is a known clean, tenant-scoped CF03 version.
+ // The record and claimed signers are still NOT authentic board authority.
+ const signedDoc=randomUUID(),fileId=randomUUID();
+ const sha=createHash("sha256").update("synthetic-unsigned-board-tariff-2026").digest();
+ await db.query("INSERT INTO tto.documents(document_id,tenant_id,title,classification,status) VALUES($1,$2,'Synthetic tariff board resolution','RESTRICTED','PUBLISHED')",
+    [signedDoc,A]);
+ await db.query("INSERT INTO tto.file_objects(file_object_id,tenant_id,storage_key,sha256,classification,scan_status) VALUES($1,$2,$3,$4,'RESTRICTED','CLEAN')",
+    [fileId,A,"ci-board-test-immutable-v1",sha]);
+ await db.query("INSERT INTO tto.document_versions(document_id,version_num,file_object_id,tenant_id) VALUES($1,1,$2,$3)",
+    [signedDoc,fileId,A]);
+ const boardPath=cm.origin+"/api/tenants/"+A+"/share-market/tariff-board-cases";
+ const foreignBoardPath=cm.origin+"/api/tenants/"+B+"/share-market/tariff-board-cases";
+ const reviewerCookie={Cookie:"tto_session="+tokenMap.get(REVIEWER)};
+ const boardSubmission={
+    requestKey:randomUUID(),draftId:saved.draftId,documentId:signedDoc,
+    documentVersion:1,resolutionNumber:"TEST-BOARD-UNSIGNED-001",
+    resolutionDate:"2026-11-01",effectiveFrom:"2026-11-07",
+    effectiveUntil:"2027-11-07",
+    signerClaims:[{signerId:APPROVER,claimedRole:"BOARD_CHAIR"}]
+ };
+ const boardPost=(url,body,headers=managerCookie)=>
+   fetch(url,{method:"POST",headers:{...headers,Origin:origin,
+     "Content-Type":"application/json"},body:JSON.stringify(body),cache:"no-store"});
+ await status(await fetch(boardPath),401,"anonymous cannot list board cases");
+ await status(await fetch(foreignBoardPath,{headers:managerCookie}),403,"cross-tenant board cases denied");
+ await status(await boardPost(boardPath,boardSubmission,{Authorization:"Bearer "+tokenMap.get(MANAGER)}),401,
+   "session cookie required for board evidence intake");
+ await status(await boardPost(boardPath,
+   {...boardSubmission,documentId:randomUUID()}),403,"untrusted board source document denied");
+ await status(await boardPost(boardPath,
+   {...boardSubmission,resolutionNumber:"TEST-MISMATCH-NO-LEGAL-1"}),400,
+   "board resolution reference must match stored draft");
+ const submit=await status(await boardPost(boardPath,boardSubmission),201,
+   "manager recorded source-bound document version hash");
+ ok(submit.status==="DOCUMENT_INTAKE_AUTHORITY_UNVERIFIED"&&
+    submit.documentMetadataSourceBound===true&&
+    submit.signerIdentityAuthenticated===false&&
+    submit.signerAuthorityAuthenticated===false&&
+    submit.boardLegallyApproved===false&&submit.tariffActivated===false,
+    "document receipt must never be construed as valid board signature");
+ const duplicate=await status(await boardPost(boardPath,boardSubmission),201,
+   "board evidence submission replays safely");
+ ok(duplicate.caseId===submit.caseId&&duplicate.replayed===true,
+    "same evidence input yields original immutable case id");
+ await status(await boardPost(boardPath,
+   {...boardSubmission,requestKey:randomUUID()}),409,
+   "one board evidence case per tariff draft");
+ const boardList=await status(await fetch(boardPath,{headers:managerCookie}),200,
+   "manager reads metadata of tenant-scoped documents");
+ ok(boardList.items.length===1&&boardList.items[0].documentSha256===sha.toString("hex")&&
+    boardList.items[0].signerClaims[0].signerId===APPROVER&&
+    boardList.signerAuthorityAuthenticated===false,
+    "file digest+version stored but signer authority remains unverified");
+ const reviewPath=boardPath+"/"+submit.caseId+"/review";
+ const reviewerDecision={requestKey:randomUUID(),decision:"METADATA_CHECKED_SIGNER_AUTHORITY_UNVERIFIED",
+   findingReference:"TEST-INDEPENDENT-METADATA-REVIEW-001"};
+ await status(await boardPost(reviewPath,reviewerDecision),403,
+    "draft author cannot self-review board evidence");
+ await status(await boardPost(reviewPath,reviewerDecision,reviewerCookie),403,
+    "review without tenant DOCUMENT_REVIEWER role denied");
+ await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'DOCUMENT_REVIEWER')",
+    [randomUUID(),REVIEWER,A]);
+ // Negative: even a legitimate document reviewer cannot approve a tampered source.
+ await db.query("UPDATE tto.file_objects SET scan_status='BLOCKED' WHERE file_object_id=$1",[fileId]);
+ await status(await boardPost(reviewPath,reviewerDecision,reviewerCookie),403,
+   "blocked scanner status must fail review");
+ await db.query("UPDATE tto.file_objects SET scan_status='CLEAN' WHERE file_object_id=$1",[fileId]);
+ const reviewed=await status(await boardPost(reviewPath,reviewerDecision,reviewerCookie),201,
+   "independent reviewer checked source metadata");
+ ok(reviewed.decision==="METADATA_CHECKED_SIGNER_AUTHORITY_UNVERIFIED"&&
+    reviewed.documentMetadataReviewed===true&&
+    reviewed.signerAuthorityAuthenticated===false&&
+    reviewed.boardLegallyApproved===false&&reviewed.tariffActivated===false,
+    "technical document check cannot create legal board approval");
+ const reviewReplay=await status(await boardPost(reviewPath,reviewerDecision,reviewerCookie),201,
+    "review key replay idempotent");
+ ok(reviewReplay.reviewId===reviewed.reviewId&&reviewReplay.replayed===true,
+   "immutable reviewer decision persists");
+ await status(await boardPost(reviewPath,
+   {...reviewerDecision,decision:"DOCUMENT_REJECTED"},reviewerCookie),409,
+   "same request key cannot mutate earlier review outcome");
+ await status(await boardPost(reviewPath,
+   {...reviewerDecision,requestKey:randomUUID()},reviewerCookie),409,
+   "second decision cannot overwrite immutable review");
+ const stillDraft=await db.query(
+   "SELECT status FROM tto.ph12_tariff_drafts WHERE draft_id=$1",[saved.draftId]);
+ ok(stillDraft.rows[0].status==="DRAFT_UNVERIFIED",
+   "even independently checked metadata cannot promote tariff to ACTIVE");
+ await assert.rejects(async()=>db.query(
+  "UPDATE tto.ph12_tariff_board_review_events SET decision=decision WHERE review_id=$1",
+  [reviewed.reviewId]),/PH12_BOARD_EVIDENCE_APPEND_ONLY/);
+ console.log("PH12_BOARD_DOCUMENT_SOURCE_HASH_ROLE_REVIEW_NO_LEGAL_AUTHORITY_PASS");
+
 
  await db.query("UPDATE tto.legal_authorities SET revoked_at=now() WHERE authority_id=$1",[auth]);
  await status(await fetch(draftBff,{headers:managerCookie}),403,
