@@ -373,7 +373,7 @@ let checks=0;
    assert.equal(BigInt(f.buyer_amount)+BigInt(f.seller_amount),BigInt(f.fee_amount));
  status(await api("GET",componentPath,OUTSIDER),403,"ROLE_OR_TENANT_DENIED");
  const compPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-fee-component-report`;
- const reviewPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-fee-document-review`;
+ const feeDocReviewPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-fee-document-review`;
  const sellerFee={feeId:"TEST-PERCENT-SERVICE",payerSide:"SELLER",amount:250,
   beneficiaryReference:"TEST-COOP-ACCOUNT-001",evidenceReference:"TEST-SELLER-FEE-REPORT-001"};
  status(await api("POST",compPath,winner,sellerFee),403,"FEE_SIDE_ROLE_DENIED");
@@ -397,17 +397,17 @@ let checks=0;
  status(rb,201);status(rs,201);assert.notEqual(rb.reportId,rs.reportId);
  const check={reportId:rSeller.reportId,decision:"CHECK_METADATA",
   reviewReason:"TEST-METADATA-REVIEW-ONLY",sourceDocumentReference:"TEST-REVIEW-DOC-001"};
- status(await api("POST",reviewPath,winner,check),403,"FINANCE_REVIEW_ROLE_REQUIRED");
- status(await api("POST",reviewPath,SELLER,check),403,"FINANCE_REVIEW_ROLE_REQUIRED");
+ status(await api("POST",feeDocReviewPath,winner,check),403,"FINANCE_REVIEW_ROLE_REQUIRED");
+ status(await api("POST",feeDocReviewPath,SELLER,check),403,"FINANCE_REVIEW_ROLE_REQUIRED");
  const financeKey="test-coop-finance-check-001";
- const checked=await api("POST",reviewPath,FINANCE,check,financeKey);
+ const checked=await api("POST",feeDocReviewPath,FINANCE,check,financeKey);
  status(checked,201);assert.equal(checked.decision,"LAB_DOCUMENT_CHECKED_NOT_PAID");
  assert.equal(checked.legalFeePaid,false);assert.equal(checked.appointmentEnabled,false);
- const replay=await api("POST",reviewPath,FINANCE,check,financeKey);
+ const replay=await api("POST",feeDocReviewPath,FINANCE,check,financeKey);
  status(replay,201);assert.equal(replay.reviewId,checked.reviewId);
- status(await api("POST",reviewPath,FINANCE,{...check,decision:"REJECT_DOCUMENT"},financeKey),
+ status(await api("POST",feeDocReviewPath,FINANCE,{...check,decision:"REJECT_DOCUMENT"},financeKey),
   409,"IDEMPOTENCY_PAYLOAD_MISMATCH");
- const rejected=await api("POST",reviewPath,FINANCE,{
+ const rejected=await api("POST",feeDocReviewPath,FINANCE,{
   reportId:rb.reportId,decision:"REJECT_DOCUMENT",
   reviewReason:"TEST-REFERENCE-MISMATCH",
   sourceDocumentReference:"TEST-DOCUMENT-REJECT-001"
