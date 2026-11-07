@@ -170,8 +170,12 @@ async function main(){
  await status(await fetch(draftBff),401,"unsigned tariff drafts refuse anonymous read");
  await status(await fetch(draftOther,{headers:managerCookie}),403,
    "cross-tenant tariff drafts inaccessible");
- const initialDrafts=await status(await fetch(draftBff,{headers:managerCookie}),200,
-   "read empty durable tariff drafts");
+ const firstRead=await fetch(draftBff,{headers:managerCookie});
+ if(firstRead.status!==200){
+   const diagnostic=await firstRead.json().catch(()=>({code:"NON_JSON"}));
+   console.error("PH12_TARIFF_DRAFT_GET_DIAGNOSTIC",firstRead.status,diagnostic.code??"UNKNOWN");
+ }
+ const initialDrafts=await status(firstRead,200,"read empty durable tariff drafts");
  ok(initialDrafts.items.length===0&&initialDrafts.draftOnly===true,
     "no fabricated registered tariff");
  await status(await postDraft(draftBff,{requestKey:key,tariff},
