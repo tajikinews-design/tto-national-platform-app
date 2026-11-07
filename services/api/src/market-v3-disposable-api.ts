@@ -11,6 +11,7 @@ import { Pool, type PoolClient } from "pg";
 import {handlePostBoardLab,PostBoardLabError} from "./market-v3-disposable-postboard";
 import {handleFeeEvidenceLab} from "./market-v3-disposable-fees";
 import {handleMultiFeeLab} from "./market-v3-disposable-fee-review";
+import {handleTariffAdminLab} from "./market-v3-disposable-tariff-admin";
 import {calculateDisposableFee} from "./market-v3-disposable-fee-calculator";
 
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
@@ -475,6 +476,8 @@ export function createDisposableMarketApi(){
           legalBoardApprovalGranted:false,sellerContinuationEnabled:false,
           legalOwnershipChanged:false});
       }
+      const tariffAdmin=await handleTariffAdminLab({req,parts,tenant,actorId,key,pool,parseBody:()=>body(req)});
+      if(tariffAdmin)return json(res,tariffAdmin.status,tariffAdmin.value);
       const multiFees=await handleMultiFeeLab({req,parts,tenant,actorId,key,pool,parseBody:()=>body(req)});
       if(multiFees)return json(res,multiFees.status,multiFees.value);
       const feeEvidence=await handleFeeEvidenceLab({req,parts,tenant,actorId,key,pool,parseBody:()=>body(req)});
