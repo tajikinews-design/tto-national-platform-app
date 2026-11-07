@@ -13,7 +13,7 @@
     "steps": 27,
     "officialChangesToWorkflow": 0,
     "realTradeAuthorizations": 0,
-    "disposableHttpVerticalSliceStages": 16,
+    "disposableHttpVerticalSliceStages": 18,
     "realLiveTradeCommandStages": 0
   },
   "nonNegotiable": [
@@ -341,8 +341,9 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
-        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+        "status": "LAB_COOPERATIVE_FEE_POLICY_SNAPSHOT_AND_EXTERNAL_REPORT_ONLY",
+        "scope": "FIXED BUYER coop fee TEST source only; freeze exact source version at buy request, synthetic 300 -> 400 next trade, direct buyer-to-coop report is NOT PAID, no platform custody",
+        "run": 42370889730
       }
     },
     {
@@ -394,8 +395,9 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
-        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+        "status": "LAB_APPOINTMENT_READINESS_FAIL_CLOSED_ONLY",
+        "scope": "Read-only conditional proof: seller confirmation + fee report cannot advance appointment absent official board mandate, independent legal acceptance and verified fee settlement; disputes hold",
+        "run": 42370889730
       }
     },
     {
@@ -525,14 +527,14 @@
     "independentlySignedHumanUat": 0
   },
   "lastVerifiedTechnicalCheckpoint": {
-    "sha": "5f23755b3d72da61a5800e1f24661f3fd16d8e99",
-    "pg17Run": 42367293751,
+    "sha": "78341c2382cc2c5b87cd82cd9d2d403c80cdb72d",
+    "pg17Run": 42370889730,
+    "securityRun": 42370894059,
     "pg17Migrations": 68,
-    "labHttpChecks": 85,
-    "verification": "PG17_CI_SUCCESS_SIGNATURE_AND_PAYMENT_REPORT_LAB_ONLY",
-    "securityCi": "PENDING_CURRENT_EXACT_SHA",
-    "legalSourceOwnerSigned": 0,
+    "labHttpChecks": 104,
+    "verification": "SYNTHETIC_LAB_SOURCE_FEE_REPORT_APPOINTMENT_DENIAL_ONLY",
     "officialBoardSignatures": 0,
+    "legalSourceOwnerSigned": 0,
     "independentSignedUat": 0,
     "noLiveTransfer": true,
     "noRealPayments": true,
