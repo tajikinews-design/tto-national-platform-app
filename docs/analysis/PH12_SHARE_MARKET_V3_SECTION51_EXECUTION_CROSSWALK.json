@@ -341,9 +341,10 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "LAB_COOPERATIVE_FEE_POLICY_SNAPSHOT_AND_EXTERNAL_REPORT_ONLY",
-        "scope": "FIXED BUYER coop fee TEST source only; freeze exact source version at buy request, synthetic 300 -> 400 next trade, direct buyer-to-coop report is NOT PAID, no platform custody",
-        "run": 42370889730
+        "status": "LAB_MULTI_FEE_ARITHMETIC_PAYER_SPLIT_AND_DOCUMENTARY_REVIEW",
+        "scope": "Synthetic tenant-versioned FIXED/PERCENTAGE/FIXED_PLUS_PERCENTAGE + BUYER/SELLER/SPLIT, immutable snapshot, payer-scoped external reporting, separate finance operator metadata CHECK/REJECT append-only; never official PAID or custody",
+        "run": 42372316966,
+        "securityRun": 42372321084
       }
     },
     {
@@ -395,9 +396,10 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "LAB_APPOINTMENT_READINESS_FAIL_CLOSED_ONLY",
-        "scope": "Read-only conditional proof: seller confirmation + fee report cannot advance appointment absent official board mandate, independent legal acceptance and verified fee settlement; disputes hold",
-        "run": 42370889730
+        "status": "LAB_APPOINTMENT_FAIL_CLOSED_EVEN_AFTER_FEE_REVIEW",
+        "scope": "Approval of synthetic documentary evidence does not authorize legal fee PAID, appointment, official register or title transfer",
+        "run": 42372316966,
+        "securityRun": 42372321084
       }
     },
     {
@@ -527,14 +529,20 @@
     "independentlySignedHumanUat": 0
   },
   "lastVerifiedTechnicalCheckpoint": {
-    "sha": "78341c2382cc2c5b87cd82cd9d2d403c80cdb72d",
-    "pg17Run": 42370889730,
-    "securityRun": 42370894059,
+    "sha": "eb22ccfd76ce68442d48e5318731c61743302d1c",
+    "pg17Run": 42372316966,
+    "securityRun": 42372321084,
     "pg17Migrations": 68,
-    "labHttpChecks": 104,
-    "verification": "SYNTHETIC_LAB_SOURCE_FEE_REPORT_APPOINTMENT_DENIAL_ONLY",
-    "officialBoardSignatures": 0,
+    "labHttpChecks": 120,
+    "verification": "DISPOSABLE_PG17_SYNTHETIC_FEE_ARITHMETIC_AND_FINANCE_DOCUMENTARY_REVIEW_SUCCESS",
+    "coverage": "FIXED/PERCENTAGE/FIXED_PLUS_PERCENTAGE; BUYER/SELLER/SPLIT; HALF_UP; immutable per-trade source/version",
+    "limitations": [
+      "CUSTOM_APPROVED_BASE requires independently sourced basis; not accepted as operational",
+      "External cooperative report and lab documentary review do NOT imply official fee PAID",
+      "No production authentication or official per-coop finance reviewer mandate"
+    ],
     "legalSourceOwnerSigned": 0,
+    "officialBoardSignatures": 0,
     "independentSignedUat": 0,
     "noLiveTransfer": true,
     "noRealPayments": true,
