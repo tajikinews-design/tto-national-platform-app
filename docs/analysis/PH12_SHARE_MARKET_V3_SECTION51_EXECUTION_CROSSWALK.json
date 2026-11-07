@@ -13,7 +13,7 @@
     "steps": 27,
     "officialChangesToWorkflow": 0,
     "realTradeAuthorizations": 0,
-    "disposableHttpVerticalSliceStages": 12,
+    "disposableHttpVerticalSliceStages": 16,
     "realLiveTradeCommandStages": 0
   },
   "nonNegotiable": [
@@ -253,10 +253,9 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "DISPOSABLE_HTTP_BOARD_UNVERIFIED_DRAFT_ONLY",
-        "scope": "secretariat role records meeting/resolution/attachment/legal-basis/date; remains UNVERIFIED_DRAFT; no board authorization",
-        "run": 42360180389,
-        "securityRun": 42360184005
+        "status": "SYNTHETIC_BOARD_SOURCE_ED25519_AND_METADATA_MATCH",
+        "scope": "Verified EPHEMERAL LAB Ed25519 source key + independent board metadata; NOT official board approval",
+        "run": 42367293751
       }
     },
     {
@@ -289,8 +288,9 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
-        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+        "status": "LAB_SELLER_CONTINUATION_CONDITIONAL",
+        "scope": "Seller explicitly consents only after LAB-only signed fixture; no legal continuation or bank payment permission",
+        "run": 42367293751
       }
     },
     {
@@ -306,8 +306,9 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
-        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+        "status": "SYNTHETIC_BANK_REFERENCE_BUYER_ONLY",
+        "scope": "Buyer sees TEST-BANK-SELLER-001 only after seller consent, not any real account",
+        "run": 42367293751
       }
     },
     {
@@ -357,8 +358,9 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
-        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+        "status": "LAB_BUYER_PAYMENT_REPORT_EVIDENCE",
+        "scope": "Buyer records external reported amount+references; no platform funds, no bank verification",
+        "run": 42367293751
       }
     },
     {
@@ -374,8 +376,9 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
-        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+        "status": "LAB_SELLER_RECEIPT_OR_DISPUTE",
+        "scope": "Seller confirms receipt or disputes mismatch. Never auto-confirms payment",
+        "run": 42367293751
       }
     },
     {
@@ -522,22 +525,18 @@
     "independentlySignedHumanUat": 0
   },
   "lastVerifiedTechnicalCheckpoint": {
-    "sha": "8acbc3b5b0dba7ef6ccde5ec24e1fa9c8c5e77b0",
-    "pg17Run": 42360180389,
-    "securityRun": 42360184005,
+    "sha": "5f23755b3d72da61a5800e1f24661f3fd16d8e99",
+    "pg17Run": 42367293751,
     "pg17Migrations": 68,
-    "labHttpChecks": 43,
-    "classification": "SOURCE_VERSIONED_LAB_FIXTURES_SYNTHETIC_NOT_SIGNED_NOT_PRODUCTION",
-    "pg17AllStepsPassed": true,
-    "exactSourceStepCount": 27,
-    "partialSyntheticHttpEvidenceStepCount": 12,
-    "productionApisEnabled": false,
-    "officialShareRegisterIntegrated": false,
-    "realBoardApprovalVerified": false,
-    "officialBuyerAuthorityIntegrated": false,
-    "officialPriceSourceIntegrated": false,
-    "noShareOwnershipChanges": true,
-    "noPaymentOrOfficialRegisterWrites": true
+    "labHttpChecks": 85,
+    "verification": "PG17_CI_SUCCESS_SIGNATURE_AND_PAYMENT_REPORT_LAB_ONLY",
+    "securityCi": "PENDING_CURRENT_EXACT_SHA",
+    "legalSourceOwnerSigned": 0,
+    "officialBoardSignatures": 0,
+    "independentSignedUat": 0,
+    "noLiveTransfer": true,
+    "noRealPayments": true,
+    "productionRoutesEnabled": false
   },
   "residualGates": [
     "No publicly served market command: lab API is imported nowhere into production Nest module; only CI loopback with ephemeral Postgres",
@@ -547,5 +546,13 @@
     "No production queue scheduling release with legal tenant config/calendar, no user-facing real workflow",
     "15 frozen historical SQL assertions ≠ 15 signed source-authored acceptance and independent QA",
     "No source owner signoffs and no verified opening share register; legal ownership cannot change"
+  ],
+  "additionalBlocks": [
+    "PENDING_AUTHENTICATED_COOP_LEGAL_SOURCE_OWNER_ISSUE_170",
+    "PENDING_OFFICIAL_BOARD_SIGNATURE_AND_MANDATE",
+    "PENDING_PRODUCTION_IDENTITY_TENANT_SCOPED_AUTHORIZATION",
+    "PENDING_INDEPENDENT_QA_SIGNOFF",
+    "PENDING_REAL_PAYMENT_PROOF_AND_FEES",
+    "OFFICIAL_SHARE_REGISTER_NOT_CONNECTED"
   ]
 }
