@@ -29,10 +29,10 @@ jobs:
           set -euo pipefail
           docker run -d --rm --name tto-ph12-legal -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=tto postgres:17-alpine
           for i in $(seq 1 60); do
-            if docker exec tto-ph12-legal pg_isready -U postgres -d tto >/dev/null 2>&1; then break;fi
+            if docker exec tto-ph12-legal psql -U postgres -d tto -Atqc "SELECT 1" >/dev/null 2>&1; then break;fi
             sleep 1
           done
-          docker exec tto-ph12-legal pg_isready -U postgres -d tto
+          docker exec tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 -Atqc "SELECT 1"
       - name: Replay all migrations including 0049 and 0050
         run: |
           set -euo pipefail
