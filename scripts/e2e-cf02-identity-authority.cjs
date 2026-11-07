@@ -65,14 +65,14 @@ async function fixture(){
  [REVIEWER,A,APPROVER,DEC]);
  for(const uid of [USER,MANAGER,NATIONAL,REVIEWER,APPROVER])await issueSession(uid);
  const apiEnv={DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"31997",
-   NODE_ENV:"test",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa"};
+   NODE_ENV:"test",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa"};
  await launch("Nest",["dist/main.js"],resolve(ROOT,"services/api"),apiEnv,API+"/ready");
 }
 async function portal(slug,port){
  const cwd=resolve(ROOT,"apps",slug);
  const origin="http://127.0.0.1:"+port;
  await launch(slug,[resolve(cwd,"node_modules/next/dist/bin/next"),"start","-p",String(port)],cwd,
- {NODE_ENV:"test",CI:"true",TTO_LOOPBACK_E2E:"1",TTO_API_BASE_URL:API,PORT:String(port),NEXT_TELEMETRY_DISABLED:"1",APIIR_TOKEN:""},
+ {NODE_ENV:"test",CI:"true",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",TTO_PH12_PUBLIC_ORIGIN:origin,TTO_LOOPBACK_E2E:"1",TTO_API_BASE_URL:API,PORT:String(port),NEXT_TELEMETRY_DISABLED:"1",APIIR_TOKEN:""},
  origin+"/");
  return {origin,slug};
 }
@@ -128,14 +128,207 @@ async function main(){
  ok(deniedParty.rows[0].n===0,"rejected Party never linked");
  // Manager: role alone offers a candidate but not authority evidence.
  assert.deepEqual(await options(cm,MANAGER),[{tenantId:A,displayName:"Test Cooperative A",evidenceStatus:"EVIDENCE_PENDING"}]);checks++;
+ const tariffGate=cm.origin+"/api/tenants/"+A+"/share-market/tariff-draft-readiness";
+ const managerCookie={Cookie:"tto_session="+tokenMap.get(MANAGER)};
+ await status(await fetch(tariffGate,{headers:{Authorization:"Bearer "+tokenMap.get(MANAGER)}}),
+   401,"tariff BFF denies forged bearer without session");
+ await status(await fetch(tariffGate,{headers:managerCookie}),403,
+   "tariff BFF does not treat generic tenant context as managerial authority");
+ await status(await fetch(cm.origin+"/api/tenants/"+B+"/share-market/tariff-draft-readiness",
+   {headers:managerCookie}),403,"tariff BFF denies cross-tenant URL");
  const auth=randomUUID();
  await db.query("INSERT INTO tto.legal_authorities(authority_id,holder_id,tenant_id,scope,evidence_id,verified_by,verified_at,valid_until) VALUES($1,$2,$3,'ROLE_MANAGEMENT',$4,$5,now(),now()+interval '1 hour')",
  [auth,MANAGER,A,DEC,APPROVER]);
  assert.deepEqual(await options(cm,MANAGER),[{tenantId:A,displayName:"Test Cooperative A",evidenceStatus:"ROLE_AUTHORITY_EVIDENCE"}]);checks++;
+ const prepared=await status(await fetch(tariffGate,{headers:managerCookie,cache:"no-store"}),
+   200,"verified cooperative tariff draft readiness");
+ ok(prepared.tenantContextVerified===true&&prepared.tenantId===A&&
+    prepared.draftPreparationAllowed===true&&
+    prepared.liveTariffWrites===false&&
+    prepared.serverSideTariffDraftPersistence===true&&
+    prepared.officialTariffActivation===false&&
+    prepared.officialFeePaid===false&&
+    prepared.ownershipTransferEnabled===false,
+    "real portal readiness must NOT authorize business operations");
+ const tariffWriteDenied=await fetch(tariffGate,{method:"POST",headers:managerCookie,body:"{}"});
+ ok(tariffWriteDenied.status===405,"tariff BFF has no server-side write endpoint");
+ // Persistent DRAFT is separate from tariff activation and official approval.
+ const draftBff=cm.origin+"/api/tenants/"+A+"/share-market/tariff-drafts";
+ const draftOther=cm.origin+"/api/tenants/"+B+"/share-market/tariff-drafts";
+ const tariff={feeId:"TRANSFER_ADMIN_FEE",title:"Unverified cooperative transfer fee draft",
+  version:"1",feeType:"COOP_APPROVED_FEE",calculationMode:"FIXED",
+  fixedAmount:"250",percentBps:"0",payerMode:"BUYER",
+  buyerPercent:"100",sellerPercent:"0",percentageBasis:"TRADE_GROSS_VALUE",
+  validFrom:"2026-11-07",validUntil:"2027-11-07",
+  legalBasisReference:"TEST-BOARD-BASIS-REF-001",
+  boardResolutionReference:"TEST-BOARD-UNSIGNED-001",
+  boardEvidenceReference:"TEST-DOC-UNVERIFIED-001"};
+ const key=randomUUID(),origin=cm.origin;
+ const postDraft=(url,payload,headers=managerCookie)=>
+   fetch(url,{method:"POST",headers:{Origin:origin,...headers,
+    "Content-Type":"application/json"},body:JSON.stringify(payload),cache:"no-store"});
+ await status(await fetch(draftBff),401,"unsigned tariff drafts refuse anonymous read");
+ await status(await fetch(draftOther,{headers:managerCookie}),403,
+   "cross-tenant tariff drafts inaccessible");
+ const firstRead=await fetch(draftBff,{headers:managerCookie});
+ if(firstRead.status!==200){
+   const diagnostic=await firstRead.json().catch(()=>({code:"NON_JSON"}));
+   console.error("PH12_TARIFF_DRAFT_GET_DIAGNOSTIC",firstRead.status,diagnostic.code??"UNKNOWN");
+ }
+ const initialDrafts=await status(firstRead,200,"read empty durable tariff drafts");
+ ok(initialDrafts.items.length===0&&initialDrafts.draftOnly===true,
+    "no fabricated registered tariff");
+ await status(await postDraft(draftBff,{requestKey:key,tariff},
+   {Authorization:"Bearer "+tokenMap.get(MANAGER)}),401,
+   "client cannot replace manager session with forged bearer");
+ await status(await postDraft(draftBff,{requestKey:key,tariff},
+   {...managerCookie,Origin:"https://attacker.invalid"}),403,"cross-site tariff draft denied");
+ const saveResponse=await postDraft(draftBff,{requestKey:key,tariff});
+ if(saveResponse.status!==201){
+  const diagnostic=await saveResponse.json().catch(()=>({code:"NON_JSON"}));
+  console.error("PH12_TARIFF_DRAFT_POST_DIAGNOSTIC",saveResponse.status,diagnostic.code??"UNKNOWN");
+ }
+ const saved=await status(saveResponse,201,
+   "persistent manager draft created under real role+authority");
+ ok(saved.tenantId===A&&saved.status==="DRAFT_UNVERIFIED"&&
+    saved.feeActivated===false&&saved.boardVerified===false&&
+    saved.realPaymentConfirmed===false&&saved.legalShareTransfer===false,
+    "draft creation never approves a tariff or finance event");
+ const replay=await status(await postDraft(draftBff,{requestKey:key,tariff}),201,
+   "same client request idempotent");
+ ok(replay.draftId===saved.draftId&&replay.replayed===true,
+    "idempotent draft replay must reuse immutable record");
+ await status(await postDraft(draftBff,{requestKey:key,tariff:{...tariff,fixedAmount:"300"}}),
+   409,"idempotency replay with mismatched tariff rejected");
+ await status(await postDraft(draftBff,{requestKey:randomUUID(),tariff}),
+   409,"same fee version may not overwrite original");
+ const persisted=await status(await fetch(draftBff,{headers:managerCookie,cache:"no-store"}),
+    200,"after reload draft remains available");
+ ok(persisted.items.length===1&&persisted.items[0].draftId===saved.draftId&&
+    persisted.items[0].status==="DRAFT_UNVERIFIED"&&
+    persisted.items[0].tariff.fixedAmount==="250",
+    "database-backed version immutable across HTTP reload");
+ const second=await status(await postDraft(draftBff,{requestKey:randomUUID(),
+    tariff:{...tariff,version:"2",fixedAmount:"350"}}),201,
+    "version increment creates separate new draft");
+ ok(second.draftId!==saved.draftId&&second.version===2,
+    "versioned changes never mutate old draft");
+ const old=await db.query(
+  "SELECT status,payload->>'fixedAmount' AS amount FROM tto.ph12_tariff_drafts WHERE draft_id=$1",
+  [saved.draftId]);
+ ok(old.rows[0].status==="DRAFT_UNVERIFIED"&&old.rows[0].amount==="250",
+   "no prior draft update and no legal activation");
+ await status(await postDraft(draftOther,{requestKey:randomUUID(),tariff}),
+   403,"cross-cooperative draft creation denied");
+ console.log("PH12_REAL_SESSION_TARIFF_DRAFT_PG17_PERSISTENCE_AND_FAILCLOSED_PASS");
+ // A board resolution's file is a known clean, tenant-scoped CF03 version.
+ // The record and claimed signers are still NOT authentic board authority.
+ const signedDoc=randomUUID(),fileId=randomUUID();
+ const boardHash=createHash("sha256").update("synthetic-unsigned-board-tariff-2026").digest();
+ await db.query("INSERT INTO tto.documents(document_id,tenant_id,title,classification,status) VALUES($1,$2,'Synthetic tariff board resolution','RESTRICTED','PUBLISHED')",
+    [signedDoc,A]);
+ await db.query("INSERT INTO tto.file_objects(file_object_id,tenant_id,storage_key,sha256,classification,scan_status) VALUES($1,$2,$3,$4,'RESTRICTED','CLEAN')",
+    [fileId,A,"ci-board-test-immutable-v1",boardHash]);
+ await db.query("INSERT INTO tto.document_versions(document_id,version_num,file_object_id,tenant_id) VALUES($1,1,$2,$3)",
+    [signedDoc,fileId,A]);
+ const boardPath=cm.origin+"/api/tenants/"+A+"/share-market/tariff-board-cases";
+ const foreignBoardPath=cm.origin+"/api/tenants/"+B+"/share-market/tariff-board-cases";
+ const reviewerCookie={Cookie:"tto_session="+tokenMap.get(REVIEWER)};
+ const boardSubmission={
+    requestKey:randomUUID(),draftId:saved.draftId,documentId:signedDoc,
+    documentVersion:1,resolutionNumber:"TEST-BOARD-UNSIGNED-001",
+    resolutionDate:"2026-11-01",effectiveFrom:"2026-11-07",
+    effectiveUntil:"2027-11-07",
+    signerClaims:[{signerId:APPROVER,claimedRole:"BOARD_CHAIR"}]
+ };
+ const boardPost=(url,body,headers=managerCookie)=>
+   fetch(url,{method:"POST",headers:{Origin:origin,...headers,
+     "Content-Type":"application/json"},body:JSON.stringify(body),cache:"no-store"});
+ await status(await fetch(boardPath),401,"anonymous cannot list board cases");
+ await status(await fetch(foreignBoardPath,{headers:managerCookie}),403,"cross-tenant board cases denied");
+ await status(await boardPost(boardPath,boardSubmission,{Authorization:"Bearer "+tokenMap.get(MANAGER)}),401,
+   "session cookie required for board evidence intake");
+ await status(await boardPost(boardPath,boardSubmission,{...managerCookie,Origin:"https://cross-site.invalid"}),403,
+   "untrusted Cross-Origin board dossier POST denied");
+ await status(await boardPost(boardPath,
+   {...boardSubmission,documentId:randomUUID()}),403,"untrusted board source document denied");
+ await status(await boardPost(boardPath,
+   {...boardSubmission,resolutionNumber:"TEST-MISMATCH-NO-LEGAL-1"}),400,
+   "board resolution reference must match stored draft");
+ const submit=await status(await boardPost(boardPath,boardSubmission),201,
+   "manager recorded source-bound document version hash");
+ ok(submit.status==="DOCUMENT_INTAKE_AUTHORITY_UNVERIFIED"&&
+    submit.documentMetadataSourceBound===true&&
+    submit.signerIdentityAuthenticated===false&&
+    submit.signerAuthorityAuthenticated===false&&
+    submit.boardLegallyApproved===false&&submit.tariffActivated===false,
+    "document receipt must never be construed as valid board signature");
+ const duplicate=await status(await boardPost(boardPath,boardSubmission),201,
+   "board evidence submission replays safely");
+ ok(duplicate.caseId===submit.caseId&&duplicate.replayed===true,
+    "same evidence input yields original immutable case id");
+ await status(await boardPost(boardPath,
+   {...boardSubmission,requestKey:randomUUID()}),409,
+   "one board evidence case per tariff draft");
+ const boardList=await status(await fetch(boardPath,{headers:managerCookie}),200,
+   "manager reads metadata of tenant-scoped documents");
+ ok(boardList.items.length===1&&boardList.items[0].documentSha256===boardHash.toString("hex")&&
+    boardList.items[0].signerClaims[0].signerId===APPROVER&&
+    boardList.signerAuthorityAuthenticated===false,
+    "file digest+version stored but signer authority remains unverified");
+ const reviewPath=boardPath+"/"+submit.caseId+"/review";
+ const reviewerDecision={requestKey:randomUUID(),decision:"METADATA_CHECKED_SIGNER_AUTHORITY_UNVERIFIED",
+   findingReference:"TEST-INDEPENDENT-METADATA-REVIEW-001"};
+ await status(await boardPost(reviewPath,reviewerDecision),403,
+    "draft author cannot self-review board evidence");
+ await status(await boardPost(reviewPath,reviewerDecision,reviewerCookie),403,
+    "review without tenant DOCUMENT_REVIEWER role denied");
+ await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'DOCUMENT_REVIEWER')",
+    [randomUUID(),REVIEWER,A]);
+ // Negative: even a legitimate document reviewer cannot approve a tampered source.
+ await db.query("UPDATE tto.file_objects SET scan_status='BLOCKED' WHERE file_object_id=$1",[fileId]);
+ await status(await boardPost(reviewPath,reviewerDecision,reviewerCookie),403,
+   "blocked scanner status must fail review");
+ await db.query("UPDATE tto.file_objects SET scan_status='CLEAN' WHERE file_object_id=$1",[fileId]);
+ const reviewed=await status(await boardPost(reviewPath,reviewerDecision,reviewerCookie),201,
+   "independent reviewer checked source metadata");
+ ok(reviewed.decision==="METADATA_CHECKED_SIGNER_AUTHORITY_UNVERIFIED"&&
+    reviewed.documentMetadataReviewed===true&&
+    reviewed.signerAuthorityAuthenticated===false&&
+    reviewed.boardLegallyApproved===false&&reviewed.tariffActivated===false,
+    "technical document check cannot create legal board approval");
+ const reviewReplay=await status(await boardPost(reviewPath,reviewerDecision,reviewerCookie),201,
+    "review key replay idempotent");
+ ok(reviewReplay.reviewId===reviewed.reviewId&&reviewReplay.replayed===true,
+   "immutable reviewer decision persists");
+ await status(await boardPost(reviewPath,
+   {...reviewerDecision,decision:"DOCUMENT_REJECTED"},reviewerCookie),409,
+   "same request key cannot mutate earlier review outcome");
+ await status(await boardPost(reviewPath,
+   {...reviewerDecision,requestKey:randomUUID()},reviewerCookie),409,
+   "second decision cannot overwrite immutable review");
+ const stillDraft=await db.query(
+   "SELECT status FROM tto.ph12_tariff_drafts WHERE draft_id=$1",[saved.draftId]);
+ ok(stillDraft.rows[0].status==="DRAFT_UNVERIFIED",
+   "even independently checked metadata cannot promote tariff to ACTIVE");
+ await assert.rejects(async()=>db.query(
+  "UPDATE tto.ph12_tariff_board_review_events SET decision=decision WHERE review_id=$1",
+  [reviewed.reviewId]),/PH12_BOARD_EVIDENCE_APPEND_ONLY/);
+ console.log("PH12_BOARD_DOCUMENT_SOURCE_HASH_ROLE_REVIEW_NO_LEGAL_AUTHORITY_PASS");
+
+
  await db.query("UPDATE tto.legal_authorities SET revoked_at=now() WHERE authority_id=$1",[auth]);
+ await status(await fetch(draftBff,{headers:managerCookie}),403,
+   "revoked manager authority cannot read persisted tariff drafts");
+ await status(await postDraft(draftBff,{requestKey:randomUUID(),tariff:{...tariff,version:"3"}}),403,
+   "revoked manager authority cannot add tariff drafts");
  assert.deepEqual(await options(cm,MANAGER),[{tenantId:A,displayName:"Test Cooperative A",evidenceStatus:"EVIDENCE_PENDING"}]);checks++;
+ await status(await fetch(tariffGate,{headers:managerCookie,cache:"no-store"}),403,
+   "revoked management authority cannot prepare tariff drafts");
  await db.query("UPDATE tto.role_assignments SET revoked_at=now() WHERE user_id=$1 AND tenant_id=$2",[MANAGER,A]);
  assert.deepEqual(await options(cm,MANAGER),[]);checks++;
+ await status(await fetch(tariffGate,{headers:managerCookie,cache:"no-store"}),403,
+   "revoked manager role cannot prepare tariff drafts");
  // National operator without independently approved, tenant-specific JIT has no tenant scope.
  assert.deepEqual(await options(na,NATIONAL),[]);checks++;
  const grant=randomUUID();

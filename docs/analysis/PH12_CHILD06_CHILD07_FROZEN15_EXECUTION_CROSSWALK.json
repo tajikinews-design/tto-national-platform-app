@@ -1,0 +1,253 @@
+{
+  "schemaVersion": "1.0",
+  "date": "2026-11-06",
+  "sourceDocument": "TTO-UNIFIED-IMPLEMENTATION-PACK-v1.0.docx",
+  "sourceIndex": "docs/analysis/PH06_MEMBER07_SHARE08_SOURCE_TESTS.json",
+  "physicalSourceIndex": "docs/analysis/PH01_SOURCE_148_ENTITY_FIELD_INDEX.json",
+  "scope": {
+    "children": [
+      "CHILD-06",
+      "CHILD-07"
+    ],
+    "entities": 12,
+    "fieldPhrases": 75,
+    "acceptanceIds": 15
+  },
+  "currentTestRun": {
+    "workflowRunId": 42262963537,
+    "sha": "4743d4b042fb4ba98ae3533354d5b096027dd399",
+    "conclusion": "SUCCESS",
+    "meaning": "BOUNDED_PG17_68_MIGRATIONS_SOURCE_OWNER_HOLD_GUARD_AND_NEGATIVE_SQL_ASSERTIONS",
+    "repoHeadMayAdvanceForDocumentation": true
+  },
+  "status": "SCOPED_SQL_GREEN_FORMAL_15_OF_15_HOLD",
+  "sourceTextWarning": "Original Child06/07 acceptance identifiers were preserved, but per-test scenarios are engineering-derived from locked invariants; not a verbatim author-signed scenario acceptance.",
+  "noLiveTransfer": true,
+  "noMerge": true,
+  "noDeploy": true,
+  "cases": [
+    {
+      "id": "MEMBER-AT-001",
+      "engineeringInterpretation": "Party != membership; no implicit cooperative relationship",
+      "testReference": "ph12-child06-child07-canonical-failclosed.sql: PH12_NONMEMBER_IMPLICIT_MEMBERSHIP_OR_ROLE; ph06-member-share-frozen15.sql: MEMBER001",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: negative only, no formal source promotion",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "additionalEvidence": "PH12_NONMEMBER_IMPLICIT_MEMBERSHIP_OR_ROLE; PH12_NONMEMBER_SPOOFED_RELATIONSHIP",
+      "latestNegativeSqlEvidence": [
+        "PH12_NONMEMBER_IMPLICIT_MASTER"
+      ]
+    },
+    {
+      "id": "MEMBER-AT-002",
+      "engineeringInterpretation": "ShareholderAccount != ShareOwnership",
+      "testReference": "ph06-member-share-frozen15.sql: MEMBER002; ph12-child06-child07-canonical-failclosed.sql: ledger account FK",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: DB constraint, no real sourced importer",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": []
+    },
+    {
+      "id": "MEMBER-AT-003",
+      "engineeringInterpretation": "Non-member shareholder must not inherit membership/voting",
+      "testReference": "ph12-child06-child07-canonical-failclosed.sql: PH12_SHARE_ENTITLEMENT_LEAK; MEMBER003 legacy",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: rights Rule Registry approval missing",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "additionalEvidence": "PH12_SHARE_ENTITLEMENT_LEAK; PH12_NONMEMBER_SPOOFED_RELATIONSHIP",
+      "latestNegativeSqlEvidence": [
+        "PH12_NONMEMBER_OFFICIAL_SOURCE_UNAUTHORIZED"
+      ]
+    },
+    {
+      "id": "MEMBER-AT-004",
+      "engineeringInterpretation": "Self-service own-account only",
+      "testReference": "ph06-member-share-frozen15.sql: MEMBER004; migration 0009 source read",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: no real non-member API entitlement proof",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": []
+    },
+    {
+      "id": "MEMBER-AT-005",
+      "engineeringInterpretation": "Cross-tenant access denied",
+      "testReference": "ph12-child06-child07-canonical-failclosed.sql: PH12_CROSS_TENANT_*; ph06-member-share-frozen15.sql: MEMBER005",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: tenant FK and synthetic read, 3-panel E2E pending",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": [
+        "PH12_PRIVATE_RECONCILIATION_EXPOSED"
+      ]
+    },
+    {
+      "id": "MEMBER-AT-006",
+      "engineeringInterpretation": "Membership decision version/idempotency",
+      "testReference": "ph06-member-share-frozen15.sql: MEMBER006; new immutable relationship versions",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: source-owner legal authority and independent reviewer pending",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": []
+    },
+    {
+      "id": "MEMBER-AT-007",
+      "engineeringInterpretation": "Monotonic membership event history",
+      "testReference": "ph12-child06-child07-canonical-failclosed.sql: PH12_CHILD06_VERSION_GAP_ALLOWED/PH12_MEMBERSHIP_HISTORY_MUTABLE; MEMBER007 legacy",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: no independently approved CF02 delivery parity proof",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "additionalEvidence": "PH12_CHILD06_VERSION_GAP_ALLOWED; PH12_STALE_CF02_VERSION_NOT_DETECTED",
+      "latestNegativeSqlEvidence": [
+        "PH12_CF02_EVENT_CONFLICT_ACCEPTED",
+        "PH12_IMPORTED_VERSION_ROLLBACK_ACCEPTED",
+        "PH12_IMPORTED_EVENT_TAMPER_ACCEPTED",
+        "PH12_IMPORTED_STATUS_TAMPER_ACCEPTED"
+      ]
+    },
+    {
+      "id": "SHARE-AT-001",
+      "engineeringInterpretation": "Missing valuation denies transfer",
+      "testReference": "migration 0020 ph06_try_finalize_transfer always false; ph12 new transfer statuses exclude completed",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: fail-closed proven, positive legally sourced transfer intentionally impossible",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": [
+        "PH12_FUTURE_LEDGER_SNAPSHOT_ACCEPTED"
+      ]
+    },
+    {
+      "id": "SHARE-AT-002",
+      "engineeringInterpretation": "Post-transfer cap review",
+      "testReference": "migration 0020 ph06_try_finalize_transfer always false; ph06-positive-legal-transfer-disposable-lab.sql sandbox",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: production rule evaluation not integrated",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": []
+    },
+    {
+      "id": "SHARE-AT-003",
+      "engineeringInterpretation": "Concurrent share lock",
+      "testReference": "scripts/ci/ph06-concurrent-share-lock.sh (legacy); ph12 new share lock STAGED only",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: new canonical account-linked lock concurrency not yet implemented",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "additionalEvidence": "PH12_WRONG_OWNER_LOCK_ALLOWED; PH12_OVERSIZED_LOCK_ALLOWED (new model staged only; legacy concurrent test separate)",
+      "latestNegativeSqlEvidence": []
+    },
+    {
+      "id": "SHARE-AT-004",
+      "engineeringInterpretation": "Verified payment is not ownership transfer",
+      "testReference": "ph12-child06-child07-canonical-failclosed.sql: PH12_REAL_TRANSFER_LEDGER_ENABLED; migration 0020 transfer blocked",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: independent payment/fee evidence still not operational",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": [
+        "PH12_UNAPPROVED_ALIGNMENT_FAKE_GREEN"
+      ]
+    },
+    {
+      "id": "SHARE-AT-005",
+      "engineeringInterpretation": "Privileged legal authority and SoD",
+      "testReference": "ph06-member-share-frozen15.sql: SHARE005; new transfer has authority/evidence fields only",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: full authority verification/SoD not integrated",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": []
+    },
+    {
+      "id": "SHARE-AT-006",
+      "engineeringInterpretation": "Append-only ledger, idempotent transfer",
+      "testReference": "ph12-child06-child07-canonical-failclosed.sql: PH12_LEDGER_MUTABLE; unique source references",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: no real legal-transfer ledger writer or 2-leg atomic finalization",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": [
+        "PH12_OPENING_MISMATCH_NOT_DETECTED"
+      ]
+    },
+    {
+      "id": "SHARE-AT-007",
+      "engineeringInterpretation": "Own-case confidentiality across parties/tenants",
+      "testReference": "ph06-member-share-frozen15.sql: SHARE007; ph12 private RLS tables and tenant FKs",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: new case has no dedicated authorised user read adapter",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "additionalEvidence": "PH12_WRONG_SELLER_CASE_ALLOWED; PH12_OVERSIZED_BUY_MATCH_ALLOWED; PH12_CROSS_TENANT_TRANSFER_ALLOWED",
+      "latestNegativeSqlEvidence": []
+    },
+    {
+      "id": "SHARE-AT-008",
+      "engineeringInterpretation": "No wallet, no custody or live settlement",
+      "testReference": "ph12-child06-child07-canonical-failclosed.sql: PH12_REAL_TRANSFER_LEDGER_ENABLED/PH12_LEGACY_TRANSFER_FINALIZE_UNBLOCKED; old SHARE008",
+      "technicalMapping": "PARTIAL_COVERAGE",
+      "formalSourceOwnerAcceptance": "PENDING",
+      "independentQA": "PENDING",
+      "remainingRisk": "PARTIAL: non-existence of module-specific wallet, no live settlement verified",
+      "latestBoundedCiRun": 42262963537,
+      "evidenceGrade": "SCOPED_SYNTHETIC_ENGINEERING_ONLY",
+      "latestNegativeSqlEvidence": []
+    }
+  ],
+  "consistencyExtension": {
+    "migration": "database/migrations/0045_ph12_child06_07_contract_consistency.sql",
+    "test": "tests/sql/ph12-child06-child07-canonical-failclosed.sql",
+    "verifiedSignals": [
+      "PH12_MISSING_CF02_PROJECTION_NOT_DETECTED",
+      "PH12_STALE_CF02_VERSION_NOT_DETECTED",
+      "PH12_OVERSIZED_BUY_REQUEST_ALLOWED",
+      "PH12_SELF_BUY_REQUEST_ALLOWED",
+      "PH12_WRONG_SELLER_CASE_ALLOWED",
+      "PH12_OVERSIZED_TRANSFER_CASE_ALLOWED",
+      "PH12_OVERSIZED_BUY_MATCH_ALLOWED",
+      "PH12_MISSING_SELL_ORDER_FOR_BUY_CASE",
+      "PH12_WRONG_OWNER_LOCK_ALLOWED",
+      "PH12_OVERSIZED_LOCK_ALLOWED",
+      "PH12_CASE_MUTATION_ALLOWED",
+      "PH12_LOCK_MUTATION_ALLOWED"
+    ],
+    "formalOriginalAcceptanceStill": "HOLD"
+  },
+  "decisionPacket": "docs/contracts/PH12_CHILD06_CHILD07_SOURCE_OWNER_DECISION_PACKET_2026-11-06.json",
+  "decisionPacketStatus": "3_SOURCE_OWNER_GATES_PENDING_NO_FAKE_APPROVAL"
+}

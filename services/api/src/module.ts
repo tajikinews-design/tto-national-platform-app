@@ -1890,5 +1890,170 @@ export class Ph10Phase08ReadController {
  }
 }
 
-@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController],providers:[ApiIrSmsOtpProvider]})
+/**
+ * PH12 candidate: persistent *DRAFT* tariff intake ONLY.
+ * All role/source decisions are re-evaluated in PG SECURITY DEFINER functions
+ * under verified session+tenant context. Board references are self-reported.
+ * Default disabled on ANY hosted environment unless explicitly released.
+ */
+@Controller("v1/tenants")
+export class Ph12TariffDraftController {
+ constructor(private readonly db:Database){}
+ private enabled(){
+  if(process.env.TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"PH12_TARIFF_DRAFT_INTAKE_DISABLED"});
+ }
+ private mapped(e:unknown):never {
+  const code=(e as {code?:string})?.code;
+  if(code==="42501")throw new ForbiddenException({code:"TARIFF_DRAFT_MANAGER_AUTHORITY_DENIED"});
+  if(code==="23505")throw new ConflictException({code:"TARIFF_DRAFT_VERSION_OR_REQUEST_CONFLICT"});
+  if(code==="22023"||code==="22007")throw new BadRequestException({code:"TARIFF_DRAFT_INVALID"});
+  throw e;
+ }
+ @Get(":tenantId/ph12/share-market/tariff-drafts")
+ async list(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+   @Headers("authorization") auth?:string){
+  this.enabled();
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const result=await client.query("SELECT * FROM tto.ph12_list_tariff_drafts()");
+    return {tenantId:tenant,items:result.rows.map(r=>({
+      draftId:r.draft_id,feeId:r.fee_code,version:r.proposed_version,
+      status:r.status,tariff:r.payload,createdAt:r.created_at
+    })),draftOnly:true,boardVerified:false,feeActivated:false,
+      realPaymentConfirmed:false,legalShareTransfer:false};
+   });
+  }catch(e){return this.mapped(e);}
+ }
+ @Post(":tenantId/ph12/share-market/tariff-drafts")
+ @HttpCode(201)
+ async create(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+   @Headers("authorization") auth:string|undefined,
+   @Body() data:Record<string,unknown>){
+  this.enabled();
+  if(!data||typeof data!=="object"||Array.isArray(data)||
+     typeof data.requestKey!=="string"||
+     !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(data.requestKey)||
+     !data.tariff||typeof data.tariff!=="object"||Array.isArray(data.tariff)||
+     Object.keys(data).some(x=>!["requestKey","tariff"].includes(x)))
+   throw new BadRequestException({code:"TARIFF_DRAFT_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const result=await client.query(
+      "SELECT * FROM tto.ph12_create_tariff_draft($1::uuid,$2::jsonb)",
+      [data.requestKey,JSON.stringify(data.tariff)]);
+    const row=result.rows[0];
+    if(!row)throw new ServiceUnavailableException("TARIFF_DRAFT_NOT_PERSISTED");
+    return {tenantId:tenant,draftId:row.draft_id,feeId:row.fee_code,
+      version:row.proposed_version,status:row.status,replayed:row.replayed,
+      draftOnly:true,boardVerified:false,feeActivated:false,
+      realPaymentConfirmed:false,legalShareTransfer:false};
+   });
+  }catch(e){return this.mapped(e);}
+ }
+}
+
+/**
+ * PH12 board evidence review: source-file integrity is verified in PostgreSQL,
+ * signer identity/board signing power are NOT authenticated by available
+ * official sources. No tariff activation or legal acceptance endpoint.
+ */
+@Controller("v1/tenants")
+export class Ph12TariffBoardDocumentController {
+ constructor(private readonly db:Database){}
+ private enabled(){
+  if(process.env.TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED!=="true")
+    throw new ServiceUnavailableException({code:"PH12_BOARD_REVIEW_INTAKE_DISABLED"});
+ }
+ private safeError(e:unknown):never{
+  const code=(e as {code?:string})?.code;
+  if(code==="42501")throw new ForbiddenException({code:"BOARD_REVIEW_SOURCE_OR_ROLE_DENIED"});
+  if(code==="23505")throw new ConflictException({code:"BOARD_REVIEW_DUPLICATE_OR_REPLAY_MISMATCH"});
+  if(code==="22023"||code==="22007")throw new BadRequestException({code:"BOARD_REVIEW_INVALID_INPUT"});
+  throw e;
+ }
+ @Get(":tenantId/ph12/share-market/tariff-board-cases")
+ async cases(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth?:string){
+  this.enabled();
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query("SELECT * FROM tto.ph12_my_tariff_board_cases()");
+    return {tenantId:tenant,items:q.rows.map(x=>({
+      caseId:x.case_id,draftId:x.draft_id,documentId:x.document_id,
+      documentVersion:x.document_version,documentSha256:x.file_sha256,
+      resolutionNumber:x.resolution_number,resolutionDate:x.resolution_date,
+      effectiveFrom:x.effective_from,effectiveUntil:x.effective_until,
+      signerClaims:x.signer_claims,status:x.case_status,
+      reviewDecision:x.review_decision
+    })),documentMetadataSourceBound:true,
+    signerIdentityAuthenticated:false,signerAuthorityAuthenticated:false,
+    boardLegallyApproved:false,tariffActivated:false,
+    officialFeePaid:false,legalShareTransfer:false};
+   });
+  }catch(e){return this.safeError(e);}
+ }
+ @Post(":tenantId/ph12/share-market/tariff-board-cases")
+ @HttpCode(201)
+ async submit(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  this.enabled();
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+    Object.keys(v).some(k=>!["requestKey","draftId","documentId","documentVersion",
+      "resolutionNumber","resolutionDate","effectiveFrom","effectiveUntil","signerClaims"].includes(k))||
+    typeof v.requestKey!=="string"||typeof v.draftId!=="string"||
+    typeof v.documentId!=="string"||typeof v.resolutionNumber!=="string"||
+    typeof v.resolutionDate!=="string"||typeof v.effectiveFrom!=="string"||
+    typeof v.effectiveUntil!=="string"||!Number.isInteger(v.documentVersion)||
+    !Array.isArray(v.signerClaims))
+    throw new BadRequestException({code:"BOARD_CASE_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+      "SELECT * FROM tto.ph12_submit_tariff_board_evidence($1::uuid,$2::uuid,$3::integer,$4::text,$5::date,$6::date,$7::date,$8::jsonb,$9::uuid)",
+      [v.draftId,v.documentId,v.documentVersion,v.resolutionNumber,
+       v.resolutionDate,v.effectiveFrom,v.effectiveUntil,
+       JSON.stringify(v.signerClaims),v.requestKey]);
+    const row=q.rows[0];
+    return {tenantId:tenant,caseId:row.case_id,status:row.status,
+      replayed:row.replayed,documentMetadataSourceBound:true,
+      signerIdentityAuthenticated:false,signerAuthorityAuthenticated:false,
+      boardLegallyApproved:false,tariffActivated:false,officialFeePaid:false,
+      legalShareTransfer:false};
+   });
+  }catch(e){return this.safeError(e);}
+ }
+ @Post(":tenantId/ph12/share-market/tariff-board-cases/:caseId/review")
+ @HttpCode(201)
+ async review(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+   @Param("caseId",new ParseUUIDPipe()) caseId:string,
+   @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  this.enabled();
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+    Object.keys(v).some(k=>!["requestKey","decision","findingReference"].includes(k))||
+    typeof v.requestKey!=="string"||typeof v.decision!=="string"||
+    typeof v.findingReference!=="string")
+    throw new BadRequestException({code:"BOARD_REVIEW_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+      "SELECT * FROM tto.ph12_review_tariff_board_evidence($1::uuid,$2::text,$3::text,$4::uuid)",
+      [caseId,v.decision,v.findingReference,v.requestKey]);
+    const row=q.rows[0];
+    return {tenantId:tenant,caseId,reviewId:row.review_id,decision:row.decision,
+      replayed:row.replayed,documentMetadataReviewed:row.decision!=="DOCUMENT_REJECTED",
+      signerIdentityAuthenticated:false,signerAuthorityAuthenticated:false,
+      boardLegallyApproved:false,tariffActivated:false,officialFeePaid:false,
+      legalShareTransfer:false};
+   });
+  }catch(e){return this.safeError(e);}
+ }
+}
+
+@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController,Ph12TariffDraftController,Ph12TariffBoardDocumentController],providers:[ApiIrSmsOtpProvider]})
 export class AppModule {}

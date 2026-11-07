@@ -1,0 +1,383 @@
+{
+  "schemaVersion": "1.0",
+  "date": "2026-11-06",
+  "project": "TTO",
+  "scope": "PH12 CHILD-06/07 formal source-owner readiness only",
+  "sourcePin": "5eb6be8edfbb61f2eca740a42c30f572b493f023",
+  "authority": "APPROVED_REFERENCE_IS_EXTERNAL_NOT_GITHUB_OR_TEST",
+  "sourceIdIndex": "docs/analysis/PH06_MEMBER07_SHARE08_SOURCE_TESTS.json",
+  "existingApprovalPacket": "docs/contracts/shareholder-source-authority-readiness-v1.json",
+  "priorScans": {
+    "sourceEntities": 12,
+    "fieldPhrases": 75,
+    "memberTestIds": 7,
+    "shareTestIds": 8
+  },
+  "technicalEvidence": {
+    "baselineGitSha": "5f292fc617ddba20b9a8393621966eae51d3af5f",
+    "pg17Run": 42261793772,
+    "adaptiveSecurityRun": 42261983342,
+    "classification": "BOUNDED_SYNTHETIC_ENGINEERING_NOT_SIGNED"
+  },
+  "readiness": "HOLD",
+  "signedFormalAcceptances": 0,
+  "liveTransferEnabled": false,
+  "mergeOrDeployAuthorized": false,
+  "decisions": [
+    {
+      "gateId": "C06_AUTHORITY_SINGLE_WRITER",
+      "domain": "CHILD-06",
+      "decisionNeeded": "Approve the authoritative legal Member Master writer and source-of-truth mapping; certify legacy membership_events/current and CF02 projections as read-only derivatives, not parallel masters.",
+      "decisionOwnerRole": "Cooperative membership source owner + data governance + legal reviewer",
+      "requiredEvidence": [
+        "Signed source ownership matrix for tenant-specific Member Master",
+        "Versioned event schema with source id, event id, monotonic version and basis evidence",
+        "Legacy→canonical→CF02 reconciliation sample and no-write cutover/rollback decision",
+        "Independent evidence of RLS, tenant separation and conflicting/replayed/stale events"
+      ],
+      "relatedAcceptance": [
+        "MEMBER-AT-001",
+        "MEMBER-AT-006",
+        "MEMBER-AT-007"
+      ],
+      "candidateEvidence": [
+        "https://github.com/tajikinews-design/tto-national-platform-app/blob/feat/ph12-child06-child07-canonical-failclosed-20261106/database/migrations/0046_ph12_child06_07_source_reconciliation_readonly.sql",
+        "https://github.com/tajikinews-design/tto-national-platform-app/actions/runs/42261793772"
+      ],
+      "approvalStatus": "PENDING",
+      "approvedBy": null,
+      "approvedAt": null,
+      "approvalEvidenceRef": null,
+      "allowedActionsUntilApproval": [
+        "READ_ONLY",
+        "DISPOSABLE_SYNTHETIC_TESTS"
+      ],
+      "prohibitedUntilApproval": [
+        "LIVE_SINGLE_WRITER_CUTOVER",
+        "AUTOMATIC_CF02_PROMOTION"
+      ]
+    },
+    {
+      "gateId": "C06_NON_MEMBER_ENTITLEMENTS",
+      "domain": "CHILD-06",
+      "decisionNeeded": "Independently decide sourced shareholder classification and exact non-member rights (read, voting, capital-offer eligibility, purchase/sale) under applicable CF04 rule snapshot; no inferred membership/vote from shares.",
+      "decisionOwnerRole": "Legal + shareholder-account source owner + CF04 rule registry owner",
+      "requiredEvidence": [
+        "Lawful shareholder status source evidence scoped to tenant and party",
+        "Time-versioned CF04 rule snapshot and legal basis for each allowed right",
+        "Identity proof and strictly scoped access/role tests for nonmember",
+        "Independent confirmation that nonmember classification alone grants neither membership nor voting/trading"
+      ],
+      "relatedAcceptance": [
+        "MEMBER-AT-002",
+        "MEMBER-AT-003",
+        "MEMBER-AT-004",
+        "MEMBER-AT-005"
+      ],
+      "candidateEvidence": [
+        "https://github.com/tajikinews-design/tto-national-platform-app/blob/feat/ph12-child06-child07-canonical-failclosed-20261106/database/migrations/0044_ph12_child06_child07_canonical_failclosed.sql",
+        "https://github.com/tajikinews-design/tto-national-platform-app/actions/runs/42261793772"
+      ],
+      "approvalStatus": "PENDING",
+      "approvedBy": null,
+      "approvedAt": null,
+      "approvalEvidenceRef": null,
+      "allowedActionsUntilApproval": [
+        "READ_ONLY",
+        "DISPOSABLE_SYNTHETIC_TESTS"
+      ],
+      "prohibitedUntilApproval": [
+        "NON_MEMBER_RIGHTS_GRANT",
+        "MARKET_ORDER_ACTIVATION"
+      ]
+    },
+    {
+      "gateId": "C07_OFFICIAL_OPENING_REGISTER",
+      "domain": "CHILD-07",
+      "decisionNeeded": "The official register's SOURCE TYPE is resolved by project owner. Authenticate the competent per-cooperative register custodian, documentary registration-proof interface, official opening share register and issued-share conservation, correction/reversal and independently sign off validity. No legal-transfer completion without verified register entry.",
+      "decisionOwnerRole": "Official share register source custodian + cooperative authorized legal representative + independent QA",
+      "requiredEvidence": [
+        "Certified register identity/custodian mandate for each cooperative; evidence retrieval/verification contract and signed lawful register entry",
+        "Validated official opening register quantities, holder mappings, share classes, total issued shares, as-of version and discrepancy resolutions",
+        "Verified per-transfer official register entry/folio and registration timestamps; independent seller/buyer/quantity/tenant match before any ownership finality",
+        "Corrections/reversals are only accepted from verified official-register entries; stale, absent, contested or mismatched entries block legal transfer",
+        "Independent QA and legal signoff of finality workflow; payment/approval/settlement/trade-match alone NEVER constitute title transfer"
+      ],
+      "relatedAcceptance": [
+        "SHARE-AT-001",
+        "SHARE-AT-002",
+        "SHARE-AT-003",
+        "SHARE-AT-004",
+        "SHARE-AT-005",
+        "SHARE-AT-006",
+        "SHARE-AT-007",
+        "SHARE-AT-008"
+      ],
+      "candidateEvidence": [
+        "https://github.com/tajikinews-design/tto-national-platform-app/blob/feat/ph12-child06-child07-canonical-failclosed-20261106/database/migrations/0044_ph12_child06_child07_canonical_failclosed.sql",
+        "https://github.com/tajikinews-design/tto-national-platform-app/blob/feat/ph12-child06-child07-canonical-failclosed-20261106/database/migrations/0046_ph12_child06_07_source_reconciliation_readonly.sql",
+        "https://github.com/tajikinews-design/tto-national-platform-app/actions/runs/42261793772"
+      ],
+      "approvalStatus": "PENDING",
+      "approvedBy": null,
+      "approvedAt": null,
+      "approvalEvidenceRef": null,
+      "allowedActionsUntilApproval": [
+        "READ_ONLY",
+        "DISPOSABLE_SYNTHETIC_TESTS"
+      ],
+      "prohibitedUntilApproval": [
+        "OFFICIAL_REGISTER_WRITES",
+        "LEGAL_TRANSFER",
+        "PAYMENT_SETTLEMENT"
+      ],
+      "productSourceOfTruthDecision": "RESOLVED_BY_PROJECT_OWNER: each cooperative's official share/transfer register is final and legally authoritative; CHILD07 is subordinate workflow/read projection, not a legal ownership master.",
+      "productDecisionStatus": "CONFIRMED_BY_PROJECT_OWNER; INDEPENDENT_LEGAL_SIGNOFF_PENDING"
+    }
+  ],
+  "acceptanceCoverage": [
+    {
+      "id": "MEMBER-AT-001",
+      "engineeringAssertion": "Party != membership; no implicit cooperative relationship",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "ph12-child06-child07-canonical-failclosed.sql: PH12_NONMEMBER_IMPLICIT_MEMBERSHIP_OR_ROLE; ph06-member-share-frozen15.sql: MEMBER001",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: negative only, no formal source promotion"
+    },
+    {
+      "id": "MEMBER-AT-002",
+      "engineeringAssertion": "ShareholderAccount != ShareOwnership",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "ph06-member-share-frozen15.sql: MEMBER002; ph12-child06-child07-canonical-failclosed.sql: ledger account FK",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: DB constraint, no real sourced importer"
+    },
+    {
+      "id": "MEMBER-AT-003",
+      "engineeringAssertion": "Non-member shareholder must not inherit membership/voting",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "ph12-child06-child07-canonical-failclosed.sql: PH12_SHARE_ENTITLEMENT_LEAK; MEMBER003 legacy",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: rights Rule Registry approval missing"
+    },
+    {
+      "id": "MEMBER-AT-004",
+      "engineeringAssertion": "Self-service own-account only",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "ph06-member-share-frozen15.sql: MEMBER004; migration 0009 source read",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: no real non-member API entitlement proof"
+    },
+    {
+      "id": "MEMBER-AT-005",
+      "engineeringAssertion": "Cross-tenant access denied",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "ph12-child06-child07-canonical-failclosed.sql: PH12_CROSS_TENANT_*; ph06-member-share-frozen15.sql: MEMBER005",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: tenant FK and synthetic read, 3-panel E2E pending"
+    },
+    {
+      "id": "MEMBER-AT-006",
+      "engineeringAssertion": "Membership decision version/idempotency",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "ph06-member-share-frozen15.sql: MEMBER006; new immutable relationship versions",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: source-owner legal authority and independent reviewer pending"
+    },
+    {
+      "id": "MEMBER-AT-007",
+      "engineeringAssertion": "Monotonic membership event history",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "ph12-child06-child07-canonical-failclosed.sql: PH12_CHILD06_VERSION_GAP_ALLOWED/PH12_MEMBERSHIP_HISTORY_MUTABLE; MEMBER007 legacy",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: no independently approved CF02 delivery parity proof"
+    },
+    {
+      "id": "SHARE-AT-001",
+      "engineeringAssertion": "Missing valuation denies transfer",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "migration 0020 ph06_try_finalize_transfer always false; ph12 new transfer statuses exclude completed",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: fail-closed proven, positive legally sourced transfer intentionally impossible"
+    },
+    {
+      "id": "SHARE-AT-002",
+      "engineeringAssertion": "Post-transfer cap review",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "migration 0020 ph06_try_finalize_transfer always false; ph06-positive-legal-transfer-disposable-lab.sql sandbox",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: production rule evaluation not integrated"
+    },
+    {
+      "id": "SHARE-AT-003",
+      "engineeringAssertion": "Concurrent share lock",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "scripts/ci/ph06-concurrent-share-lock.sh (legacy); ph12 new share lock STAGED only",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: new canonical account-linked lock concurrency not yet implemented"
+    },
+    {
+      "id": "SHARE-AT-004",
+      "engineeringAssertion": "Verified payment is not ownership transfer",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "ph12-child06-child07-canonical-failclosed.sql: PH12_REAL_TRANSFER_LEDGER_ENABLED; migration 0020 transfer blocked",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: independent payment/fee evidence still not operational"
+    },
+    {
+      "id": "SHARE-AT-005",
+      "engineeringAssertion": "Privileged legal authority and SoD",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "ph06-member-share-frozen15.sql: SHARE005; new transfer has authority/evidence fields only",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: full authority verification/SoD not integrated"
+    },
+    {
+      "id": "SHARE-AT-006",
+      "engineeringAssertion": "Append-only ledger, idempotent transfer",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "ph12-child06-child07-canonical-failclosed.sql: PH12_LEDGER_MUTABLE; unique source references",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: no real legal-transfer ledger writer or 2-leg atomic finalization"
+    },
+    {
+      "id": "SHARE-AT-007",
+      "engineeringAssertion": "Own-case confidentiality across parties/tenants",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "ph06-member-share-frozen15.sql: SHARE007; ph12 private RLS tables and tenant FKs",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: new case has no dedicated authorised user read adapter"
+    },
+    {
+      "id": "SHARE-AT-008",
+      "engineeringAssertion": "No wallet, no custody or live settlement",
+      "sourceTextAvailability": "DERIVED_FROM_LOCKED_INVARIANTS_NOT_VERBATIM",
+      "testedSqlCandidate": "ph12-child06-child07-canonical-failclosed.sql: PH12_REAL_TRANSFER_LEDGER_ENABLED/PH12_LEGACY_TRANSFER_FINALIZE_UNBLOCKED; old SHARE008",
+      "realHttpAcceptance": null,
+      "threePortalUat": null,
+      "independentQaApproval": null,
+      "legalOwnerApproval": null,
+      "formalStatus": "HOLD",
+      "statusReason": "PARTIAL: non-existence of module-specific wallet, no live settlement verified"
+    }
+  ],
+  "exitCriteria": [
+    "Every source owner named and authenticated in independent governance workflow",
+    "Signed evidence-backed legal decision for each of 3 gates and source rule snapshots",
+    "Signed original per-ID scenario text or explicit approved derivation from source specification",
+    "Actual SQL+Nest HTTP+three-panel UI tests run at exact candidate SHA, independent QA accepted",
+    "Opening share register quantity reconciliation and source provenance approved",
+    "No changes to final-transfer blocker until separate legal authorization"
+  ],
+  "prohibited": [
+    "Do not treat CI SUCCESS as source signoff",
+    "Do not insert fake source approvals",
+    "Do not treat missing shareholding as zero",
+    "Do not create another canonical membership or ledger table",
+    "Do not merge or deploy",
+    "Do not process real money or shares"
+  ],
+  "nextCheckpoint": "PH12_C07_REGISTRY_CUSTODIAN_AND_OPENING_ATTESTATION_WITH_15_FORMAL_QA",
+  "productAuthorityDecision": {
+    "key": "PH12_SHARE_REGISTER_LEGAL_FINALITY_PRODUCT_RULE",
+    "status": "PROJECT_OWNER_POLICY_CONFIRMED_FORMAL_EXTERNAL_SIGNOFF_PENDING",
+    "decidedOn": "2026-11-06",
+    "recordedFrom": "Direct project owner statement in project conversation; not a signed independent cooperative/legal authority approval",
+    "originalRuleFa": "اطلاعات دفتر سهام مرجع اصلی هر تعاونی است. نقل‌وانتقال در دفتر سهام ثبت می‌شود و مرجع اصلی، نهایی و قانونی دفتر سهام خواهد بود. پلتفرم فقط فرایند را مدیریت می‌کند. نقل‌وانتقال و خریدوفروش سهام تنها پس از ثبت در دفتر سهام شرکت، در پلتفرم قطعی و قابل استناد شناخته می‌شود و بدون آن غیرقابل استناد تلقی خواهد شد.",
+    "scope": "Each cooperative's own official share/transfer register is the ONLY legal source of ownership truth; platform is a workflow/orchestration and verified read-projection, not an independent legally authoritative register.",
+    "invariant": "LEGAL_TRANSFER_FINALIZATION_REQUIRES_VERIFIED_OFFICIAL_COOPERATIVE_SHARE_REGISTER_ENTRY",
+    "ownershipProjectionRule": "CHILD07 reflects the cooperative's verified official register; no platform ledger, payment, trade match, signature, approval, settlement or request independently creates legal ownership.",
+    "preRegistrationState": "Pending requests/trades may be tracked operationally, but MUST NOT be marked TRANSFERRED, OWNERSHIP_FINAL, LEGALLY_EFFECTIVE or credited to the acquirer as legally owned without verified official-register entry.",
+    "postRegistrationState": "Record finality only from authenticated per-tenant register evidence issued or certified by the authorized register custodian; reconcile official entry, owner/account identities and quantities, event/version, effective date and share-class/issued-share conservation.",
+    "evidenceForFinality": [
+      "cooperative_tenant_id",
+      "official_register_id_or_qualified_name",
+      "official_entry_reference_or_folio",
+      "registered_transfer_effective_at",
+      "entry_recorded_at",
+      "authorized_custodian_identity_and_mandate",
+      "document_or_signed_attestation_reference",
+      "source_version_or_register_sequence",
+      "seller_and_buyer_legal_identity_and_shareholder_account_map",
+      "quantity_and_share_class",
+      "independent_reconciliation_outcome"
+    ],
+    "corrections": "Discrepancy or cancellation after entry must follow official register correction/reversal evidence and new source sequence; never silently rewrite ownership in the platform.",
+    "failureMode": "If official-register entry is absent, unverified, stale, mismatched, revoked, or custodian authorization is missing: legal finality and transferable credited shares remain BLOCKED; show pending/disputed status, not final ownership.",
+    "allowedNow": [
+      "PROCESS_DESIGN",
+      "READ_ONLY_VERIFIED_SOURCE_PREVIEW",
+      "SYNTHETIC_TESTS"
+    ],
+    "prohibitedNow": [
+      "UNVERIFIED_OWNERSHIP_PROMOTION",
+      "SETTLEMENT_IMPLIES_TRANSFER",
+      "PRODUCTION_REGISTER_WRITES",
+      "REAL_SHARE_TRANSFER",
+      "MERGE_OR_DEPLOY"
+    ],
+    "explicitlyUnresolved": [
+      "Authenticate each cooperative's legal register custodian and evidence delivery/verification mechanism",
+      "Attest per-tenant opening share register and total issued shares, reconcile mismatches",
+      "Obtain separate competent legal reviewer approval of detailed evidence/rights, and independent 15-ID QA",
+      "Resolve other C06 source and non-member rights gates"
+    ],
+    "formalStatus": "PH12_HOLD_0_OF_3_EXTERNAL_SIGNED_GATES_0_OF_15_FORMAL_ACCEPTANCES"
+  }
+}
