@@ -403,6 +403,36 @@ let checks=0;
  const financeKey="test-coop-finance-check-001";
  const feeChecked=await api("POST",feeDocReviewPath,FINANCE,check,financeKey);
  status(feeChecked,201);assert.equal(feeChecked.decision,"LAB_DOCUMENT_CHECKED_NOT_PAID");
+ // Legal fee-receipt authorization is NOT inferred from a role alone.
+ // Cross-check only an explicitly source-versioned LAB bank statement and
+ // currently valid tenant-scoped finance mandate, with immutable evidence.
+ const crossPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-coop-receipt-crosscheck`;
+ const cross={reportId:rSeller.reportId,statementSourceReference:"TEST-BANK-SOURCE-STATEMENT-001",
+   statementSourceVersion:1};
+ status(await api("POST",crossPath,winner,cross),403,"FINANCE_REVIEW_ROLE_REQUIRED");
+ status(await api("POST",crossPath,FINANCE,
+  {...cross,statementSourceReference:"TEST-UNKNOWN-STATEMENT-001"}),409,
+  "STATEMENT_SOURCE_VERSION_OR_TRUST_INVALID");
+ await pool.query("UPDATE market_v3_disposable.lab_finance_mandates SET state='LAB_REVOKED' WHERE tenant_id=$1 AND reviewer_id=$2",[T,FINANCE]);
+ status(await api("POST",crossPath,FINANCE,cross),403,"FINANCE_MANDATE_SOURCE_NOT_VERIFIED");
+ await pool.query("UPDATE market_v3_disposable.lab_finance_mandates SET state='LAB_ATTESTED' WHERE tenant_id=$1 AND reviewer_id=$2",[T,FINANCE]);
+ const crossKey="test-receipt-crosscheck-0001";
+ const crossOkay=await api("POST",crossPath,FINANCE,cross,crossKey);
+ status(crossOkay,201);assert.equal(crossOkay.evidenceStatus,"LAB_REFERENCE_MATCHED_NOT_OFFICIAL_PAID");
+ assert.equal(crossOkay.officialFeePaid,false);assert.equal(crossOkay.appointmentEnabled,false);
+ const crossAgain=await api("POST",crossPath,FINANCE,cross,crossKey);
+ status(crossAgain,201);assert.equal(crossAgain.checkId,crossOkay.checkId);
+ await pool.query("UPDATE market_v3_disposable.lab_coop_statement_sources SET evidence_state='REVOKED' WHERE tenant_id=$1 AND source_reference=$2",[T,cross.statementSourceReference]);
+ status(await api("POST",crossPath,FINANCE,cross,crossKey),409,"STATEMENT_SOURCE_VERSION_OR_TRUST_INVALID");
+ const rowCross=await pool.query(
+  "SELECT result FROM market_v3_disposable.lab_coop_receipt_checks WHERE check_id=$1",
+  [crossOkay.checkId]);
+ assert.equal(rowCross.rows[0].result,"LAB_REFERENCE_MATCHED_NOT_OFFICIAL_PAID");
+ await assert.rejects(async()=>pool.query(
+  "UPDATE market_v3_disposable.lab_coop_receipt_checks SET result=result WHERE check_id=$1",
+  [crossOkay.checkId]),/LAB_REVIEW_APPEND_ONLY/);
+ console.log("PH12_MARKET_V3_SOURCE_MANDATE_REVOCATION_AND_BANK_REFERENCE_LAB_ONLY_PASS");
+
  assert.equal(feeChecked.legalFeePaid,false);assert.equal(feeChecked.appointmentEnabled,false);
  const feeReplay=await api("POST",feeDocReviewPath,FINANCE,check,financeKey);
  status(feeReplay,201);assert.equal(feeReplay.reviewId,feeChecked.reviewId);
@@ -438,12 +468,48 @@ let checks=0;
  // Only synthetic PG17 fixture: the source cap is widened for the synthetic second buyer.
  const losingBuyer=winner===BUYER1?BUYER2:BUYER1;
  await pool.query("UPDATE market_v3_disposable.buyer_entitlement_sources SET cap_shares=50 WHERE tenant_id=$1 AND buyer_id=$2",[T,losingBuyer]);
+ // A CUSTOM_APPROVED_BASE source is tenant+offer+fee+version bound.
+ // Without a fresh source even a valid buyer cannot create a Trade.
+ await pool.query(`INSERT INTO market_v3_disposable.lab_fee_policy_sources
+ (tenant_id,fee_id,source_version,fee_title,legal_fee_type,
+ calculation_mode,payer_mode,fixed_amount,percentage_rate_bps,buyer_percent,
+ seller_percent,percentage_basis,minimum_amount,maximum_amount,approval_reference,
+ legal_basis_reference,valid_from,valid_until,evidence_status)
+ VALUES($1,'TEST-CUSTOM-FEE-APPROVED-BASE',1,'Test ONLY custom-source 5% fee',
+ 'COOP_APPROVED_FEE','PERCENTAGE','BUYER',0,500,100,0,
+ 'CUSTOM_APPROVED_BASE',0,NULL,'TEST-CUSTOM-FEE-APPROVAL-001',
+ 'TEST-CUSTOM-LEGAL-BASIS-001','2026-01-01','2028-01-01','LAB_TEST_ATTESTED')`,[T]);
+ const secondBuyUrl=`/lab/tenants/${T}/offers/${second.offerId}/buy`;
+ status(await api("POST",secondBuyUrl,losingBuyer,{quantity:20},
+   "custom-base-missing-001"),409,"CUSTOM_FEE_BASE_SOURCE_NOT_VERIFIED");
+ await pool.query(`INSERT INTO market_v3_disposable.lab_custom_fee_base_sources
+ (tenant_id,offer_id,fee_id,source_version,base_amount,source_reference,
+ valid_from,valid_until,evidence_state)
+ VALUES($1,$2,'TEST-CUSTOM-FEE-APPROVED-BASE',1,2000,
+ 'TEST-CUSTOM-BASE-SOURCE-001','2026-01-01','2028-01-01','LAB_TEST_ATTESTED')`,
+ [T,second.offerId]);
+ await pool.query(`UPDATE market_v3_disposable.lab_custom_fee_base_sources
+ SET evidence_state='REVOKED' WHERE tenant_id=$1 AND offer_id=$2`,[T,second.offerId]);
+ status(await api("POST",secondBuyUrl,losingBuyer,{quantity:20},
+   "custom-base-revoked-001"),409,"CUSTOM_FEE_BASE_SOURCE_NOT_VERIFIED");
+ await pool.query(`UPDATE market_v3_disposable.lab_custom_fee_base_sources
+ SET evidence_state='LAB_TEST_ATTESTED' WHERE tenant_id=$1 AND offer_id=$2`,
+ [T,second.offerId]);
  const secondBuy=await api("POST",`/lab/tenants/${T}/offers/${second.offerId}/buy`,
    losingBuyer,{quantity:20},"dispute-buyer-request-001");
  status(secondBuy,201);assert.equal(secondBuy.state,"COOP_REVIEW");
  const secondFee=await api("GET",
    `/lab/tenants/${T}/buy-requests/${secondBuy.buyRequestId}/test-fee-snapshot`,losingBuyer);
- status(secondFee,200);assert.equal(secondFee.feeSnapshots.length,3);
+ status(secondFee,200);assert.equal(secondFee.feeSnapshots.length,4);
+ const customFee=secondFee.feeSnapshots.find(x=>x.fee_id==="TEST-CUSTOM-FEE-APPROVED-BASE");
+ assert.equal(customFee.fee_amount,"100");
+ const customSourceSnap=await pool.query(
+  "SELECT verified_custom_base_amount,custom_base_source_version,custom_base_source_reference FROM market_v3_disposable.lab_fee_policy_snapshots WHERE tenant_id=$1 AND buy_request_id=$2 AND fee_id='TEST-CUSTOM-FEE-APPROVED-BASE'",
+  [T,secondBuy.buyRequestId]);
+ assert.equal(customSourceSnap.rows[0].verified_custom_base_amount,"2000");
+ assert.equal(customSourceSnap.rows[0].custom_base_source_version,"1");
+ assert.equal(customSourceSnap.rows[0].custom_base_source_reference,"TEST-CUSTOM-BASE-SOURCE-001");
+ console.log("PH12_MARKET_V3_CUSTOM_APPROVED_BASE_SOURCE_BOUND_AND_FAIL_CLOSED_PASS");
  assert.equal(secondFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").fee_amount,"400");
  assert.equal(secondFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").source_version,"2");
  assert.equal(secondFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").status,"UNPAID");
