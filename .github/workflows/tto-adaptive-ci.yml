@@ -485,6 +485,7 @@ jobs:
           # No hosted database, deployment, financial operation or promotion.
           if [ "${GITHUB_HEAD_REF}" = "feat/ph12-child06-child07-canonical-failclosed-20261106" ]; then
             docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0047_ph12_tariff_drafts_private.sql
+            docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0048_ph12_tariff_board_document_review.sql
           fi
       - name: PCS-010 real session/manager tenant role and PostgreSQL fictional approval audit
         if: github.event_name == 'pull_request' && (github.head_ref == 'feat/tto-pcs-010-nest-pg-validated-fixtures-20261101' || github.head_ref == 'feat/tto-pcs-011-manager-real-pg-bff-20261101' || github.head_ref == 'feat/tto-pcs-012-manager-audit-browser-20261101')
