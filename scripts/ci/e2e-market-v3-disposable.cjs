@@ -13,6 +13,7 @@ const BUYER2="a3333333-3333-4333-8333-333333333333";
 const NONMEMBER="a7777777-7777-4777-8777-777777777777";
 const MANAGER="a4444444-4444-4444-8444-444444444444";
 const REVIEWER="a5555555-5555-4555-8555-555555555555";
+const BOARD_SECRETARY="a9999999-9999-4999-8999-999999999999";
 const OUTSIDER="a8888888-8888-4888-8888-888888888888";
 const token=process.env.TTO_MARKET_LAB_SECRET;
 assert.match(token||"",/^[a-f0-9]{64}$/);
@@ -52,7 +53,23 @@ let checks=0;
  status(second,201);assert.equal(second.status,"QUEUED");
  // Only market manager may publish, and only the oldest queued offer.
  const publish=offer=>`/lab/tenants/${T}/offers/${offer}/publish`;
- status(await api("POST",publish(second.offerId),MANAGER,{}),409,"FIFO_QUEUE_ORDER_REQUIRED");
+ // Each seller sees only their own FIFO queue and an approximate, source-driven ETA.
+ const queue=await api("GET",`/lab/tenants/${T}/my-queue`,SELLER);
+ status(queue,200);assert.equal(queue.offers.length,2);
+ assert.deepEqual(queue.offers.map(x=>x.queuePosition),[1,2]);
+ assert.ok(queue.offers.every(x=>x.estimatedNotGuaranteed===true&&
+   /^\d{4}-\d{2}-\d{2}$/.test(x.estimatedDate)));
+ status(await api("GET",`/lab/tenants/${T}/my-queue`,BUYER1),403,"ROLE_OR_TENANT_DENIED");
+ const schedule=offer=>`/lab/tenants/${T}/offers/${offer}/schedule`;
+ status(await api("POST",schedule(second.offerId),MANAGER,{}),409,"FIFO_QUEUE_ORDER_REQUIRED");
+ status(await api("POST",schedule(first.offerId),BUYER1,{}),403,"ROLE_OR_TENANT_DENIED");
+ const firstSchedule=await api("POST",schedule(first.offerId),MANAGER,{});
+ status(firstSchedule,200);
+ assert.equal(firstSchedule.status,"SCHEDULED");
+ assert.equal(firstSchedule.estimatedNotGuaranteed,true);
+ status(await api("POST",schedule(first.offerId),MANAGER,{}),200);
+ status(await api("POST",schedule(second.offerId),MANAGER,{}),200);
+ status(await api("POST",publish(second.offerId),SELLER,{}),403,"ROLE_OR_TENANT_DENIED");
  status(await api("POST",publish(first.offerId),BUYER1,{}),403,"ROLE_OR_TENANT_DENIED");
  status(await api("POST",publish(first.offerId),MANAGER,{}),200);
  const available=await api("GET",`/lab/tenants/${T}/market-offers`,BUYER1);
@@ -91,6 +108,38 @@ let checks=0;
  assert.equal(reviewed.boardApprovalGranted,false);
  const reviewAgain=await api("POST",reviewPath,REVIEWER,{verdict:"REFER_TO_BOARD"},reviewKey);
  status(reviewAgain,200);assert.equal(reviewAgain.reviewId,reviewed.reviewId);
+ // BOARD_SECRETARIAT may only record evidence as a staged UNVERIFIED_DRAFT.
+ // It cannot approve any legally binding board decision or enable payment.
+ const boardPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/board-decision-draft`;
+ const decision={decision:"APPROVE",meetingReference:"TEST-MEETING-2026-01",
+   resolutionReference:"TEST-RESOLUTION-2026-01",
+   attachmentReference:"TEST-EVIDENCE-DOC-2026-01",
+   legalBasisReference:"TEST-ARTICLE-08",decisionDate:"2026-11-07"};
+ status(await api("POST",boardPath,REVIEWER,decision),403,"ROLE_OR_TENANT_DENIED");
+ status(await api("POST",boardPath,BOARD_SECRETARY,{...decision,attachmentReference:"bad"}),422,
+   "BOARD_EVIDENCE_REFERENCE_REQUIRED");
+ status(await api("POST",boardPath,BOARD_SECRETARY,{...decision,decision:"PAID"}),422,
+   "INVALID_BOARD_DECISION");
+ const boardKey="board-draft-000000001";
+ const draft=await api("POST",boardPath,BOARD_SECRETARY,decision,boardKey);
+ status(draft,201);
+ assert.equal(draft.evidenceStatus,"UNVERIFIED_DRAFT");
+ assert.equal(draft.legalBoardApprovalGranted,false);
+ assert.equal(draft.sellerContinuationEnabled,false);
+ const draftAgain=await api("POST",boardPath,BOARD_SECRETARY,decision,boardKey);
+ status(draftAgain,201);assert.equal(draft.decisionId,draftAgain.decisionId);
+ const dbDraft=await pool.query("SELECT evidence_status,verified_by,decision FROM market_v3_disposable.board_decision_drafts WHERE decision_id=$1",[draft.decisionId]);
+ assert.equal(dbDraft.rows[0].evidence_status,"UNVERIFIED_DRAFT");
+ assert.equal(dbDraft.rows[0].verified_by,null);
+ assert.equal(dbDraft.rows[0].decision,"APPROVE");
+ // Verification state and pricing must be source-derived; fake or expired source must fail.
+ await pool.query("UPDATE market_v3_disposable.price_source_versions SET evidence_state='UNVERIFIED' WHERE source_id='TEST-PRICE-RULE'");
+ status(await api("POST",sellPath,SELLER,{quantity:1,saleMode:"FULL_OFFER"},
+   "sell-unverified-price-01"),409,"VERSIONED_PRICING_SOURCE_REQUIRED");
+ await pool.query("UPDATE market_v3_disposable.price_source_versions SET evidence_state='LAB_TEST_ATTESTED' WHERE source_id='TEST-PRICE-RULE'");
+ await pool.query("UPDATE market_v3_disposable.buyer_entitlement_sources SET evidence_state='UNVERIFIED' WHERE buyer_id=$1",[BUYER1]);
+ status(await api("POST",`/lab/tenants/${T}/offers/${second.offerId}/buy`,
+   BUYER1,{quantity:20}),409,"BUYER_LEGAL_ELIGIBILITY_NOT_CONFIRMED");
  // No purchase price, fee, bank transfer, official register or ownership-finalization API.
  for(const forbidden of ["/payments","/fees","/register","/finalize","/ownership-transfers"]){
   status(await api("POST",`/lab/tenants/${T}${forbidden}`,REVIEWER,{}),404,"LAB_ROUTE_NOT_FOUND");
@@ -108,5 +157,7 @@ let checks=0;
  console.log("PH12_MARKET_V3_CONCURRENT_FULL_OFFER_SINGLE_WINNER_PASS");
  console.log("PH12_MARKET_V3_TENANT_ROLE_IDEMPOTENCY_DIRECT_PAYMENT_GUARDS_PASS");
  console.log("PH12_MARKET_V3_OFFICIAL_SHARE_LEDGER_UNCHANGED_NO_FUNDS_NO_FINALIZATION_PASS");
+ console.log("PH12_MARKET_V3_FIFO_ETA_POLICY_AND_VERSIONED_PRICING_PASS");
+ console.log("PH12_MARKET_V3_SOURCED_BUYER_CAP_AND_BOARD_UNVERIFIED_EVIDENCE_PASS");
 })().catch(e=>{console.error("PH12_MARKET_V3_LAB_FAILED",e);process.exitCode=1;})
 .finally(async()=>{await new Promise(resolve=>server.close(resolve));await pool.end()});
