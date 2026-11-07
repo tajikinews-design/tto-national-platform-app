@@ -34,6 +34,20 @@ async function participants(c:PoolClient,tenant:string,reqId:string){
  if(!r.rows[0])deny("TRADE_NOT_FOUND",404);
  return r.rows[0];
 }
+async function activeFinanceMandate(c:PoolClient,tenant:string,actorId:string){
+ // Latest version only: explicitly revoked/expired source cannot silently
+ // fall back to an older grant. This is synthetically attested LAB metadata.
+ const x=await c.query(`SELECT mandate_version,state,valid_from,valid_until,scope
+   FROM ${LAB}.lab_finance_mandates
+   WHERE tenant_id=$1 AND reviewer_id=$2
+   ORDER BY mandate_version DESC LIMIT 1`,[tenant,actorId]);
+ const m=x.rows[0];
+ if(!m||m.state!=="LAB_ATTESTED"||m.scope!=="FEE_DOCUMENTARY_REVIEW_TEST_ONLY"||
+    new Date(m.valid_from).getTime()>Date.now()||
+    new Date(m.valid_until).getTime()<=Date.now())
+   deny("FINANCE_MANDATE_SOURCE_NOT_VERIFIED",403);
+ return m;
+}
 export async function handleMultiFeeLab(input:LabInput):
  Promise<{status:number;value:Record<string,unknown>}|null>{
  const {req,parts,tenant,actorId,pool,key,parseBody}=input;
@@ -115,6 +129,7 @@ export async function handleMultiFeeLab(input:LabInput):
   const result=await tx(pool,async c=>{
    const a=await sourceActor(c,tenant,actorId);
    if(a.role!=="COOP_FINANCE_OPERATOR")deny("FINANCE_REVIEW_ROLE_REQUIRED",403);
+   await activeFinanceMandate(c,tenant,actorId);
    await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))",
       [`lab-fee-review:${tenant}:${reportId}`]);
    const e=await c.query(`SELECT * FROM ${LAB}.lab_fee_component_reports
@@ -146,6 +161,71 @@ export async function handleMultiFeeLab(input:LabInput):
   return {status:201,value:{...result,technicalDocumentaryReviewOnly:true,
    legalFeePaid:false,statutoryVerification:false,appointmentEnabled:false,
    officialRegisterUpdated:false,legalOwnershipChanged:false}};
+ }
+
+ // A synthetic source-bound bank statement cross-check is a TECHNICAL
+ // TEST, never legal PAID and never proof of access to a bank account.
+ if(req.method==="POST"&&action==="test-coop-receipt-crosscheck"){
+  const raw=await parseBody();
+  const reportId=String(raw.reportId??"");
+  const sourceRef=label(raw.statementSourceReference);
+  const version=raw.statementSourceVersion;
+  if(!uuid.test(reportId)||typeof version!=="number"||
+     !Number.isSafeInteger(version)||version<1)deny("INVALID_RECEIPT_CROSSCHECK",422);
+  const result=await tx(pool,async c=>{
+    const a=await sourceActor(c,tenant,actorId);
+    if(a.role!=="COOP_FINANCE_OPERATOR")deny("FINANCE_REVIEW_ROLE_REQUIRED",403);
+    const mandate=await activeFinanceMandate(c,tenant,actorId);
+    await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))",
+      [`lab-statement-check:${tenant}:${reportId}`]);
+    const q=await c.query(`SELECT * FROM ${LAB}.lab_fee_component_reports
+      WHERE tenant_id=$1 AND report_id=$2 AND buy_request_id=$3`,
+      [tenant,reportId,reqId]);
+    const report=q.rows[0];if(!report)deny("FEE_REPORT_NOT_FOUND",404);
+    if(report.payer_id===actorId)deny("FOUR_EYES_REVIEW_REQUIRED",403);
+    const doc=await c.query(`SELECT decision FROM ${LAB}.lab_fee_documentary_reviews
+      WHERE tenant_id=$1 AND report_id=$2`,[tenant,reportId]);
+    if(doc.rows[0]?.decision!=="LAB_DOCUMENT_CHECKED_NOT_PAID")
+      deny("INDEPENDENT_DOCUMENT_REVIEW_REQUIRED");
+    // Latest source record must be this version: prevent a superseded
+    // statement from authorizing a review after revocation/rollover.
+    const source=await c.query(`SELECT * FROM ${LAB}.lab_coop_statement_sources
+      WHERE tenant_id=$1 AND source_reference=$2
+      ORDER BY source_version DESC LIMIT 1`,[tenant,sourceRef]);
+    const stmt=source.rows[0];
+    if(!stmt||Number(stmt.source_version)!==version||
+       stmt.evidence_state!=="LAB_TEST_ATTESTED"||
+       new Date(stmt.valid_from).getTime()>Date.now()||
+       new Date(stmt.valid_until).getTime()<=Date.now())
+      deny("STATEMENT_SOURCE_VERSION_OR_TRUST_INVALID");
+    if(stmt.external_reference!==report.evidence_reference||
+       stmt.beneficiary_reference!==report.beneficiary_reference||
+       BigInt(stmt.settled_amount)!==BigInt(report.amount))
+      deny("BANK_REFERENCE_AMOUNT_OR_BENEFICIARY_MISMATCH");
+    const previous=await c.query(`SELECT * FROM ${LAB}.lab_coop_receipt_checks
+      WHERE tenant_id=$1 AND reviewer_id=$2 AND idempotency_key=$3`,[tenant,actorId,key]);
+    if(previous.rows[0]){
+      const p=previous.rows[0];
+      if(p.report_id!==reportId||p.source_reference!==sourceRef||
+        Number(p.source_version)!==version)
+        deny("IDEMPOTENCY_PAYLOAD_MISMATCH");
+      return {checkId:p.check_id,idempotent:true};
+    }
+    const exists=await c.query(`SELECT 1 FROM ${LAB}.lab_coop_receipt_checks
+      WHERE report_id=$1`,[reportId]);
+    if(exists.rowCount)deny("RECEIPT_ALREADY_CHECKED_IN_LAB");
+    const x=await c.query(`INSERT INTO ${LAB}.lab_coop_receipt_checks
+       (check_id,tenant_id,report_id,reviewer_id,mandate_version,
+        source_reference,source_version,result,idempotency_key)
+      VALUES($1,$2,$3,$4,$5,$6,$7,'LAB_REFERENCE_MATCHED_NOT_OFFICIAL_PAID',$8)
+      RETURNING check_id`,[randomUUID(),tenant,reportId,actorId,
+      mandate.mandate_version,sourceRef,version,key]);
+    return {checkId:x.rows[0].check_id,idempotent:false};
+  });
+  return {status:201,value:{...result,
+    evidenceStatus:"LAB_REFERENCE_MATCHED_NOT_OFFICIAL_PAID",
+    realBankConfirmation:false,officialFeePaid:false,
+    realPaymentProcessed:false,appointmentEnabled:false,legalOwnershipChanged:false}};
  }
  return null;
 }
