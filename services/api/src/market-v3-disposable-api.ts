@@ -281,10 +281,37 @@ export function createDisposableMarketApi(){
             WHERE tenant_id=$1 AND buyer_id=$2 AND state IN ('COOP_REVIEW','BOARD_APPROVAL_PENDING')`,[tenant,actorId]);
           if(BigInt(h.rows[0].registered_quantity)+BigInt(pending.rows[0].qty)+qty>BigInt(entitlementSource.cap_shares))
             deny(409,"BUYER_ACTIVE_CAP_EXCEEDED");
+          // Fee-policy snapshot is frozen at CREATE TRADE, never recomputed
+          // from later fee-policy changes. This isolated test supports FIXED/BUYER
+          // only; all other modes are fail-closed until separately implemented.
+          const fees=await c.query(`SELECT * FROM ${LAB}.lab_fee_policy_sources
+            WHERE tenant_id=$1 AND evidence_status='LAB_TEST_ATTESTED'
+              AND valid_from<=clock_timestamp() AND valid_until>clock_timestamp()
+            ORDER BY fee_id,source_version DESC`,[tenant]);
+          if(!fees.rows.length)deny(409,"ACTIVE_COOPERATIVE_FEE_SOURCE_REQUIRED");
+          const seenFees=new Set<string>();
+          const feeSnapshots:Array<Record<string,unknown>>=[];
+          for(const fee of fees.rows){
+            if(seenFees.has(fee.fee_id))continue;
+            seenFees.add(fee.fee_id);
+            if(fee.calculation_mode!=="FIXED"||fee.payer_mode!=="BUYER"||
+               !fee.approval_reference||!fee.legal_basis_reference)
+              deny(409,"UNSUPPORTED_OR_UNVERIFIED_FEE_RULE");
+            feeSnapshots.push(fee);
+          }
           const b=await c.query(`INSERT INTO ${LAB}.buy_requests
             (buy_request_id,tenant_id,offer_id,buyer_id,quantity,state,idempotency_key)
             VALUES($1,$2,$3,$4,$5,'COOP_REVIEW',$6) RETURNING buy_request_id,state`,
             [randomUUID(),tenant,offerId,actorId,qty.toString(),key]);
+          for(const fee of feeSnapshots){
+            await c.query(`INSERT INTO ${LAB}.lab_fee_policy_snapshots
+              (tenant_id,buy_request_id,fee_id,source_version,category,payer_mode,
+               fee_amount,approval_reference,legal_basis_reference)
+              VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+              [tenant,b.rows[0].buy_request_id,fee.fee_id,fee.source_version,
+                fee.legal_fee_type,fee.payer_mode,fee.fixed_amount,
+                fee.approval_reference,fee.legal_basis_reference]);
+          }
           await c.query(`UPDATE ${LAB}.offers SET status='RESERVED' WHERE offer_id=$1`,[offerId]);
           return {buyRequestId:b.rows[0].buy_request_id,state:b.rows[0].state,idempotent:false};
         });
