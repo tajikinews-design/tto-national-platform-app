@@ -174,6 +174,14 @@ async function main(){
  if(firstRead.status!==200){
    const diagnostic=await firstRead.json().catch(()=>({code:"NON_JSON"}));
    console.error("PH12_TARIFF_DRAFT_GET_DIAGNOSTIC",firstRead.status,diagnostic.code??"UNKNOWN");
+   // Synthetic lab only: probe the authenticated upstream status to isolate
+   // BFF transport failure from Nest/PostgreSQL rejection; never log tokens or bodies.
+   try{
+     const upstream=await get("/v1/tenants/"+A+"/ph12/share-market/tariff-drafts",tokenMap.get(MANAGER));
+     const detail=await upstream.json().catch(()=>({}));
+     console.error("PH12_TARIFF_DRAFT_UPSTREAM_DIAGNOSTIC",upstream.status,
+       typeof detail?.code==="string"?detail.code:"UNCLASSIFIED");
+   }catch{console.error("PH12_TARIFF_DRAFT_UPSTREAM_DIAGNOSTIC","NETWORK_ERROR");}
  }
  const initialDrafts=await status(firstRead,200,"read empty durable tariff drafts");
  ok(initialDrafts.items.length===0&&initialDrafts.draftOnly===true,
