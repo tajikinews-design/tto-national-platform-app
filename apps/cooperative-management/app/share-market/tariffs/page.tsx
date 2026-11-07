@@ -191,7 +191,12 @@ export default function CooperativeTariffPreparation(){
  }
  return <main dir="rtl" lang="fa" style={{maxWidth:1120,margin:"0 auto",
   padding:"clamp(18px,3vw,40px)",lineHeight:1.9,color:"#203c4b",fontFamily:"var(--tto-font),sans-serif"}}>
-  <nav><a href="/" style={{color:"#176b86"}}>بازگشت به پنل تعاونی</a></nav>
+  <nav style={{display:"flex",gap:22,flexWrap:"wrap"}}>
+   <a href="/" style={{color:"#176b86"}}>بازگشت به پنل تعاونی</a>
+   <a href="/share-market/board-review" style={{color:"#176b86"}}>
+    پرونده بررسی مصوبه هیئت‌مدیره برای پیش‌نویس تعرفه
+   </a>
+  </nav>
   <header style={{margin:"22px 0"}}>
    <h1 style={{fontSize:"clamp(24px,3vw,36px)",marginBottom:6}}>آماده‌سازی تعرفه‌های نقل‌وانتقال سهام</h1>
    <p>تعرفه‌ها برای هر تعاونی نسخه‌دارند. تغییر تعرفه باید بر اساس مصوبه معتبر هیئت‌مدیره باشد؛
