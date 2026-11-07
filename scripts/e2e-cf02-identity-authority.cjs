@@ -128,14 +128,38 @@ async function main(){
  ok(deniedParty.rows[0].n===0,"rejected Party never linked");
  // Manager: role alone offers a candidate but not authority evidence.
  assert.deepEqual(await options(cm,MANAGER),[{tenantId:A,displayName:"Test Cooperative A",evidenceStatus:"EVIDENCE_PENDING"}]);checks++;
+ const tariffGate=cm.origin+"/api/tenants/"+A+"/share-market/tariff-draft-readiness";
+ const managerCookie={Cookie:"tto_session="+tokenMap.get(MANAGER)};
+ await status(await fetch(tariffGate,{headers:{Authorization:"Bearer "+tokenMap.get(MANAGER)}}),
+   401,"tariff BFF denies forged bearer without session");
+ await status(await fetch(tariffGate,{headers:managerCookie}),403,
+   "tariff BFF does not treat generic tenant context as managerial authority");
+ await status(await fetch(cm.origin+"/api/tenants/"+B+"/share-market/tariff-draft-readiness",
+   {headers:managerCookie}),403,"tariff BFF denies cross-tenant URL");
  const auth=randomUUID();
  await db.query("INSERT INTO tto.legal_authorities(authority_id,holder_id,tenant_id,scope,evidence_id,verified_by,verified_at,valid_until) VALUES($1,$2,$3,'ROLE_MANAGEMENT',$4,$5,now(),now()+interval '1 hour')",
  [auth,MANAGER,A,DEC,APPROVER]);
  assert.deepEqual(await options(cm,MANAGER),[{tenantId:A,displayName:"Test Cooperative A",evidenceStatus:"ROLE_AUTHORITY_EVIDENCE"}]);checks++;
+ const prepared=await status(await fetch(tariffGate,{headers:managerCookie,cache:"no-store"}),
+   200,"verified cooperative tariff draft readiness");
+ ok(prepared.tenantContextVerified===true&&prepared.tenantId===A&&
+    prepared.draftPreparationAllowed===true&&
+    prepared.liveTariffWrites===false&&
+    prepared.serverSideTariffDraftPersistence===false&&
+    prepared.officialTariffActivation===false&&
+    prepared.officialFeePaid===false&&
+    prepared.ownershipTransferEnabled===false,
+    "real portal readiness must NOT authorize business operations");
+ await status(await fetch(tariffGate,{method:"POST",headers:managerCookie,body:"{}"}),
+   405,"tariff BFF has no server-side write endpoint");
  await db.query("UPDATE tto.legal_authorities SET revoked_at=now() WHERE authority_id=$1",[auth]);
  assert.deepEqual(await options(cm,MANAGER),[{tenantId:A,displayName:"Test Cooperative A",evidenceStatus:"EVIDENCE_PENDING"}]);checks++;
+ await status(await fetch(tariffGate,{headers:managerCookie,cache:"no-store"}),403,
+   "revoked management authority cannot prepare tariff drafts");
  await db.query("UPDATE tto.role_assignments SET revoked_at=now() WHERE user_id=$1 AND tenant_id=$2",[MANAGER,A]);
  assert.deepEqual(await options(cm,MANAGER),[]);checks++;
+ await status(await fetch(tariffGate,{headers:managerCookie,cache:"no-store"}),403,
+   "revoked manager role cannot prepare tariff drafts");
  // National operator without independently approved, tenant-specific JIT has no tenant scope.
  assert.deepEqual(await options(na,NATIONAL),[]);checks++;
  const grant=randomUUID();
