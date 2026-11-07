@@ -341,10 +341,9 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "LAB_MULTI_FEE_ARITHMETIC_PAYER_SPLIT_AND_DOCUMENTARY_REVIEW",
-        "scope": "Synthetic tenant-versioned FIXED/PERCENTAGE/FIXED_PLUS_PERCENTAGE + BUYER/SELLER/SPLIT, immutable snapshot, payer-scoped external reporting, separate finance operator metadata CHECK/REJECT append-only; never official PAID or custody",
-        "run": 42372316966,
-        "securityRun": 42372321084
+        "status": "LAB_CUSTOM_BASE_VERSION_AND_FINANCE_SOURCE_CHECKS_GREEN_ONLY",
+        "scope": "Synthetic latest-source per-offer CUSTOM_APPROVED_BASE; expiry/revoke deny, per-trade source snapshot, separate tenant-scoped revocable finance mandate, simulated bank statement amount/beneficiary/reference matching; append-only check result LAB_REFERENCE_MATCHED_NOT_OFFICIAL_PAID. No signed official fees or bank records.",
+        "run": 42373274719
       }
     },
     {
@@ -396,10 +395,9 @@
       "independentBusinessUat": "NOT_PROVEN",
       "ownerLegalAuthorization": "NOT_APPROVED",
       "disposablePg17Evidence": {
-        "status": "LAB_APPOINTMENT_FAIL_CLOSED_EVEN_AFTER_FEE_REVIEW",
-        "scope": "Approval of synthetic documentary evidence does not authorize legal fee PAID, appointment, official register or title transfer",
-        "run": 42372316966,
-        "securityRun": 42372321084
+        "status": "LAB_APPOINTMENT_REMAINS_LEGALLY_BLOCKED",
+        "scope": "Bank evidence match does not create legal fee PAID or appointment; no official finance mandate/source-owner signature or legal register",
+        "run": 42373274719
       }
     },
     {
@@ -529,12 +527,12 @@
     "independentlySignedHumanUat": 0
   },
   "lastVerifiedTechnicalCheckpoint": {
-    "sha": "eb22ccfd76ce68442d48e5318731c61743302d1c",
-    "pg17Run": 42372316966,
-    "securityRun": 42372321084,
+    "sha": "abb843b0a1b8c67fff57eaed26c963e4f955fcd8",
+    "pg17Run": 42373274719,
+    "securityRun": 42373278817,
     "pg17Migrations": 68,
-    "labHttpChecks": 120,
-    "verification": "DISPOSABLE_PG17_SYNTHETIC_FEE_ARITHMETIC_AND_FINANCE_DOCUMENTARY_REVIEW_SUCCESS",
+    "labHttpChecks": 128,
+    "verification": "SOURCE_BOUND_CUSTOM_BASE_AND_REVOCABLE_FINANCE_MANDATE_SYNTHETIC_PG17_GREEN",
     "coverage": "FIXED/PERCENTAGE/FIXED_PLUS_PERCENTAGE; BUYER/SELLER/SPLIT; HALF_UP; immutable per-trade source/version",
     "limitations": [
       "CUSTOM_APPROVED_BASE requires independently sourced basis; not accepted as operational",
@@ -546,7 +544,11 @@
     "independentSignedUat": 0,
     "noLiveTransfer": true,
     "noRealPayments": true,
-    "productionRoutesEnabled": false
+    "productionRoutesEnabled": false,
+    "securityConclusion": "PENDING_AT_AUDIT_WRITE",
+    "officialFeePolicyApproved": 0,
+    "officialFinanceMandatesApproved": 0,
+    "authenticBankEvidenceVerified": 0
   },
   "residualGates": [
     "No publicly served market command: lab API is imported nowhere into production Nest module; only CI loopback with ephemeral Postgres",
