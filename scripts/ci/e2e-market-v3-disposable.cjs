@@ -296,6 +296,63 @@ let checks=0;
    FROM market_v3_disposable.board_decision_drafts WHERE decision_id=$1`,[draft.decisionId]);
  assert.equal(neverLegal.rows[0].evidence_status,"UNVERIFIED_DRAFT");
  assert.equal(neverLegal.rows[0].verified_by,null);
+ // §21-23: fee policy is source-versioned and snapped at buy request creation.
+ // Reporting money paid OUTSIDE the platform is never an official PAID state.
+ const feePath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-fee-snapshot`;
+ const feeReportPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-fee-report`;
+ const appointmentPath=`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/test-appointment-readiness`;
+ status(await api("GET",feePath,SELLER),200);
+ status(await api("GET",feePath,winnerIndex===0?BUYER2:BUYER1),403,"TRADE_PARTICIPANT_DENIED");
+ const initialFee=await api("GET",feePath,winner);
+ status(initialFee,200);assert.equal(initialFee.feeSnapshots.length,1);
+ assert.equal(initialFee.feeSnapshots[0].fee_amount,"300");
+ assert.equal(initialFee.feeSnapshots[0].source_version,"1");
+ assert.equal(initialFee.feeSnapshots[0].category,"COOP_APPROVED_FEE");
+ assert.equal(initialFee.feeSnapshots[0].status,"UNPAID");
+ assert.equal(initialFee.platformHoldsFunds,false);
+ const feeBody={feeId:"TEST-COOP-TRANSFER-ADMIN",amount:300,
+  beneficiaryReference:"TEST-COOP-ACCOUNT-001",
+  externalReference:"TEST-EXTERNAL-COOP-2026-001"};
+ status(await api("POST",feeReportPath,SELLER,feeBody),403,"FEE_PAYER_NOT_AUTHORIZED");
+ status(await api("POST",feeReportPath,winner,{...feeBody,amount:301}),409,
+   "COOPERATIVE_FEE_AMOUNT_MISMATCH");
+ status(await api("POST",feeReportPath,winner,
+   {...feeBody,beneficiaryReference:"TEST-WRONG-ACCOUNT"}),422,"INVALID_COOPERATIVE_FEE_REPORT");
+ const feeKey="test-cooperative-fee-0001";
+ const reportedFee=await api("POST",feeReportPath,winner,feeBody,feeKey);
+ status(reportedFee,201);assert.equal(reportedFee.status,"PAYMENT_REPORTED");
+ assert.equal(reportedFee.officialCooperativeFeePaid,false);
+ assert.equal(reportedFee.platformHeldFunds,false);
+ const feeRepeat=await api("POST",feeReportPath,winner,feeBody,feeKey);
+ status(feeRepeat,201);assert.equal(feeRepeat.reportId,reportedFee.reportId);
+ status(await api("POST",feeReportPath,winner,
+   {...feeBody,externalReference:"TEST-EXTERNAL-COOP-ALTERED"},feeKey),409,
+   "IDEMPOTENCY_PAYLOAD_MISMATCH");
+ const frozenFee=await api("GET",feePath,winner);
+ status(frozenFee,200);assert.equal(frozenFee.feeSnapshots[0].fee_amount,"300");
+ assert.equal(frozenFee.feeSnapshots[0].status,"PAYMENT_REPORTED");
+ assert.equal(frozenFee.externallyReportedIsNotPaid,true);
+ const appointment=await api("GET",appointmentPath,winner);
+ status(appointment,200);assert.equal(appointment.readyForAppointment,false);
+ assert.equal(appointment.appointmentCreated,false);
+ assert.ok(appointment.blockingReasons.includes("NO_AUTHENTICATED_LEGAL_BOARD_MANDATE"));
+ assert.ok(appointment.blockingReasons.includes("NO_OFFICIALLY_VERIFIED_COOPERATIVE_FEE_SETTLEMENT"));
+ status(await api("POST",`/lab/tenants/${T}/buy-requests/${win.buyRequestId}/appointment-set`,
+   REVIEWER,{appointmentDate:"2026-11-12"}),404,"LAB_ROUTE_NOT_FOUND");
+ // A NEW lab fee version can affect a FUTURE trade, but NEVER past snapshots.
+ await pool.query(`INSERT INTO market_v3_disposable.lab_fee_policy_sources
+   (tenant_id,fee_id,source_version,fee_title,legal_fee_type,calculation_mode,
+    payer_mode,fixed_amount,approval_reference,legal_basis_reference,
+    valid_from,valid_until,evidence_status)
+   SELECT tenant_id,fee_id,2,fee_title,legal_fee_type,calculation_mode,
+    payer_mode,400,'TEST-COOP-RESOLUTION-v2',legal_basis_reference,
+    valid_from,valid_until,evidence_status
+   FROM market_v3_disposable.lab_fee_policy_sources WHERE tenant_id=$1 AND source_version=1`,[T]);
+ const oldFeeStill=await api("GET",feePath,winner);
+ status(oldFeeStill,200);assert.equal(oldFeeStill.feeSnapshots[0].fee_amount,"300");
+ assert.equal(oldFeeStill.feeSnapshots[0].source_version,"1");
+ console.log("PH12_MARKET_V3_FEE_POLICY_SNAPSHOT_AND_NO_CUSTODY_PASS");
+
  const labAuthority=await pool.query(`SELECT attestation_type FROM
    market_v3_disposable.lab_board_attestations WHERE buy_request_id=$1`,[win.buyRequestId]);
  assert.equal(labAuthority.rows[0].attestation_type,"SYNTHETIC_SIGNATURE_TEST_NOT_LEGAL");
@@ -307,6 +364,11 @@ let checks=0;
  const secondBuy=await api("POST",`/lab/tenants/${T}/offers/${second.offerId}/buy`,
    losingBuyer,{quantity:20},"dispute-buyer-request-001");
  status(secondBuy,201);assert.equal(secondBuy.state,"COOP_REVIEW");
+ const secondFee=await api("GET",
+   `/lab/tenants/${T}/buy-requests/${secondBuy.buyRequestId}/test-fee-snapshot`,losingBuyer);
+ status(secondFee,200);assert.equal(secondFee.feeSnapshots[0].fee_amount,"400");
+ assert.equal(secondFee.feeSnapshots[0].source_version,"2");
+ assert.equal(secondFee.feeSnapshots[0].status,"UNPAID");
  const secondReview=await api("POST",`/lab/tenants/${T}/buy-requests/${secondBuy.buyRequestId}/review`,
    REVIEWER,{verdict:"REFER_TO_BOARD"},"dispute-coop-review-001");
  status(secondReview,200);
@@ -344,6 +406,16 @@ let checks=0;
    "SELECT state FROM market_v3_disposable.lab_trade_progress WHERE tenant_id=$1 AND buy_request_id=$2",
    [T,secondBuy.buyRequestId]);
  assert.equal(disputeDb.rows[0].state,"PAYMENT_DISPUTED");
+ const feeDisputePath=`/lab/tenants/${T}/buy-requests/${secondBuy.buyRequestId}/test-fee-report`;
+ status(await api("POST",feeDisputePath,losingBuyer,
+   {...feeBody,amount:400,externalReference:"TEST-EXTERNAL-COOP-DISPUTED"}),409,
+   "SELLER_RECEIPT_OR_DISPUTE_UNRESOLVED");
+ const notReady=await api("GET",
+   `/lab/tenants/${T}/buy-requests/${secondBuy.buyRequestId}/test-appointment-readiness`,losingBuyer);
+ status(notReady,200);assert.equal(notReady.readyForAppointment,false);
+ assert.ok(notReady.blockingReasons.includes("OPEN_PAYMENT_DISPUTE"));
+ assert.ok(notReady.blockingReasons.includes("COOPERATIVE_FEE_EVIDENCE_MISSING"));
+ console.log("PH12_MARKET_V3_DISPUTED_TRADE_CANNOT_RESOLVE_FEES_OR_APPOINTMENT_PASS");
  assert.equal(secondResponse.legalOwnershipChanged,false);
  console.log("PH12_MARKET_V3_PAYMENT_DISPUTE_NO_AUTO_CONFIRMATION_PASS");
 
