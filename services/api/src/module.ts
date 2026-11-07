@@ -1890,5 +1890,70 @@ export class Ph10Phase08ReadController {
  }
 }
 
-@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController],providers:[ApiIrSmsOtpProvider]})
+/**
+ * PH12 candidate: persistent *DRAFT* tariff intake ONLY.
+ * All role/source decisions are re-evaluated in PG SECURITY DEFINER functions
+ * under verified session+tenant context. Board references are self-reported.
+ * Default disabled on ANY hosted environment unless explicitly released.
+ */
+@Controller("v1/tenants")
+export class Ph12TariffDraftController {
+ constructor(private readonly db:Database){}
+ private enabled(){
+  if(process.env.TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"PH12_TARIFF_DRAFT_INTAKE_DISABLED"});
+ }
+ private mapped(e:unknown):never {
+  const code=(e as {code?:string})?.code;
+  if(code==="42501")throw new ForbiddenException({code:"TARIFF_DRAFT_MANAGER_AUTHORITY_DENIED"});
+  if(code==="23505")throw new ConflictException({code:"TARIFF_DRAFT_VERSION_OR_REQUEST_CONFLICT"});
+  if(code==="22023"||code==="22007")throw new BadRequestException({code:"TARIFF_DRAFT_INVALID"});
+  throw e;
+ }
+ @Get(":tenantId/ph12/share-market/tariff-drafts")
+ async list(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+   @Headers("authorization") auth?:string){
+  this.enabled();
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const result=await client.query("SELECT * FROM tto.ph12_list_tariff_drafts()");
+    return {tenantId:tenant,items:result.rows.map(r=>({
+      draftId:r.draft_id,feeId:r.fee_code,version:r.proposed_version,
+      status:r.status,tariff:r.payload,createdAt:r.created_at
+    })),draftOnly:true,boardVerified:false,feeActivated:false,
+      realPaymentConfirmed:false,legalShareTransfer:false};
+   });
+  }catch(e){return this.mapped(e);}
+ }
+ @Post(":tenantId/ph12/share-market/tariff-drafts")
+ @HttpCode(201)
+ async create(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+   @Headers("authorization") auth:string|undefined,
+   @Body() data:Record<string,unknown>){
+  this.enabled();
+  if(!data||typeof data!=="object"||Array.isArray(data)||
+     typeof data.requestKey!=="string"||
+     !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(data.requestKey)||
+     !data.tariff||typeof data.tariff!=="object"||Array.isArray(data.tariff)||
+     Object.keys(data).some(x=>!["requestKey","tariff"].includes(x)))
+   throw new BadRequestException({code:"TARIFF_DRAFT_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const result=await client.query(
+      "SELECT * FROM tto.ph12_create_tariff_draft($1::uuid,$2::jsonb)",
+      [data.requestKey,JSON.stringify(data.tariff)]);
+    const row=result.rows[0];
+    if(!row)throw new ServiceUnavailableException("TARIFF_DRAFT_NOT_PERSISTED");
+    return {tenantId:tenant,draftId:row.draft_id,feeId:row.fee_code,
+      version:row.proposed_version,status:row.status,replayed:row.replayed,
+      draftOnly:true,boardVerified:false,feeActivated:false,
+      realPaymentConfirmed:false,legalShareTransfer:false};
+   });
+  }catch(e){return this.mapped(e);}
+ }
+}
+
+@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController,Ph12TariffDraftController],providers:[ApiIrSmsOtpProvider]})
 export class AppModule {}
