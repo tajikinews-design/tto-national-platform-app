@@ -159,7 +159,10 @@ export function createDisposableMarketApi(){
           // A scheduled offer is made public only when its date is reached.
           const policyDate=await c.query(`SELECT business_timezone FROM ${LAB}.market_policy WHERE tenant_id=$1`,[tenant]);
           if(!policyDate.rows[0])deny(409,"QUEUE_POLICY_UNAVAILABLE");
-          if(String(r.rows[0].estimated_listing_day).slice(0,10)>marketDay(policyDate.rows[0].business_timezone))
+          if((r.rows[0].estimated_listing_day instanceof Date
+              ? r.rows[0].estimated_listing_day.toISOString().slice(0,10)
+              : String(r.rows[0].estimated_listing_day).slice(0,10))>
+              marketDay(policyDate.rows[0].business_timezone))
             deny(409,"SCHEDULED_DATE_NOT_REACHED");
           const policy=await c.query(`SELECT * FROM ${LAB}.market_policy WHERE tenant_id=$1`,[tenant]);
           if(!policy.rows[0]?.fifo||!policy.rows[0]?.valuation_valid)deny(409,"MARKET_POLICY_NOT_APPROVED");
