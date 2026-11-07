@@ -12,7 +12,9 @@
   "scope": {
     "steps": 27,
     "officialChangesToWorkflow": 0,
-    "realTradeAuthorizations": 0
+    "realTradeAuthorizations": 0,
+    "disposableHttpVerticalSliceStages": 9,
+    "realLiveTradeCommandStages": 0
   },
   "nonNegotiable": [
     "NO_PLATFORM_CUSTODY_OR_WALLET",
@@ -47,7 +49,12 @@
       "runtimeEvidence": "database/migrations/0044_ph12_child06_child07_canonical_failclosed.sql",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "HTTP_SELL_SUBMIT_DISPOSABLE",
+        "scope": "sell-orders POST tenant role, idempotent, quantity >0",
+        "run": 42353005059
+      }
     },
     {
       "step": 2,
@@ -60,7 +67,12 @@
       "runtimeEvidence": "database/migrations/0044_ph12_child06_child07_canonical_failclosed.sql",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "HTTP_SELL_ELIGIBILITY_DISPOSABLE",
+        "scope": "verified synthetic holding, unpaid commitment deny, seller active",
+        "run": 42353005059
+      }
     },
     {
       "step": 3,
@@ -73,7 +85,12 @@
       "runtimeEvidence": "database/migrations/0044_ph12_child06_child07_canonical_failclosed.sql",
       "scopedEngineering": "LEGACY_PH06_LOCK_SQL_ONLY",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "LAB_OFFER_RESERVED_QUANTITY_ONLY",
+        "scope": "active offer quantity counted with holding row lock; NOT canonical share lock",
+        "run": 42353005059
+      }
     },
     {
       "step": 4,
@@ -86,7 +103,12 @@
       "runtimeEvidence": "database/migrations/0044_ph12_child06_child07_canonical_failclosed.sql",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "HTTP_FIFO_QUEUE_DISPOSABLE",
+        "scope": "offer persisted QUEUED + accepted_at",
+        "run": 42353005059
+      }
     },
     {
       "step": 5,
@@ -99,7 +121,11 @@
       "runtimeEvidence": "database/migrations/0044_ph12_child06_child07_canonical_failclosed.sql",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 6,
@@ -112,7 +138,11 @@
       "runtimeEvidence": "database/migrations/0044_ph12_child06_child07_canonical_failclosed.sql",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 7,
@@ -125,7 +155,12 @@
       "runtimeEvidence": "database/migrations/0044_ph12_child06_child07_canonical_failclosed.sql",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "HTTP_FIFO_LISTING_DISPOSABLE",
+        "scope": "manager role and oldest queue entry, capacity policy",
+        "run": 42353005059
+      }
     },
     {
       "step": 8,
@@ -138,7 +173,12 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "HTTP_BUY_REQUEST_DISPOSABLE",
+        "scope": "buy POST tested; only full-offer",
+        "run": 42353005059
+      }
     },
     {
       "step": 9,
@@ -151,7 +191,12 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "HTTP_CONCURRENT_RESERVATION_DISPOSABLE",
+        "scope": "two concurrent buyers, one 201 one 409",
+        "run": 42353005059
+      }
     },
     {
       "step": 10,
@@ -164,7 +209,12 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "HTTP_BUYER_ELIGIBILITY_DISPOSABLE",
+        "scope": "buyer membership class and source flag from fixtures; cap checks",
+        "run": 42353005059
+      }
     },
     {
       "step": 11,
@@ -177,7 +227,12 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "HTTP_COOP_REVIEW_DISPOSABLE",
+        "scope": "authorized cooperative operator references to board, no board approval",
+        "run": 42353005059
+      }
     },
     {
       "step": 12,
@@ -190,7 +245,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 13,
@@ -203,7 +262,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 14,
@@ -216,7 +279,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 15,
@@ -229,7 +296,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 16,
@@ -242,7 +313,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 17,
@@ -255,7 +330,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 18,
@@ -268,7 +347,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 19,
@@ -281,7 +364,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 20,
@@ -294,7 +381,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 21,
@@ -307,7 +398,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 22,
@@ -320,7 +415,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "FAIL_CLOSED_CANDIDATE_SQL_ONLY",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 23,
@@ -333,7 +432,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 24,
@@ -346,7 +449,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "FAIL_CLOSED_CANDIDATE_SQL_ONLY",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 25,
@@ -359,7 +466,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "FAIL_CLOSED_CANDIDATE_SQL_ONLY",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 26,
@@ -372,7 +483,11 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     },
     {
       "step": 27,
@@ -385,12 +500,28 @@
       "runtimeEvidence": "services/api/src/module.ts",
       "scopedEngineering": "PREVIEW_ONLY_OR_NO_RUNTIME",
       "independentBusinessUat": "NOT_PROVEN",
-      "ownerLegalAuthorization": "NOT_APPROVED"
+      "ownerLegalAuthorization": "NOT_APPROVED",
+      "disposablePg17Evidence": {
+        "status": "NOT_IMPLEMENTED_OR_NOT_IN_THIS_VERTICAL_SLICE",
+        "scope": "PH12 HOLD; requires approved source/rules and independent tests"
+      }
     }
   ],
   "summary": {
     "previewCatalogCount": 27,
     "fullWorkflowProductionE2eAccepted": 0,
-    "liveTransferAuthorized": false
+    "liveTransferAuthorized": false,
+    "independentlySignedHumanUat": 0
+  },
+  "lastVerifiedTechnicalCheckpoint": {
+    "sha": "5db0510c834620e66927a177f2aef47950a22ded",
+    "pg17Run": 42353005059,
+    "securityRun": 42353008073,
+    "pg17Migrations": 68,
+    "labHttpChecks": 29,
+    "classification": "SYNTHETIC_DISPOSABLE_ONLY_NO_SIGNED_ACCEPTANCE",
+    "productionApisEnabled": false,
+    "noShareOwnershipChanges": true,
+    "noPaymentOrOfficialRegisterWrites": true
   }
 }
