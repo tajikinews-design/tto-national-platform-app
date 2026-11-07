@@ -8,7 +8,7 @@ type Draft={
  sellerPercent:string;percentageBasis:string;validFrom:string;validUntil:string;
  legalBasisReference:string;boardResolutionReference:string;boardEvidenceReference:string;
 };
-type LocalDraft={id:string;tenantId:string;createdAt:string;data:Draft};
+type LocalDraft={id:string;tenantId:string;createdAt:string;data:Draft;persisted:boolean};
 const initial:Draft={
  feeId:"",title:"",version:"1",feeType:"COOP_APPROVED_FEE",calculationMode:"FIXED",
  fixedAmount:"",percentBps:"0",payerMode:"BUYER",buyerPercent:"100",sellerPercent:"0",
@@ -32,6 +32,9 @@ export default function CooperativeTariffPreparation(){
  const [gate,setGate]=useState(false);
  const [form,setForm]=useState<Draft>({...initial});
  const [drafts,setDrafts]=useState<LocalDraft[]>([]);
+ const [persistence,setPersistence]=useState(false);
+ const [busy,setBusy]=useState(false);
+ const [requestKey,setRequestKey]=useState("");
  const [message,setMessage]=useState("");
  const selected=useMemo(()=>tenants.find(t=>t.tenantId===tenantId),[tenants,tenantId]);
  useEffect(()=>{
@@ -47,7 +50,8 @@ export default function CooperativeTariffPreparation(){
   return()=>abort.abort();
  },[]);
  useEffect(()=>{
-  setGate(false);setMessage("");setDrafts([]);setForm({...initial});
+  setGate(false);setPersistence(false);setRequestKey("");
+  setMessage("");setDrafts([]);setForm({...initial});
   if(phase!=="ready"||!tenantId)return;
   const abort=new AbortController();
   void fetch("/api/tenants/"+encodeURIComponent(tenantId)+
@@ -59,14 +63,35 @@ export default function CooperativeTariffPreparation(){
       data.draftPreparationAllowed!==true||data.liveTariffWrites!==false||
       data.officialTariffActivation!==false||data.officialFeePaid!==false||
       data.ownershipTransferEnabled!==false||
-      data.serverSideTariffDraftPersistence!==false)
+      typeof data.serverSideTariffDraftPersistence!=="boolean")
       throw Error("UNSAFE_DRAFT_GATE");
-    if(!abort.signal.aborted)setGate(true);
+    if(!abort.signal.aborted){
+      setPersistence(data.serverSideTariffDraftPersistence===true);
+      setGate(true);
+      if(data.serverSideTariffDraftPersistence===true){
+        void fetch("/api/tenants/"+encodeURIComponent(tenantId)+"/share-market/tariff-drafts",{
+          credentials:"same-origin",cache:"no-store",signal:abort.signal
+        }).then(async response=>{
+          if(!response.ok)throw Error("DRAFT_LIST_UNAVAILABLE");
+          const result=await response.json() as{
+            draftOnly?:boolean;feeActivated?:boolean;items?:Array<{
+              draftId:string;createdAt:string;status:string;tariff:Draft
+            }>};
+          if(result.draftOnly!==true||result.feeActivated!==false||!Array.isArray(result.items))
+             throw Error("UNSAFE_DRAFT_LIST");
+          if(!abort.signal.aborted)setDrafts(result.items.filter(x=>
+            x.status==="DRAFT_UNVERIFIED").map(x=>({id:x.draftId,tenantId,
+              createdAt:x.createdAt,data:x.tariff,persisted:true})));
+        }).catch(()=>{if(!abort.signal.aborted)
+          setMessage("بارگذاری پیش‌نویس‌های ثبت‌شده ممکن نیست؛ هیچ رکوردی به‌طور فرضی تأیید نمی‌شود.");});
+      }
+    }
   }).catch(()=>{if(!abort.signal.aborted){setGate(false);
      setMessage("نشست، محدوده تعاونی یا اتصال به منبع تأیید نشد؛ فرم غیرفعال است.");}});
   return()=>abort.abort();
  },[phase,tenantId]);
  function change(field:keyof Draft,value:string){
+  setRequestKey("");
   setForm(o=>({...o,[field]:value,
    ...(field==="payerMode"?{
     buyerPercent:value==="BUYER"?"100":value==="SELLER"?"0":"50",
@@ -99,12 +124,45 @@ export default function CooperativeTariffPreparation(){
     return "نسخه جدید باید از نسخه‌های تهیه‌شده در همین نشست بزرگ‌تر باشد.";
   return null;
  }
- function addDraft(ev:React.FormEvent){
-  ev.preventDefault();if(!gate||!tenantId)return;
+ async function addDraft(ev:React.FormEvent){
+  ev.preventDefault();if(!gate||!tenantId||busy)return;
   const error=validate();if(error){setMessage(error);return;}
-  setDrafts(old=>[...old,{id:crypto.randomUUID(),tenantId,
-    createdAt:new Date().toISOString(),data:{...form}}]);
-  setMessage("پیش‌نویس فقط در حافظه همین صفحه آماده شد؛ در پایگاه داده ثبت نشده و مصوبه رسمی تأیید نشده است.");
+  if(!persistence){
+    setDrafts(old=>[...old,{id:crypto.randomUUID(),tenantId,
+      createdAt:new Date().toISOString(),data:{...form},persisted:false}]);
+    setMessage("پیش‌نویس فقط در حافظه صفحه آماده شد؛ مجوز ثبت سروری فعال نیست و مصوبه‌ای تأیید نشده است.");
+    return;
+  }
+  setBusy(true);
+  const key=requestKey||crypto.randomUUID();
+  if(!requestKey)setRequestKey(key);
+  try{
+    const response=await fetch("/api/tenants/"+encodeURIComponent(tenantId)+
+      "/share-market/tariff-drafts",{
+      method:"POST",credentials:"same-origin",cache:"no-store",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({requestKey:key,tariff:{...form}})
+    });
+    if(!response.ok){
+      setMessage(response.status===409?
+        "نسخه یا شناسه درخواست با سابقه ثبت‌شده مغایر است؛ نسخه جدید بسازید.":
+        "ثبت پایدار پیش‌نویس مجاز یا ممکن نیست؛ وضعیت مصوبه تغییری نکرده است.");
+      return;
+    }
+    const receipt=await response.json() as Record<string,unknown>;
+    if(receipt.tenantId!==tenantId||typeof receipt.draftId!=="string"||
+      receipt.status!=="DRAFT_UNVERIFIED"||receipt.draftOnly!==true||
+      receipt.feeActivated!==false||receipt.boardVerified!==false||
+      receipt.realPaymentConfirmed!==false||receipt.legalShareTransfer!==false)
+      throw Error("UNSAFE_DRAFT_RECEIPT");
+    setDrafts(old=>old.some(x=>x.id===receipt.draftId)?old:[
+      ...old,{id:receipt.draftId as string,tenantId,
+        createdAt:new Date().toISOString(),data:{...form},persisted:true}]);
+    setRequestKey("");
+    setMessage("پیش‌نویس نسخه‌دار و تأییدنشده ذخیره شد؛ هیچ تعرفه‌ای فعال نشده و مصوبه رسمی هنوز نیازمند بررسی است.");
+  }catch{
+    setMessage("نتیجه ذخیره نامشخص است؛ برای تکرار ایمن، همان شناسه درخواست حفظ می‌شود.");
+  }finally{setBusy(false);}
  }
  function revise(d:LocalDraft){
   if(d.tenantId!==tenantId)return;
@@ -140,11 +198,11 @@ export default function CooperativeTariffPreparation(){
     تأیید وصول هزینه نیز نیازمند مسئول مالی و مدیرعامل مجاز است.</p>
   </header>
   <aside role="note" style={{background:"#fff4d9",padding:18,border:"1px solid #b68a40",borderRadius:13}}>
-   <strong>وضعیت این صفحه: آماده‌سازی پیش‌نویس، نه ثبت عملیاتی.</strong>
-   <p style={{margin:0}}>تا احراز اصالت مصوبات و اجرای پذیرش مستقل، ارسال به پایگاه داده،
-   فعال‌کردن تعرفه، تغییر وضعیت پرداخت به «وصول‌شده» و انتقال سهام غیرفعال‌اند.
-   اطلاعاتی که اینجا وارد می‌کنید فقط تا زمان باز بودن صفحه در حافظه مرورگر باقی می‌مانند؛
-   برای نگهداری، بسته پیش‌نویس را خروجی بگیرید.</p>
+   <strong>وضعیت این صفحه: آماده‌سازی پیش‌نویس، نه فعال‌سازی تعرفه.</strong>
+   <p style={{margin:0}}>ثبت پایدار پیش‌نویس تنها در محیطی که جداگانه مجاز شده باشد و
+   پس از تأیید نشست و اختیار مدیر انجام می‌شود. پیش‌نویس ذخیره‌شده همچنان «تأییدنشده» است.
+   تأیید مصوبه هیئت‌مدیره، فعال‌کردن تعرفه، تأیید وصول هزینه و انتقال سهام غیرفعال‌اند.
+   در محیط‌های بدون مجوز ثبت سروری، داده‌ها فقط در حافظه همین صفحه باقی می‌مانند.</p>
   </aside>
   {phase==="loading"?<p role="status">در حال بررسی نشست و تعاونی‌های مجاز…</p>:null}
   {phase==="denied"?<p role="alert">برای این بخش باید از پنل مدیریت تعاونی وارد شوید.</p>:null}
@@ -157,7 +215,7 @@ export default function CooperativeTariffPreparation(){
      </select>
     </label>
     {!gate?<p role="status">در حال تأیید محدوده تعاونی؛ تا تأیید، فرم غیرفعال است.</p>:null}
-    <form onSubmit={addDraft} style={{display:"grid",gap:20,marginTop:20,padding:24,
+    <form onSubmit={e=>void addDraft(e)} style={{display:"grid",gap:20,marginTop:20,padding:24,
      background:"#f2f7fa",borderRadius:16,border:"1px solid #d9e5eb"}}>
      <h2 style={{margin:0}}>پیش‌نویس نسخه جدید تعرفه</h2>
      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:16}}>
@@ -223,9 +281,10 @@ export default function CooperativeTariffPreparation(){
        <input style={inputStyle} required value={form.boardEvidenceReference}
         onChange={e=>change("boardEvidenceReference",e.target.value)}/></label>
      </div>
-     <button type="submit" disabled={!gate} style={{padding:13,borderRadius:10,
-      background:gate?"#155b73":"#9aa9b0",color:"#fff",border:0,font:"inherit",fontWeight:700,
-      cursor:gate?"pointer":"not-allowed"}}>افزودن به فهرست پیش‌نویس‌های همین صفحه</button>
+     <button type="submit" disabled={!gate||busy} style={{padding:13,borderRadius:10,
+      background:gate&&!busy?"#155b73":"#9aa9b0",color:"#fff",border:0,font:"inherit",fontWeight:700,
+      cursor:gate&&!busy?"pointer":"not-allowed"}}>
+       {persistence?"ثبت پایدار پیش‌نویس تأییدنشده":"افزودن به پیش‌نویس‌های موقت"}</button>
     </form>
    </section>:null}
   <p aria-live="polite" role="status" style={{color:"#215c6c",marginTop:16}}>{message}</p>
@@ -236,7 +295,7 @@ export default function CooperativeTariffPreparation(){
      borderRadius:12,background:"#fff"}}>
      <strong>{d.data.title} | {d.data.feeId} | نسخه {d.data.version}</strong>
      <p style={{margin:"4px 0"}}>مصوبه اظهارشده: {d.data.boardResolutionReference} —
-      وضعیت: <strong>تأییدنشده و ثبت‌نشده در سرور</strong></p>
+      وضعیت: <strong>{d.persisted?"ثبت‌شده به‌عنوان پیش‌نویس تأییدنشده":"موقت و ثبت‌نشده در سرور"}</strong></p>
      <button type="button" onClick={()=>revise(d)}>تهیه نسخه اصلاحی بدون دست‌زدن به سابقه</button>
     </article>)}
    </div>
