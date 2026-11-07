@@ -15,6 +15,7 @@ const MANAGER="a4444444-4444-4444-8444-444444444444";
 const REVIEWER="a5555555-5555-4555-8555-555555555555";
 const BOARD_SECRETARY="a9999999-9999-4999-8999-999999999999";
 const BOARD_META_REVIEWER="aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1";
+const FINANCE="aeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const OUTSIDER="a8888888-8888-4888-8888-888888888888";
 const token=process.env.TTO_MARKET_LAB_SECRET;
 assert.match(token||"",/^[a-f0-9]{64}$/);
@@ -304,11 +305,11 @@ let checks=0;
  status(await api("GET",feePath,SELLER),200);
  status(await api("GET",feePath,winnerIndex===0?BUYER2:BUYER1),403,"TRADE_PARTICIPANT_DENIED");
  const initialFee=await api("GET",feePath,winner);
- status(initialFee,200);assert.equal(initialFee.feeSnapshots.length,1);
- assert.equal(initialFee.feeSnapshots[0].fee_amount,"300");
- assert.equal(initialFee.feeSnapshots[0].source_version,"1");
- assert.equal(initialFee.feeSnapshots[0].category,"COOP_APPROVED_FEE");
- assert.equal(initialFee.feeSnapshots[0].status,"UNPAID");
+ status(initialFee,200);assert.equal(initialFee.feeSnapshots.length,3);
+ assert.equal(initialFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").fee_amount,"300");
+ assert.equal(initialFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").source_version,"1");
+ assert.equal(initialFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").category,"COOP_APPROVED_FEE");
+ assert.equal(initialFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").status,"UNPAID");
  assert.equal(initialFee.platformHoldsFunds,false);
  const feeBody={feeId:"TEST-COOP-TRANSFER-ADMIN",amount:300,
   beneficiaryReference:"TEST-COOP-ACCOUNT-001",
@@ -329,8 +330,8 @@ let checks=0;
    {...feeBody,externalReference:"TEST-EXTERNAL-COOP-ALTERED"},feeKey),409,
    "IDEMPOTENCY_PAYLOAD_MISMATCH");
  const frozenFee=await api("GET",feePath,winner);
- status(frozenFee,200);assert.equal(frozenFee.feeSnapshots[0].fee_amount,"300");
- assert.equal(frozenFee.feeSnapshots[0].status,"PAYMENT_REPORTED");
+ status(frozenFee,200);assert.equal(frozenFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").fee_amount,"300");
+ assert.equal(frozenFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").status,"PAYMENT_REPORTED");
  assert.equal(frozenFee.externallyReportedIsNotPaid,true);
  const appointment=await api("GET",appointmentPath,winner);
  status(appointment,200);assert.equal(appointment.readyForAppointment,false);
@@ -349,8 +350,8 @@ let checks=0;
     valid_from,valid_until,evidence_status
    FROM market_v3_disposable.lab_fee_policy_sources WHERE tenant_id=$1 AND source_version=1`,[T]);
  const oldFeeStill=await api("GET",feePath,winner);
- status(oldFeeStill,200);assert.equal(oldFeeStill.feeSnapshots[0].fee_amount,"300");
- assert.equal(oldFeeStill.feeSnapshots[0].source_version,"1");
+ status(oldFeeStill,200);assert.equal(oldFeeStill.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").fee_amount,"300");
+ assert.equal(oldFeeStill.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").source_version,"1");
  console.log("PH12_MARKET_V3_FEE_POLICY_SNAPSHOT_AND_NO_CUSTODY_PASS");
 
  const labAuthority=await pool.query(`SELECT attestation_type FROM
@@ -366,9 +367,10 @@ let checks=0;
  status(secondBuy,201);assert.equal(secondBuy.state,"COOP_REVIEW");
  const secondFee=await api("GET",
    `/lab/tenants/${T}/buy-requests/${secondBuy.buyRequestId}/test-fee-snapshot`,losingBuyer);
- status(secondFee,200);assert.equal(secondFee.feeSnapshots[0].fee_amount,"400");
- assert.equal(secondFee.feeSnapshots[0].source_version,"2");
- assert.equal(secondFee.feeSnapshots[0].status,"UNPAID");
+ status(secondFee,200);assert.equal(secondFee.feeSnapshots.length,3);
+ assert.equal(secondFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").fee_amount,"400");
+ assert.equal(secondFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").source_version,"2");
+ assert.equal(secondFee.feeSnapshots.find(f=>f.fee_id==="TEST-COOP-TRANSFER-ADMIN").status,"UNPAID");
  const secondReview=await api("POST",`/lab/tenants/${T}/buy-requests/${secondBuy.buyRequestId}/review`,
    REVIEWER,{verdict:"REFER_TO_BOARD"},"dispute-coop-review-001");
  status(secondReview,200);
