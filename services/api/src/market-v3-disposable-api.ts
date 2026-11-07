@@ -186,17 +186,14 @@ export function createDisposableMarketApi(){
           if(!pol.rows[0])deny(409,"QUEUE_POLICY_UNAVAILABLE");
           const p=pol.rows[0];
           const result=await c.query(`SELECT offer_id,status,accepted_at,scheduled_at,estimated_listing_day,
-            seller_id FROM ${LAB}.offers WHERE tenant_id=$1 AND status IN ('QUEUED','SCHEDULED','LISTED')
+            seller_id,CASE WHEN status='QUEUED'
+             THEN row_number() OVER (PARTITION BY status ORDER BY accepted_at,offer_id)
+             ELSE NULL END AS queue_position
+            FROM ${LAB}.offers WHERE tenant_id=$1 AND status IN ('QUEUED','SCHEDULED','LISTED')
             ORDER BY accepted_at,offer_id`,[tenant]);
-          let index=0;
-          return result.rows.filter((offer:Record<string,unknown>)=>{
-            if(offer.status==="QUEUED")index++;
-            return offer.seller_id===actorId;
-          }).map((offer:Record<string,unknown>)=>{
-            const prior=result.rows.filter((other:Record<string,unknown>)=>
-              other.status==="QUEUED" &&
-              (new Date(other.accepted_at as string).valueOf()<new Date(offer.accepted_at as string).valueOf() ||
-               (String(other.accepted_at)===String(offer.accepted_at) && String(other.offer_id)<=String(offer.offer_id)))).length;
+          return result.rows.filter((offer:Record<string,unknown>)=>
+            offer.seller_id===actorId).map((offer:Record<string,unknown>)=>{
+            const prior=Number(offer.queue_position);
             return {offerId:offer.offer_id,status:offer.status,
               queuePosition:offer.status==="QUEUED"?prior:null,
               estimatedDate:offer.estimated_listing_day??
