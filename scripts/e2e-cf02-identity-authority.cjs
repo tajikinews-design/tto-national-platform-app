@@ -150,8 +150,8 @@ async function main(){
     prepared.officialFeePaid===false&&
     prepared.ownershipTransferEnabled===false,
     "real portal readiness must NOT authorize business operations");
- await status(await fetch(tariffGate,{method:"POST",headers:managerCookie,body:"{}"}),
-   405,"tariff BFF has no server-side write endpoint");
+ const tariffWriteDenied=await fetch(tariffGate,{method:"POST",headers:managerCookie,body:"{}"});
+ ok(tariffWriteDenied.status===405,"tariff BFF has no server-side write endpoint");
  await db.query("UPDATE tto.legal_authorities SET revoked_at=now() WHERE authority_id=$1",[auth]);
  assert.deepEqual(await options(cm,MANAGER),[{tenantId:A,displayName:"Test Cooperative A",evidenceStatus:"EVIDENCE_PENDING"}]);checks++;
  await status(await fetch(tariffGate,{headers:managerCookie,cache:"no-store"}),403,
