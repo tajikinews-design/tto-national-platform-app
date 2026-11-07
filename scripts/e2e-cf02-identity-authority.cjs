@@ -181,6 +181,17 @@ async function main(){
      const detail=await upstream.json().catch(()=>({}));
      console.error("PH12_TARIFF_DRAFT_UPSTREAM_DIAGNOSTIC",upstream.status,
        typeof detail?.code==="string"?detail.code:"UNCLASSIFIED");
+     // SQLSTATE only, inside a disposable DB: no PII or DB exception messages.
+     try {
+       await db.query("BEGIN");
+       await db.query("SET LOCAL ROLE tto_app");
+       await db.query("SELECT set_config('tto.actor_id',$1,true),set_config('tto.tenant_id',$2,true)",[MANAGER,A]);
+       await db.query("SELECT * FROM tto.ph12_list_tariff_drafts()");
+       console.error("PH12_TARIFF_DRAFT_SQLSTATE_DIAGNOSTIC","SQL_OK");
+     } catch (sqlError) {
+       console.error("PH12_TARIFF_DRAFT_SQLSTATE_DIAGNOSTIC",
+         /^[0-9A-Z]{5}$/.test(sqlError?.code??"")?sqlError.code:"UNCLASSIFIED");
+     } finally { await db.query("ROLLBACK"); }
    }catch{console.error("PH12_TARIFF_DRAFT_UPSTREAM_DIAGNOSTIC","NETWORK_ERROR");}
  }
  const initialDrafts=await status(firstRead,200,"read empty durable tariff drafts");
