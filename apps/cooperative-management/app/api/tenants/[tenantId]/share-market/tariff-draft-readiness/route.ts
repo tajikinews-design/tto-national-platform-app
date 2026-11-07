@@ -46,6 +46,25 @@ export async function GET(req:NextRequest,
   const scoped=await result.json() as {tenant_id?:unknown;status?:unknown};
   if(scoped.tenant_id!==tenantId||scoped.status!=="ACTIVE")
    return denied(403,"TENANT_ACCESS_DENIED");
+  // Tenant context alone does NOT grant cooperative management privilege.
+  // Demand the Nest/PG-backed independently verified management authority
+  // of this very tenant (not a browser-supplied manager flag).
+  const roles=await fetch(new URL("/v1/me/tenant-options",base),{
+    method:"GET",cache:"no-store",redirect:"error",signal:AbortSignal.timeout(9000),
+    headers:{Authorization:"Bearer "+token,...trustedBackendHeaders(req)}
+  });
+  if(roles.status===401)return denied(401,"SESSION_REQUIRED");
+  if(roles.status!==200)return denied(503,"MANAGER_AUTHORITY_UNAVAILABLE");
+  const options=await roles.json() as {items?:unknown};
+  if(!Array.isArray(options.items)||options.items.length>50)
+    return denied(503,"MANAGER_AUTHORITY_UNAVAILABLE");
+  const allowed=options.items.some(raw=>{
+    if(!raw||typeof raw!=="object"||Array.isArray(raw))return false;
+    const t=raw as Record<string,unknown>;
+    return t.tenantId===tenantId&&t.managerRole===true&&
+      t.roleManagementAuthority===true;
+  });
+  if(!allowed)return denied(403,"MANAGER_AUTHORITY_NOT_VERIFIED");
   return NextResponse.json({
     tenantContextVerified:true,tenantId,
     draftPreparationAllowed:true,
