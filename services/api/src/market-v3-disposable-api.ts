@@ -8,6 +8,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { timingSafeEqual, randomUUID, createHash } from "node:crypto";
 import { Pool, type PoolClient } from "pg";
+import {handlePostBoardLab,PostBoardLabError} from "./market-v3-disposable-postboard";
 
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const LAB="market_v3_disposable";
@@ -416,9 +417,13 @@ export function createDisposableMarketApi(){
           legalBoardApprovalGranted:false,sellerContinuationEnabled:false,
           legalOwnershipChanged:false});
       }
+      const postBoard=await handlePostBoardLab({
+        req,parts,tenant,actorId,key,pool,parseBody:()=>body(req)
+      });
+      if(postBoard)return json(res,postBoard.status,postBoard.value);
       return json(res,404,{code:"LAB_ROUTE_NOT_FOUND"});
     }catch(e){
-      if(e instanceof LabError)return json(res,e.status,{code:e.code});
+      if(e instanceof LabError||e instanceof PostBoardLabError)return json(res,e.status,{code:e.code});
       const msg=e instanceof Error?e.message:"unknown";
       // Sensitive SQL and credentials are never returned to the caller.
       process.stderr.write("MARKET_LAB_INTERNAL_ERROR "+msg.slice(0,140)+"\n");
