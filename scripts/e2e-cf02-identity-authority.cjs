@@ -659,7 +659,7 @@ async function main(){
    await status(await post(legalPath,tokenMap.get(USER),torghabeh),403,
      "Child06 shareholder cannot alter legal archive");
    await status(await post(legalPath,tokenMap.get(MANAGER),
-     {...torghabeh,summary:torghabeh.summary+" کد ملی 0932358977"}),400,
+     {...torghabeh,summary:torghabeh.summary+" کد ملی 0000000000"}),400,
      "Child06 public archive rejects individual national ID");
    await status(await post(legalPath,tokenMap.get(MANAGER),{
      ...torghabeh,signing:[{...signing[0],alternateSigners:["9".repeat(10)]}]
@@ -700,7 +700,7 @@ async function main(){
       memberHistory.boardHistory.some(x=>x.personName==="مرتضی کابلیان شاندیز"&&
        x.office==="CEO"&&x.termEnd==="1406/12/20"),
       "Child06 preserves resignation and current CEO appointment separately");
-   ok(!JSON.stringify(memberHistory).includes("0932358977"),
+   ok(!JSON.stringify(memberHistory).includes("0000000000"),
       "Child06 response never discloses personal national identifiers");
    const governanceBff=sh.origin+"/api/tenants/"+A+"/governance-history";
    await status(await fetch(governanceBff),401,
