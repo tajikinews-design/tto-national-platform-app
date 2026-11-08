@@ -661,6 +661,9 @@ async function main(){
    await status(await post(legalPath,tokenMap.get(MANAGER),
      {...torghabeh,summary:torghabeh.summary+" کد ملی 0932358977"}),400,
      "Child06 public archive rejects individual national ID");
+   await status(await post(legalPath,tokenMap.get(MANAGER),{
+     ...torghabeh,signing:[{...signing[0],alternateSigners:["9".repeat(10)]}]
+   }),400,"Child06 archive rejects unredacted numeric person references in signing alternatives");
    const notice=await status(await post(legalPath,tokenMap.get(MANAGER),torghabeh),
      201,"Child06 manager appends source-declared Torghabeh-Shandiz notice");
    ok(notice.state==="USER_SUPPLIED_SOURCE_NOT_AUTHENTICATED"&&
