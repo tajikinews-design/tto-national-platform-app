@@ -6,6 +6,8 @@ BEGIN
  FOREACH tab IN ARRAY ARRAY[
   'cooperative_notice_attestation_policies',
   'cooperative_notice_trusted_signatories',
+  'cooperative_notice_trust_revocations',
+  'cooperative_notice_policy_revocations',
   'cooperative_notice_internal_attestations',
   'cooperative_notice_internal_attestation_holds'] LOOP
   IF to_regclass('tto.'||tab) IS NULL THEN
