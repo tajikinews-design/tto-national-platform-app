@@ -7,7 +7,7 @@ export function PortalSessionGate({surface,children,workspaceSlug}:{surface:Surf
   let alive=true;
   async function check(){
    try{
-    const response=await fetch("/api/auth/session",{credentials:"same-origin",cache:"no-store"});
+    const response=await fetch(surface==="national"?"/api/auth/session":"/api/auth/password/session",{credentials:"same-origin",cache:"no-store"});
     if(!response.ok)throw new Error("SESSION_UNAVAILABLE");
     const status=await response.json() as {authenticated?:unknown;nationalRoot?:unknown;mustChangeCredentials?:unknown};
     if(status.authenticated!==true||(surface==="national"&&
