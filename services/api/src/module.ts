@@ -356,6 +356,44 @@ export class FoundationCommandsController {
    * tenants require a separate formally approved national directory read model.
    * Never infer legal registration or tenant activation from a reserved slug.
    */
+  @Get("commerce/demo/plans")
+  async demoCommercePlans(){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    const rows=await this.db.pool.query<{code:string;title:string;durationDays:number;features:string[]}>(
+      'SELECT code,title,duration_days AS "durationDays",features FROM tto.commerce_demo_plans WHERE active AND preview_only ORDER BY duration_days');
+    return {plans:rows.rows,realPaymentEnabled:false};
+  }
+
+  @Post("commerce/demo/confirm")
+  @HttpCode(201)
+  async confirmDemoCommerce(@Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
+      throw new ServiceUnavailableException("DEMO_ONLY");
+    const slug=input?.slug,name=input?.name,planCode=input?.planCode,mobile=input?.mobile,amount=input?.amountIrr;
+    if(typeof slug!=="string"||typeof name!=="string"||typeof planCode!=="string"||
+      typeof mobile!=="string"||!Number.isSafeInteger(amount)||Number(amount)<1)
+      throw new BadRequestException("INVALID_DEMO_ORDER");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      const result=await c.query<{result:Record<string,unknown>}>(
+        "SELECT tto.confirm_commerce_demo_order($1,$2,$3,$4::bigint,$5) AS result",
+        [slug,name,planCode,amount,mobile]
+      ).catch(e=>{if((e as {code?:string}).code==="23505")throw new ConflictException("WORKSPACE_ADDRESS_TAKEN");throw e});
+      return result.rows[0]?.result;
+    });
+  }
+
+  @Get("commerce/demo/my-subscriptions")
+  async myDemoSubscriptions(@Headers("authorization") auth:string|undefined){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      const r=await c.query<{items:Record<string,unknown>[]}>(
+        "SELECT tto.my_commerce_demo_subscriptions() AS items");
+      return {items:r.rows[0]?.items??[],realPaymentEnabled:false};
+    });
+  }
+
   @Get("national/geo/provinces-counties")
   async nationalGeography(@Headers("authorization") auth:string|undefined){
     if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
