@@ -513,6 +513,7 @@ jobs:
         if: steps.scope.outputs.suite != 'lite' && env.TTO_W2_NO_DOCKER_BRANCH != 'true'
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+          TTO_PH12_LEGAL_E2E: ${{ github.head_ref == 'feat/ph12-board-legal-gate-hold-20261107' && '1' || '0' }}
         run: |
           set -euo pipefail
           if [ "$GITHUB_HEAD_REF" = "feat/tto-pcs-014-shareholder-browser-sources-20261101" ]; then
