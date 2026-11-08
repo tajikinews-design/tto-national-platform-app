@@ -349,6 +349,35 @@ export class FoundationCommandsController {
       surface,authenticated:true,legalPowerGranted:false,shareTransferEnabled:false};
   }
 
+  /**
+   * National administrator registry: only public workspace routing metadata.
+   * Existing DB has reserved workspace addresses, while legally activated
+   * tenants require a separate formally approved national directory read model.
+   * Never infer legal registration or tenant activation from a reserved slug.
+   */
+  @Get("national/cooperative-registry")
+  async nationalCooperativeRegistry(@Headers("authorization") auth:string|undefined){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ISOLATED_DEMO_DATABASE_REQUIRED");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const permission=await client.query<{allowed:boolean}>(
+        "SELECT tto.has_national_root() AS allowed"
+      );
+      if(permission.rows[0]?.allowed!==true)
+        throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const result=await client.query<{
+        workspaceId:string;slug:string;state:string;createdAt:string
+      }>(
+        'SELECT workspace_id AS "workspaceId",slug,state,created_at AS "createdAt" '+
+        "FROM tto.cooperative_workspace_addresses WHERE state='RESERVED' "+
+        "ORDER BY created_at DESC,workspace_id DESC LIMIT 201"
+      );
+      return {items:result.rows.slice(0,200),truncated:result.rows.length>200,
+        source:"RESERVED_WORKSPACES",containsActivatedTenants:false};
+    });
+  }
+
   @Get("national/cooperative-workspaces/:slug")
   async findWorkspace(@Param("slug") slug:string){
     if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
