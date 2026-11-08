@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import {shareholderNavigation} from "./shareholder-navigation";
 import {PortalModuleWorkbench} from "./portal-module-workbench";
+import {ApprovedDashboardHome} from "./approved-dashboard";
 export {shareholderNavigation} from "./shareholder-navigation";
 export {shareholderSectionId} from "./shareholder-section-config";
 
@@ -93,74 +94,42 @@ function navHref(i: number) {
 
 export function PortalShell({
   surface, children, activeId = "NAV-01", suppressStaticKpis = false
-}: { surface: Surface; children?: ReactNode; activeId?: NavId; suppressStaticKpis?: boolean }) {
-  const cfg = surfaces[surface];
-  const active = NAV_IDS.indexOf(activeId);
-  const home = active === 0;
-  const selection = active < 0 ? 0 : active;
-  const currentTitle = home ? cfg.title : cfg.navigation[selection];
-  return <div className="shell" dir="rtl">
-    <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
-    <aside className="nav-area">
-      <a className="logo" href="/" aria-label="بازگشت به داشبورد پلتفرم ملی">TTO <span>پلتفرم ملی تعاونی توسعه و عمران</span></a>
-      <nav aria-label={"منوی اصلی "+cfg.title}>
-        {cfg.navigation.map((name, i) =>
-          <a href={navHref(i)} aria-current={selection === i ? "page" : undefined}
-            className={selection === i ? "nav-link current" : "nav-link"} key={NAV_IDS[i]}>
-            <span aria-hidden="true">◈</span><span>{name}</span><small>{NAV_IDS[i]}</small>
-          </a>)}
-      </nav>
-    </aside>
-    <main className="main-content" id="main-content">
-      <div className="topbar"><strong>{cfg.title}</strong><span className="preview-tag">پیش‌نمایش داخلی · داده واقعی نمایش داده نمی‌شود</span></div>
-      {!home && <div className="breadcrumb"><a href="/">داشبورد</a><span aria-hidden="true">‹</span><span>{currentTitle}</span></div>}
-      <section className="hero">
-        <h1>{currentTitle}</h1><p>{home ? cfg.description : cfg.sectionDescriptions[selection]}</p>
-        <p className="hint">نمایش داده‌های مرتبط با کاربر تنها پس از تأیید نشست، نقش قانونی، محدوده تعاونی و سطح مجوز امکان‌پذیر است.</p>
-      </section>
-      {home && !suppressStaticKpis && <div className="kpi-grid">{cfg.chips.map(label =>
-        <section className="metric" key={label}>
-          <span>{label}</span><strong aria-label="داده موجود نیست">—</strong><small>داده تأییدشده در دسترس نیست</small>
-        </section>)}</div>}
-      <section className="panel">
-        {home ? <>
-          <h2>اقدامات و اطلاعیه‌ها</h2>
-          <p>امکانات نمایش اطلاعات شخصی و اقدام‌های عملیاتی فقط پس از تأیید مجوزهای قانونی و اتصال به منبع داده معتبر فعال خواهند شد.</p>
-          {children}
-          <PortalModuleWorkbench surface={surface}/>
-          <h2 className="module-heading">بخش‌های سامانه</h2>
-          <div className="module-grid" aria-label="فهرست بخش‌های سامانه">
-            {cfg.navigation.slice(1).map((name, i) =>
-              <a href={navHref(i + 1)} className="module-card" key={NAV_IDS[i + 1]}>
-                <span className="module-card-code">{NAV_IDS[i + 1]}</span>
-                <strong>{name}</strong>
-                <span>{cfg.sectionDescriptions[i + 1]}</span>
-                <small>مشاهده ساختار بخش ←</small>
-              </a>)}
-          </div>
-        </> : children ? <>
-          {children}
-          <a className="return-link" href="/">بازگشت به داشبورد</a>
-        </> : <>
-          <div className="module-status" role="status">
-            <strong>ساختار این بخش آماده بررسی است</strong>
-            <span>فعال‌سازی داده و عملیات: در انتظار پیاده‌سازی قرارداد دامنه و تأیید مجوزها</span>
-          </div>
-          <h2>دامنه عملکرد</h2>
-          <p>{cfg.sectionDescriptions[selection]}</p>
-          <h2>شرط دسترسی</h2>
-          <p>{cfg.boundary} احراز هویت به‌تنهایی مجوز مشاهده اطلاعات تعاونی یا اجرای عملیات نیست.</p>
-          <div className="module-empty" aria-label="اطلاعات محرمانه و عملیاتی هنوز بارگذاری نشده‌اند">
-            <strong>—</strong><span>هیچ داده، مانده سهام یا وضعیت پرونده‌ای بدون استعلام معتبر نمایش داده نمی‌شود.</span>
-          </div>
-          <a className="return-link" href="/">بازگشت به داشبورد</a>
-        </>}
-      </section>
-      <footer>{surface==="shareholder"&&children?
-        "پیش‌نمایش محافظت‌شده سهامدار · استعلام فقط‌خواندنی با گیت‌های مستقل منبع و مجوز · ثبت معامله و داده واقعی غیرفعال":
-        "پیش‌نمایش محافظت‌شده Next.js · داده واقعی نمایش داده نمی‌شود؛ عملیات دامنه نیازمند مجوز مستقل است"}</footer>
-    </main>
-  </div>;
+}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean}) {
+ const cfg=surfaces[surface],selection=Math.max(NAV_IDS.indexOf(activeId),0);
+ const home=selection===0,currentTitle=home?cfg.title:cfg.navigation[selection];
+ return <div className="shell tto-approved-shell" lang="fa" dir="rtl">
+   <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
+   <aside className="nav-area">
+     <a className="logo" href="/" aria-label="پلتفرم ملی تعاونی توسعه و عمران"><span className="tto-brand-mark">❖</span><strong>پلتفرم ملی تعاونی توسعه و عمران</strong><span>شبکه هوشمند خدمات و راهبری تعاونی‌ها</span></a>
+     <nav aria-label={"منوی "+cfg.title}>
+      {cfg.navigation.map((name,i)=><a href={navHref(i)} key={NAV_IDS[i]}
+        aria-current={i===selection?"page":undefined}
+        className={i===selection?"nav-link current":"nav-link"}>
+        <span aria-hidden="true" className="tto-nav-symbol">{["▦","♙","▥","♜","♧","⚙","▤","▥","♢","▥","⚙"][i]}</span>
+        <span>{name}</span></a>)}
+     </nav>
+     <a className="tto-logout-link" href="/login">ورود / خروج از حساب ↗</a>
+   </aside>
+   <main className="main-content" id="main-content">
+      <div className="topbar">
+       <div className="tto-top-search"><span aria-hidden="true">⌕</span><span>جست‌وجوی پرونده‌ها، گزارش‌ها، خدمات و ...</span></div>
+       <div className="tto-top-meta"><span>اعلان‌ها ♧</span><strong>{cfg.title}</strong></div>
+      </div>
+      {!home&&<div className="breadcrumb"><a href="/">داشبورد</a><span>‹</span><span>{currentTitle}</span></div>}
+      {home?<ApprovedDashboardHome surface={surface}>{children}</ApprovedDashboardHome>:
+      <>
+       <section className="hero"><h1>{currentTitle}</h1><p>{cfg.sectionDescriptions[selection]}</p></section>
+       <section className="panel tto-module-content">
+         {children??<><div className="module-status" role="status">
+           <strong>اطلاعات این بخش در انتظار اتصال معتبر است</strong>
+           <span>برای اجرای واقعی باید نشست مجاز، دسترسی محدود به تعاونی و API تأیید شده وجود داشته باشد.</span>
+          </div><p>{cfg.boundary}</p></>}
+         <a className="return-link" href="/">بازگشت به داشبورد</a>
+       </section>
+      </>}
+      <footer>محیط آزمایش TTO · ثبت اطلاعات واقعی فقط با دسترسی مجاز و کنترل حفاظت داده · بدون ایجاد اثر حقوقی یا عملیات مالی</footer>
+   </main>
+ </div>;
 }
 
 export function PortalModulePreview({surface,moduleId}:{surface:Surface;moduleId:NavId}){
