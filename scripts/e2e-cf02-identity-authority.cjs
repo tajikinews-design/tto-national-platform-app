@@ -168,6 +168,11 @@ async function main(){
  const managerBff=await fetch(cm.origin+"/api/auth/password/login",{
   method:"POST",headers:{"Content-Type":"application/json",Origin:cm.origin},
   body:JSON.stringify(loginBody),cache:"no-store"});
+ if(managerBff.status!==200){
+  const issue=await managerBff.json().catch(()=>({}));
+  throw Error("CI_SYNTHETIC_MANAGER_BFF_REJECTED_STATUS_"+managerBff.status+
+    "_CODE_"+(issue?.code??"UNKNOWN"));
+ }
  const managerBffPayload=await status(managerBff,200,"manager Next BFF password sign in");
  ok(managerBffPayload.tenantId===A&&managerBffPayload.workspaceSlug==="ci-legal-a"&&
     !("accessToken" in managerBffPayload),"manager Next BFF never leaks bearer in JSON");
