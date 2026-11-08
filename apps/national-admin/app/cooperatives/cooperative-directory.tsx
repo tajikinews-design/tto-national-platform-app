@@ -84,7 +84,7 @@ export default function CooperativeDirectory(){
           نشانی رزروشده
          </span></td>
         <td style={tableCell}><time dateTime={item.createdAt}>{persianDate.format(new Date(item.createdAt))}</time></td>
-        <td style={tableCell}><a href="/cooperatives/onboarding">تکمیل پرونده ←</a></td>
+        <td style={tableCell}><a href={"/cooperatives/onboarding?slug="+encodeURIComponent(item.slug)}>مشاهده و تکمیل پرونده ←</a></td>
        </tr>)}
       </tbody>
      </table>
