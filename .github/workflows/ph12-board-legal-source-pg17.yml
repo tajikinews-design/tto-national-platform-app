@@ -51,6 +51,8 @@ jobs:
           # signatures, quorum, expiry/revocation. Transaction always ROLLBACK.
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-synthetic-official-authority-lab.sql
           echo "PH12_MOCK_AUTHORITY_DISPOSABLE_PG17_PASS"
+          TTO_PH12_MOCK_ISSUER_LAB=1 node --test scripts/ci/ph12-mock-official-issuer.test.cjs
+          echo "PH12_SIGNED_MOCK_HTTP_ED25519_RECOVERY_TESTS_PASS"
           echo "PH12_LEGAL_SOURCE_DISPOSABLE_PG17_SCHEMA_PASS count=$count"
       - name: Destroy isolated PG17
         if: always()
