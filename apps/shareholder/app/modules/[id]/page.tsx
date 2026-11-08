@@ -1,6 +1,6 @@
 import {PortalShell,PortalSessionGate,PortalModuleWorkbench,ShareholderWorkspace,parsePortalModuleId,shareholderSectionId} from "@tto/ui";
 import {notFound} from "next/navigation";
-export const dynamic="force-dynamic";
+export const dynamic = "force-dynamic";
 export default async function ModulePage({params}:{params:Promise<{id:string}>}){
  const {id}=await params, moduleId=parsePortalModuleId(id);
  if(!moduleId)notFound();
