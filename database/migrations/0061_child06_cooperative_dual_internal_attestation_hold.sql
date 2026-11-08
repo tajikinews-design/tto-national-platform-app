@@ -34,6 +34,26 @@ CREATE TABLE tto.cooperative_notice_trusted_signatories (
  UNIQUE(policy_id,party_id),
  UNIQUE(policy_id,user_id)
 );
+-- Revocation is append-only; trusted signatory/policy records are never edited.
+-- Only independent offline platform owner can seed these revocation events.
+CREATE TABLE tto.cooperative_notice_trust_revocations (
+ revocation_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ trust_id uuid NOT NULL UNIQUE REFERENCES tto.cooperative_notice_trusted_signatories(trust_id),
+ tenant_id uuid NOT NULL REFERENCES tto.tenants(tenant_id),
+ revoked_by uuid NOT NULL REFERENCES tto.user_accounts(user_id),
+ independent_revocation_reference text NOT NULL
+  CHECK(length(independent_revocation_reference) BETWEEN 24 AND 350),
+ revoked_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+CREATE TABLE tto.cooperative_notice_policy_revocations (
+ revocation_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ policy_id uuid NOT NULL UNIQUE REFERENCES tto.cooperative_notice_attestation_policies(policy_id),
+ tenant_id uuid NOT NULL REFERENCES tto.tenants(tenant_id),
+ revoked_by uuid NOT NULL REFERENCES tto.user_accounts(user_id),
+ independent_revocation_reference text NOT NULL
+  CHECK(length(independent_revocation_reference) BETWEEN 24 AND 350),
+ revoked_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
 CREATE TABLE tto.cooperative_notice_internal_attestations (
  attestation_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  tenant_id uuid NOT NULL REFERENCES tto.tenants(tenant_id),
@@ -71,6 +91,7 @@ DECLARE tab text;
 BEGIN
  FOREACH tab IN ARRAY ARRAY[
   'cooperative_notice_attestation_policies','cooperative_notice_trusted_signatories',
+  'cooperative_notice_trust_revocations','cooperative_notice_policy_revocations',
   'cooperative_notice_internal_attestations','cooperative_notice_internal_attestation_holds'
  ] LOOP
   EXECUTE format('ALTER TABLE tto.%I ENABLE ROW LEVEL SECURITY',tab);
@@ -94,7 +115,9 @@ BEGIN
  WHERE file_id=p_file AND tenant_id=tid;
  IF NOT FOUND THEN RAISE EXCEPTION 'CHILD06_DUAL_ATTESTATION_FILE_DENIED' USING ERRCODE='42501';END IF;
  SELECT * INTO pol FROM tto.cooperative_notice_attestation_policies
- WHERE tenant_id=tid AND now() BETWEEN valid_from AND valid_until;
+ WHERE tenant_id=tid AND now() BETWEEN valid_from AND valid_until
+ AND NOT EXISTS(SELECT 1 FROM tto.cooperative_notice_policy_revocations rv
+ WHERE rv.policy_id=policy_id AND rv.tenant_id=tid);
  SELECT EXISTS(SELECT 1 FROM tto.cooperative_notice_internal_attestation_holds
     WHERE tenant_id=tid AND file_id=p_file) INTO held;
  SELECT count(*)::int,
@@ -112,6 +135,8 @@ BEGIN
    AND t.policy_id=pol.policy_id AND t.tenant_id=tid
    AND t.user_id=a.user_id AND t.party_id=a.party_id
    AND l.verified_at IS NOT NULL AND t.revoked_at IS NULL
+   AND NOT EXISTS(SELECT 1 FROM tto.cooperative_notice_trust_revocations rv
+     WHERE rv.trust_id=t.trust_id AND rv.tenant_id=tid)
    AND now() BETWEEN t.valid_from AND t.valid_until;
  IF held THEN state:='HOLD_DISPUTED_OR_SUPERSEDED';
  ELSIF pol.policy_id IS NULL THEN state:='HOLD_TRUST_BOOTSTRAP_REQUIRED';
@@ -154,7 +179,9 @@ BEGIN
      WHERE tenant_id=tid AND file_id=p_file AND verdict='CLEAN')
  THEN RAISE EXCEPTION 'CHILD06_DUAL_ATTESTATION_SCAN_REQUIRED' USING ERRCODE='42501';END IF;
  SELECT * INTO pol FROM tto.cooperative_notice_attestation_policies
-    WHERE tenant_id=tid AND now() BETWEEN valid_from AND valid_until;
+    WHERE tenant_id=tid AND now() BETWEEN valid_from AND valid_until
+ AND NOT EXISTS(SELECT 1 FROM tto.cooperative_notice_policy_revocations rv
+ WHERE rv.policy_id=policy_id AND rv.tenant_id=tid);
  IF NOT FOUND OR pol.bootstrap_digest=src.plaintext_sha256
  THEN RAISE EXCEPTION 'CHILD06_DUAL_ATTESTATION_INDEPENDENT_BOOTSTRAP_REQUIRED' USING ERRCODE='42501';END IF;
  SELECT t.* INTO trusted FROM tto.cooperative_notice_trusted_signatories t
@@ -163,6 +190,8 @@ BEGIN
  JOIN tto.user_party_links l ON l.user_id=t.user_id AND l.party_id=t.party_id
  WHERE t.policy_id=pol.policy_id AND t.tenant_id=tid AND t.user_id=actor
   AND t.revoked_at IS NULL AND now() BETWEEN t.valid_from AND t.valid_until
+  AND NOT EXISTS(SELECT 1 FROM tto.cooperative_notice_trust_revocations rv
+     WHERE rv.trust_id=t.trust_id AND rv.tenant_id=tid)
   AND l.verified_at IS NOT NULL AND t.authority_evidence_digest<>src.plaintext_sha256
   AND ((pol.combination='CEO_AND_CHAIR' AND t.capacity IN ('CEO','BOARD_CHAIR'))
    OR(pol.combination='REGISTERED_SIGNATORY_PAIR' AND t.capacity='REGISTERED_SIGNATORY'));
