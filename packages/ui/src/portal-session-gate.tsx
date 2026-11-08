@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useState,type ReactNode} from "react";
 type Surface="national"|"cooperative"|"shareholder";
-export function PortalSessionGate({surface,children}:{surface:Surface;children:ReactNode}){
+export function PortalSessionGate({surface,children,workspaceSlug}:{surface:Surface;children:ReactNode;workspaceSlug?:string}){
  const [state,setState]=useState<"checking"|"ready"|"no_access"|"unavailable">("checking");
  useEffect(()=>{
   let alive=true;
@@ -21,12 +21,26 @@ export function PortalSessionGate({surface,children}:{surface:Surface;children:R
       const options=await scoped.json() as {items?:unknown};
       if(!Array.isArray(options.items)){throw new Error("INVALID_SCOPE")}
       if(options.items.length===0){if(alive)setState("no_access");return;}
+      if(workspaceSlug){
+        const authorized=await Promise.all(options.items.slice(0,50).map(async raw=>{
+          const item=raw as {tenantId?:unknown};
+          if(typeof item.tenantId!=="string"||!/^[a-f0-9-]{36}$/i.test(item.tenantId))return false;
+          try{
+           const scopedContext=await fetch("/api/tenants/"+encodeURIComponent(item.tenantId)+"/context",
+              {credentials:"same-origin",cache:"no-store"});
+           if(!scopedContext.ok)return false;
+           const context=await scopedContext.json() as {slug?:unknown};
+           return context.slug===workspaceSlug;
+          }catch{return false}
+        }));
+        if(!authorized.some(Boolean)){if(alive)setState("no_access");return;}
+      }
     }
     if(alive)setState("ready");
    }catch{if(alive)setState("unavailable")}
   }
   void check();return()=>{alive=false};
- },[surface]);
+ },[surface,workspaceSlug]);
  if(state!=="ready")return <main className="tto-login-page" lang="fa" dir="rtl">
   <section className="tto-login-card" role="status"><h1>{state==="checking"?"در حال بررسی دسترسی…":
     state==="no_access"?"دسترسی به تعاونی هنوز فعال نشده":"اتصال به سرویس تأیید هویت برقرار نشد"}</h1>
