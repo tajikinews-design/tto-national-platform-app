@@ -1,4 +1,4 @@
-import { PortalShell, TenantScopePicker, parsePortalModuleId } from "@tto/ui";
+import { PortalShell, PortalModuleWorkbench, TenantScopePicker, parsePortalModuleId } from "@tto/ui";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +15,7 @@ export default async function ModulePage({params}:{params:Promise<{id:string}>})
    <strong>دسترسی ماژول نیازمند تأیید مجوز است</strong>
    <span>عنوان و توضیحات قابل مشاهده‌اند؛ اطلاعات و عملیات اختصاصی فقط پس از تأیید نشست و محدوده مجاز.</span>
   </div>
+  <PortalModuleWorkbench surface="national" moduleId={moduleId}/>
   <TenantScopePicker surface="national" moduleId={moduleId}/>
   <p className="sw-footnote">ورود پیامکی در پنل ملی غیرفعال است. این بخش فقط با نشست موجود و مجوز مستقل JIT/Operator قابل بررسی است. تأیید محدوده، مجوز انجام عملیات این بخش نیست. گردش‌کارهای دامنه فقط پس از اجرای آزمون‌ها و تأیید اختیار قانونی فعال می‌شوند.</p>
  </PortalShell>;
