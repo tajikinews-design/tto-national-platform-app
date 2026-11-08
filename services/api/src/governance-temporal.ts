@@ -29,7 +29,7 @@ export function reconstructGovernanceSnapshot(
  const s=source as R;
  if(s.officiallyVerified!==false||s.legalSignerAuthorityGranted!==false||
     s.tariffActivated!==false||typeof s.tenantId!=="string"||
-    s.knownAt!==knownAt)
+    typeof s.knownAt!=="string"||Date.parse(s.knownAt)!==Date.parse(knownAt))
   throw new Error("CHILD06_TEMPORAL_SOURCE_NOT_FAIL_CLOSED");
  const notices=arr(s.notices,"NOTICES",200);
  const board=arr(s.board,"BOARD",2500);
