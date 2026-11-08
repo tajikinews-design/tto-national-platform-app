@@ -165,9 +165,20 @@ async function main(){
     memberLogin.legalPowerGranted===false,"shareholder portal identity is separate from CEO");
  await status(await get("/v1/portal/password/session?surface=cooperative",
     memberLogin.accessToken),401,"shareholder token denied on manager portal");
- const managerBff=await fetch(cm.origin+"/api/auth/password/login",{
-  method:"POST",headers:{"Content-Type":"application/json",Origin:cm.origin},
-  body:JSON.stringify(loginBody),cache:"no-store"});
+ // Next local test server may canonicalize req.url to localhost even when the
+ // test client connects via 127.0.0.1. Preserve CSRF protection; retry with the
+ // other *local-only equivalent origin* in disposable CI, never accept external origin.
+ let managerBff;
+ for(const origin of [cm.origin,cm.origin.replace("127.0.0.1","localhost")]){
+  const res=await fetch(cm.origin+"/api/auth/password/login",{
+   method:"POST",headers:{"Content-Type":"application/json",Origin:origin},
+   body:JSON.stringify(loginBody),cache:"no-store"});
+  if(res.status!==403){managerBff=res;break;}
+  const denied=await res.clone().json().catch(()=>({}));
+  if(denied?.code!=="ORIGIN_DENIED"){managerBff=res;break;}
+  managerBff=res;
+ }
+
  if(managerBff.status!==200){
   const issue=await managerBff.json().catch(()=>({}));
   throw Error("CI_SYNTHETIC_MANAGER_BFF_REJECTED_STATUS_"+managerBff.status+
