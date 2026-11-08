@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
 import NoticeTransitionManager from "./NoticeTransitionManager";
+import GovernanceConflictWorkbench from "./GovernanceConflictWorkbench";
 type Tenant={tenantId:string;displayName:string;evidenceStatus:string};
 type Board={personName:string;office:string;eventType:string;eventOn:string;termEnd:string};
 type Signing={authorityKind:string;requiredSigner:string;alternateSigners:string;
@@ -192,5 +193,7 @@ export default function LegalNoticeArchiveForm(){
    {message&&<p role="status" aria-live="polite">{message}</p>}
   </form>}
   {status==="ready"&&tenant&&<NoticeTransitionManager tenantId={tenant}/>}
+  {status==="ready"&&tenant&&<GovernanceConflictWorkbench tenantId={tenant}/>}
+  <p><a href="/governance-conflict-review">ورود بازبین مستقل به پرونده‌های تعارض ←</a></p>
  </main>;
 }
