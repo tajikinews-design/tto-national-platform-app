@@ -81,14 +81,15 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{tenantId:st
  if(!origin)return deny(403,"ORIGIN_REQUIRED");
  try{
   const submitted=new URL(origin),serverOrigin=new URL(req.url).origin;
-  const boundHost=req.headers.get("host")??"";
   const sameOrigin=submitted.origin===serverOrigin;
-  // Next standalone rewrites req.url to localhost during loopback E2E,
-  // while the real browser Host and Origin are both 127.0.0.1:<port>.
+  // Next standalone may rewrite req.url and Host internally during CI.
+  // Compare against the operator-pinned local public origin, never against
+  // a user-controlled request header, and only in explicit loopback E2E.
+  const pinnedOrigin=process.env.TTO_PH12_PUBLIC_ORIGIN??"";
   const trustedLabOrigin=process.env.CI==="true"&&
    process.env.TTO_LOOPBACK_E2E==="1"&&!process.env.VERCEL&&
-   /^127[.]0[.]0[.]1:[0-9]{4,5}$/.test(boundHost)&&
-   submitted.protocol==="http:"&&submitted.host===boundHost;
+   /^http:\/\/127[.]0[.]0[.]1:[0-9]{4,5}$/.test(pinnedOrigin)&&
+   submitted.origin===pinnedOrigin;
   if(!sameOrigin&&!trustedLabOrigin)return deny(403,"ORIGIN_DENIED");
  }catch{return deny(403,"ORIGIN_DENIED");}
  if(req.headers.get("content-type")?.split(";")[0]!=="application/json")
