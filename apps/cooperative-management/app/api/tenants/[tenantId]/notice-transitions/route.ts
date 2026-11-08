@@ -79,8 +79,18 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{tenantId:st
  if(!req.cookies.get("tto_session")?.value)return deny(401,"SESSION_REQUIRED");
  const origin=req.headers.get("origin");
  if(!origin)return deny(403,"ORIGIN_REQUIRED");
- try{if(new URL(origin).origin!==new URL(req.url).origin)return deny(403,"ORIGIN_DENIED");}
- catch{return deny(403,"ORIGIN_DENIED");}
+ try{
+  const submitted=new URL(origin),serverOrigin=new URL(req.url).origin;
+  const boundHost=req.headers.get("host")??"";
+  const sameOrigin=submitted.origin===serverOrigin;
+  // Next standalone rewrites req.url to localhost during loopback E2E,
+  // while the real browser Host and Origin are both 127.0.0.1:<port>.
+  const trustedLabOrigin=process.env.CI==="true"&&
+   process.env.TTO_LOOPBACK_E2E==="1"&&!process.env.VERCEL&&
+   /^127[.]0[.]0[.]1:[0-9]{4,5}$/.test(boundHost)&&
+   submitted.protocol==="http:"&&submitted.host===boundHost;
+  if(!sameOrigin&&!trustedLabOrigin)return deny(403,"ORIGIN_DENIED");
+ }catch{return deny(403,"ORIGIN_DENIED");}
  if(req.headers.get("content-type")?.split(";")[0]!=="application/json")
   return deny(415,"JSON_REQUIRED");
  const raw=await req.text();
