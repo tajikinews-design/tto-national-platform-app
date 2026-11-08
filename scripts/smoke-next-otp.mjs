@@ -34,11 +34,17 @@ for (let idx=0;idx<slugs.length;idx++){
   const loginHtml=await loginRes.text();
   const expected=slug==="national-admin"?"ورود مدیر ملی":
     slug==="cooperative-management"?"ورود مدیر تعاونی":"ورود سهامدار";
-  if(!loginHtml.includes(expected) ||
-     !loginHtml.includes('id="portal-user"') && slug!=="national-admin" ||
-     !loginHtml.includes('id="portal-pass"') && slug!=="national-admin")
+  // Next.js SSR can delimit separately rendered heading text with React markers.
+  // Verify both meaningful tokens and actual fields, never demand one contiguous phrase.
+  const titleVerified=slug==="national-admin"?
+    loginHtml.includes("ورود مدیر ملی"):
+    loginHtml.includes("ورود")&&
+      loginHtml.includes(slug==="shareholder"?"سهامدار":"مدیر تعاونی");
+  if(!titleVerified ||
+     (!loginHtml.includes('id="portal-user"') && slug!=="national-admin") ||
+     (!loginHtml.includes('id="portal-pass"') && slug!=="national-admin"))
     throw Error(slug+" dedicated password-only login is missing"+
-      " title="+loginHtml.includes(expected)+
+      " title="+titleVerified+
       " usernameField="+loginHtml.includes('id="portal-user"')+
       " passwordField="+loginHtml.includes('id="portal-pass"'));
   checks++;
