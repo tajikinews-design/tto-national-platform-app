@@ -238,7 +238,7 @@ REVOKE ALL ON FUNCTION tto.cooperative_append_legal_notice(
  text,text,text,text,text,text,text,text,text,text,text,text,jsonb,jsonb,uuid),
  tto.cooperative_shareholder_governance_history() FROM PUBLIC,tto_app;
 GRANT EXECUTE ON FUNCTION tto.cooperative_append_legal_notice(
- text,text,text,text,text,text,text,text,text,text,text,text,text,jsonb,jsonb,uuid),
+ text,text,text,text,text,text,text,text,text,text,text,text,jsonb,jsonb,uuid),
  tto.cooperative_shareholder_governance_history() TO tto_app;
 COMMENT ON TABLE tto.cooperative_legal_notice_archive IS
  'Append-only source-declared legal notice archive; source authenticity and signatory powers are never implied.';
