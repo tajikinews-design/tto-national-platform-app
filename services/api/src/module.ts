@@ -119,9 +119,10 @@ export class Database {
     }>("SELECT username,password_scrypt,must_change_credentials,credentials_version FROM tto.national_root_credential_state()");
     return r.rows[0]??null;
   }
-  async issueNationalRootSession(hash:Buffer,version:string):Promise<boolean>{
+  async issueNationalRootSession(hash:Buffer,version:string,rememberDevice:boolean):Promise<boolean>{
     const result=await this.pool.query<{issued:boolean}>(
-      "SELECT tto.issue_national_root_session($1,$2::bigint) AS issued",[hash,version]);
+      "SELECT tto.issue_national_root_session($1,$2::bigint,$3::boolean) AS issued",
+      [hash,version,rememberDevice]);
     return result.rows[0]?.issued===true;
   }
   async beginMobileRegistration(mobile:string,id:string,hash:Buffer):Promise<boolean>{
@@ -1101,6 +1102,9 @@ export class FoundationCommandsController {
       throw new ServiceUnavailableException("NATIONAL_LOGIN_UNAVAILABLE");
     const username=input?.username;
     const password=input?.password;
+    const rememberDevice=input?.rememberDevice===true;
+    if(input?.rememberDevice!==undefined && typeof input.rememberDevice!=="boolean")
+      throw new BadRequestException("INVALID_REMEMBER_DEVICE");
     if(typeof username!=="string" || username.length>64 ||
        typeof password!=="string" || password.length>128)
       throw new BadRequestException("INVALID_CREDENTIAL_REQUEST");
@@ -1129,10 +1133,12 @@ export class FoundationCommandsController {
       throw new UnauthorizedException("INVALID_CREDENTIALS");
     const token=randomBytes(48).toString("base64url");
     const tokenHash=createHash("sha256").update(token).digest();
-    const created=await this.db.issueNationalRootSession(tokenHash,state.credentials_version);
+    const persistent=rememberDevice && state.must_change_credentials===false &&
+      typeof state.password_scrypt==="string";
+    const created=await this.db.issueNationalRootSession(tokenHash,state.credentials_version,persistent);
     if(!created)throw new ServiceUnavailableException("NATIONAL_LOGIN_RETRY_REQUIRED");
     return {accessToken:token,tokenType:"Bearer",nationalRoot:true,
-      mustChangeCredentials:state.must_change_credentials};
+      mustChangeCredentials:state.must_change_credentials,sessionMaxAgeSeconds:persistent?604800:900};
   }
 
   @Get("national/root/session")
