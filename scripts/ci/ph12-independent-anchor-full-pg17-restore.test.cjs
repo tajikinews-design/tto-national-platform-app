@@ -172,7 +172,7 @@ test("PH12 full-schema PG17 restore fenced by an independently persistent signed
   const rootPem=root.publicKey.export({type:"spki",format:"pem"});
   const child=()=>execFileSync(process.execPath,
    [__filename,"--independent-verifier",restore,anchor],
-   {env:{...process.env,PH12_ROOT_PEM_B64:Buffer.from(rootPem).toString("base64")},
+   {env:{...process.env,PH12_ROOT_PEM_B64:Buffer.from(rootPem).toString("base64"),PH12_RECOVERY_TENANT:tenant},
     encoding:"utf8",timeout:20000}).trim();
   assert.equal(child(),"HOLD_RESTORE_BEHIND_SIGNED_WITNESS");
   assert.equal(child(),"HOLD_RESTORE_BEHIND_SIGNED_WITNESS");
