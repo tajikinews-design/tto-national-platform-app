@@ -2539,7 +2539,9 @@ export class Child06GovernanceArchiveController {
     for(const e of v.evidence as Array<{kind:string;sourceId:string}>)
       if(!evidenceSources.has(e.kind+":"+e.sourceId))
        throw new BadRequestException({code:"CHILD06_CONFLICT_EVIDENCE_NOT_IN_SNAPSHOT"});
-    const sha=createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    const sha=createHash("sha256").update(JSON.stringify({
+      notices:payload.notices,board:payload.board,signing:payload.signing,
+      transitions:payload.transitions})).digest("hex");
     const r=await client.query(
       "SELECT * FROM tto.cooperative_open_governance_conflict_case("+
       "$1::text,$2::text,$3::text,$4::jsonb,$5::uuid)",
