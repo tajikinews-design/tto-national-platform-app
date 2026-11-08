@@ -1070,6 +1070,19 @@ async function main(){
       "scan result idempotent");
    await status(await post(scannerPath,tokenMap.get(REVIEWER),
      {requestKey:randomUUID()}),409,"second scan cannot overwrite immutable receipt");
+   // Synthetic malware verdict is recorded but NEVER makes file downloadable.
+   const suspected=Buffer.from("%PDF-1.4\\nEICAR lab payload\\n%%EOF\\n");
+   const suspectedUpload={...upload,requestKey:randomUUID(),
+     evidenceId:citations[1],contentBase64:suspected.toString("base64")};
+   const suspectedStore=await status(await post(escrowPath,tokenMap.get(MANAGER),
+     suspectedUpload),201,"second evidence quarantined for synthetic malware fixture");
+   const suspectedScan=await status(await post(escrowPath+"/"+suspectedStore.fileId+
+     "/scan",tokenMap.get(REVIEWER),{requestKey:randomUUID()}),201,
+     "synthetic clamd protocol reports malware on EICAR lab marker");
+   ok(suspectedScan.malwareVerdict==="MALWARE"&&
+      suspectedScan.originalPdfReleased===false&&suspectedScan.tariffActivated===false,
+      "synthetic positive malware verdict never releases quarantine");
+   console.log("CHILD06_PDF_CLAMD_SYNTHETIC_CLEAN_AND_MALWARE_UNRELEASED_PASS");
    const holdPath=escrowPath+"/"+stored.fileId+"/source-holds";
    const sourceHold={requestKey:randomUUID(),outcome:"NO_OFFICIAL_CONNECTOR",
      sourceReference:"CI-SYNTHETIC-NO-OFFICIAL-CONNECTOR"};
