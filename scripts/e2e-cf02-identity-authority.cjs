@@ -1128,9 +1128,9 @@ async function main(){
      first.officialIssuerAuthenticated===false&&
      first.legalAuthorityVerified===false&&first.tariffActivated===false,
      "first verified signer can only register internal responsibility");
-   const replay=await internalAs(REVIEWER,attestSql,
+   const internalReplay=await internalAs(REVIEWER,attestSql,
      [stored.fileId,attDigest,ack,firstRequest]);
-   ok(replay.replayed===true&&replay.attestationId===first.attestationId,
+   ok(internalReplay.replayed===true&&internalReplay.attestationId===first.attestationId,
      "repeated vote request is immutable and idempotent");
    await assert.rejects(()=>internalAs(REVIEWER,attestSql,
      [stored.fileId,attDigest,ack,randomUUID()]));
