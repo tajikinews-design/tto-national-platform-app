@@ -20,7 +20,7 @@ CREATE TABLE tto.cooperative_legal_notice_archive (
  public_summary text NOT NULL CHECK(length(public_summary) BETWEEN 30 AND 6000
     AND public_summary !~ '(^|[^0-9])[0-9]{10}([^0-9]|$)'),
  original_url text CHECK(original_url IS NULL OR (original_url LIKE 'https://%' AND length(original_url)<=500)),
- text_sha256 bytea GENERATED ALWAYS AS (sha256(convert_to(public_summary,'UTF8'))) STORED,
+ text_sha256 bytea NOT NULL CHECK(octet_length(text_sha256)=32),
  provenance_status text NOT NULL DEFAULT 'USER_SUPPLIED_SOURCE_NOT_AUTHENTICATED'
    CHECK(provenance_status='USER_SUPPLIED_SOURCE_NOT_AUTHENTICATED'),
  submitted_by uuid NOT NULL REFERENCES tto.user_accounts(user_id),
@@ -150,11 +150,11 @@ BEGIN
  (tenant_id,cooperative_legal_national_id,cooperative_registration_no,source_type,notice_kind,
   source_notice_number,gazette_issue_number,published_on_jalali,resolution_on_jalali,
   cooperative_authority_letter,cooperative_authority_letter_on_jalali,public_summary,
-  original_url,submitted_by,request_key)
+  original_url,text_sha256,submitted_by,request_key)
  VALUES(tid,p_legal_id,p_registration_no,p_source_type,p_kind,
   nullif(p_notice_number,''),nullif(p_gazette_issue,''),nullif(p_published_j,''),
   p_resolution_j,nullif(p_letter,''),nullif(p_letter_j,''),p_summary,nullif(p_url,''),
-  actor,p_request_key)
+  sha256(convert_to(p_summary,'UTF8')),actor,p_request_key)
  RETURNING n.notice_id INTO new_id;
  FOR b IN SELECT value FROM jsonb_array_elements(p_board) LOOP
   IF jsonb_typeof(b)<>'object' OR b ? 'nationalId' OR b ? 'national_id' OR
