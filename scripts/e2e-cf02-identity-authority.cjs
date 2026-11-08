@@ -1,7 +1,7 @@
 "use strict";
 const assert=require("node:assert/strict");
 const {spawn}=require("node:child_process");
-const {randomUUID,randomBytes,createHash}=require("node:crypto");
+const {randomUUID,randomBytes,createHash,createDecipheriv}=require("node:crypto");
 const {resolve}=require("node:path");
 const {createRequire}=require("node:module");
 const ROOT=resolve(__dirname,"..");
@@ -79,6 +79,8 @@ async function fixture(){
    TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED:process.env.TTO_PH12_LEGAL_E2E==="1"?"true":"false",
    TTO_CHILD06_GOVERNANCE_NOTICE_INTAKE_ENABLED:"true",
    TTO_CHILD06_GOVERNANCE_HISTORY_ENABLED:"true",
+   TTO_CHILD06_ORIGINAL_PDF_ESCROW_ENABLED:process.env.TTO_PH12_LEGAL_E2E==="1"?"true":"false",
+   TTO_CHILD06_PDF_ESCROW_KEY_HEX:"12".repeat(32),
    TTO_PH12_MOCK_ISSUER_LAB:process.env.TTO_PH12_LEGAL_E2E==="1"?"1":"0",
    TTO_LOOPBACK_E2E:"1",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa"};
  labApiEnv=apiEnv;
@@ -982,6 +984,80 @@ async function main(){
       "case retains referenced notices and is initially pending");
    const reviewPath=disputePath+"/"+opened.caseId+"/review";
    const citations=auditLegal.cases[0].evidence.map(x=>x.evidenceId);
+   // Original Gazette PDF escrow: real Nest HTTP + tenant-scoped PG17 + AES-GCM.
+   // All bytes and issuer metadata are fictional test-only; no official source.
+   const pdfIssuerPath="/v1/tenants/"+A+
+     "/ph12/share-market/official-source-issuer-candidates";
+   const candidate=await status(await post(pdfIssuerPath,tokenMap.get(LEGAL),{
+      requestKey:randomUUID(),sourcePurpose:"REGISTERED_BOARD_CHANGES",
+      issuerKind:"OFFICIAL_GAZETTE",issuerLabel:"CI Fictional Gazette Candidate",
+      publicReference:"https://example.invalid/ci-synthetic-gazette",
+      legalBasisReference:"CI-TEST-NOT-REAL-REGISTRY-ATTESTATION"
+   }),201,"synthetic issuer candidate linked to proposed PDF");
+   const escrowPath=disputePath+"/source-files";
+   const pdf=Buffer.from("%PDF-1.7\\n1 0 obj\\n<<>>\\nendobj\\n%%EOF\\n");
+   const upload={requestKey:randomUUID(),evidenceId:citations[0],
+      issuerCandidateId:candidate.candidateId,mimeType:"application/pdf",
+      contentBase64:pdf.toString("base64")};
+   await status(await post(escrowPath,"",upload),401,
+     "anonymous original PDF escrow denied");
+   await status(await post(escrowPath,tokenMap.get(USER),upload),403,
+     "member original PDF escrow denied");
+   await status(await post(escrowPath,tokenMap.get(LEGAL),upload),403,
+     "legal reviewer cannot submit source in manager role");
+   await status(await post(escrowPath,tokenMap.get(MANAGER),
+     {...upload,issuerCandidateId:randomUUID()}),403,
+     "unknown or cross-tenant issuer candidate fails closed");
+   await status(await post(escrowPath,tokenMap.get(MANAGER),
+     {...upload,contentBase64:Buffer.from("not-a-pdf").toString("base64")}),400,
+     "file signature mismatch rejected");
+   const stored=await status(await post(escrowPath,tokenMap.get(MANAGER),upload),201,
+     "manager stores encrypted same-tenant original PDF");
+   ok(stored.encrypted===true&&
+      stored.state==="ENCRYPTED_QUARANTINED_UNAUTHENTICATED"&&
+      stored.malwareStatus==="NOT_SCANNED_QUARANTINED"&&
+      stored.officialSourceAuthenticated===false&&stored.tariffActivated===false,
+      "original encrypted document remains quarantined and cannot promote rights");
+   const bound=await status(await post(escrowPath,tokenMap.get(MANAGER),upload),201,
+      "PDF re-encryption retry replays original stable ID");
+   ok(bound.fileId===stored.fileId&&bound.replayed===true,
+      "document idempotency based on measured plaintext hash, not random IV");
+   await status(await post(escrowPath,tokenMap.get(MANAGER),
+      {...upload,contentBase64:Buffer.from("%PDF-1.7\\nchanged\\n%%EOF\\n").toString("base64")}),
+      409,"changed PDF content cannot reuse immutable request key");
+   const integrityPath=escrowPath+"/"+stored.fileId+"/integrity";
+   await status(await get(integrityPath,""),401,
+      "anonymous document integrity read denied");
+   await status(await get(integrityPath,tokenMap.get(USER)),403,
+      "shareholder document packet read denied");
+   await status(await get("/v1/tenants/"+B+
+      "/child06/governance-conflicts/source-files/"+stored.fileId+"/integrity",
+      tokenMap.get(LEGAL)),403,
+      "wrong-tenant document reads denied despite reviewer privileges");
+   const checked=await status(await get(integrityPath,tokenMap.get(LEGAL)),200,
+      "independent reviewer can attest encrypted bytes and matching digest only");
+   ok(checked.integrity==="MATCH"&&checked.originalPdfReadable===false&&
+      checked.officialSourceAuthenticated===false&&checked.legalAuthorityVerified===false&&
+      checked.tariffActivated===false,"integrity is not official legal provenance");
+   const row=(await db.query(
+      "SELECT plaintext_sha256,aes_gcm_iv,aes_gcm_tag,encrypted_body FROM "+
+      "tto.cooperative_governance_source_files WHERE file_id=$1",[stored.fileId])).rows[0];
+   ok(!row.encrypted_body.equals(pdf)&&
+      row.plaintext_sha256.equals(createHash("sha256").update(pdf).digest()),
+      "PostgreSQL stores ciphertext and independent SHA256, never plaintext PDF");
+   const tampered=Buffer.from(row.encrypted_body);
+   tampered[0]^=1;
+   assert.throws(()=>{
+     const d=createDecipheriv("aes-256-gcm",Buffer.from("12".repeat(32),"hex"),
+       row.aes_gcm_iv);
+     d.setAAD(Buffer.from("CHILD06_ORIGINAL_PDF_V1|"+A+"|"+citations[0]));
+     d.setAuthTag(row.aes_gcm_tag);
+     Buffer.concat([d.update(tampered),d.final()]);
+   });checks++;
+   await assert.rejects(()=>db.query(
+      "UPDATE tto.cooperative_governance_source_files SET encrypted_body=encrypted_body WHERE file_id=$1",
+       [stored.fileId]));checks++;
+   console.log("CHILD06_ORIGINAL_PDF_AES256_GCM_SHA256_TENANT_ESCROW_REAL_HTTP_PG17_HOLD_PASS");
    const finding={requestKey:randomUUID(),outcome:"HOLD_OFFICIAL_SOURCE_REQUIRED",
       evidenceIds:citations,
       reason:"مطابقت مستقل صادرکننده رسمی آگهی‌ها هنوز اثبات نشده است و نتیجه صرفاً توقف حقوقی آزمایشگاهی است."};
@@ -1000,6 +1076,9 @@ async function main(){
       legalReview.officialEvidenceAuthenticated===false&&
       legalReview.tariffActivated===false&&legalReview.outcome==="HOLD_OFFICIAL_SOURCE_REQUIRED",
       "reviewer disposition cannot grant official source authentication");
+   await status(await post(escrowPath,tokenMap.get(MANAGER),{
+     ...upload,requestKey:randomUUID(),evidenceId:citations[1]
+   }),403,"final independent review closes late original-file attachment");
    const reviewReplay=await status(await post(reviewPath,tokenMap.get(LEGAL),finding),
       201,"same reviewer decision idempotent replay");
    ok(reviewReplay.dispositionId===legalReview.dispositionId&&
