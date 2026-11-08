@@ -452,6 +452,98 @@ async function main(){
      "PH12 legal hold does not mutate tariff status");
    console.log("PH12_INDEPENDENT_LEGAL_DISPOSITION_REAL_PG17_HTTP_NEGATIVE_PASS_HOLD_ONLY");
 
+   const recheckEndpoint="/v1/tenants/"+A+"/ph12/share-market/tariff-board-cases/"+
+     submit.caseId+"/source-recheck";
+   const invalidationEndpoint="/v1/tenants/"+A+"/ph12/share-market/tariff-board-cases/"+
+     submit.caseId+"/legal-source-checks/"+legalStored.checkId+"/invalidate";
+   const invalidationPayload={
+     requestKey:randomUUID(),reason:"SOURCE_WITHDRAWN",
+     evidenceReference:"CI-SOURCE-WITHDRAWAL-NOT-OFFICIAL-001"
+   };
+   await status(await get(recheckEndpoint,""),401,
+     "PH12 recheck needs authenticated session");
+
+   const pre=await status(await get(recheckEndpoint,tokenMap.get(LEGAL)),200,
+     "PH12 independent reviewer can compute source state");
+   ok(pre.assessment==="HOLD_OFFICIAL_SOURCE_UNVERIFIED"&&
+      pre.sourceChecks===1&&pre.invalidatedChecks===0&&
+      pre.officialSourceAuthenticated===false&&pre.tariffActivated===false,
+      "PH12 source presence without owner verification always HOLD");
+   const staleInput={
+     ...legalPayload,requestKey:randomUUID(),sourceCategory:"BYLAWS",
+     sourceReference:"CI-OUTDATED-BYLAWS-SOURCE-001",sourceVersion:"stale-fixture-v1",
+     observedAt:new Date(Date.now()-7200000).toISOString(),
+     expiresAt:new Date(Date.now()-3600000).toISOString()
+   };
+   const staleRecord=await status(await legalPost(legalPath,tokenMap.get(REVIEWER),staleInput),201,
+     "PH12 snapshot records expired claimed source without authenticating it");
+   ok(staleRecord.state==="PENDING_OFFICIAL_VERIFICATION",
+     "PH12 stale intake cannot be official verification");
+   const stale=await status(await get(recheckEndpoint,tokenMap.get(LEGAL)),200,
+     "PH12 recheck marks an expired source as HOLD");
+   ok(stale.assessment==="HOLD_SOURCE_EXPIRED"&&stale.staleChecks===1&&
+      stale.officialSourceAuthenticated===false,
+      "PH12 expired evidence cannot be current trusted authority");
+   await status(await legalPost(invalidationEndpoint,"",invalidationPayload),401,
+     "PH12 source invalidation requires session");
+   await status(await legalPost(invalidationEndpoint,tokenMap.get(REVIEWER),invalidationPayload),403,
+     "PH12 source checker cannot invalidate own check even with legal reviewer role");
+   await status(await legalPost(invalidationEndpoint,tokenMap.get(MANAGER),invalidationPayload),403,
+     "PH12 draft author cannot invalidate even with legal reviewer role");
+   await status(await legalPost(invalidationEndpoint,tokenMap.get(APPROVER),invalidationPayload),403,
+     "PH12 claimed signatory cannot invalidate a source");
+   await status(await legalPost(invalidationEndpoint,tokenMap.get(LEGAL),
+     {...invalidationPayload,reason:"SOURCE_VERIFIED"}),400,
+     "PH12 invalidation cannot mint verified authority");
+   await status(await legalPost("/v1/tenants/"+B+
+     "/ph12/share-market/tariff-board-cases/"+submit.caseId+
+     "/legal-source-checks/"+legalStored.checkId+"/invalidate",
+     tokenMap.get(LEGAL),invalidationPayload),403,
+     "PH12 source invalidation refuses cross cooperative request");
+   await status(await legalPost("/v1/tenants/"+A+
+     "/ph12/share-market/tariff-board-cases/"+randomUUID()+
+     "/legal-source-checks/"+legalStored.checkId+"/invalidate",
+     tokenMap.get(LEGAL),invalidationPayload),403,
+     "PH12 invalidation requires matching case identity within same cooperative");
+   const withdrawn=await status(await legalPost(invalidationEndpoint,
+     tokenMap.get(LEGAL),invalidationPayload),201,
+     "PH12 independent legal role records immutable source withdrawal");
+   ok(withdrawn.state==="SOURCE_INVALIDATED"&&withdrawn.tariffActivated===false,
+     "PH12 withdrawal cannot activate tariff");
+   const replayWithdrawal=await status(await legalPost(invalidationEndpoint,
+     tokenMap.get(LEGAL),invalidationPayload),201,
+     "PH12 withdrawal identical replay");
+   ok(replayWithdrawal.invalidationId===withdrawn.invalidationId&&replayWithdrawal.replayed===true,
+     "PH12 same withdrawal request does not duplicate history");
+   await status(await legalPost(invalidationEndpoint,tokenMap.get(LEGAL),
+     {...invalidationPayload,reason:"SOURCE_UNREACHABLE"}),409,
+     "PH12 same key cannot alter withdrawal reason");
+   await status(await legalPost(invalidationEndpoint,tokenMap.get(LEGAL),
+     {...invalidationPayload,requestKey:randomUUID()}),409,
+     "PH12 invalidation cannot be overwritten by another request");
+   const post=await status(await get(recheckEndpoint,tokenMap.get(LEGAL)),200,
+     "PH12 re-evaluation after revocation report");
+   ok(post.assessment==="HOLD_SOURCE_INVALIDATED"&&
+      post.invalidatedChecks===1&&post.sourceChecks===2&&
+      post.legalReviewRecorded===true&&
+      post.legalAuthorityVerified===false&&post.tariffActivated===false,
+     "PH12 later withdrawal changes current HOLD while preserving legal history");
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.ph12_tariff_board_source_invalidations SET reason='SOURCE_UNREACHABLE' WHERE invalidation_id=$1",
+     [withdrawn.invalidationId]));
+   checks++;
+   const preserved=await db.query(
+      "SELECT decision FROM tto.ph12_tariff_board_legal_dispositions WHERE disposition_id=$1",
+      [held.dispositionId]);
+   ok(preserved.rows[0].decision==="LEGAL_HOLD_SOURCE_UNVERIFIED",
+     "PH12 immutable historical legal disposition preserved after invalidation");
+   const afterWithdrawal=await db.query(
+      "SELECT status FROM tto.ph12_tariff_drafts WHERE draft_id=$1",[saved.draftId]);
+   ok(afterWithdrawal.rows[0].status==="DRAFT_UNVERIFIED",
+     "PH12 source invalidation never moves the draft toward ACTIVE");
+   console.log("PH12_SOURCE_INVALIDATION_RECHECK_REAL_HTTP_POSTGRES17_HOLD_PASS");
+
+
  }
 
  await db.query("UPDATE tto.legal_authorities SET revoked_at=now() WHERE authority_id=$1",[auth]);
