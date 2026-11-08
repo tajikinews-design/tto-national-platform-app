@@ -50,6 +50,9 @@ export function reconstructGovernanceSnapshot(
  const conflicts:string[]=[];
  const replacements=new Set<string>();
  const activeTransitions=new Map<string,R[]>();
+ // Every correction is kept as an immutable fact, including future/pending ones.
+ // A successor may not appear independently until its predecessor's correction
+ // is effective, published and the successor's publication date has arrived.
  for(const t of transitions){
   const target=string(t.targetNoticeId),replacement=nullable(t.replacementNoticeId);
   if(!byId.has(target)||!validDate(t.effectiveOn)||
@@ -59,7 +62,7 @@ export function reconstructGovernanceSnapshot(
      (replacement!==null&&!byId.has(replacement))||
      (t.action==="CORRECTED")!==(replacement!==null)||
      (t.publishedOn!==null&&!validDate(t.publishedOn)))
-    throw new Error("CHILD06_TEMPORAL_INVALID_TRANSITION");
+   throw new Error("CHILD06_TEMPORAL_INVALID_TRANSITION");
   if(replacement)replacements.add(replacement);
   if(string(t.effectiveOn)>asOf)continue;
   if(t.publishedOn===null){
@@ -67,24 +70,85 @@ export function reconstructGovernanceSnapshot(
    continue;
   }
   if(string(t.publishedOn)>asOf)continue;
+  if(replacement){
+   const successor=byId.get(replacement)!;
+   if(successor.publishedOn===null){
+    issues.push("REPLACEMENT_PUBLICATION_UNKNOWN:"+replacement);
+    continue;
+   }
+   if(string(successor.publishedOn)>asOf||string(successor.resolutionOn)>asOf){
+    issues.push("REPLACEMENT_NOT_YET_PUBLISHED:"+replacement);
+    continue;
+   }
+   if(string(t.effectiveOn)<string(byId.get(target)!.resolutionOn))
+    issues.push("RETROACTIVE_CORRECTION_CLAIM:"+string(t.transitionId));
+  }
   const list=activeTransitions.get(target)??[];
   list.push(t);activeTransitions.set(target,list);
  }
+ // Model the correction network, rather than sorting by newest publication.
+ // A->B->C resolves to C; a fork, merge or cycle taints its entire connected
+ // component, so no candidate inside an ambiguous chain is authoritative.
+ const links=new Map<string,Set<string>>();
+ const incoming=new Map<string,number>();
+ const directed=new Map<string,string[]>();
+ const connect=(a:string,b:string)=>{
+  const left=links.get(a)??new Set<string>();left.add(b);links.set(a,left);
+  const right=links.get(b)??new Set<string>();right.add(a);links.set(b,right);
+ };
+ const seeds=new Set<string>();
  const discarded=new Set<string>();
  for(const [target,events] of activeTransitions){
   discarded.add(target);
   if(events.length>1){
    conflicts.push("CONFLICTING_NOTICE_TRANSITIONS:"+target);
-   for(const e of events)if(e.replacementNoticeId)discarded.add(string(e.replacementNoticeId));
+   seeds.add(target);
   }
+  for(const e of events){
+   if(e.action!=="CORRECTED")continue;
+   const successor=string(e.replacementNoticeId);
+   connect(target,successor);
+   incoming.set(successor,(incoming.get(successor)??0)+1);
+   const d=directed.get(target)??[];d.push(successor);directed.set(target,d);
+  }
+ }
+ for(const [successor,count] of incoming){
+  if(count>1){
+   conflicts.push("MULTIPLE_PREDECESSORS:"+successor);
+   seeds.add(successor);
+  }
+ }
+ const colors=new Map<string,number>();
+ const stack:string[]=[];
+ const dfs=(id:string)=>{
+  const state=colors.get(id)??0;
+  if(state===1){
+   const at=stack.indexOf(id);
+   const cycle=(at>=0?stack.slice(at):[id]);
+   conflicts.push("CORRECTION_CYCLE:"+cycle.slice().sort().join(","));
+   for(const item of cycle)seeds.add(item);
+   return;
+  }
+  if(state===2)return;
+  colors.set(id,1);stack.push(id);
+  for(const target of directed.get(id)??[])dfs(target);
+  stack.pop();colors.set(id,2);
+ };
+ for(const id of directed.keys())dfs(id);
+ const ambiguous=new Set<string>();
+ const queue=[...seeds];
+ while(queue.length){
+  const id=queue.pop()!;
+  if(ambiguous.has(id))continue;
+  ambiguous.add(id);
+  for(const connected of links.get(id)??[])queue.push(connected);
  }
  const visible=new Map<string,R>();
  for(const [id,n] of byId){
-  if(discarded.has(id))continue;
+  if(discarded.has(id)||ambiguous.has(id))continue;
   const isReplacement=replacements.has(id);
-  const activated=[...activeTransitions.values()].some(list=>list.length===1&&
-     list[0].replacementNoticeId===id);
-  if(isReplacement&&!activated)continue;
+  const activePredecessors=incoming.get(id)??0;
+  if(isReplacement&&activePredecessors!==1)continue;
   if(string(n.resolutionOn)>asOf)continue;
   if(n.publishedOn!==null&&string(n.publishedOn)>asOf)continue;
   if(n.publishedOn===null)issues.push("NOTICE_PUBLICATION_UNKNOWN:"+id);
