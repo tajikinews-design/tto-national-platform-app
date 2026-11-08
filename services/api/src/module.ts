@@ -2714,6 +2714,13 @@ export class Child06GovernanceArchiveController {
     "SELECT tto.has_tenant_role($1::uuid,'DOCUMENT_REVIEWER') AS allowed",[tenant]);
    if(role.rows[0]?.allowed!==true)
     throw new ForbiddenException({code:"CHILD06_PDF_SCAN_INDEPENDENT_REVIEWER_REQUIRED"});
+   // Never expose plaintext to scanner for the original PDF submitter,
+   // even if this principal carries more than one tenant role.
+   const eligible=await client.query<{allowed:boolean}>(
+    "SELECT tto.cooperative_governance_pdf_scan_eligible($1::uuid) AS allowed",
+     [fileId]);
+   if(eligible.rows[0]?.allowed!==true)
+    throw new ForbiddenException({code:"CHILD06_PDF_SCAN_INDEPENDENCE_OR_SCOPE_DENIED"});
    const data=await client.query<SourcePacket>(
     "SELECT * FROM tto.cooperative_governance_source_kms_packet($1::uuid)",[fileId]);
    const item=data.rows[0];
