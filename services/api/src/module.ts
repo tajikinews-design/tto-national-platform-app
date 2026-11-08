@@ -2436,6 +2436,31 @@ export class Child06GovernanceArchiveController {
    throw e;
   }
  }
+ @Get(":tenantId/child06/notice-transition-catalog")
+ async transitionCatalog(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined){
+  if(process.env.TTO_CHILD06_GOVERNANCE_NOTICE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_TRANSITION_CATALOG_DISABLED"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query<{result:Record<string,unknown>}>(
+      "SELECT tto.cooperative_notice_transition_catalog() AS result");
+    const v=q.rows[0]?.result;
+    if(!v||v.tenantId!==tenant||v.sourceAuthenticated!==false||
+      v.legalSigningPowerGranted!==false||v.tariffActivated!==false||
+      !Array.isArray(v.notices)||!Array.isArray(v.transitions))
+     throw new ServiceUnavailableException({code:"CHILD06_TRANSITION_CATALOG_UNSAFE"});
+    return v;
+   });
+  }catch(e){
+   if((e as {code?:string})?.code==="42501")
+    throw new ForbiddenException({code:"CHILD06_TRANSITION_CATALOG_SCOPE_DENIED"});
+   if((e as {code?:string})?.code==="22023")
+    throw new ServiceUnavailableException({code:"CHILD06_TRANSITION_CATALOG_TOO_LARGE"});
+   throw e;
+  }
+ }
  @Post(":tenantId/child06/notice-transitions")
  @HttpCode(201)
  async reportTransition(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
