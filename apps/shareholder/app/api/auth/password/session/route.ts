@@ -1,5 +1,5 @@
 import {NextRequest,NextResponse} from "next/server";
-import {trustedBackendHeaders} from "../../../../lib/trusted-backend";
+import {trustedBackendHeaders} from "../../../../../lib/trusted-backend";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 const H={"Cache-Control":"private, no-store","Vary":"Cookie"};
 const deny=(status:number,code:string)=>NextResponse.json({authenticated:false,code},{status,headers:H});
