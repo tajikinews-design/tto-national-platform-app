@@ -6,7 +6,7 @@ const {resolve}=require("node:path");
 const {createRequire}=require("node:module");
 const ROOT=resolve(__dirname,"..");
 const {Client}=createRequire(resolve(ROOT,"services/api/package.json"))("pg");
-const {makeMockIssuer,newRecord}=require("./ci/ph12-mock-official-issuer.cjs");
+const {makeMockIssuer,newRecord,signedEnvelope}=require("./ci/ph12-mock-official-issuer.cjs");
 const mockIssuers=[];let labApiEnv,firstMockIssuerUrl;
 const url=process.env.TEST_ADMIN_DATABASE_URL;
 if(!url||process.env.APIIR_TOKEN)throw Error("DISPOSABLE_POSTGRES_ONLY_NO_SMS");
@@ -676,18 +676,36 @@ async function main(){
    mockIssuers.push(labB);
    const issuer2Url=await labB.start();
    labB.setRecord(A,labSubject.entityId,newRecord({version:3,recordHash:"3".repeat(64)}));
-   // Test administrator rotates the pinned trust data; response cannot add a key.
+   // CI administrator supplies a new synthetic key; DB trigger enforces
+   // monotonic epochs, rejects old-key resurrection and appends immutable audit.
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.ph12_mock_lab_trust SET trust_epoch=0 WHERE tenant_id=$1",[A]));
+   checks++;
    await db.query("UPDATE tto.ph12_mock_lab_trust SET trust_epoch=2,key_id=$2,issuer_url=$3,public_key_pem=$4,modified_at=clock_timestamp() WHERE tenant_id=$1",[
      A,labB.keyId,issuer2Url,labB.publicKey.export({type:"spki",format:"pem"})]);
    holder(await status(await labPost2(),200,
       "PH12 new issuer key and epoch accepted on independent Nest instance"),
       "MOCK_ELIGIBLE_IN_LAB_ONLY");
-   await db.query("UPDATE tto.ph12_mock_lab_trust SET issuer_url=$2 WHERE tenant_id=$1",
-      [A,firstMockIssuerUrl]);
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.ph12_mock_lab_trust SET trust_epoch=1 WHERE tenant_id=$1",[A]));
+   checks++;
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.ph12_mock_lab_trust SET trust_epoch=3,key_id=$2,issuer_url=$3,public_key_pem=$4 WHERE tenant_id=$1",[
+     A,labA.keyId,firstMockIssuerUrl,labA.publicKey.export({type:"spki",format:"pem"})]));
+   checks++;
+   labB.setTransform(e=>signedEnvelope(e.payload,labA.privateKey,labA.keyId));
    holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
-      "PH12 old issuer no longer permitted after key rotation"),"MOCK_HOLD_BAD_ENVELOPE_OR_KEY");
-   await db.query("UPDATE tto.ph12_mock_lab_trust SET issuer_url=$2 WHERE tenant_id=$1",
-      [A,issuer2Url]);
+      "PH12 issuer response signed by retired key rejected"),"MOCK_HOLD_BAD_ENVELOPE_OR_KEY");
+   labB.setTransform(null);
+   const audit=await db.query(
+      "SELECT trust_epoch,key_id,transition FROM tto.ph12_mock_lab_trust_history WHERE tenant_id=$1 ORDER BY trust_epoch",[A]);
+   ok(audit.rows.length===2&&Number(audit.rows[0].trust_epoch)===1&&
+      Number(audit.rows[1].trust_epoch)===2&&audit.rows[0].transition==="BOOTSTRAP"&&
+      audit.rows[1].transition==="ROTATION"&&audit.rows[1].key_id===labB.keyId,
+      "PH12 trust transition history is monotonic and contains both rotation witnesses");
+   await assert.rejects(()=>db.query(
+     "DELETE FROM tto.ph12_mock_lab_trust_history WHERE tenant_id=$1",[A]));
+   checks++;
    labB.setRecord(A,labSubject.entityId,newRecord({
      version:4,recordHash:"4".repeat(64),status:"REVOKED"}));
    holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
@@ -697,7 +715,15 @@ async function main(){
    holder(await status(await labPost2(),200,
       "PH12 second Nest sees durable revocation even after signed CURRENT"),
       "MOCK_HOLD_REVOKED");
-   const finalLab=await db.query("SELECT source_version,revoked,trust_epoch FROM tto.ph12_mock_lab_checkpoints WHERE tenant_id=$1",[A]);
+   // Restarting a second Nest instance does not clear the shared revocation.
+   const secondProc=running.find(proc=>proc.exitCode===null&&proc.pid!==undefined&&
+      proc!==running[0]&&proc===running[running.length-1]);
+   if(secondProc){secondProc.kill("SIGTERM");await new Promise(r=>setTimeout(r,250));}
+   await launch("Nest restarted PG trust consumer",["dist/main.js"],
+       resolve(ROOT,"services/api"),{...labApiEnv,PORT:"31998"},api2+"/ready");
+   holder(await status(await labPost2(),200,
+      "PH12 fresh Nest process recovers persisted revoked state"),"MOCK_HOLD_REVOKED");
+      const finalLab=await db.query("SELECT source_version,revoked,trust_epoch FROM tto.ph12_mock_lab_checkpoints WHERE tenant_id=$1",[A]);
    ok(finalLab.rows.length===1&&finalLab.rows[0].revoked===true&&
       Number(finalLab.rows[0].trust_epoch)===2,
       "PH12 revocation remains sticky in PostgreSQL after mock key rotation");
