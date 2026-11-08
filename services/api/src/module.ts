@@ -2378,5 +2378,90 @@ export class Ph12MockIssuerBridgeController {
  }
 }
 
-@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController,Ph12TariffDraftController,Ph12TariffBoardDocumentController,Ph12BoardLegalSourceController,Ph12MockIssuerBridgeController],providers:[ApiIrSmsOtpProvider]})
+/** CHILD-06 archival governance API: multi-notice, longitudinal, read-only for members.
+ * This DOES NOT confer CEO authority, role grants, legal validation or tariff ACTIVE.
+ */
+@Controller("v1/tenants")
+export class Child06GovernanceArchiveController {
+ constructor(private readonly db:Database){}
+ @Post(":tenantId/child06/legal-notices")
+ @HttpCode(201)
+ async archive(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined,
+  @Body() v:Record<string,unknown>){
+  if(process.env.TTO_CHILD06_GOVERNANCE_NOTICE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_GOVERNANCE_ARCHIVE_INTAKE_DISABLED"});
+  const keys=["requestKey","cooperativeLegalNationalId","registrationNumber","sourceType",
+   "noticeKind","sourceNoticeNumber","gazetteIssue","publishedOn","resolutionOn",
+   "authorityLetter","authorityLetterOn","summary","sourceUrl","board","signing"];
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+    Object.keys(v).some(k=>!keys.includes(k))||
+    typeof v.requestKey!=="string"||!uuidPattern.test(v.requestKey)||
+    typeof v.cooperativeLegalNationalId!=="string"||
+    typeof v.registrationNumber!=="string"||
+    typeof v.sourceType!=="string"||typeof v.noticeKind!=="string"||
+    typeof v.resolutionOn!=="string"||typeof v.summary!=="string"||
+    !Array.isArray(v.board)||!Array.isArray(v.signing)||
+    v.board.length>30||v.signing.length>6||
+    v.board.some(x=>!x||typeof x!=="object"||Array.isArray(x)||
+      Object.keys(x).some(k=>!["personName","office","eventType","eventOn","termEnd"].includes(k)))||
+    v.signing.some(x=>!x||typeof x!=="object"||Array.isArray(x)||
+      Object.keys(x).some(k=>!["authorityKind","requiredSigner","alternateSigners",
+       "requiresSeal","effectiveFrom","statedEnd","description"].includes(k))))
+   throw new BadRequestException({code:"CHILD06_GOVERNANCE_INVALID_FIELDS"});
+  const optional=(key:string)=>typeof v[key]==="string"?v[key]:null;
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+      "SELECT * FROM tto.cooperative_append_legal_notice($1::text,$2::text,$3::text,$4::text,"+
+      "$5::text,$6::text,$7::text,$8::text,$9::text,$10::text,$11::text,$12::text,"+
+      "$13::jsonb,$14::jsonb,$15::uuid)",
+      [v.cooperativeLegalNationalId,v.registrationNumber,v.sourceType,v.noticeKind,
+       optional("sourceNoticeNumber"),optional("gazetteIssue"),optional("publishedOn"),
+       v.resolutionOn,optional("authorityLetter"),optional("authorityLetterOn"),
+       v.summary,optional("sourceUrl"),JSON.stringify(v.board),JSON.stringify(v.signing),v.requestKey]);
+    const r=q.rows[0];
+    return {tenantId:tenant,noticeId:r.notice_id,state:r.source_state,replayed:r.replayed,
+     officialSourceAuthenticated:false,legalSignerAuthorityGranted:false,
+     shareholderVoteEntitlementGranted:false,tariffActivated:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"CHILD06_GOVERNANCE_SCOPE_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"CHILD06_GOVERNANCE_DUPLICATE_OR_REPLAY"});
+   if(code==="22023"||code==="23514"||code==="23502"||code==="22P02")
+    throw new BadRequestException({code:"CHILD06_GOVERNANCE_INPUT_INVALID"});
+   throw e;
+  }
+ }
+ @Get(":tenantId/child06/governance-history")
+ async listForShareholder(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined){
+  if(process.env.TTO_CHILD06_GOVERNANCE_HISTORY_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_GOVERNANCE_HISTORY_NOT_RELEASED"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query<{out:Record<string,unknown>}>(
+      "SELECT tto.cooperative_shareholder_governance_history() AS out");
+    const result=q.rows[0]?.out;
+    if(!result||result.tenantId!==tenant||
+      result.publishedVerified!==false||
+      result.confersSigningPower!==false||
+      result.confersVotingRights!==false||
+      !Array.isArray(result.notices)||!Array.isArray(result.boardHistory)||
+      !Array.isArray(result.signingHistory))
+      throw new ServiceUnavailableException({code:"CHILD06_GOVERNANCE_UNSAFE_RESPONSE"});
+    return result;
+   });
+  }catch(e){
+   if((e as {code?:string})?.code==="42501")
+    throw new ForbiddenException({code:"CHILD06_GOVERNANCE_MEMBER_SCOPE_DENIED"});
+   throw e;
+  }
+ }
+}
+
+@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController,Ph12TariffDraftController,Ph12TariffBoardDocumentController,Ph12BoardLegalSourceController,Ph12MockIssuerBridgeController,Child06GovernanceArchiveController],providers:[ApiIrSmsOtpProvider]})
 export class AppModule {}
