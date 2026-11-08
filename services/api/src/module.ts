@@ -2481,7 +2481,7 @@ export class Child06GovernanceArchiveController {
   @Query("date") date:string|undefined,@Query("knownAt") knownAt:string|undefined){
   if(process.env.TTO_CHILD06_GOVERNANCE_HISTORY_ENABLED!=="true")
    throw new ServiceUnavailableException({code:"CHILD06_TEMPORAL_READ_DISABLED"});
-  if(typeof date!=="string"||!/^14[0-9]{2}\\\/(0[1-9]|1[0-2])\\\/(0[1-9]|[12][0-9]|3[01])$/.test(date)||
+  if(typeof date!=="string"||!/^14[0-9]{2}[/](0[1-9]|1[0-2])[/](0[1-9]|[12][0-9]|3[01])$/.test(date)||
      (knownAt!==undefined&&(typeof knownAt!=="string"||
       knownAt.length>40||!Number.isFinite(Date.parse(knownAt)))))
    throw new BadRequestException({code:"CHILD06_ASOF_DATE_INVALID"});
