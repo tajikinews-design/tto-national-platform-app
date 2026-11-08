@@ -1,7 +1,7 @@
 name: PH12 board legal source PG17 & API compile (NO DEPLOY)
 on:
   push:
-    branches: [feat/ph12-board-legal-gate-hold-20261107, feat/child06-original-pdf-escrow-hold-20261108, feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108]
+    branches: [feat/ph12-board-legal-gate-hold-20261107, feat/child06-original-pdf-escrow-hold-20261108, feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108, feat/child06-three-external-gates-20261108]
   pull_request:
     branches: [feat/ph12-child06-child07-canonical-failclosed-20261106, feat/ph12-board-legal-gate-hold-20261107]
   workflow_dispatch:
@@ -41,7 +41,7 @@ jobs:
             docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" >/dev/null
             count=$((count+1))
           done
-          test "$count" -ge 81
+          test "$count" -ge 82
           # Disposable simulation only; never installed as a project migration.
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-mock-issuer-bridge-ci-schema.sql
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-board-legal-source-checks-hold.sql
