@@ -17,7 +17,7 @@ const tenant=process.env.PH12_RECOVERY_TENANT||randomUUID();
 const entity="SYNTHETIC_INDEPENDENT_RECOVERY";
 const q=x=>"'"+String(x).replaceAll("'","''")+"'";
 const docker=(args,opts={})=>execFileSync("docker",args,
- {encoding:opts.encoding??"utf8",input:opts.input,maxBuffer:30*1024*1024,timeout:90000});
+ {encoding:Object.hasOwn(opts,"encoding")?opts.encoding:"utf8",input:opts.input,maxBuffer:30*1024*1024,timeout:90000});
 const sql=(name,cmd)=>docker(["exec","-i",name,"psql","-X","-q","-A","-t",
  "-U","postgres","-d","tto","-v","ON_ERROR_STOP=1"],{input:cmd}).trim();
 function start(name,vol=null){
