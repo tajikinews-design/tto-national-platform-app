@@ -685,6 +685,128 @@ async function main(){
      201,"Child06 additional fictional Gazette entry is appended");
    ok(n2.noticeId!==notice.noticeId,
      "Child06 additional notice coexists without modifying the first");
+   // CHILD-06 POINT-IN-TIME: two clocks, publication vs meeting/effect,
+   // append-only correction and revocation, no inferred legal validity.
+   const baseAsOf="/v1/tenants/"+A+"/child06/governance-as-of";
+   const temporal=async(day,known)=>await status(await get(
+      baseAsOf+"?date="+encodeURIComponent(day)+(known?
+       "&knownAt="+encodeURIComponent(known):""),tokenMap.get(USER)),
+      200,"Child06 temporal member as-of "+day);
+   const nowEarlier=new Date().toISOString();
+   const initialAsOf=await temporal("1404/08/06");
+   ok(initialAsOf.certainty==="INCOMPLETE_SOURCE_HOLD"&&
+      initialAsOf.officialSourceAuthenticated===false&&
+      initialAsOf.boardLegallyApproved===false&&initialAsOf.tariffActivated===false,
+      "point-in-time never grants legal authority when original publication missing");
+   ok(initialAsOf.candidateOffices.some(x=>x.office==="CEO"&&
+       x.personName==="مرتضی کابلیان شاندیز")&&
+      initialAsOf.endedOffices.some(x=>x.office==="CEO"&&
+       x.personName==="مجتبی گلپری")&&
+      initialAsOf.signingCandidates.length===2,
+      "as-of resolves both reported CEO appointment and historical resignation");
+   ok(initialAsOf.issues.some(x=>x.startsWith("NOTICE_PUBLICATION_UNKNOWN")),
+      "unknown Gazette publication is explicit, not silently treated as certified");
+   await status(await get(baseAsOf+"?date=1404%2F13%2F11",
+      tokenMap.get(USER)),400,"temporal invalid Jalali month rejected");
+   await status(await get(baseAsOf+"?date=1404%2F08%2F06",
+      tokenMap.get(MANAGER)),200,"manager may audit same tenant timeline");
+   await status(await get("/v1/tenants/"+B+"/child06/governance-as-of?date=1404%2F08%2F06",
+      tokenMap.get(USER)),403,"temporal cross-tenant denied");
+   const correctionNotice={
+      ...torghabeh,requestKey:randomUUID(),sourceType:"OFFICIAL_GAZETTE",
+      sourceNoticeNumber:"CI-CORRECTION-004",gazetteIssue:"CI-GAZETTE-004",
+      publishedOn:"1404/10/11",resolutionOn:"1404/10/10",noticeKind:"CEO_CHANGE",
+      summary:"تصحیح کاملاً ساختگی برای آزمون بازسازی زمان‌مند؛ هیچ سمت حقوقی در شرکت واقعی با این داده تغییر نمی‌کند.",
+      board:[{personName:"شخص ساختگی آزمون",office:"CEO",eventType:"APPOINTED",
+         eventOn:"1404/10/10",termEnd:"1405/12/20"}],
+      signing:[{...signing[1],requiredSigner:"شخص ساختگی آزمون",
+         effectiveFrom:"1404/10/10",statedEnd:"1405/12/20"}]};
+   const corrective=await status(await post(legalPath,tokenMap.get(MANAGER),
+      correctionNotice),201,"separate append-only synthetic Gazette correction recorded");
+   const transitionPath="/v1/tenants/"+A+"/child06/notice-transitions";
+   const correction={
+     requestKey:randomUUID(),targetNoticeId:notice.noticeId,
+     replacementNoticeId:corrective.noticeId,action:"CORRECTED",
+     effectiveOn:"1404/10/10",publishedOn:"1404/10/11",
+     sourceReference:"CI synthetic correction reference only"};
+   await status(await post(transitionPath,tokenMap.get(USER),correction),403,
+      "member cannot claim Gazette corrections");
+   await status(await post(transitionPath,tokenMap.get(MANAGER),{
+      ...correction,replacementNoticeId:n2.noticeId,
+      targetNoticeId:randomUUID()}),403,
+      "source correction cannot target nonexistent notice");
+   const corrected=await status(await post(transitionPath,tokenMap.get(MANAGER),
+      correction),201,"manager reports append-only fictional correction");
+   ok(corrected.state==="USER_SUPPLIED_SOURCE_NOT_AUTHENTICATED"&&
+      corrected.officiallyVerified===false&&corrected.tariffActivated===false,
+      "correction cannot authenticate source or activate tariff");
+   const correctionReplay=await status(await post(transitionPath,
+      tokenMap.get(MANAGER),correction),201,"transition idempotent replay");
+   ok(correctionReplay.replayed===true&&
+      correctionReplay.transitionId===corrected.transitionId,
+      "transition immutable idempotency");
+   await status(await post(transitionPath,tokenMap.get(MANAGER),
+      {...correction,sourceReference:"CI changed details"}),409,
+      "conflicting transition request key denied");
+   const beforePublish=await temporal("1404/10/10");
+   ok(beforePublish.candidateOffices.some(x=>x.personName===
+        "مرتضی کابلیان شاندیز"&&x.office==="CEO")&&
+      !beforePublish.candidateOffices.some(x=>x.personName===
+        "شخص ساختگی آزمون"),
+      "effective correction date alone cannot hide prior until publication date");
+   const afterPublish=await temporal("1404/10/11");
+   ok(!afterPublish.candidateOffices.some(x=>x.personName===
+         "مرتضی کابلیان شاندیز"&&x.office==="CEO")&&
+      afterPublish.candidateOffices.some(x=>x.personName==="شخص ساختگی آزمون"&&
+         x.office==="CEO"),
+      "published correction replaces prior notice without deleting immutable records");
+   const asKnownBefore=await temporal("1404/10/12",nowEarlier);
+   ok(asKnownBefore.candidateOffices.some(x=>x.personName==="مرتضی کابلیان شاندیز"
+      &&x.office==="CEO"),
+      "knowledge cutoff predating correction reconstructs older known view");
+   const revokedTransition={requestKey:randomUUID(),targetNoticeId:corrective.noticeId,
+      replacementNoticeId:null,action:"REVOKED",effectiveOn:"1405/01/01",
+      publishedOn:"1405/01/02",sourceReference:"CI synthetic revocation source"};
+   const revokedReceipt=await status(await post(transitionPath,tokenMap.get(MANAGER),
+      revokedTransition),201,"future effective synthetic Gazette revocation archived");
+   ok(revokedReceipt.state==="USER_SUPPLIED_SOURCE_NOT_AUTHENTICATED",
+      "revoke event is a source claim, not legal adjudication");
+   const revocationPrior=await temporal("1405/01/01");
+   ok(revocationPrior.candidateOffices.some(x=>x.personName==="شخص ساختگی آزمون"),
+      "prior to revocation publication source claim remains applicable");
+   const revocationAfter=await temporal("1405/01/02");
+   ok(!revocationAfter.candidateOffices.some(x=>x.personName==="شخص ساختگی آزمون")&&
+       !revocationAfter.candidateOffices.some(x=>x.personName==="مرتضی کابلیان شاندیز"),
+      "revocation removes corrected notice; old notice not silently resurrected");
+   const independentOther={...torghabeh,requestKey:randomUUID(),
+      sourceType:"OFFICIAL_GAZETTE",sourceNoticeNumber:"CI-SECOND-CONFLICT-005",
+      gazetteIssue:"CI-SECOND",publishedOn:"1404/10/12",
+      resolutionOn:"1404/10/12",noticeKind:"CEO_CHANGE",
+      summary:"منبع ساختگی دارای ادعای معارض درباره مدیرعامل جهت آزمون تشخیص تعارض، بدون ادعای ثبت واقعی.",
+      board:[{personName:"مدیر آزمایشی دوم",office:"CEO",eventType:"APPOINTED",
+        eventOn:"1404/10/12",termEnd:"1405/12/20"}],signing:[]};
+   const conflictNotice=await status(await post(legalPath,tokenMap.get(MANAGER),
+      independentOther),201,"conflicting fictional CEO announcement appended");
+   ok(conflictNotice.noticeId!==corrective.noticeId,"independent notice stored");
+   const conflicted=await temporal("1404/10/13");
+   ok(conflicted.certainty==="CONFLICT_HOLD"&&
+      conflicted.conflicts.includes("MULTIPLE_CLAIMANTS:CEO"),
+      "two valid-by-date CEO claims return conflict instead of selecting latest");
+   await assert.rejects(()=>db.query(
+      "DELETE FROM tto.cooperative_notice_transitions WHERE transition_id=$1",
+      [corrected.transitionId]));checks++;
+   const bffAsOf=sh.origin+"/api/tenants/"+A+"/governance-as-of?date=1404%2F10%2F13";
+   await status(await fetch(bffAsOf),401,
+      "shareholder temporal BFF denies anonymous");
+   const bffSnapshot=await status(await fetch(bffAsOf,{
+      headers:{Cookie:"tto_session="+tokenMap.get(USER)},cache:"no-store"}),
+      200,"authenticated shareholder BFF renders date-specific disputed roles");
+   ok(bffSnapshot.available===true&&bffSnapshot.verified===false&&
+      bffSnapshot.certainty==="CONFLICT_HOLD"&&
+      Array.isArray(bffSnapshot.candidateOffices),
+      "BFF returns temporal conflict without inferred legal authority");
+   console.log("CHILD06_GOVERNANCE_BITEMPORAL_CORRECTION_REVOCATION_CONFLICT_REAL_HTTP_PG17_PASS");
+
    const memberHistory=await status(await get(
      "/v1/tenants/"+A+"/child06/governance-history",tokenMap.get(USER)),
      200,"Child06 shareholder reads full notice and board chronology");
