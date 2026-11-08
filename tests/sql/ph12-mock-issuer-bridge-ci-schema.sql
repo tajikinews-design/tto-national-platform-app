@@ -1,7 +1,6 @@
 -- PH12 synthetic issuer bridge. CI-only SQL, NEVER A PRODUCTION MIGRATION.
 -- This schema is installed only in disposable PG17 inside GitHub Actions.
 BEGIN;
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE tto.ph12_mock_lab_trust(
  tenant_id uuid PRIMARY KEY REFERENCES tto.tenants(tenant_id),
  issuer_id text NOT NULL CHECK(issuer_id='PH12_SYNTHETIC_ISSUER_NOT_OFFICIAL'),
@@ -44,7 +43,7 @@ BEGIN
  INSERT INTO tto.ph12_mock_lab_trust_history
   (tenant_id,trust_epoch,key_id,issuer_url,public_key_fingerprint,transition)
  VALUES(NEW.tenant_id,NEW.trust_epoch,NEW.key_id,NEW.issuer_url,
-        encode(digest(convert_to(NEW.public_key_pem,'UTF8'),'sha256'),'hex'),
+        encode(sha256(convert_to(NEW.public_key_pem,'UTF8')),'hex'),
         CASE WHEN TG_OP='INSERT' THEN 'BOOTSTRAP' ELSE 'ROTATION' END);
  RETURN NEW;
 END $fn$;
