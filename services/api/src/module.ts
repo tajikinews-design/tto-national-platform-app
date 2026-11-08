@@ -4,6 +4,7 @@ import { createCipheriv, createDecipheriv, createHash, createHmac, createPublicK
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
 import { reconstructGovernanceSnapshot } from "./governance-temporal";
 import { scanQuarantineBytes } from "./clamd-evidence";
+import {encryptGovernancePdf,unlockGovernancePdf,SourcePacket} from "./governance-pdf-envelope";
 
 @Injectable()
 export class Database {
@@ -2611,9 +2612,6 @@ export class Child06GovernanceArchiveController {
   @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
   if(process.env.TTO_CHILD06_ORIGINAL_PDF_ESCROW_ENABLED!=="true"||process.env.VERCEL)
    throw new ServiceUnavailableException({code:"CHILD06_PDF_ESCROW_LAB_ONLY"});
-  const key=process.env.TTO_CHILD06_PDF_ESCROW_KEY_HEX??"";
-  if(!/^[a-fA-F0-9]{64}$/.test(key))
-   throw new ServiceUnavailableException({code:"CHILD06_PDF_ESCROW_KEY_UNAVAILABLE"});
   if(!v||typeof v!=="object"||Array.isArray(v)||
      Object.keys(v).some(x=>!["requestKey","evidenceId","issuerCandidateId","mimeType","contentBase64"].includes(x))||
      typeof v.requestKey!=="string"||!uuidPattern.test(v.requestKey)||
@@ -2628,19 +2626,18 @@ export class Child06GovernanceArchiveController {
      !bytes.subarray(0,5).equals(Buffer.from("%PDF-"))||
      !bytes.subarray(Math.max(0,bytes.length-2048)).includes(Buffer.from("%%EOF")))
     throw new BadRequestException({code:"CHILD06_PDF_ESCROW_INVALID_PDF"});
-   const digest=createHash("sha256").update(bytes).digest();
-   const iv=randomBytes(12);
-   const cipher=createCipheriv("aes-256-gcm",Buffer.from(key,"hex"),iv);
-   cipher.setAAD(Buffer.from("CHILD06_ORIGINAL_PDF_V1|"+tenant+"|"+v.evidenceId,"utf8"));
-   const encrypted=Buffer.concat([cipher.update(bytes),cipher.final()]);
-   const tag=cipher.getAuthTag();
+   let packet:ReturnType<typeof encryptGovernancePdf>;
+   try{packet=encryptGovernancePdf(bytes,tenant,v.evidenceId as string);}
+   catch{throw new ServiceUnavailableException({code:"CHILD06_ESCROW_VERSIONED_KEY_UNAVAILABLE"});}
+
    const actor=await this.db.sessionActor(auth);
    try{
     return await this.db.inTenant(actor,tenant,async client=>{
      const q=await client.query(
-      "SELECT * FROM tto.cooperative_store_governance_source_file("+
-      "$1::uuid,$2::uuid,$3::integer,$4::bytea,$5::bytea,$6::bytea,$7::bytea,$8::uuid)",
-      [v.evidenceId,v.issuerCandidateId,bytes.length,digest,iv,tag,encrypted,v.requestKey]);
+      "SELECT * FROM tto.cooperative_store_governance_source_file_versioned("+
+      "$1::uuid,$2::uuid,$3::integer,$4::bytea,$5::bytea,$6::bytea,$7::bytea,$8::text,$9::uuid)",
+      [v.evidenceId,v.issuerCandidateId,bytes.length,packet.digest,packet.iv,
+       packet.tag,packet.encrypted,packet.version,v.requestKey]);
      const row=q.rows[0];
      return {tenantId:tenant,fileId:row.file_id,evidenceId:v.evidenceId,
       state:row.source_state,replayed:row.replayed,encrypted:true,
@@ -2665,35 +2662,17 @@ export class Child06GovernanceArchiveController {
   @Headers("authorization") auth:string|undefined){
   if(process.env.TTO_CHILD06_ORIGINAL_PDF_ESCROW_ENABLED!=="true"||process.env.VERCEL)
    throw new ServiceUnavailableException({code:"CHILD06_PDF_INTEGRITY_LAB_ONLY"});
-  const key=process.env.TTO_CHILD06_PDF_ESCROW_KEY_HEX??"";
-  if(!/^[a-fA-F0-9]{64}$/.test(key))
-   throw new ServiceUnavailableException({code:"CHILD06_PDF_ESCROW_KEY_UNAVAILABLE"});
   const actor=await this.db.sessionActor(auth);
   try{
    return await this.db.inTenant(actor,tenant,async client=>{
-    const q=await client.query<{
-     evidence_id:string;issuer_candidate_id:string;file_size:number;
-     plaintext_sha256:Buffer;aes_gcm_iv:Buffer;aes_gcm_tag:Buffer;
-     encrypted_body:Buffer;encryption_version:string;source_state:string
-    }>("SELECT * FROM tto.cooperative_governance_source_integrity_packet($1::uuid)",[fileId]);
+    const q=await client.query<SourcePacket>(
+     "SELECT * FROM tto.cooperative_governance_source_integrity_packet($1::uuid)",[fileId]);
     const item=q.rows[0];
-    if(!item||item.encryption_version!=="child06-lab-v1"||
-       item.source_state!=="ENCRYPTED_QUARANTINED_UNAUTHENTICATED")
-     throw new ForbiddenException({code:"CHILD06_PDF_INTEGRITY_NOT_AVAILABLE"});
+    if(!item)throw new ForbiddenException({code:"CHILD06_PDF_INTEGRITY_NOT_AVAILABLE"});
     let plain:Buffer|undefined;
-    try{
-     const decipher=createDecipheriv("aes-256-gcm",Buffer.from(key,"hex"),item.aes_gcm_iv);
-     decipher.setAAD(Buffer.from("CHILD06_ORIGINAL_PDF_V1|"+tenant+"|"+item.evidence_id,"utf8"));
-     decipher.setAuthTag(item.aes_gcm_tag);
-     plain=Buffer.concat([decipher.update(item.encrypted_body),decipher.final()]);
-     const digest=createHash("sha256").update(plain).digest();
-     if(plain.length!==item.file_size||item.plaintext_sha256.length!==32||
-        !timingSafeEqual(digest,item.plaintext_sha256)||
-        !plain.subarray(0,5).equals(Buffer.from("%PDF-")))
-      throw new Error("CHILD06_PDF_INTEGRITY_MISMATCH");
-    }catch{
-     throw new ServiceUnavailableException({code:"CHILD06_PDF_INTEGRITY_FAILED_CLOSED"});
-    }finally{plain?.fill(0);}
+    try{plain=unlockGovernancePdf(item,tenant);}
+    catch{throw new ServiceUnavailableException({code:"CHILD06_PDF_INTEGRITY_FAILED_CLOSED"});}
+    finally{plain?.fill(0);}
     return {tenantId:tenant,fileId,evidenceId:item.evidence_id,
      issuerCandidateId:item.issuer_candidate_id,integrity:"MATCH",
      malwareStatus:"NOT_SCANNED_QUARANTINED",originalPdfReadable:false,
@@ -2703,6 +2682,92 @@ export class Child06GovernanceArchiveController {
   }catch(e){
    if((e as {code?:string})?.code==="42501")
     throw new ForbiddenException({code:"CHILD06_PDF_INTEGRITY_ROLE_DENIED"});
+   throw e;
+  }
+ }
+
+ @Post(":tenantId/child06/governance-conflicts/source-files/:fileId/scan")
+ @HttpCode(201)
+ async scanGovernanceOriginalPdf(
+  @Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("fileId",new ParseUUIDPipe()) fileId:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_CHILD06_ORIGINAL_PDF_ESCROW_ENABLED!=="true"||
+     process.env.TTO_CHILD06_PDF_SCANNER_ENABLED!=="true"||process.env.VERCEL)
+   throw new ServiceUnavailableException({code:"CHILD06_PDF_SCAN_LAB_ONLY"});
+  if(!v||typeof v!=="object"||Array.isArray(v)||Object.keys(v).length!==1||
+     typeof v.requestKey!=="string"||!uuidPattern.test(v.requestKey))
+   throw new BadRequestException({code:"CHILD06_PDF_SCAN_INPUT_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  return this.db.inTenant(actor,tenant,async client=>{
+   const role=await client.query<{allowed:boolean}>(
+    "SELECT tto.has_tenant_role($1::uuid,'DOCUMENT_REVIEWER') AS allowed",[tenant]);
+   if(role.rows[0]?.allowed!==true)
+    throw new ForbiddenException({code:"CHILD06_PDF_SCAN_INDEPENDENT_REVIEWER_REQUIRED"});
+   const data=await client.query<SourcePacket>(
+    "SELECT * FROM tto.cooperative_governance_source_integrity_packet($1::uuid)",[fileId]);
+   const item=data.rows[0];
+   if(!item)throw new ForbiddenException({code:"CHILD06_PDF_SCAN_SCOPE_DENIED"});
+   let plain:Buffer|undefined,scan:Awaited<ReturnType<typeof scanQuarantineBytes>>;
+   try{
+    plain=unlockGovernancePdf(item,tenant);
+    scan=await scanQuarantineBytes(plain);
+   }catch{
+    throw new ServiceUnavailableException({code:"CHILD06_PDF_SCAN_FAIL_CLOSED"});
+   }finally{plain?.fill(0);}
+   try{
+    const q=await client.query(
+     "SELECT * FROM tto.cooperative_record_governance_pdf_scan("+
+     "$1::uuid,$2::text,$3::text,$4::text,$5::uuid)",
+     [fileId,scan.verdict,scan.engine,scan.signature,v.requestKey]);
+    const r=q.rows[0];
+    return {tenantId:tenant,fileId,scanId:r.scan_id,
+      malwareVerdict:r.scan_verdict,replayed:r.replayed,
+      originalPdfReleased:false,officialSourceAuthenticated:false,
+      legalAuthorityVerified:false,tariffActivated:false};
+   }catch(e){
+    const c=(e as {code?:string})?.code;
+    if(c==="42501")throw new ForbiddenException({code:"CHILD06_PDF_SCAN_INDEPENDENCE_DENIED"});
+    if(c==="23505")throw new ConflictException({code:"CHILD06_PDF_SCAN_RESULT_IMMUTABLE"});
+    throw e;
+   }
+  });
+ }
+ @Post(":tenantId/child06/governance-conflicts/source-files/:fileId/source-holds")
+ @HttpCode(201)
+ async governanceOriginalPdfIssuerHold(
+  @Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("fileId",new ParseUUIDPipe()) fileId:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_CHILD06_ORIGINAL_PDF_ESCROW_ENABLED!=="true"||process.env.VERCEL)
+   throw new ServiceUnavailableException({code:"CHILD06_PDF_ISSUER_HOLD_LAB_ONLY"});
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+    Object.keys(v).some(x=>!["requestKey","outcome","sourceReference"].includes(x))||
+    typeof v.requestKey!=="string"||!uuidPattern.test(v.requestKey)||
+    typeof v.outcome!=="string"||
+    !["NO_OFFICIAL_CONNECTOR","ISSUER_UNREACHABLE","ISSUER_IDENTITY_UNTRUSTED",
+      "OFFICIAL_REFERENCE_UNMATCHED","SOURCE_VERSION_UNKNOWN"].includes(v.outcome)||
+    typeof v.sourceReference!=="string"||v.sourceReference.length<12||
+    v.sourceReference.length>240)
+   throw new BadRequestException({code:"CHILD06_PDF_ISSUER_HOLD_ONLY"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+     "SELECT * FROM tto.cooperative_record_governance_pdf_source_hold("+
+     "$1::uuid,$2::text,$3::text,$4::uuid)",
+     [fileId,v.outcome,v.sourceReference,v.requestKey]);
+    const r=q.rows[0];
+    return {tenantId:tenant,fileId,observationId:r.observation_id,
+     outcome:r.state,replayed:r.replayed,
+     officialSourceAuthenticated:false,legalAuthorityVerified:false,tariffActivated:false};
+   });
+  }catch(e){
+   const c=(e as {code?:string})?.code;
+   if(c==="42501")throw new ForbiddenException({code:"CHILD06_PDF_ISSUER_ROLE_OR_SCOPE_DENIED"});
+   if(c==="23505")throw new ConflictException({code:"CHILD06_PDF_ISSUER_HOLD_REPLAY_CONFLICT"});
+   if(["22023","22P02"].includes(c??""))
+    throw new BadRequestException({code:"CHILD06_PDF_ISSUER_HOLD_INPUT_INVALID"});
    throw e;
   }
  }

@@ -3,11 +3,14 @@ const assert=require("node:assert/strict");
 const {spawn}=require("node:child_process");
 const {randomUUID,randomBytes,createHash,createDecipheriv}=require("node:crypto");
 const {resolve}=require("node:path");
+const {tmpdir}=require("node:os");
+const {mockClamd}=require("./ci/child06-mock-clamd.cjs");
+const mockScanner=mockClamd(resolve(tmpdir(),"tto-child06-ci-clamd-"+process.pid+".sock"));
 const {createRequire}=require("node:module");
 const ROOT=resolve(__dirname,"..");
 const {Client}=createRequire(resolve(ROOT,"services/api/package.json"))("pg");
 const {makeMockIssuer,newRecord,signedEnvelope}=require("./ci/ph12-mock-official-issuer.cjs");
-const mockIssuers=[];let labApiEnv,firstMockIssuerUrl;
+const mockIssuers=[];let labApiEnv,firstMockIssuerUrl,scannerStarted=false;
 const url=process.env.TEST_ADMIN_DATABASE_URL;
 if(!url||process.env.APIIR_TOKEN)throw Error("DISPOSABLE_POSTGRES_ONLY_NO_SMS");
 const db=new Client({connectionString:url});
@@ -81,6 +84,10 @@ async function fixture(){
    TTO_CHILD06_GOVERNANCE_HISTORY_ENABLED:"true",
    TTO_CHILD06_ORIGINAL_PDF_ESCROW_ENABLED:process.env.TTO_PH12_LEGAL_E2E==="1"?"true":"false",
    TTO_CHILD06_PDF_ESCROW_KEY_HEX:"12".repeat(32),
+   TTO_CHILD06_PDF_ESCROW_ACTIVE_KEY_VERSION:"child06-lab-v2",
+   TTO_CHILD06_PDF_ESCROW_KEY_V2_HEX:"34".repeat(32),
+   TTO_CHILD06_PDF_SCANNER_ENABLED:"true",
+   TTO_COOP_CLAMD_SOCKET:resolve(tmpdir(),"tto-child06-ci-clamd-"+process.pid+".sock"),
    TTO_PH12_MOCK_ISSUER_LAB:process.env.TTO_PH12_LEGAL_E2E==="1"?"1":"0",
    TTO_LOOPBACK_E2E:"1",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa"};
  labApiEnv=apiEnv;
@@ -1039,6 +1046,84 @@ async function main(){
    ok(checked.integrity==="MATCH"&&checked.originalPdfReadable===false&&
       checked.officialSourceAuthenticated===false&&checked.legalAuthorityVerified===false&&
       checked.tariffActivated===false,"integrity is not official legal provenance");
+   // Missing local scanner is always a hard fail, with no synthetic CLEAN claim.
+   const scannerPath=escrowPath+"/"+stored.fileId+"/scan";
+   const scanRequest={requestKey:randomUUID()};
+   await status(await post(scannerPath,tokenMap.get(REVIEWER),scanRequest),503,
+     "no clamd socket cannot produce scan receipt");
+   ok((await db.query("SELECT count(*)::int AS n FROM "+
+      "tto.cooperative_governance_pdf_scan_events WHERE file_id=$1",
+      [stored.fileId])).rows[0].n===0,"scanner outage creates no clean receipt");
+   await mockScanner.start();scannerStarted=true;
+   await status(await post(scannerPath,tokenMap.get(MANAGER),scanRequest),403,
+     "the PDF submitter cannot independently record a scanner result");
+   await status(await post(scannerPath,tokenMap.get(USER),scanRequest),403,
+     "ordinary member cannot scan original PDF");
+   const scanned=await status(await post(scannerPath,tokenMap.get(REVIEWER),scanRequest),201,
+     "CI synthetic INSTREAM protocol exercised through real Nest HTTP");
+   ok(scanned.malwareVerdict==="CLEAN"&&scanned.originalPdfReleased===false&&
+      scanned.legalAuthorityVerified===false&&scanned.tariffActivated===false,
+      "synthetic scanner clean never authorizes release or legal approval");
+   const sameScan=await status(await post(scannerPath,tokenMap.get(REVIEWER),scanRequest),201,
+      "scan replay immutable");
+   ok(sameScan.scanId===scanned.scanId&&sameScan.replayed===true,
+      "scan result idempotent");
+   await status(await post(scannerPath,tokenMap.get(REVIEWER),
+     {requestKey:randomUUID()}),409,"second scan cannot overwrite immutable receipt");
+   // Synthetic malware verdict is recorded but NEVER makes file downloadable.
+   const suspected=Buffer.from("%PDF-1.4\\nEICAR lab payload\\n%%EOF\\n");
+   const suspectedUpload={...upload,requestKey:randomUUID(),
+     evidenceId:citations[1],contentBase64:suspected.toString("base64")};
+   const suspectedStore=await status(await post(escrowPath,tokenMap.get(MANAGER),
+     suspectedUpload),201,"second evidence quarantined for synthetic malware fixture");
+   const suspectedScan=await status(await post(escrowPath+"/"+suspectedStore.fileId+
+     "/scan",tokenMap.get(REVIEWER),{requestKey:randomUUID()}),201,
+     "synthetic clamd protocol reports malware on EICAR lab marker");
+   ok(suspectedScan.malwareVerdict==="MALWARE"&&
+      suspectedScan.originalPdfReleased===false&&suspectedScan.tariffActivated===false,
+      "synthetic positive malware verdict never releases quarantine");
+   console.log("CHILD06_PDF_CLAMD_SYNTHETIC_CLEAN_AND_MALWARE_UNRELEASED_PASS");
+   const holdPath=escrowPath+"/"+stored.fileId+"/source-holds";
+   const sourceHold={requestKey:randomUUID(),outcome:"NO_OFFICIAL_CONNECTOR",
+     sourceReference:"CI-SYNTHETIC-NO-OFFICIAL-CONNECTOR"};
+   await status(await post(holdPath,tokenMap.get(MANAGER),sourceHold),403,
+      "manager cannot pose as an independent official-source reviewer");
+   await status(await post(holdPath,tokenMap.get(LEGAL),
+     {...sourceHold,outcome:"ISSUER_VERIFIED"}),400,
+     "issuer authenticity promotion is unrepresentable");
+   const heldSource=await status(await post(holdPath,tokenMap.get(LEGAL),sourceHold),201,
+      "reviewer stores source unavailable immutable HOLD");
+   ok(heldSource.outcome==="NO_OFFICIAL_CONNECTOR"&&
+      heldSource.officialSourceAuthenticated===false&&heldSource.tariffActivated===false,
+      "no authenticated official source is never a legal approval");
+   await status(await post(holdPath,tokenMap.get(LEGAL),
+      {...sourceHold,sourceReference:"CI-SYNTHETIC-DIFFERENT-CONNECTOR"}),409,
+      "source observation changed replay rejected");
+   // Key version 1 remains readable after enabling v2 without rewriting old data.
+   const envelope=require("../services/api/dist/governance-pdf-envelope.js");
+   const oldKeyPayload=Buffer.from("%PDF-1.4\\nCI test legacy\\n%%EOF\\n");
+   const priorActive=process.env.TTO_CHILD06_PDF_ESCROW_ACTIVE_KEY_VERSION;
+   process.env.TTO_CHILD06_PDF_ESCROW_KEY_HEX="12".repeat(32);
+   process.env.TTO_CHILD06_PDF_ESCROW_KEY_V2_HEX="34".repeat(32);
+   process.env.TTO_CHILD06_PDF_ESCROW_ACTIVE_KEY_VERSION="child06-lab-v1";
+   const v1=envelope.encryptGovernancePdf(oldKeyPayload,A,citations[0]);
+   process.env.TTO_CHILD06_PDF_ESCROW_ACTIVE_KEY_VERSION=priorActive;
+   const oldPacket={evidence_id:citations[0],issuer_candidate_id:candidate.candidateId,
+     file_size:oldKeyPayload.length,plaintext_sha256:v1.digest,aes_gcm_iv:v1.iv,
+     aes_gcm_tag:v1.tag,encrypted_body:v1.encrypted,
+     encryption_version:v1.version,source_state:"ENCRYPTED_QUARANTINED_UNAUTHENTICATED"};
+   const legacyRecovered=envelope.unlockGovernancePdf(oldPacket,A);
+   ok(legacyRecovered.equals(oldKeyPayload),
+     "existing v1 original remains recoverable after changing active writes to v2");
+   legacyRecovered.fill(0);
+   delete process.env.TTO_CHILD06_PDF_ESCROW_KEY_HEX;
+   assert.throws(()=>envelope.unlockGovernancePdf(oldPacket,A));checks++;
+   process.env.TTO_CHILD06_PDF_ESCROW_KEY_HEX="12".repeat(32);
+   assert.throws(()=>envelope.unlockGovernancePdf(oldPacket,B));checks++;
+   const latestPacket={...oldPacket,encrypted_body:Buffer.from(v1.encrypted)};
+   latestPacket.encrypted_body[0]^=1;
+   assert.throws(()=>envelope.unlockGovernancePdf(latestPacket,A));checks++;
+   console.log("CHILD06_PDF_SCAN_KEY_ROTATION_SOURCE_HOLD_REAL_HTTP_PG17_PASS");
    const row=(await db.query(
       "SELECT plaintext_sha256,aes_gcm_iv,aes_gcm_tag,encrypted_body FROM "+
       "tto.cooperative_governance_source_files WHERE file_id=$1",[stored.fileId])).rows[0];
@@ -1048,7 +1133,7 @@ async function main(){
    const tampered=Buffer.from(row.encrypted_body);
    tampered[0]^=1;
    assert.throws(()=>{
-     const d=createDecipheriv("aes-256-gcm",Buffer.from("12".repeat(32),"hex"),
+     const d=createDecipheriv("aes-256-gcm",Buffer.from("34".repeat(32),"hex"),
        row.aes_gcm_iv);
      d.setAAD(Buffer.from("CHILD06_ORIGINAL_PDF_V1|"+A+"|"+citations[0]));
      d.setAuthTag(row.aes_gcm_tag);
@@ -1142,6 +1227,36 @@ async function main(){
       201,"independent reviewer BFF records HOLD against second case");
    ok(secondReview.verified===false&&secondReview.tariffActivated===false,
       "reviewer BFF provides traceability without legal activation");
+   // Stress actual independent-review vs escrow contention on the exact same case.
+   // At most one immutable original can win; no late attachment can bypass review.
+   const stressDispute={...dispute,requestKey:randomUUID(),evidence:[evidence[0]]};
+   const stressCase=await status(await post(disputePath,tokenMap.get(MANAGER),
+     stressDispute),201,"create independent synthetic stress-conflict case");
+   const stressAudit=await status(await get(disputePath,tokenMap.get(LEGAL)),200,
+      "read stress-case bound evidence IDs");
+   const stressEvidence=stressAudit.cases.find(x=>x.caseId===stressCase.caseId).evidence[0].evidenceId;
+   const stressedUpload={requestKey:randomUUID(),evidenceId:stressEvidence,
+     issuerCandidateId:candidate.candidateId,mimeType:"application/pdf",
+     contentBase64:pdf.toString("base64")};
+   const stressReview={requestKey:randomUUID(),outcome:"HOLD_OFFICIAL_SOURCE_REQUIRED",
+      evidenceIds:[stressEvidence],
+      reason:"این بررسی در محیط آزمایشی هم‌زمان با ثبت فایل انجام شده و مجوز حقوقی صادر نمی‌کند."};
+   const stressPut=Array.from({length:16},()=>post(escrowPath,tokenMap.get(MANAGER),
+     stressedUpload).then(r=>r.status));
+   const stressDecide=post(disputePath+"/"+stressCase.caseId+"/review",
+     tokenMap.get(LEGAL),stressReview).then(r=>r.status);
+   const outcomes=await Promise.all([...stressPut,stressDecide]);
+   ok(outcomes[16]===201&&outcomes.slice(0,16).every(x=>x===201||x===403),
+     "16 concurrent uploads versus independent immutable review fail closed");
+   const finalEscrowCount=(await db.query(
+      "SELECT count(*)::int AS n FROM tto.cooperative_governance_source_files "+
+      "WHERE case_id=$1",[stressCase.caseId])).rows[0].n;
+   ok(finalEscrowCount<=1,
+     "concurrent requests cannot create duplicate or late original file rows");
+   await status(await post(escrowPath,tokenMap.get(MANAGER),{
+     ...stressedUpload,requestKey:randomUUID()}),403,
+     "after review, distinct idempotency key cannot attach another document");
+   console.log("CHILD06_PDF_ESCROW_REVIEW_16WAY_CONCURRENCY_PG17_HOLD_PASS");
    console.log("CHILD06_INDEPENDENT_CONFLICT_EVIDENCE_REVIEW_NEST_NEXT_PG17_HOLD_PASS");
 
    console.log("CHILD06_CHAIN_FORK_MERGE_CYCLE_MANAGER_BFF_REAL_NEST_PG17_PASS");
@@ -1527,4 +1642,5 @@ async function main(){
  console.log("TTO_CF02_NO_REAL_IDENTITIES_NO_SHARE_LEDGER_NO_HOSTED_MIGRATION");
 }
 main().catch(e=>{console.error("TTO_CF02_E2E_FAIL",e?.stack??String(e));process.exitCode=1})
-.finally(async()=>{for(const proc of running)if(proc.exitCode===null)proc.kill("SIGTERM");for(const issuer of mockIssuers)await issuer.stop().catch(()=>{});await db.end().catch(()=>{});});
+.finally(async()=>{for(const proc of running)if(proc.exitCode===null)proc.kill("SIGTERM");for(const issuer of mockIssuers)await issuer.stop().catch(()=>{});
+if(scannerStarted)await mockScanner.stop().catch(()=>{});await db.end().catch(()=>{});});
