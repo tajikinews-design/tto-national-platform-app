@@ -141,3 +141,6 @@ export { TenantScopePicker } from "./tenant-scope-picker";
 export { ShareholderWorkspace } from "./shareholder-workspace";
 
 export {PortalModuleWorkbench} from "./portal-module-workbench";
+
+export {PortalPasswordLogin} from "./portal-password-login";
+export {PortalSessionGate} from "./portal-session-gate";
