@@ -65,7 +65,8 @@ async function fixture(){
  [REVIEWER,A,APPROVER,DEC]);
  for(const uid of [USER,MANAGER,NATIONAL,REVIEWER,APPROVER])await issueSession(uid);
  const apiEnv={DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"31997",
-   NODE_ENV:"test",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa"};
+   NODE_ENV:"test",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",
+   TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED:process.env.TTO_PH12_LEGAL_E2E==="1"?"true":"false",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa"};
  await launch("Nest",["dist/main.js"],resolve(ROOT,"services/api"),apiEnv,API+"/ready");
 }
 async function portal(slug,port){
@@ -335,6 +336,56 @@ async function main(){
   [reviewed.reviewId]),/PH12_BOARD_EVIDENCE_APPEND_ONLY/);
  console.log("PH12_BOARD_DOCUMENT_SOURCE_HASH_ROLE_REVIEW_NO_LEGAL_AUTHORITY_PASS");
 
+ // Only the new PH12 draft branch installs migrations 0049/0050 in adaptive CI.
+ // Use the SAME ephemeral Postgres + real Nest session actors for the new gate.
+ if(process.env.TTO_PH12_LEGAL_E2E==="1"){
+   const legalPath="/v1/tenants/"+A+"/ph12/share-market/tariff-board-cases/"+
+     submit.caseId+"/legal-source-checks";
+   const legalPayload={
+     requestKey:randomUUID(),sourceCategory:"BOARD_ROSTER",
+     sourceReference:"CI-REGISTRY-BOARD-ROSTER-001",
+     sourceVersion:"synthetic-v1",sha256:boardHash.toString("hex"),
+     observedAt:new Date(Date.now()-60000).toISOString(),
+     expiresAt:new Date(Date.now()+3600000).toISOString(),
+     result:"PENDING_OFFICIAL_VERIFICATION"
+   };
+   const legalPost=(path,who,payload)=>post(path,who,payload);
+   await status(await legalPost(legalPath,"",legalPayload),401,
+     "PH12 legal source rejects unauthenticated request");
+   await status(await legalPost(legalPath,tokenMap.get(MANAGER),legalPayload),403,
+     "PH12 manager cannot pose as independent legal source reviewer");
+   await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'DOCUMENT_REVIEWER')",
+     [randomUUID(),MANAGER,A]);
+   await status(await legalPost(legalPath,tokenMap.get(MANAGER),legalPayload),403,
+     "PH12 same actor author and reviewer forbidden even with role");
+   await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'DOCUMENT_REVIEWER')",
+     [randomUUID(),REVIEWER,B]);
+   await status(await legalPost("/v1/tenants/"+B+"/ph12/share-market/tariff-board-cases/"+
+       submit.caseId+"/legal-source-checks",tokenMap.get(REVIEWER),legalPayload),403,
+     "PH12 reviewer in other tenant cannot access foreign case");
+   const legalStored=await status(await legalPost(legalPath,tokenMap.get(REVIEWER),legalPayload),201,
+     "PH12 independent reviewer records pending-only source observation");
+   ok(legalStored.state==="PENDING_OFFICIAL_VERIFICATION"&&
+      legalStored.boardLegallyApproved===false&&legalStored.tariffActivated===false,
+      "PH12 official-source intake never grants signature authority");
+   const legalReplay=await status(await legalPost(legalPath,tokenMap.get(REVIEWER),legalPayload),201,
+     "PH12 identical request idempotent");
+   ok(legalReplay.checkId===legalStored.checkId&&legalReplay.replayed===true,
+     "PH12 same request key reuses original check");
+   await status(await legalPost(legalPath,tokenMap.get(REVIEWER),
+     {...legalPayload,sourceVersion:"synthetic-v2"}),409,
+     "PH12 replay changes rejected");
+   await status(await legalPost(legalPath,tokenMap.get(REVIEWER),
+     {...legalPayload,requestKey:randomUUID(),result:"VERIFIED"}),400,
+     "PH12 API cannot accept verified or active source claim");
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.ph12_tariff_drafts SET status='ACTIVE' WHERE draft_id=$1",[saved.draftId]));
+   checks++;
+   const after=await db.query("SELECT status FROM tto.ph12_tariff_drafts WHERE draft_id=$1",[saved.draftId]);
+   ok(after.rows[0].status==="DRAFT_UNVERIFIED",
+      "PH12 direct DB update cannot activate tariff");
+   console.log("PH12_LEGAL_SOURCE_REAL_NEST_PG17_NEGATIVE_HTTP_PASS_HOLD_ONLY");
+ }
 
  await db.query("UPDATE tto.legal_authorities SET revoked_at=now() WHERE authority_id=$1",[auth]);
  await status(await fetch(draftBff,{headers:managerCookie}),403,
