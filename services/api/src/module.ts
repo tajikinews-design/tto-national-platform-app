@@ -2139,6 +2139,79 @@ export class Ph12BoardLegalSourceController {
    throw e;
   }
  }
+ @Post(":tenantId/ph12/share-market/tariff-board-cases/:caseId/legal-source-checks/:checkId/invalidate")
+ @HttpCode(201)
+ async invalidateLegalSource(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("caseId",new ParseUUIDPipe()) caseId:string,
+  @Param("checkId",new ParseUUIDPipe()) checkId:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"PH12_SOURCE_INVALIDATION_NOT_RELEASED"});
+  const keys=["requestKey","reason","evidenceReference"];
+  const validId=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+    Object.keys(v).some(k=>!keys.includes(k))||
+    typeof v.requestKey!=="string"||!validId.test(v.requestKey)||
+    typeof v.reason!=="string"||![
+     "SOURCE_WITHDRAWN","SOURCE_UNREACHABLE",
+     "SOURCE_SUPERSEDED_REPORTED","SOURCE_REVOCATION_REPORTED"
+    ].includes(v.reason)||typeof v.evidenceReference!=="string")
+   throw new BadRequestException({code:"PH12_SOURCE_INVALIDATION_INPUT_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+     "SELECT * FROM tto.ph12_invalidate_tariff_board_source_check($1::uuid,$2::text,$3::text,$4::uuid)",
+     [checkId,v.reason,v.evidenceReference,v.requestKey]);
+    const row=q.rows[0];
+    const scoped=await client.query<{present:boolean}>(
+     "SELECT EXISTS (SELECT 1 FROM tto.ph12_tariff_board_source_recheck($1::uuid)) AS present",
+     [caseId]);
+    if(scoped.rows[0]?.present!==true)
+      throw new ForbiddenException({code:"PH12_SOURCE_CASE_DENIED"});
+    return {tenantId:tenant,caseId,checkId,invalidationId:row.invalidation_id,
+     state:row.source_state,replayed:row.replayed,
+     officialSourceAuthenticated:false,signerAuthorityAuthenticated:false,
+     boardLegallyApproved:false,tariffActivated:false};
+   });
+  }catch(e){
+   if(e instanceof ForbiddenException)throw e;
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"PH12_SOURCE_INVALIDATION_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"PH12_SOURCE_INVALIDATION_CONFLICT"});
+   if(code==="22023"||code==="22P02")
+    throw new BadRequestException({code:"PH12_SOURCE_INVALIDATION_INPUT_INVALID"});
+   throw e;
+  }
+ }
+ @Get(":tenantId/ph12/share-market/tariff-board-cases/:caseId/source-recheck")
+ async legalSourceRecheck(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("caseId",new ParseUUIDPipe()) caseId:string,
+  @Headers("authorization") auth:string|undefined){
+  if(process.env.TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"PH12_SOURCE_RECHECK_NOT_RELEASED"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+      "SELECT * FROM tto.ph12_tariff_board_source_recheck($1::uuid)",[caseId]);
+    const r=q.rows[0];
+    return {tenantId:tenant,caseId,assessment:r.assessment,
+      sourceChecks:Number(r.source_checks),staleChecks:Number(r.stale_checks),
+      invalidatedChecks:Number(r.invalidated_checks),
+      rejectedChecks:Number(r.rejected_checks),
+      legalReviewRecorded:r.legal_review_recorded,
+      officialSourceAuthenticated:false,legalAuthorityVerified:false,
+      boardLegallyApproved:false,tariffActivated:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"PH12_SOURCE_RECHECK_DENIED"});
+   if(code==="22023"||code==="22P02")
+     throw new BadRequestException({code:"PH12_SOURCE_RECHECK_INPUT_INVALID"});
+   throw e;
+  }
+ }
 }
 
 @Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController,Ph12TariffDraftController,Ph12TariffBoardDocumentController,Ph12BoardLegalSourceController],providers:[ApiIrSmsOtpProvider]})
