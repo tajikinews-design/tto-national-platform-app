@@ -17,7 +17,9 @@ let total=0,backendLinks=0,held=0;
 for(const [surface,section] of Object.entries(chunks)){
  for(const m of section.matchAll(/href:"(\/[^"]+)"[^\n]+?api:"([^"]+)"[^\n]+?readiness:"(protected|review|hold)"/g)){
   const [_,href,api,readiness]=m;
-  const relative=href==="/"?"/app/page.tsx":"/app"+href+"/page.tsx";
+  const relative=href==="/"?"/app/page.tsx":
+    /^\/modules\/nav-\d{2}$/.test(href)?"/app/modules/[id]/page.tsx":
+    "/app"+href+"/page.tsx";
   const route=path.join(s[surface],relative);
   assert(fs.existsSync(route),"broken preview link: "+surface+" "+href);
   if(readiness==="hold")held++;
