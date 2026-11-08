@@ -1064,6 +1064,111 @@ async function main(){
    ok(scanned.malwareVerdict==="CLEAN"&&scanned.originalPdfReleased===false&&
       scanned.legalAuthorityVerified===false&&scanned.tariffActivated===false,
       "synthetic scanner clean never authorizes release or legal approval");
+   { // Isolate DB-attestation fixture locals from legacy E2E declarations.
+   // CHILD06 owner-approved TWO VERIFIED NATURAL PERSONS, DB policy laboratory.
+   // Bootstrap records are inserted by disposable PG17 migration owner ONLY.
+   // The app-role cannot seed trust and no valid attestation grants official validity.
+   async function internalAs(actor,sql,args=[]){
+     await db.query("BEGIN");
+     try{
+       await db.query("SET LOCAL ROLE tto_app");
+       await db.query("SELECT set_config('tto.tenant_id',$1,true),"+ 
+         "set_config('tto.actor_id',$2,true)",[A,actor]);
+       const result=await db.query(sql,args);
+       await db.query("COMMIT");
+       return result.rows[0]?.result;
+     }catch(e){await db.query("ROLLBACK");throw e;}
+   }
+   const attDigest=createHash("sha256").update(pdf).digest();
+   const attestSql="SELECT tto.cooperative_record_notice_internal_attestation("+
+     "$1::uuid,$2::bytea,$3::text,$4::uuid) AS result";
+   const ack="I_CONFIRM_DOCUMENT_ACCURACY_AND_PERSONAL_RESPONSIBILITY";
+   const missing=await internalAs(REVIEWER,
+     "SELECT tto.cooperative_notice_internal_attestation_state($1::uuid) AS result",
+     [stored.fileId]);
+   ok(missing.status==="HOLD_TRUST_BOOTSTRAP_REQUIRED",
+     "unprovisioned notice cannot self-bootstrap official signatories");
+   const signParty1=randomUUID(),signParty2=randomUUID(),trustPolicy=randomUUID();
+   await db.query("INSERT INTO tto.parties(party_id,party_kind,display_label) "+
+     "VALUES($1,'PERSON','CI Reviewer Natural Person'),"+
+     "($2,'PERSON','CI Legal Natural Person')",[signParty1,signParty2]);
+   await db.query("INSERT INTO tto.user_party_links(user_id,party_id,verified_at) "+
+     "VALUES($1,$2,now()),($3,$4,now())",
+     [REVIEWER,signParty1,LEGAL,signParty2]);
+   await db.query("INSERT INTO tto.cooperative_notice_attestation_policies("+
+     "policy_id,tenant_id,combination,bootstrap_reference,bootstrap_digest,"+
+     "independently_verified_by,valid_from,valid_until) "+
+     "VALUES($1,$2,'CEO_AND_CHAIR',$3,$4,$5,now()-interval '1 day',"+
+     "now()+interval '1 day')",
+     [trustPolicy,A,"CI-EXTERNAL-TRUST-REVIEW-REFERENCE-001",
+      Buffer.alloc(32,0x31),APPROVER]);
+   const trustedSql="INSERT INTO tto.cooperative_notice_trusted_signatories("+
+     "tenant_id,policy_id,user_id,party_id,capacity,independent_identity_ref,"+
+     "authority_evidence_digest,independently_checked_by,valid_from,valid_until) "+
+     "VALUES($1,$2,$3,$4,$5,$6,$7,$8,now()-interval '1 day',now()+interval '1 day')";
+   await db.query(trustedSql,[A,trustPolicy,REVIEWER,signParty1,"CEO",
+     "CI-EXTERNAL-VERIFIED-IDENTITY-CEO-001",Buffer.alloc(32,0x32),APPROVER]);
+   await db.query(trustedSql,[A,trustPolicy,LEGAL,signParty2,"BOARD_CHAIR",
+     "CI-EXTERNAL-VERIFIED-IDENTITY-CHAIR-002",Buffer.alloc(32,0x33),APPROVER]);
+   await assert.rejects(()=>db.query(trustedSql,[A,trustPolicy,APPROVER,signParty1,
+     "BOARD_CHAIR","CI-DUPLICATE-PERSON-APPROVAL-REJECTED",Buffer.alloc(32,0x34),NATIONAL]));
+   checks++;
+   await assert.rejects(()=>internalAs(USER,attestSql,
+     [stored.fileId,attDigest,ack,randomUUID()]));
+   checks++;
+   await assert.rejects(()=>internalAs(MANAGER,attestSql,
+     [stored.fileId,attDigest,ack,randomUUID()]));
+   checks++;
+   await assert.rejects(()=>internalAs(REVIEWER,attestSql,
+     [stored.fileId,Buffer.alloc(32,0x44),ack,randomUUID()]));
+   checks++;
+   const firstRequest=randomUUID();
+   const first=await internalAs(REVIEWER,attestSql,
+     [stored.fileId,attDigest,ack,firstRequest]);
+   ok(first.status==="FIRST_INTERNAL_ATTESTATION_RECORDED"&&
+     first.officialIssuerAuthenticated===false&&
+     first.legalAuthorityVerified===false&&first.tariffActivated===false,
+     "first verified signer can only register internal responsibility");
+   const internalReplay=await internalAs(REVIEWER,attestSql,
+     [stored.fileId,attDigest,ack,firstRequest]);
+   ok(internalReplay.replayed===true&&internalReplay.attestationId===first.attestationId,
+     "repeated vote request is immutable and idempotent");
+   await assert.rejects(()=>internalAs(REVIEWER,attestSql,
+     [stored.fileId,attDigest,ack,randomUUID()]));
+   checks++;
+   const second=await internalAs(LEGAL,attestSql,
+     [stored.fileId,attDigest,ack,randomUUID()]);
+   ok(second.status==="COOPERATIVE_DUAL_ATTESTED_INTERNAL_ONLY"&&
+     second.validSignerCount===2&&
+     second.officialIssuerAuthenticated===false&&
+     second.legalAuthorityVerified===false&&second.tariffActivated===false&&
+     second.bindingSignatureAuthorized===false,
+     "two distinct verified persons attest exact PDF but never official provenance");
+   const chairTrust=(await db.query(
+     "SELECT trust_id FROM tto.cooperative_notice_trusted_signatories "+
+     "WHERE tenant_id=$1 AND policy_id=$2 AND user_id=$3",
+     [A,trustPolicy,LEGAL])).rows[0].trust_id;
+   await db.query("INSERT INTO tto.cooperative_notice_trust_revocations("+
+     "trust_id,tenant_id,revoked_by,independent_revocation_reference) "+
+     "VALUES($1,$2,$3,$4)",
+     [chairTrust,A,APPROVER,"CI-OFFLINE-LEGAL-SIGNATORY-REVOKED-001"]);
+   const afterRevocation=await internalAs(REVIEWER,
+     "SELECT tto.cooperative_notice_internal_attestation_state($1::uuid) AS result",
+     [stored.fileId]);
+   ok(afterRevocation.status==="FIRST_INTERNAL_ATTESTATION_RECORDED"&&
+      afterRevocation.validSignerCount===1,
+     "independent signatory revocation instantly revokes dual readiness without deleting history");
+   const held=await internalAs(MANAGER,
+     "SELECT tto.cooperative_hold_notice_internal_attestation("+
+      "$1::uuid,$2::text,$3::uuid) AS result",
+     [stored.fileId,"DISPUTED",randomUUID()]);
+   ok(held.status==="HOLD_DISPUTED_OR_SUPERSEDED"&&
+      held.tariffActivated===false,"subsequent governance dispute invalidates internal readiness");
+   await assert.rejects(()=>internalAs(LEGAL,attestSql,
+     [stored.fileId,attDigest,ack,randomUUID()]));
+   checks++;
+   console.log("CHILD06_TWO_VERIFIED_DISTINCT_PARTIES_PG17_INTERNAL_ONLY_HOLD_PASS");
+   }
    const sameScan=await status(await post(scannerPath,tokenMap.get(REVIEWER),scanRequest),201,
       "scan replay immutable");
    ok(sameScan.scanId===scanned.scanId&&sameScan.replayed===true,
