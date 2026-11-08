@@ -13,14 +13,17 @@ export default function NationalRootLogin(){
  const [nextUsername,setNextUsername]=useState("");
  const [nextPassword,setNextPassword]=useState("");
  const [confirmPassword,setConfirmPassword]=useState("");
- async function verifySession(){
+ async function verifySession(redirectOnSuccess=false){
   try{
    const response=await fetch("/api/auth/session",{credentials:"same-origin",cache:"no-store"});
    if(!response.ok)throw Error("UNAVAILABLE");
    const x=await response.json() as {authenticated?:unknown;nationalRoot?:unknown;mustChangeCredentials?:unknown};
    if(x.authenticated===true&&x.nationalRoot===true){
     if(x.mustChangeCredentials===true)setPhase("change");
-    else if(x.mustChangeCredentials===false)setPhase("ready");
+    else if(x.mustChangeCredentials===false){
+     if(redirectOnSuccess)window.location.replace("/");
+     else setPhase("ready");
+    }
     else setPhase("unavailable");
    }else setPhase("login");
   }catch{setPhase("unavailable")}
@@ -38,7 +41,7 @@ export default function NationalRootLogin(){
    if(response.status===401){setNotice("نام کاربری یا رمز عبور معتبر نیست.");return;}
    if(response.status!==200){setNotice("سرویس ورود مدیر ملی در دسترس نیست.");return;}
    setPassword("");
-   await verifySession();
+   await verifySession(true);
   }catch{setNotice("ارتباط با سرویس ورود برقرار نشد.");}
   finally{setBusy(false);}
  }
@@ -86,9 +89,8 @@ export default function NationalRootLogin(){
   <p style={{lineHeight:2}}>ورود مدیر اصلی با نام کاربری و رمز عبور اختصاصی است؛ ورود مدیران تعاونی و سهامداران با پیامک انجام می‌شود.</p>
   {phase==="checking"?<p role="status">در حال بررسی اعتبار نشست...</p>:
    phase==="unavailable"?<div><p role="alert">بررسی نشست ممکن نیست؛ هیچ عملیات مدیریتی فعال نیست.</p><button type="button" onClick={()=>void verifySession()}>تلاش مجدد</button></div>:
-   phase==="ready"?<div><p role="status">ورود مدیر ملی و تکمیل تعویض مشخصات تأیید شد.</p>
-    <a style={{display:"inline-block",padding:"12px 18px",color:"#fff",background:"#075b88",borderRadius:8,textDecoration:"none"}} href="/cooperatives/new">ایجاد نشانی اختصاصی تعاونی</a>
-    <a style={{display:"inline-block",padding:"12px 18px",color:"#075b88",background:"#e9f4fc",borderRadius:8,textDecoration:"none",margin:10,fontWeight:700}} href="/cooperatives/onboarding">تکمیل پرونده حقوقی نشانی‌های رزروشده</a>
+   phase==="ready"?<div><p role="status">ورود مدیر ملی تأیید شده است. برای مشاهده ماژول‌ها وارد صفحه اصلی پلتفرم شوید.</p>
+    <a style={{display:"inline-block",padding:"12px 18px",color:"#fff",background:"#075b88",borderRadius:8,textDecoration:"none"}} href="/">ورود به صفحه اصلی پلتفرم</a>
     <button type="button" onClick={()=>void logout()} disabled={busy} style={{margin:12,padding:10}}>خروج امن</button>
    </div>:
    phase==="change"?<div>
