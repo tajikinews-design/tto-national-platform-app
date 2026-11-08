@@ -89,7 +89,9 @@ class TariffPortalContract(unittest.TestCase):
    "legalBasisReference","version","feeId","validFrom","validUntil",
    "buyerPercent","sellerPercent","CUSTOM_APPROVED_BASE"]:
    self.assertIn(x,page)
-  self.assertIn('href="/share-market/tariffs"',home)
+  dashboard=(ROOT/"packages/ui/src/approved-dashboard.tsx").read_text("utf-8")
+  self.assertIn('"/share-market/tariffs"',dashboard)
+  self.assertIn('PortalSessionGate surface="cooperative"',home)
   for x in ["COOP_FINANCE_OPERATOR","COOP_CEO","LAB_DUAL_REVIEW_COMPLETE_NOT_LEGAL_PAID",
    "TARIFF_VERSION_MUST_INCREASE"]:
    self.assertIn(x,lab)
