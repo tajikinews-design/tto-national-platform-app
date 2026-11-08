@@ -174,11 +174,13 @@ BEGIN
   IF jsonb_typeof(rule)<>'object' OR
     rule->>'authorityKind' NOT IN('BINDING_FINANCIAL','ORDINARY_LETTERS') OR
     length(rule->>'requiredSigner') NOT BETWEEN 3 AND 160 OR
+    rule->>'requiredSigner' ~ '(^|[^0-9])[0-9]{10}([^0-9]|$)' OR
     jsonb_typeof(rule->'alternateSigners')<>'array' OR
     jsonb_array_length(rule->'alternateSigners')>8 OR
     EXISTS(SELECT 1 FROM jsonb_array_elements(rule->'alternateSigners') AS alt(value)
       WHERE jsonb_typeof(alt.value)<>'string' OR
-       length(alt.value #>> '{}') NOT BETWEEN 3 AND 160) OR
+       length(alt.value #>> '{}') NOT BETWEEN 3 AND 160 OR
+       (alt.value #>> '{}') ~ '(^|[^0-9])[0-9]{10}([^0-9]|$)') OR
     length(rule->>'description') NOT BETWEEN 20 AND 1300 OR
     rule->>'description' ~ '(^|[^0-9])[0-9]{10}([^0-9]|$)'
   THEN RAISE EXCEPTION 'COOPERATIVE_SIGNING_RULE_INVALID' USING ERRCODE='22023';END IF;
