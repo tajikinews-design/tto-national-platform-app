@@ -3,7 +3,7 @@ import {trustedBackendHeaders} from "../../../../../lib/trusted-backend";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 const H={"Cache-Control":"private, no-store","Vary":"Cookie",
  "X-Content-Type-Options":"nosniff"};
-const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{12}$/i;
+const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const TOKEN=/^[A-Za-z0-9_-]{32,256}$/;
 const J=/^14[0-9]{2}\/(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])$/;
 const deny=(status:number,code:string)=>NextResponse.json({available:false,code},{status,headers:H});
