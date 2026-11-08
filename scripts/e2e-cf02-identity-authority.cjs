@@ -1144,6 +1144,20 @@ async function main(){
      second.legalAuthorityVerified===false&&second.tariffActivated===false&&
      second.bindingSignatureAuthorized===false,
      "two distinct verified persons attest exact PDF but never official provenance");
+   const chairTrust=(await db.query(
+     "SELECT trust_id FROM tto.cooperative_notice_trusted_signatories "+
+     "WHERE tenant_id=$1 AND policy_id=$2 AND user_id=$3",
+     [A,trustPolicy,LEGAL])).rows[0].trust_id;
+   await db.query("INSERT INTO tto.cooperative_notice_trust_revocations("+
+     "trust_id,tenant_id,revoked_by,independent_revocation_reference) "+
+     "VALUES($1,$2,$3,$4)",
+     [chairTrust,A,APPROVER,"CI-OFFLINE-LEGAL-SIGNATORY-REVOKED-001"]);
+   const afterRevocation=await internalAs(REVIEWER,
+     "SELECT tto.cooperative_notice_internal_attestation_state($1::uuid) AS result",
+     [stored.fileId]);
+   ok(afterRevocation.status==="FIRST_INTERNAL_ATTESTATION_RECORDED"&&
+      afterRevocation.validSignerCount===1,
+     "independent signatory revocation instantly revokes dual readiness without deleting history");
    const held=await internalAs(MANAGER,
      "SELECT tto.cooperative_hold_notice_internal_attestation("+
       "$1::uuid,$2::text,$3::uuid) AS result",
