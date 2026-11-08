@@ -67,13 +67,24 @@ class SyntheticSessionBrowserContract(unittest.TestCase):
         self.assertNotIn('docker system prune',self.runner.lower())
 
     def test_no_backend_smoke_covers_all_ten_module_routes(self):
-        for n in range(2,12):
-            with self.subTest(nav=n):
-                slug=f'/modules/nav-{n:02}'
-                self.assertIn(slug,self.smoke)
-        self.assertIn('protectedShareholder=slug==="shareholder"',self.smoke)
-        self.assertIn('management module bypassed safe OTP shell or leaked private data',self.smoke)
-        self.assertIn('protected module leaked private data',self.smoke)
+        # New owner-approved password route is separate from the actual dashboard.
+        # Exercise all ten module URLs dynamically, and verify every unauthenticated
+        # response remains behind PortalSessionGate instead of private workspace.
+        for marker in (
+            'const moduleCases=Array.from({length:10}',
+            '"/modules/nav-"+String(i+2).padStart(2,"0")',
+            'const response=await fetch("http://127.0.0.1:"+port+modulePath)',
+            'html.includes("در حال بررسی دسترسی")',
+            'authenticated module leaked data or bypassed session gate',
+            'const loginRes=await fetch("http://127.0.0.1:"+port+"/login")',
+            'const review=await fetch("http://127.0.0.1:"+port+"/design-review")',
+            'loginHtml.includes("ورود با رمز یک‌بارمصرف")',
+            'html.includes("کارپوشه شخصی سهامدار")',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker,self.smoke)
+        self.assertNotIn('protectedShareholder=slug==="shareholder"',self.smoke)
+        self.assertIn('TTO_NEXT_3PORTAL_PASSWORD_GATED_RUNTIME_SMOKE_PASS=',self.smoke)
 
 if __name__=="__main__":
     unittest.main()
