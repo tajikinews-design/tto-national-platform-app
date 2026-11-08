@@ -39,7 +39,7 @@ export async function scanQuarantineBytes(bytes:Buffer):Promise<MalwareVerdict>{
  // Use a short-lived local UNIX socket for both VERSION and INSTREAM.
  // In CI a synthetic signature DB is used; this DOES NOT assert daily CVD freshness.
  const version=await command(socketPath,Buffer.from("zVERSION\0"));
- if(!/^ClamAV [0-9][0-9a-zA-Z.+/_(): -]{3,150}$/.test(version))
+ if(!/^ClamAV [0-9][\\x20-\\x7e]{3,200}$/.test(version))
    throw new Error("CLAMD_VERSION_UNVERIFIED");
  const size=Buffer.alloc(4);size.writeUInt32BE(bytes.length,0);
  const zero=Buffer.alloc(4);
