@@ -2207,6 +2207,65 @@ export class Ph12BoardLegalSourceController {
    throw e;
   }
  }
+ @Get(":tenantId/ph12/share-market/official-source-issuer-candidates")
+ async issuerCandidates(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined){
+  if(process.env.TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"PH12_ISSUER_CANDIDATE_INTAKE_DISABLED"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query("SELECT * FROM tto.ph12_list_cooperative_source_issuer_candidates()");
+    return {tenantId:tenant,items:q.rows.map(x=>({
+     candidateId:x.candidate_id,sourcePurpose:x.source_purpose,
+     issuerKind:x.issuer_kind,issuerLabel:x.issuer_label,
+     publicReference:x.public_reference,legalBasisReference:x.legal_basis_reference,
+     state:x.candidate_state,proposedAt:x.proposed_at
+    })),officialIssuerAuthenticated:false,
+     signatoryAuthorityVerified:false,boardLegallyApproved:false,tariffActivated:false};
+   });
+  }catch(e){
+   if((e as {code?:string})?.code==="42501")
+     throw new ForbiddenException({code:"PH12_ISSUER_CANDIDATE_ACCESS_DENIED"});
+   throw e;
+  }
+ }
+ @Post(":tenantId/ph12/share-market/official-source-issuer-candidates")
+ @HttpCode(201)
+ async proposeIssuer(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+   @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"PH12_ISSUER_CANDIDATE_INTAKE_DISABLED"});
+  const fields=["requestKey","sourcePurpose","issuerKind","issuerLabel",
+    "publicReference","legalBasisReference"];
+  const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+      Object.keys(v).some(k=>!fields.includes(k))||
+      fields.some(k=>typeof v[k]!=="string")||
+      !uuid.test(v.requestKey as string))
+   throw new BadRequestException({code:"PH12_ISSUER_CANDIDATE_INPUT_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+     "SELECT * FROM tto.ph12_propose_cooperative_source_issuer($1::text,$2::text,$3::text,$4::text,$5::text,$6::uuid)",
+     [v.sourcePurpose,v.issuerKind,v.issuerLabel,
+      v.publicReference,v.legalBasisReference,v.requestKey]);
+    const row=q.rows[0];
+    return {tenantId:tenant,candidateId:row.candidate_id,
+     state:row.candidate_state,replayed:row.replayed,
+     officialIssuerAuthenticated:false,signatoryAuthorityVerified:false,
+     boardLegallyApproved:false,tariffActivated:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"PH12_ISSUER_CANDIDATE_ACCESS_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"PH12_ISSUER_CANDIDATE_CONFLICT"});
+   if(code==="22023"||code==="22P02")
+    throw new BadRequestException({code:"PH12_ISSUER_CANDIDATE_INPUT_INVALID"});
+   throw e;
+  }
+ }
 }
 
 @Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController,Ph12TariffDraftController,Ph12TariffBoardDocumentController,Ph12BoardLegalSourceController],providers:[ApiIrSmsOtpProvider]})
