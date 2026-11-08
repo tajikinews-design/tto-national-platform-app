@@ -75,6 +75,10 @@ BEGIN
   THEN RAISE EXCEPTION 'CHILD06_ESCROW_REPLAY_DIFFERENT' USING ERRCODE='23505';END IF;
   RETURN QUERY SELECT oldrow.file_id,oldrow.source_state,true;RETURN;
  END IF;
+ -- Serialize file intake with the existing independent-review advisory lock.
+ -- The review cannot commit between this check and the encrypted insert.
+ PERFORM pg_advisory_xact_lock(hashtextextended(
+   tid::text||':conflict-review:'||ev.case_id::text,0));
  IF EXISTS(SELECT 1 FROM tto.cooperative_governance_conflict_dispositions
     WHERE tenant_id=tid AND case_id=ev.case_id)
  THEN RAISE EXCEPTION 'CHILD06_ESCROW_REVIEW_ALREADY_FINAL' USING ERRCODE='42501';END IF;
