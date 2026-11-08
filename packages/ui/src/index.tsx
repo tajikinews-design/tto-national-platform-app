@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {shareholderNavigation} from "./shareholder-navigation";
+import {PortalModuleWorkbench} from "./portal-module-workbench";
 export {shareholderNavigation} from "./shareholder-navigation";
 export {shareholderSectionId} from "./shareholder-section-config";
 
@@ -126,6 +127,7 @@ export function PortalShell({
           <h2>اقدامات و اطلاعیه‌ها</h2>
           <p>امکانات نمایش اطلاعات شخصی و اقدام‌های عملیاتی فقط پس از تأیید مجوزهای قانونی و اتصال به منبع داده معتبر فعال خواهند شد.</p>
           {children}
+          <PortalModuleWorkbench surface={surface}/>
           <h2 className="module-heading">بخش‌های سامانه</h2>
           <div className="module-grid" aria-label="فهرست بخش‌های سامانه">
             {cfg.navigation.slice(1).map((name, i) =>
@@ -168,3 +170,5 @@ export function PortalModulePreview({surface,moduleId}:{surface:Surface;moduleId
 export { OtpLogin } from "./otp-login";
 export { TenantScopePicker } from "./tenant-scope-picker";
 export { ShareholderWorkspace } from "./shareholder-workspace";
+
+export {PortalModuleWorkbench} from "./portal-module-workbench";
