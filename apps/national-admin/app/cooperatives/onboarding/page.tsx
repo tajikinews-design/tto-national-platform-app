@@ -56,9 +56,13 @@ export default function CooperativeOnboardingPage(){
    setDraftVersions(Object.fromEntries(loaded.map(d=>[d.slug,d.version])));
    setItems(records);
    setForm(f=>{
-     const slug=records.some(x=>x.slug===f.slug&&!x.dossier_id)?f.slug:
+     // Only preselect a slug that is present in the authorized server response.
+     const requested=new URLSearchParams(window.location.search).get("slug");
+     const selected=requested&&records.some(x=>x.slug===requested)?requested:null;
+     const slug=selected??(records.some(x=>x.slug===f.slug)?f.slug:null)??
        records.find(x=>!x.dossier_id)?.slug??"";
-     return f.slug?{...f,slug}:{...blank,...(map[slug]?.payload??{}),slug};
+     if(f.slug===slug)return f;
+     return {...blank,...(map[slug]?.payload??{}),slug};
    });
    setPhase("ready");
   }catch{setPhase("error")}
@@ -210,6 +214,7 @@ export default function CooperativeOnboardingPage(){
    phase==="error"?<div><p role="alert">سرویس پرونده تعاونی در دسترس نیست.</p><button type="button" onClick={()=>void refresh()}>تلاش مجدد</button></div>:
    <>
    <h2>نشانی‌های رزروشده</h2>
+   <p style={{lineHeight:2}}>در فهرست زیر پرونده هر نشانی را ببینید. برای اطلاعات تکمیلی مورد انتخاب‌شده، فرم پایین صفحه را تکمیل کنید.</p>
    <div style={{display:"grid",gap:9}}>
    {items.map(i=><div key={i.slug} style={{padding:12,background:"#f4f8fb",borderRadius:9}}>
     <strong dir="ltr">{i.slug}</strong> — {i.dossier_id?(
