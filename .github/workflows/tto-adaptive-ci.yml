@@ -489,7 +489,8 @@ jobs:
             if [ "${GITHUB_HEAD_REF}" = "feat/ph12-board-legal-gate-hold-20261107" ]; then
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0049_ph12_board_legal_source_checks_hold.sql
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0050_ph12_record_board_legal_source_check.sql
-              docker exec tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 -Atqc "SELECT to_regprocedure('tto.ph12_list_tariff_drafts()') IS NOT NULL AND to_regprocedure('tto.ph12_record_board_legal_source_check(uuid,text,text,text,text,timestamptz,timestamptz,text,uuid)') IS NOT NULL" | grep -qx t
+              docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0051_ph12_independent_legal_disposition_hold.sql
+              docker exec tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 -Atqc "SELECT to_regprocedure('tto.ph12_list_tariff_drafts()') IS NOT NULL AND to_regprocedure('tto.ph12_record_board_legal_source_check(uuid,text,text,text,text,timestamptz,timestamptz,text,uuid)') IS NOT NULL AND to_regprocedure('tto.ph12_record_tariff_board_legal_disposition(uuid,uuid,uuid[],text,text,uuid)') IS NOT NULL" | grep -qx t
               echo "PH12_ADAPTIVE_REQUIRED_TARIFF_FUNCTIONS_PRESENT"
             fi
           fi
