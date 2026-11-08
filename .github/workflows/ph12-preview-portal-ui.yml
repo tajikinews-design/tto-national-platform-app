@@ -1,9 +1,9 @@
 name: PH12 three-portal linked Preview UI build (NO DEPLOY)
 on:
   push:
-    branches: [feat/ph12-portal-preview-modules-api-navigation-20261108]
+    branches: [feat/ph12-portal-preview-modules-api-navigation-20261108, feat/ph12-approved-dashboards-separated-logins-20261108]
   pull_request:
-    branches: [feat/child06-coop-two-person-attestation-hold-20261108]
+    branches: [feat/child06-coop-two-person-attestation-hold-20261108, feat/ph12-portal-preview-modules-api-navigation-20261108]
 permissions:
   contents: read
 jobs:
@@ -37,3 +37,4 @@ jobs:
           set -euo pipefail
           node scripts/ci/ph12-preview-module-route-map.cjs
           echo "TTO_3PORTAL_PREVIEW_SAFE_ROUTE_CONTRACT_PASS"
+          node scripts/ci/ph12-approved-dashboard-roles-contract.cjs
