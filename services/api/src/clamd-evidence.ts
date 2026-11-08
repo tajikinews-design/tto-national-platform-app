@@ -45,7 +45,7 @@ export async function scanQuarantineBytes(bytes:Buffer):Promise<MalwareVerdict>{
   const ping=await command(socketPath,Buffer.from("zPING\0"));
   if(ping!=="PONG")throw new Error("CLAMD_PING_UNVERIFIED");
   version="ClamAV PING_OK_VERSION_DISABLED";
- }else if(!/^ClamAV [0-9][\\x20-\\x7e]{3,200}$/.test(version)){
+ }else if(!/^ClamAV [0-9][\x20-\x7e]{3,200}$/.test(version)){
   throw new Error("CLAMD_VERSION_UNVERIFIED");
  }
  const size=Buffer.alloc(4);size.writeUInt32BE(bytes.length,0);
