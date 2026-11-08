@@ -114,10 +114,10 @@ BEGIN
  SELECT * INTO src FROM tto.cooperative_governance_source_files
  WHERE file_id=p_file AND tenant_id=tid;
  IF NOT FOUND THEN RAISE EXCEPTION 'CHILD06_DUAL_ATTESTATION_FILE_DENIED' USING ERRCODE='42501';END IF;
- SELECT * INTO pol FROM tto.cooperative_notice_attestation_policies
+ SELECT * INTO pol FROM tto.cooperative_notice_attestation_policies p
  WHERE tenant_id=tid AND now() BETWEEN valid_from AND valid_until
  AND NOT EXISTS(SELECT 1 FROM tto.cooperative_notice_policy_revocations rv
- WHERE rv.policy_id=policy_id AND rv.tenant_id=tid);
+ WHERE rv.policy_id=p.policy_id AND rv.tenant_id=tid);
  SELECT EXISTS(SELECT 1 FROM tto.cooperative_notice_internal_attestation_holds
     WHERE tenant_id=tid AND file_id=p_file) INTO held;
  SELECT count(*)::int,
@@ -178,10 +178,10 @@ BEGIN
  IF NOT EXISTS(SELECT 1 FROM tto.cooperative_governance_pdf_scan_events
      WHERE tenant_id=tid AND file_id=p_file AND verdict='CLEAN')
  THEN RAISE EXCEPTION 'CHILD06_DUAL_ATTESTATION_SCAN_REQUIRED' USING ERRCODE='42501';END IF;
- SELECT * INTO pol FROM tto.cooperative_notice_attestation_policies
+ SELECT * INTO pol FROM tto.cooperative_notice_attestation_policies p
     WHERE tenant_id=tid AND now() BETWEEN valid_from AND valid_until
  AND NOT EXISTS(SELECT 1 FROM tto.cooperative_notice_policy_revocations rv
- WHERE rv.policy_id=policy_id AND rv.tenant_id=tid);
+ WHERE rv.policy_id=p.policy_id AND rv.tenant_id=tid);
  IF NOT FOUND OR pol.bootstrap_digest=src.plaintext_sha256
  THEN RAISE EXCEPTION 'CHILD06_DUAL_ATTESTATION_INDEPENDENT_BOOTSTRAP_REQUIRED' USING ERRCODE='42501';END IF;
  SELECT t.* INTO trusted FROM tto.cooperative_notice_trusted_signatories t
