@@ -77,6 +77,8 @@ async function fixture(){
   const apiEnv={DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"31997",
    NODE_ENV:"test",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",
    TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED:process.env.TTO_PH12_LEGAL_E2E==="1"?"true":"false",
+   TTO_CHILD06_GOVERNANCE_NOTICE_INTAKE_ENABLED:"true",
+   TTO_CHILD06_GOVERNANCE_HISTORY_ENABLED:"true",
    TTO_PH12_MOCK_ISSUER_LAB:process.env.TTO_PH12_LEGAL_E2E==="1"?"1":"0",
    TTO_LOOPBACK_E2E:"1",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa"};
  labApiEnv=apiEnv;
@@ -610,6 +612,111 @@ async function main(){
    ok(fixedStatus.rows[0].candidate_state==="PENDING_ISSUER_AUTHENTICATION",
      "PH12 immutable candidate cannot be verified with DB status edit");
    console.log("PH12_OFFICIAL_ISSUER_CANDIDATE_REAL_NEST_PG17_HOLD_PASS");
+
+   // CHILD-06: REAL company identifier and names from user-supplied published
+   // notice text, but NO personal national IDs and NO claim of issuer validation.
+   // Tenant A and all authentication identities are isolated CI fixtures.
+   const legalPath="/v1/tenants/"+A+"/child06/legal-notices";
+   const boardPeople=[
+    ["عباس قنبری طرقدری","BOARD_CHAIR"],
+    ["سید جواد شاکری","BOARD_VICE_CHAIR"],
+    ["مجتبی گلپری","BOARD_SECRETARY"],
+    ["ثورج سلطانی","BOARD_MEMBER"],
+    ["مرتضی افخمی","BOARD_MEMBER"],
+    ["محمد معمرزاده طرقبه","BOARD_MEMBER"],
+    ["مرتضی کابلیان شاندیز","BOARD_MEMBER"],
+    ["مرتضی کابلیان شاندیز","CEO"]
+   ];
+   const dated="1404/08/06",until="1406/12/20";
+   const board=boardPeople.map(([personName,office])=>({
+    personName,office,eventType:"APPOINTED",eventOn:dated,termEnd:until
+   }));
+   board.push({personName:"مجتبی گلپری",office:"CEO",
+    eventType:"RESIGNED",eventOn:dated,termEnd:dated});
+   const signing=[
+    {authorityKind:"BINDING_FINANCIAL",
+     requiredSigner:"مرتضی کابلیان شاندیز",
+     alternateSigners:["عباس قنبری طرقدری","سید جواد شاکری"],
+     requiresSeal:true,effectiveFrom:dated,statedEnd:until,
+     description:"اسناد تعهدآور بانکی با امضای ثابت مدیرعامل و یکی از رئیس یا نایب‌رئیس هیئت‌مدیره همراه مهر تعاونی"},
+    {authorityKind:"ORDINARY_LETTERS",
+     requiredSigner:"مرتضی کابلیان شاندیز",alternateSigners:[],
+     requiresSeal:true,effectiveFrom:dated,statedEnd:until,
+     description:"تمامی اوراق و نامه‌های عادی با امضای مدیرعامل و مهر شرکت مطابق متن آگهی اظهارشده"}
+   ];
+   const torghabeh={
+    requestKey:randomUUID(),cooperativeLegalNationalId:"14007823781",
+    registrationNumber:"65549",sourceType:"COMPANY_REGISTRY",
+    noticeKind:"BOARD_CHANGE",sourceNoticeNumber:null,gazetteIssue:null,
+    publishedOn:null,resolutionOn:dated,authorityLetter:"1293",
+    authorityLetterOn:"1404/11/05",sourceUrl:null,
+    summary:"طبق متن آگهی ارائه‌شده، مدیرعامل جدید برای باقی‌مانده دوره هیئت‌مدیره انتخاب گردیده و ترکیب هیئت‌مدیره و امضاکنندگان مجاز اعلام شده‌اند. شماره و تصویر اصل آگهی هنوز مستقل تصدیق نشده است.",
+    board,signing
+   };
+   await status(await post(legalPath,"",torghabeh),401,
+     "Child06 archive requires bearer session");
+   await status(await post(legalPath,tokenMap.get(USER),torghabeh),403,
+     "Child06 shareholder cannot alter legal archive");
+   await status(await post(legalPath,tokenMap.get(MANAGER),
+     {...torghabeh,summary:torghabeh.summary+" کد ملی 0932358977"}),400,
+     "Child06 public archive rejects individual national ID");
+   const notice=await status(await post(legalPath,tokenMap.get(MANAGER),torghabeh),
+     201,"Child06 manager appends source-declared Torghabeh-Shandiz notice");
+   ok(notice.state==="USER_SUPPLIED_SOURCE_NOT_AUTHENTICATED"&&
+      notice.officialSourceAuthenticated===false&&notice.tariffActivated===false,
+      "Child06 archived real company claim cannot become legal authority");
+   const replay=await status(await post(legalPath,tokenMap.get(MANAGER),torghabeh),
+     201,"Child06 replay is idempotent");
+   ok(replay.noticeId===notice.noticeId&&replay.replayed===true,
+      "Child06 notice replay uses same immutable ID");
+   await status(await post(legalPath,tokenMap.get(MANAGER),
+     {...torghabeh,summary:torghabeh.summary+" تغییر غیرمجاز"}),409,
+     "Child06 archive rejects conflicting same-key replay");
+   const shadowNotice={...torghabeh,requestKey:randomUUID(),sourceType:"OFFICIAL_GAZETTE",
+     sourceNoticeNumber:"CI-SYNTHETIC-GAZETTE-002",gazetteIssue:"CI-TEST",
+     noticeKind:"OTHER",resolutionOn:"1404/09/01",
+     summary:"آگهی کاملاً ساختگی فقط برای آزمون چندمنبعی و حفظ سوابق بدون بازنویسی آگهی اصلی. هیچ ادعای انتشار واقعی در روزنامه رسمی وجود ندارد.",
+     board:[],signing:[]};
+   const n2=await status(await post(legalPath,tokenMap.get(MANAGER),shadowNotice),
+     201,"Child06 additional fictional Gazette entry is appended");
+   ok(n2.noticeId!==notice.noticeId,
+     "Child06 additional notice coexists without modifying the first");
+   const memberHistory=await status(await get(
+     "/v1/tenants/"+A+"/child06/governance-history",tokenMap.get(USER)),
+     200,"Child06 shareholder reads full notice and board chronology");
+   ok(memberHistory.tenantId===A&&memberHistory.publishedVerified===false&&
+     memberHistory.confersSigningPower===false&&memberHistory.confersVotingRights===false&&
+     memberHistory.notices.length===2&&memberHistory.boardHistory.length===9&&
+     memberHistory.signingHistory.length===2,
+     "Child06 history returns both sources, board events and two signing rules");
+   ok(memberHistory.boardHistory.some(x=>x.personName==="مجتبی گلپری"&&
+       x.office==="CEO"&&x.eventType==="RESIGNED")&&
+      memberHistory.boardHistory.some(x=>x.personName==="مرتضی کابلیان شاندیز"&&
+       x.office==="CEO"&&x.termEnd==="1406/12/20"),
+      "Child06 preserves resignation and current CEO appointment separately");
+   ok(!JSON.stringify(memberHistory).includes("0932358977"),
+      "Child06 response never discloses personal national identifiers");
+   const governanceBff=sh.origin+"/api/tenants/"+A+"/governance-history";
+   await status(await fetch(governanceBff),401,
+     "Shareholder BFF denies anonymous governance history");
+   const bff=await status(await fetch(governanceBff,{
+    headers:{Cookie:"tto_session="+tokenMap.get(USER)},cache:"no-store"}),
+     200,"Shareholder Next BFF serves redacted historical records under session");
+   ok(bff.available===true&&bff.verified===false&&bff.notices.length===2&&
+      bff.boardHistory.length===9&&bff.signingHistory.length===2,
+      "Shareholder BFF only exposes archival claims, not legal verification");
+   await status(await get("/v1/tenants/"+B+"/child06/governance-history",
+      tokenMap.get(USER)),403,"Child06 tenant B cannot read tenant A claims");
+   await assert.rejects(()=>db.query(
+     "DELETE FROM tto.cooperative_legal_notice_archive WHERE notice_id=$1",
+     [notice.noticeId]));checks++;
+   const immutable=(await db.query(
+     "SELECT provenance_status FROM tto.cooperative_legal_notice_archive WHERE notice_id=$1",
+     [notice.noticeId])).rows[0];
+   ok(immutable.provenance_status==="USER_SUPPLIED_SOURCE_NOT_AUTHENTICATED",
+     "Child06 even a CI admin cannot silently promote source by editing immutable notice");
+   console.log("CHILD06_TORGHABEH_REAL_NAMED_SOURCE_DECLARED_HISTORY_NEST_PG17_BFF_PASS");
+
 
    // PH12: Real Nest HTTP -> signed loopback issuer -> PostgreSQL trust
    // checkpoint, two independent Nest processes, no legal/ACTIVE promotion.
