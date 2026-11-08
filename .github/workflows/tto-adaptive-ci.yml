@@ -496,6 +496,8 @@ jobs:
               echo "PH12_ADAPTIVE_REQUIRED_TARIFF_FUNCTIONS_PRESENT"
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-synthetic-official-authority-lab.sql
               echo "PH12_MOCK_AUTHORITY_DISPOSABLE_PG17_PASS"
+              TTO_PH12_MOCK_ISSUER_LAB=1 node --test scripts/ci/ph12-mock-official-issuer.test.cjs
+              echo "PH12_SIGNED_MOCK_HTTP_ED25519_RECOVERY_TESTS_PASS"
             fi
           fi
       - name: PCS-010 real session/manager tenant role and PostgreSQL fictional approval audit
