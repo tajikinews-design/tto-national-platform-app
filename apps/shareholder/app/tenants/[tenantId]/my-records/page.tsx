@@ -48,6 +48,15 @@ export default function MyVerifiedRecords(){
     <p>نسخه دفتر سهام: {holding.record.ledgerVersion}</p><p>زمان مرجع دفتر سهام: {holding.record.ledgerAsOf}</p>
    </div>}
   </section>
+  <section aria-label="آرشیو تاریخچه قانونی تعاونی" style={{marginTop:22,padding:15,
+   border:"1px solid #dbe6ee",borderRadius:12}}>
+   <h2>آگهی‌های رسمی و سوابق هیئت‌مدیره</h2>
+   <p>متن آگهی‌ها، تغییر مدیرعامل، ترکیب قبلی هیئت‌مدیره و شرایط اعلام‌شده حق امضا
+    به‌ترتیب زمانی و همراه با وضعیت بررسی منبع نمایش داده می‌شود.</p>
+   <a href={"/tenants/"+encodeURIComponent(tenantId)+"/governance-history"}>
+    مشاهده تاریخچه هیئت‌مدیره و آگهی‌های تعاونی ←
+   </a>
+  </section>
   <button type="button" disabled={busy} onClick={()=>void load()}>بررسی مجدد اطلاعات</button>
   <p>این صفحه امکان خرید، فروش، انتقال یا تغییر تعداد سهام ندارد.</p>
  </main>;
