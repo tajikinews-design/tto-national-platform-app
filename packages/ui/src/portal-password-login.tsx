@@ -1,10 +1,12 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
+import {OtpLogin} from "./otp-login";
 type Surface="cooperative"|"shareholder";
 export function PortalPasswordLogin({surface,workspaceSlug}:{surface:Surface;workspaceSlug?:string}){
  const [username,setUsername]=useState(""),[password,setPassword]=useState("");
  const [phase,setPhase]=useState<"checking"|"login"|"ready"|"error">("login");
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
+ const [method,setMethod]=useState<"password"|"otp">("password");
  const label=surface==="cooperative"?"مدیر تعاونی":"سهامدار";
  useEffect(()=>{
   let alive=true;
@@ -38,7 +40,12 @@ export function PortalPasswordLogin({surface,workspaceSlug}:{surface:Surface;wor
    <h1>ورود {label}</h1>
    <p>ورود مستقل با نام کاربری و رمز عبور؛ حساب باید قبلاً به هویت حقیقی و محدوده مجاز همین تعاونی متصل شده باشد.</p>
    {workspaceSlug?<div className="tto-login-scope">تعاونی انتخاب‌شده: <b dir="ltr">{workspaceSlug}</b></div>:null}
-   {phase==="checking"?<p role="status">در حال بررسی نشست…</p>:
+   <div style={{display:"flex",gap:10,margin:"14px 0"}} role="group" aria-label="روش ورود">
+     <button type="button" aria-pressed={method==="password"} onClick={()=>setMethod("password")}>نام کاربری و رمز عبور</button>
+     <button type="button" aria-pressed={method==="otp"} onClick={()=>setMethod("otp")}>رمز یک‌بارمصرف پیامکی</button>
+   </div>
+   {method==="otp"?<OtpLogin enabled={true} surface={surface}/>:
+   phase==="checking"?<p role="status">در حال بررسی نشست…</p>:
     phase==="ready"?<div className="tto-login-scope"><p>نشست شما معتبر است.</p><a href={workspaceSlug?"/c/"+workspaceSlug:"/"}>ورود به داشبورد ←</a></div>:
     <form onSubmit={submit} autoComplete="on">
       <label htmlFor="portal-user">نام کاربری {label}</label>
