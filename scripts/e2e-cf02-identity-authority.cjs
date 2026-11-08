@@ -1,7 +1,7 @@
 "use strict";
 const assert=require("node:assert/strict");
 const {spawn}=require("node:child_process");
-const {randomUUID,randomBytes,createHash,createDecipheriv}=require("node:crypto");
+const {randomUUID,randomBytes,createHash,createDecipheriv,scryptSync}=require("node:crypto");
 const {resolve}=require("node:path");
 const {tmpdir}=require("node:os");
 const {mockClamd}=require("./ci/child06-mock-clamd.cjs");
@@ -89,6 +89,8 @@ async function fixture(){
    TTO_CHILD06_PDF_SCANNER_ENABLED:"true",
    TTO_COOP_CLAMD_SOCKET:resolve(tmpdir(),"tto-child06-ci-clamd-"+process.pid+".sock"),
    TTO_PH12_MOCK_ISSUER_LAB:process.env.TTO_PH12_LEGAL_E2E==="1"?"1":"0",
+   TTO_PORTAL_PASSWORD_LOGIN_ENABLED:"true",TTO_SECURE_REAL_DATA_STAGING_ENABLED:"true",
+   TTO_PORTAL_PASSWORD_ATTEMPT_SECRET:"CI-ONLY-LOCAL-DISPOSABLE-PG-NO-PROD-SECRET-12345",
    TTO_LOOPBACK_E2E:"1",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa"};
  labApiEnv=apiEnv;
  await launch("Nest",["dist/main.js"],resolve(ROOT,"services/api"),apiEnv,API+"/ready");
@@ -112,6 +114,72 @@ async function main(){
  await fixture();
  const [sh,cm,na]=await Promise.all([
   portal("shareholder",32721),portal("cooperative-management",32722),portal("national-admin",32723)]);
+ // New P0 role password workflow: REAL scrypt, isolated synthetic PG17 identities;
+ // NEVER a real company's name, person, payment or share record.
+ const syntheticPassword="CI-Synthetic-Strong-Only-2026#";
+ const syntheticHash=(seed)=>{
+  const salt=Buffer.alloc(16,seed);
+  const hash=scryptSync(syntheticPassword,salt,64,{N:16384,r:8,p:1,maxmem:64*1024*1024});
+  return "scrypt$v1$"+salt.toString("hex")+"$"+hash.toString("hex");
+ };
+ for(const [surface,username,user,salt] of [
+  ["cooperative","ci-manager",MANAGER,0x51],
+  ["shareholder","ci-member",USER,0x52]]){
+  await db.query("INSERT INTO tto.portal_password_credentials("+
+     "surface,username,user_id,tenant_id,password_scrypt,separately_verified_identity_reference,"+
+     "independently_provisioned_by,must_rotate) VALUES($1,$2,$3,$4,$5,$6,$7,false)",
+     [surface,username,user,A,syntheticHash(salt),
+      "CI-INDEPENDENT-IDENTITY-REVIEW-SYNTHETIC-ONLY",APPROVER]);
+ }
+ const pwApi="/v1/portal/password/login";
+ const loginBody={surface:"cooperative",username:"ci-manager",
+  password:syntheticPassword,workspaceSlug:"ci-legal-a"};
+ const managerLogin=await status(await post(pwApi,undefined,loginBody),200,
+    "independent synthetic manager password session");
+ ok(managerLogin.authenticated===true&&managerLogin.surface==="cooperative"&&
+    managerLogin.workspaceSlug==="ci-legal-a"&&managerLogin.tenantId===A&&
+    managerLogin.legalPowerGranted===false&&managerLogin.shareTransferEnabled===false&&
+    typeof managerLogin.accessToken==="string","manager login binds one verified tenant, not legal authority");
+ const managerPasswordSession=await status(await get("/v1/portal/password/session?surface=cooperative",
+   managerLogin.accessToken),200,"manager password session provenance");
+ ok(managerPasswordSession.tenantId===A&&managerPasswordSession.workspaceSlug==="ci-legal-a",
+    "manager session cannot change cooperative URL scope");
+ await status(await get("/v1/portal/password/session?surface=shareholder",
+    managerLogin.accessToken),401,"manager token denied on shareholder password portal");
+ await status(await post(pwApi,undefined,{...loginBody,workspaceSlug:"ci-legal-b"}),403,
+   "manager correct password cannot log in to another cooperative URL");
+ await status(await post(pwApi,undefined,{...loginBody,password:"CI-incorrect"}),401,
+   "wrong password denied despite valid role");
+ await status(await post(pwApi,undefined,{...loginBody,surface:"shareholder"}),401,
+   "manager username cannot be recycled as shareholder role");
+ const memberLogin=await status(await post(pwApi,undefined,
+  {surface:"shareholder",username:"ci-member",password:syntheticPassword}),200,
+   "shareholder separate verified password login");
+ ok(memberLogin.tenantId===A&&memberLogin.surface==="shareholder"&&
+    memberLogin.legalPowerGranted===false,"shareholder portal identity is separate from CEO");
+ await status(await get("/v1/portal/password/session?surface=cooperative",
+    memberLogin.accessToken),401,"shareholder token denied on manager portal");
+ const managerBff=await fetch(cm.origin+"/api/auth/password/login",{
+  method:"POST",headers:{"Content-Type":"application/json",Origin:cm.origin},
+  body:JSON.stringify(loginBody),cache:"no-store"});
+ const managerBffPayload=await status(managerBff,200,"manager Next BFF password sign in");
+ ok(managerBffPayload.tenantId===A&&managerBffPayload.workspaceSlug==="ci-legal-a"&&
+    !("accessToken" in managerBffPayload),"manager Next BFF never leaks bearer in JSON");
+ const bffCookie=(managerBff.headers.get("set-cookie")??"").split(";")[0];
+ ok(/^tto_session=[A-Za-z0-9_-]{32,256}$/.test(bffCookie),
+   "session cookie is signed-in HTTP-only transport, no bearer in body");
+ const managerCheck=await fetch(cm.origin+"/api/auth/password/session",{
+  headers:{Cookie:bffCookie},cache:"no-store"});
+ const managerCheckBody=await status(managerCheck,200,"manager same-origin password session check");
+ ok(managerCheckBody.tenantId===A&&managerCheckBody.authenticated===true,
+   "manager browser session introspects server-side role and slug");
+ await status(await fetch(sh.origin+"/api/auth/password/session",{headers:{Cookie:bffCookie}}),
+   200,"shareholder cookie transport remains nonthrowing");
+ // Same foreign manager token MUST NOT be reported as shareholder-authenticated.
+ const foreignProof=await fetch(sh.origin+"/api/auth/password/session",{headers:{Cookie:bffCookie}});
+ const foreignData=await foreignProof.json();
+ ok(foreignData.authenticated!==true,"one portal's manager password cannot authenticate shareholder");
+ console.log("TTO_3PORTAL_PASSWORD_POSITIVE_ROLE_TENANT_E2E_PASS");
  const unauth=await fetch(cm.origin+"/api/me/tenant-options",{headers:{Authorization:"Bearer "+tokenMap.get(MANAGER)}});
  await status(unauth,401,"forged client bearer cannot discover");
  // Prior to independent identity approval, even a projected active relationship is not verified.
