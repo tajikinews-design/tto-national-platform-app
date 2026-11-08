@@ -6,9 +6,9 @@ const profiles:Record<Surface,Profile>={
  national:{hero:"مرکز مدیریت ملی تعاونی‌های توسعه و عمران",intro:"پایش وضعیت ثبت تعاونی‌ها، کنترل مدارک و شاخص‌های معتبر شبکه",
   kpis:["تعاونی‌های دارای اعتبار","پرونده‌های در انتظار","بررسی‌های حقوقی","سلامت سامانه"],
   alerts:["آگهی‌های نیازمند بررسی مستقل","پرونده‌های نیازمند تکمیل مدارک","کنترل تفکیک دسترسی به تعاونی‌ها"],
-  actions:["ثبت نشانی اختصاصی تعاونی","تکمیل پرونده تعاونی","پایش وضعیت تأییدهای مستقل"],
+  actions:["فهرست تعاونی‌ها","ایجاد نشانی اختصاصی تعاونی","تکمیل پرونده تعاونی"],
   campaigns:["بررسی پیام‌های قابل انتشار","کنترل اطلاع‌رسانی شبکه"],
-  primaryAction:{label:"ثبت و بررسی تعاونی",href:"/cooperatives/new"},chart:"روند ثبت و بررسی تعاونی‌ها"},
+  primaryAction:{label:"مشاهده فهرست تعاونی‌ها",href:"/cooperatives"},chart:"روند ثبت و بررسی تعاونی‌ها"},
  cooperative:{hero:"مرکز مدیریت تعاونی توسعه و عمران",intro:"مدیریت یکپارچه اعضا، اسناد، خدمات و عملیات تعاونی",
   kpis:["اعضای فعال","سهامداران ثبت‌شده","معاملات در انتظار","سلامت سامانه"],
   alerts:["آگهی‌های نیازمند تأیید مسئولان","پرونده‌های نیازمند تکمیل","اسناد دارای اختلاف یا ابطال"],
@@ -23,7 +23,7 @@ const profiles:Record<Surface,Profile>={
   primaryAction:{label:"مشاهده عضویت و سهام",href:"/modules/nav-02"},chart:"روند ارزش سهام"}
 };
 const actionHrefs:Record<Surface,[string,string,string]>={
- national:["/cooperatives/new","/cooperatives/onboarding","/cooperatives/onboarding"],
+ national:["/cooperatives","/cooperatives/new","/cooperatives/onboarding"],
  cooperative:["/official-records","/share-market/tariffs","/share-market/board-review"],
  shareholder:["/modules/nav-02","/modules/nav-03","/modules/nav-05"]
 };
