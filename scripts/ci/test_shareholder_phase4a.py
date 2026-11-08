@@ -102,7 +102,7 @@ class Phase4A(unittest.TestCase):
         self.assertIn('PortalSessionGate surface="shareholder"',self.module)
         self.assertIn('.sw-closed-section',self.css)
         self.assertIn('@media(max-width:640px)',self.css)
-        self.assertIn('management module bypassed safe OTP shell or leaked private data',self.smoke)
+        self.assertIn('authenticated module leaked data or bypassed session gate',self.smoke)
 
 if __name__=="__main__":
     unittest.main()
