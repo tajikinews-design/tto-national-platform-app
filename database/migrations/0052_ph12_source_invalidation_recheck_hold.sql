@@ -26,7 +26,7 @@ CREATE TRIGGER ph12_board_source_invalidations_immutable
  FOR EACH ROW EXECUTE FUNCTION tto.ph12_tariff_board_no_changes();
 
 CREATE FUNCTION tto.ph12_invalidate_tariff_board_source_check(
- p_check uuid,p_reason text,p_evidence_reference text,p_request_key uuid)
+ p_case uuid,p_check uuid,p_reason text,p_evidence_reference text,p_request_key uuid)
 RETURNS TABLE(invalidation_id uuid,source_state text,replayed boolean)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,tto AS $fn$
 DECLARE tid uuid:=tto.context_tenant_id(); actor uuid:=tto.context_actor_id();
@@ -34,7 +34,7 @@ DECLARE tid uuid:=tto.context_tenant_id(); actor uuid:=tto.context_actor_id();
 BEGIN
  IF tid IS NULL OR actor IS NULL OR NOT tto.has_tenant_role(tid,'LEGAL_REVIEWER')
  THEN RAISE EXCEPTION 'PH12_INVALIDATION_LEGAL_REVIEWER_REQUIRED' USING ERRCODE='42501';END IF;
- IF p_check IS NULL OR p_request_key IS NULL OR
+ IF p_case IS NULL OR p_check IS NULL OR p_request_key IS NULL OR
     p_reason IS NULL OR p_reason NOT IN (
       'SOURCE_WITHDRAWN','SOURCE_UNREACHABLE',
       'SOURCE_SUPERSEDED_REPORTED','SOURCE_REVOCATION_REPORTED') OR
@@ -53,7 +53,7 @@ BEGIN
    ON d.draft_id=c.draft_id AND d.tenant_id=c.tenant_id
  LEFT JOIN tto.ph12_tariff_board_review_events r
    ON r.case_id=c.case_id AND r.tenant_id=c.tenant_id
- WHERE sc.tenant_id=tid AND sc.check_id=p_check;
+ WHERE sc.tenant_id=tid AND sc.case_id=p_case AND sc.check_id=p_check;
  IF NOT FOUND THEN RAISE EXCEPTION 'PH12_INVALIDATION_SOURCE_NOT_FOUND' USING ERRCODE='42501';END IF;
  IF actor=original.checked_by OR actor=original.submitted_by OR
     actor=original.draft_author OR actor=original.document_reviewer OR
@@ -116,7 +116,7 @@ BEGIN
   n,stale,invalidated,rejected,reviewed,false,false,false;
 END $fn$;
 REVOKE ALL ON FUNCTION
- tto.ph12_invalidate_tariff_board_source_check(uuid,text,text,uuid),
+ tto.ph12_invalidate_tariff_board_source_check(uuid,uuid,text,text,uuid),
  tto.ph12_tariff_board_source_recheck(uuid)
  FROM PUBLIC,tto_app;
 GRANT EXECUTE ON FUNCTION
