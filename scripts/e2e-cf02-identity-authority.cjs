@@ -543,6 +543,62 @@ async function main(){
      "PH12 source invalidation never moves the draft toward ACTIVE");
    console.log("PH12_SOURCE_INVALIDATION_RECHECK_REAL_HTTP_POSTGRES17_HOLD_PASS");
 
+   // Official-source issuer candidates are *nominations*, never verified registry truth.
+   const issuerPath="/v1/tenants/"+A+"/ph12/share-market/official-source-issuer-candidates";
+   const issuerBody={
+     requestKey:randomUUID(),sourcePurpose:"LEGAL_ENTITY_IDENTITY",
+     issuerKind:"LEGAL_ENTITY_REGISTRY",issuerLabel:"CI National Legal Entity Registry Candidate",
+     publicReference:"https://ilenc.ssaa.ir/",
+     legalBasisReference:"Cooperative-Law-Article-52-Source-Candidate"
+   };
+   await status(await get(issuerPath,""),401,"PH12 anonymous issuer candidate list denied");
+   await status(await legalPost(issuerPath,"",issuerBody),401,
+     "PH12 anonymous issuer candidate creation denied");
+   await status(await legalPost(issuerPath,tokenMap.get(USER),issuerBody),403,
+     "PH12 shareholder cannot nominate issuer");
+   await status(await get(issuerPath,tokenMap.get(USER)),403,
+     "PH12 shareholder cannot enumerate issuer candidates");
+   const initialCandidates=await status(await get(issuerPath,tokenMap.get(LEGAL)),200,
+     "PH12 legal reviewer sees scoped issuer candidate list");
+   ok(initialCandidates.items.length===0&&initialCandidates.officialIssuerAuthenticated===false,
+     "PH12 no sources authenticated by existence of an empty catalog");
+   const nominated=await status(await legalPost(issuerPath,tokenMap.get(LEGAL),issuerBody),201,
+     "PH12 legal reviewer nominates source owner with no trust promotion");
+   ok(nominated.state==="PENDING_ISSUER_AUTHENTICATION"&&
+      nominated.officialIssuerAuthenticated===false&&nominated.tariffActivated===false,
+     "PH12 issuer nomination is not attestation");
+   const nomineeReplay=await status(await legalPost(issuerPath,tokenMap.get(LEGAL),issuerBody),201,
+     "PH12 issuer idempotent replay");
+   ok(nomineeReplay.candidateId===nominated.candidateId&&nomineeReplay.replayed===true,
+     "PH12 issuer replay reuses previous immutable candidate");
+   await status(await legalPost(issuerPath,tokenMap.get(LEGAL),
+     {...issuerBody,issuerLabel:"Different candidate identity"}),409,
+     "PH12 changed issuer proposal cannot replay same request key");
+   await status(await legalPost(issuerPath,tokenMap.get(LEGAL),
+     {...issuerBody,candidateState:"VERIFIED"}),400,
+     "PH12 client cannot introduce trusted issuer status");
+   const scoped=await status(await get(issuerPath,tokenMap.get(LEGAL)),200,
+     "PH12 candidate readable only to scoped legal reviewer");
+   ok(scoped.items.length===1&&scoped.items[0].candidateId===nominated.candidateId&&
+      scoped.items[0].state==="PENDING_ISSUER_AUTHENTICATION",
+     "PH12 catalog is a pending-only candidate view");
+   const crossList=await status(await get("/v1/tenants/"+B+
+     "/ph12/share-market/official-source-issuer-candidates",tokenMap.get(LEGAL)),200,
+     "PH12 tenant B legal reviewer sees only its own candidates");
+   ok(crossList.items.length===0,
+     "PH12 tenant B cannot enumerate candidate owner for tenant A");
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.ph12_cooperative_source_issuer_candidates SET candidate_state='PENDING_ISSUER_AUTHENTICATION' WHERE candidate_id=$1",
+     [nominated.candidateId]));
+   checks++;
+   const fixedStatus=await db.query(
+     "SELECT candidate_state FROM tto.ph12_cooperative_source_issuer_candidates WHERE candidate_id=$1",
+     [nominated.candidateId]);
+   ok(fixedStatus.rows[0].candidate_state==="PENDING_ISSUER_AUTHENTICATION",
+     "PH12 immutable candidate cannot be verified with DB status edit");
+   console.log("PH12_OFFICIAL_ISSUER_CANDIDATE_REAL_NEST_PG17_HOLD_PASS");
+
+
 
  }
 
