@@ -6,11 +6,13 @@ const {resolve}=require("node:path");
 const {createRequire}=require("node:module");
 const ROOT=resolve(__dirname,"..");
 const {Client}=createRequire(resolve(ROOT,"services/api/package.json"))("pg");
+const {makeMockIssuer,newRecord,signedEnvelope}=require("./ci/ph12-mock-official-issuer.cjs");
+const mockIssuers=[];let labApiEnv,firstMockIssuerUrl;
 const url=process.env.TEST_ADMIN_DATABASE_URL;
 if(!url||process.env.APIIR_TOKEN)throw Error("DISPOSABLE_POSTGRES_ONLY_NO_SMS");
 const db=new Client({connectionString:url});
 const A=randomUUID(),B=randomUUID(),PARTY=randomUUID(),PARTY2=randomUUID();
-const USER=randomUUID(),MANAGER=randomUUID(),NATIONAL=randomUUID(),REVIEWER=randomUUID(),APPROVER=randomUUID();
+const USER=randomUUID(),MANAGER=randomUUID(),NATIONAL=randomUUID(),REVIEWER=randomUUID(),APPROVER=randomUUID(),LEGAL=randomUUID();
 const REQ=randomUUID(),DEC=randomUUID();
 const API="http://127.0.0.1:31997";
 const running=[];let checks=0;
@@ -46,7 +48,7 @@ async function issueSession(user){
 }
 async function fixture(){
  await db.connect();await db.query("ALTER ROLE tto_app LOGIN");
- for(const id of [USER,MANAGER,NATIONAL,REVIEWER,APPROVER])
+ for(const id of [USER,MANAGER,NATIONAL,REVIEWER,APPROVER,LEGAL])
   await db.query("INSERT INTO tto.user_accounts(user_id) VALUES($1)",[id]);
  await db.query("INSERT INTO tto.tenants(tenant_id,slug,display_name,status) VALUES($1,'ci-legal-a','Test Cooperative A','ACTIVE'),($2,'ci-legal-b','Test Cooperative B','ACTIVE')",[A,B]);
  await db.query("INSERT INTO tto.parties(party_id,party_kind,display_label) VALUES($1,'PERSON','CI Person'),($2,'ORGANIZATION','CI Organization')",[PARTY,PARTY2]);
@@ -63,16 +65,30 @@ async function fixture(){
   [NATIONAL,REVIEWER,APPROVER,DEC]);
  await db.query("INSERT INTO tto.identity_review_authorizations(user_id,tenant_id,approved_by,evidence_id,valid_until) VALUES($1,$2,$3,$4,now()+interval '2 hours')",
  [REVIEWER,A,APPROVER,DEC]);
- for(const uid of [USER,MANAGER,NATIONAL,REVIEWER,APPROVER])await issueSession(uid);
- const apiEnv={DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"31997",
-   NODE_ENV:"test",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa"};
+ for(const uid of [USER,MANAGER,NATIONAL,REVIEWER,APPROVER,LEGAL])await issueSession(uid);
+ if(process.env.TTO_PH12_LEGAL_E2E==="1"){
+  process.env.TTO_PH12_MOCK_ISSUER_LAB="1";
+  const issuer=makeMockIssuer();mockIssuers.push(issuer);
+  const url=await issuer.start();firstMockIssuerUrl=url;
+  issuer.setRecord(A,"SYNTHETIC_ENTITY_A",newRecord());
+  await db.query("INSERT INTO tto.ph12_mock_lab_trust(tenant_id,issuer_id,key_id,trust_epoch,issuer_url,public_key_pem) VALUES($1,'PH12_SYNTHETIC_ISSUER_NOT_OFFICIAL',$2,1,$3,$4)",[
+   A,issuer.keyId,url,issuer.publicKey.export({type:"spki",format:"pem"})]);
+ }
+  const apiEnv={DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"31997",
+   NODE_ENV:"test",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",
+   TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED:process.env.TTO_PH12_LEGAL_E2E==="1"?"true":"false",
+   TTO_CHILD06_GOVERNANCE_NOTICE_INTAKE_ENABLED:"true",
+   TTO_CHILD06_GOVERNANCE_HISTORY_ENABLED:"true",
+   TTO_PH12_MOCK_ISSUER_LAB:process.env.TTO_PH12_LEGAL_E2E==="1"?"1":"0",
+   TTO_LOOPBACK_E2E:"1",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa"};
+ labApiEnv=apiEnv;
  await launch("Nest",["dist/main.js"],resolve(ROOT,"services/api"),apiEnv,API+"/ready");
 }
 async function portal(slug,port){
  const cwd=resolve(ROOT,"apps",slug);
  const origin="http://127.0.0.1:"+port;
  await launch(slug,[resolve(cwd,"node_modules/next/dist/bin/next"),"start","-p",String(port)],cwd,
- {NODE_ENV:"test",CI:"true",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",TTO_PH12_PUBLIC_ORIGIN:origin,TTO_LOOPBACK_E2E:"1",TTO_API_BASE_URL:API,PORT:String(port),NEXT_TELEMETRY_DISABLED:"1",APIIR_TOKEN:""},
+ {NODE_ENV:"test",CI:"true",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",TTO_PH12_PUBLIC_ORIGIN:origin,TTO_CHILD06_GOVERNANCE_ARCHIVE_UI:"true",TTO_LOOPBACK_E2E:"1",TTO_API_BASE_URL:API,PORT:String(port),NEXT_TELEMETRY_DISABLED:"1",APIIR_TOKEN:""},
  origin+"/");
  return {origin,slug};
 }
@@ -174,6 +190,25 @@ async function main(){
  if(firstRead.status!==200){
    const diagnostic=await firstRead.json().catch(()=>({code:"NON_JSON"}));
    console.error("PH12_TARIFF_DRAFT_GET_DIAGNOSTIC",firstRead.status,diagnostic.code??"UNKNOWN");
+   // Synthetic lab only: probe the authenticated upstream status to isolate
+   // BFF transport failure from Nest/PostgreSQL rejection; never log tokens or bodies.
+   try{
+     const upstream=await get("/v1/tenants/"+A+"/ph12/share-market/tariff-drafts",tokenMap.get(MANAGER));
+     const detail=await upstream.json().catch(()=>({}));
+     console.error("PH12_TARIFF_DRAFT_UPSTREAM_DIAGNOSTIC",upstream.status,
+       typeof detail?.code==="string"?detail.code:"UNCLASSIFIED");
+     // SQLSTATE only, inside a disposable DB: no PII or DB exception messages.
+     try {
+       await db.query("BEGIN");
+       await db.query("SET LOCAL ROLE tto_app");
+       await db.query("SELECT set_config('tto.actor_id',$1,true),set_config('tto.tenant_id',$2,true)",[MANAGER,A]);
+       await db.query("SELECT * FROM tto.ph12_list_tariff_drafts()");
+       console.error("PH12_TARIFF_DRAFT_SQLSTATE_DIAGNOSTIC","SQL_OK");
+     } catch (sqlError) {
+       console.error("PH12_TARIFF_DRAFT_SQLSTATE_DIAGNOSTIC",
+         /^[0-9A-Z]{5}$/.test(sqlError?.code??"")?sqlError.code:"UNCLASSIFIED");
+     } finally { await db.query("ROLLBACK"); }
+   }catch{console.error("PH12_TARIFF_DRAFT_UPSTREAM_DIAGNOSTIC","NETWORK_ERROR");}
  }
  const initialDrafts=await status(firstRead,200,"read empty durable tariff drafts");
  ok(initialDrafts.items.length===0&&initialDrafts.draftOnly===true,
@@ -316,6 +351,851 @@ async function main(){
   [reviewed.reviewId]),/PH12_BOARD_EVIDENCE_APPEND_ONLY/);
  console.log("PH12_BOARD_DOCUMENT_SOURCE_HASH_ROLE_REVIEW_NO_LEGAL_AUTHORITY_PASS");
 
+ // Only the new PH12 draft branch installs migrations 0049/0050 in adaptive CI.
+ // Use the SAME ephemeral Postgres + real Nest session actors for the new gate.
+ if(process.env.TTO_PH12_LEGAL_E2E==="1"){
+   const legalPath="/v1/tenants/"+A+"/ph12/share-market/tariff-board-cases/"+
+     submit.caseId+"/legal-source-checks";
+   const legalPayload={
+     requestKey:randomUUID(),sourceCategory:"BOARD_ROSTER",
+     sourceReference:"CI-REGISTRY-BOARD-ROSTER-001",
+     sourceVersion:"synthetic-v1",sha256:boardHash.toString("hex"),
+     observedAt:new Date(Date.now()-60000).toISOString(),
+     expiresAt:new Date(Date.now()+3600000).toISOString(),
+     result:"PENDING_OFFICIAL_VERIFICATION"
+   };
+   const legalPost=(path,who,payload)=>post(path,who,payload);
+   await status(await legalPost(legalPath,"",legalPayload),401,
+     "PH12 legal source rejects unauthenticated request");
+   await status(await legalPost(legalPath,tokenMap.get(MANAGER),legalPayload),403,
+     "PH12 manager cannot pose as independent legal source reviewer");
+   await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'DOCUMENT_REVIEWER')",
+     [randomUUID(),MANAGER,A]);
+   await status(await legalPost(legalPath,tokenMap.get(MANAGER),legalPayload),403,
+     "PH12 same actor author and reviewer forbidden even with role");
+   await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'DOCUMENT_REVIEWER')",
+     [randomUUID(),REVIEWER,B]);
+   await status(await legalPost("/v1/tenants/"+B+"/ph12/share-market/tariff-board-cases/"+
+       submit.caseId+"/legal-source-checks",tokenMap.get(REVIEWER),legalPayload),403,
+     "PH12 reviewer in other tenant cannot access foreign case");
+   const legalStored=await status(await legalPost(legalPath,tokenMap.get(REVIEWER),legalPayload),201,
+     "PH12 independent reviewer records pending-only source observation");
+   ok(legalStored.state==="PENDING_OFFICIAL_VERIFICATION"&&
+      legalStored.boardLegallyApproved===false&&legalStored.tariffActivated===false,
+      "PH12 official-source intake never grants signature authority");
+   const legalReplay=await status(await legalPost(legalPath,tokenMap.get(REVIEWER),legalPayload),201,
+     "PH12 identical request idempotent");
+   ok(legalReplay.checkId===legalStored.checkId&&legalReplay.replayed===true,
+     "PH12 same request key reuses original check");
+   await status(await legalPost(legalPath,tokenMap.get(REVIEWER),
+     {...legalPayload,sourceVersion:"synthetic-v2"}),409,
+     "PH12 replay changes rejected");
+   await status(await legalPost(legalPath,tokenMap.get(REVIEWER),
+     {...legalPayload,requestKey:randomUUID(),result:"VERIFIED"}),400,
+     "PH12 API cannot accept verified or active source claim");
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.ph12_tariff_drafts SET status='ACTIVE' WHERE draft_id=$1",[saved.draftId]));
+   checks++;
+   const after=await db.query("SELECT status FROM tto.ph12_tariff_drafts WHERE draft_id=$1",[saved.draftId]);
+   ok(after.rows[0].status==="DRAFT_UNVERIFIED",
+      "PH12 direct DB update cannot activate tariff");
+   console.log("PH12_LEGAL_SOURCE_REAL_NEST_PG17_NEGATIVE_HTTP_PASS_HOLD_ONLY");
+   // Separate governance role, independent actor, and signed-independent finding.
+   // Source records are still PENDING, so the only permitted disposition is HOLD or REJECT.
+   const reviewEndpoint="/v1/tenants/"+A+"/ph12/share-market/tariff-board-cases/"+
+     submit.caseId+"/legal-dispositions";
+   const reviewPayload={
+     requestKey:randomUUID(),documentReviewId:reviewed.reviewId,
+     sourceCheckIds:[legalStored.checkId],decision:"LEGAL_HOLD_SOURCE_UNVERIFIED",
+     findingReference:"CI-LEGAL-HOLD-OFFICIAL-SOURCE-UNVERIFIED-001"
+   };
+   await status(await legalPost(reviewEndpoint,"",reviewPayload),401,
+     "PH12 legal disposition needs an authenticated session");
+   await status(await legalPost(reviewEndpoint,tokenMap.get(REVIEWER),reviewPayload),403,
+     "PH12 document reviewer has no legal reviewer role");
+   await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'LEGAL_REVIEWER')",
+      [randomUUID(),MANAGER,A]);
+   await status(await legalPost(reviewEndpoint,tokenMap.get(MANAGER),reviewPayload),403,
+     "PH12 draft submitter cannot file legal disposition even with LEGAL_REVIEWER role");
+   await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'LEGAL_REVIEWER')",
+      [randomUUID(),REVIEWER,A]);
+   await status(await legalPost(reviewEndpoint,tokenMap.get(REVIEWER),reviewPayload),403,
+     "PH12 document reviewer and source checker cannot self-certify legal disposition");
+   await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'LEGAL_REVIEWER')",
+      [randomUUID(),APPROVER,A]);
+   await status(await legalPost(reviewEndpoint,tokenMap.get(APPROVER),reviewPayload),403,
+     "PH12 claimed board signatory cannot file legal disposition");
+   await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'LEGAL_REVIEWER'),($4,$2,$5,'LEGAL_REVIEWER')",
+      [randomUUID(),LEGAL,A,randomUUID(),B]);
+   await status(await legalPost("/v1/tenants/"+B+"/ph12/share-market/tariff-board-cases/"+
+     submit.caseId+"/legal-dispositions",tokenMap.get(LEGAL),reviewPayload),403,
+     "PH12 independent legal role cannot cross cooperative case");
+   await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),
+     {...reviewPayload,sourceCheckIds:[randomUUID()]}),403,
+     "PH12 source-check IDs must belong to the same case and tenant");
+   await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),
+     {...reviewPayload,sourceCheckIds:[legalStored.checkId,legalStored.checkId]}),403,
+     "PH12 repeated check ID cannot satisfy evidence set");
+   await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),
+     {...reviewPayload,sourceCheckIds:[]}),400,
+     "PH12 legal disposition requires referenced source evidence");
+   await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),
+     {...reviewPayload,decision:"LEGAL_APPROVED"}),400,
+     "PH12 official approval is never accepted from client");
+   const held=await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),reviewPayload),201,
+     "PH12 independent legal reviewer records HOLD tied to source and file review");
+   ok(held.legalDecision==="LEGAL_HOLD_SOURCE_UNVERIFIED"&&
+      held.signerAuthorityAuthenticated===false&&
+      held.boardLegallyApproved===false&&held.tariffActivated===false,
+     "PH12 separate legal disposition never authenticates board signatures");
+   const heldReplay=await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),reviewPayload),201,
+     "PH12 same legal decision request idempotent");
+   ok(heldReplay.dispositionId===held.dispositionId&&heldReplay.replayed===true,
+     "PH12 immutable legal disposition same-key replay");
+   await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),
+     {...reviewPayload,decision:"LEGAL_REJECTED"}),409,
+     "PH12 altered legal decision replay is rejected");
+   await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),
+     {...reviewPayload,requestKey:randomUUID()}),409,
+     "PH12 second decision cannot overwrite immutable disposition");
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.ph12_tariff_board_legal_dispositions SET decision='LEGAL_REJECTED' WHERE disposition_id=$1",
+     [held.dispositionId]));
+   checks++;
+   const finalDraft=await db.query("SELECT status FROM tto.ph12_tariff_drafts WHERE draft_id=$1",[saved.draftId]);
+   ok(finalDraft.rows[0].status==="DRAFT_UNVERIFIED",
+     "PH12 legal hold does not mutate tariff status");
+   console.log("PH12_INDEPENDENT_LEGAL_DISPOSITION_REAL_PG17_HTTP_NEGATIVE_PASS_HOLD_ONLY");
+
+   const recheckEndpoint="/v1/tenants/"+A+"/ph12/share-market/tariff-board-cases/"+
+     submit.caseId+"/source-recheck";
+   const invalidationEndpoint="/v1/tenants/"+A+"/ph12/share-market/tariff-board-cases/"+
+     submit.caseId+"/legal-source-checks/"+legalStored.checkId+"/invalidate";
+   const invalidationPayload={
+     requestKey:randomUUID(),reason:"SOURCE_WITHDRAWN",
+     evidenceReference:"CI-SOURCE-WITHDRAWAL-NOT-OFFICIAL-001"
+   };
+   await status(await get(recheckEndpoint,""),401,
+     "PH12 recheck needs authenticated session");
+
+   const pre=await status(await get(recheckEndpoint,tokenMap.get(LEGAL)),200,
+     "PH12 independent reviewer can compute source state");
+   ok(pre.assessment==="HOLD_OFFICIAL_SOURCE_UNVERIFIED"&&
+      pre.sourceChecks===1&&pre.invalidatedChecks===0&&
+      pre.officialSourceAuthenticated===false&&pre.tariffActivated===false,
+      "PH12 source presence without owner verification always HOLD");
+   const staleInput={
+     ...legalPayload,requestKey:randomUUID(),sourceCategory:"BYLAWS",
+     sourceReference:"CI-OUTDATED-BYLAWS-SOURCE-001",sourceVersion:"stale-fixture-v1",
+     observedAt:new Date(Date.now()-7200000).toISOString(),
+     expiresAt:new Date(Date.now()-3600000).toISOString()
+   };
+   const staleRecord=await status(await legalPost(legalPath,tokenMap.get(REVIEWER),staleInput),201,
+     "PH12 snapshot records expired claimed source without authenticating it");
+   ok(staleRecord.state==="PENDING_OFFICIAL_VERIFICATION",
+     "PH12 stale intake cannot be official verification");
+   const stale=await status(await get(recheckEndpoint,tokenMap.get(LEGAL)),200,
+     "PH12 recheck marks an expired source as HOLD");
+   ok(stale.assessment==="HOLD_SOURCE_EXPIRED"&&stale.staleChecks===1&&
+      stale.officialSourceAuthenticated===false,
+      "PH12 expired evidence cannot be current trusted authority");
+   await status(await legalPost(invalidationEndpoint,"",invalidationPayload),401,
+     "PH12 source invalidation requires session");
+   await status(await legalPost(invalidationEndpoint,tokenMap.get(REVIEWER),invalidationPayload),403,
+     "PH12 source checker cannot invalidate own check even with legal reviewer role");
+   await status(await legalPost(invalidationEndpoint,tokenMap.get(MANAGER),invalidationPayload),403,
+     "PH12 draft author cannot invalidate even with legal reviewer role");
+   await status(await legalPost(invalidationEndpoint,tokenMap.get(APPROVER),invalidationPayload),403,
+     "PH12 claimed signatory cannot invalidate a source");
+   await status(await legalPost(invalidationEndpoint,tokenMap.get(LEGAL),
+     {...invalidationPayload,reason:"SOURCE_VERIFIED"}),400,
+     "PH12 invalidation cannot mint verified authority");
+   await status(await legalPost("/v1/tenants/"+B+
+     "/ph12/share-market/tariff-board-cases/"+submit.caseId+
+     "/legal-source-checks/"+legalStored.checkId+"/invalidate",
+     tokenMap.get(LEGAL),invalidationPayload),403,
+     "PH12 source invalidation refuses cross cooperative request");
+   await status(await legalPost("/v1/tenants/"+A+
+     "/ph12/share-market/tariff-board-cases/"+randomUUID()+
+     "/legal-source-checks/"+legalStored.checkId+"/invalidate",
+     tokenMap.get(LEGAL),invalidationPayload),403,
+     "PH12 invalidation requires matching case identity within same cooperative");
+   const withdrawn=await status(await legalPost(invalidationEndpoint,
+     tokenMap.get(LEGAL),invalidationPayload),201,
+     "PH12 independent legal role records immutable source withdrawal");
+   ok(withdrawn.state==="SOURCE_INVALIDATED"&&withdrawn.tariffActivated===false,
+     "PH12 withdrawal cannot activate tariff");
+   const replayWithdrawal=await status(await legalPost(invalidationEndpoint,
+     tokenMap.get(LEGAL),invalidationPayload),201,
+     "PH12 withdrawal identical replay");
+   ok(replayWithdrawal.invalidationId===withdrawn.invalidationId&&replayWithdrawal.replayed===true,
+     "PH12 same withdrawal request does not duplicate history");
+   await status(await legalPost(invalidationEndpoint,tokenMap.get(LEGAL),
+     {...invalidationPayload,reason:"SOURCE_UNREACHABLE"}),409,
+     "PH12 same key cannot alter withdrawal reason");
+   await status(await legalPost(invalidationEndpoint,tokenMap.get(LEGAL),
+     {...invalidationPayload,requestKey:randomUUID()}),409,
+     "PH12 invalidation cannot be overwritten by another request");
+   const postRecheck=await status(await get(recheckEndpoint,tokenMap.get(LEGAL)),200,
+     "PH12 re-evaluation after revocation report");
+   ok(postRecheck.assessment==="HOLD_SOURCE_INVALIDATED"&&
+      postRecheck.invalidatedChecks===1&&postRecheck.sourceChecks===2&&
+      postRecheck.legalReviewRecorded===true&&
+      postRecheck.legalAuthorityVerified===false&&postRecheck.tariffActivated===false,
+     "PH12 later withdrawal changes current HOLD while preserving legal history");
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.ph12_tariff_board_source_invalidations SET reason='SOURCE_UNREACHABLE' WHERE invalidation_id=$1",
+     [withdrawn.invalidationId]));
+   checks++;
+   const preserved=await db.query(
+      "SELECT decision FROM tto.ph12_tariff_board_legal_dispositions WHERE disposition_id=$1",
+      [held.dispositionId]);
+   ok(preserved.rows[0].decision==="LEGAL_HOLD_SOURCE_UNVERIFIED",
+     "PH12 immutable historical legal disposition preserved after invalidation");
+   const afterWithdrawal=await db.query(
+      "SELECT status FROM tto.ph12_tariff_drafts WHERE draft_id=$1",[saved.draftId]);
+   ok(afterWithdrawal.rows[0].status==="DRAFT_UNVERIFIED",
+     "PH12 source invalidation never moves the draft toward ACTIVE");
+   console.log("PH12_SOURCE_INVALIDATION_RECHECK_REAL_HTTP_POSTGRES17_HOLD_PASS");
+
+   // Official-source issuer candidates are *nominations*, never verified registry truth.
+   const issuerPath="/v1/tenants/"+A+"/ph12/share-market/official-source-issuer-candidates";
+   const issuerBody={
+     requestKey:randomUUID(),sourcePurpose:"LEGAL_ENTITY_IDENTITY",
+     issuerKind:"LEGAL_ENTITY_REGISTRY",issuerLabel:"CI National Legal Entity Registry Candidate",
+     publicReference:"https://ilenc.ssaa.ir/",
+     legalBasisReference:"Cooperative-Law-Article-52-Source-Candidate"
+   };
+   await status(await get(issuerPath,""),401,"PH12 anonymous issuer candidate list denied");
+   await status(await legalPost(issuerPath,"",issuerBody),401,
+     "PH12 anonymous issuer candidate creation denied");
+   await status(await legalPost(issuerPath,tokenMap.get(USER),issuerBody),403,
+     "PH12 shareholder cannot nominate issuer");
+   await status(await get(issuerPath,tokenMap.get(USER)),403,
+     "PH12 shareholder cannot enumerate issuer candidates");
+   const initialCandidates=await status(await get(issuerPath,tokenMap.get(LEGAL)),200,
+     "PH12 legal reviewer sees scoped issuer candidate list");
+   ok(initialCandidates.items.length===0&&initialCandidates.officialIssuerAuthenticated===false,
+     "PH12 no sources authenticated by existence of an empty catalog");
+   const nominated=await status(await legalPost(issuerPath,tokenMap.get(LEGAL),issuerBody),201,
+     "PH12 legal reviewer nominates source owner with no trust promotion");
+   ok(nominated.state==="PENDING_ISSUER_AUTHENTICATION"&&
+      nominated.officialIssuerAuthenticated===false&&nominated.tariffActivated===false,
+     "PH12 issuer nomination is not attestation");
+   const nomineeReplay=await status(await legalPost(issuerPath,tokenMap.get(LEGAL),issuerBody),201,
+     "PH12 issuer idempotent replay");
+   ok(nomineeReplay.candidateId===nominated.candidateId&&nomineeReplay.replayed===true,
+     "PH12 issuer replay reuses previous immutable candidate");
+   await status(await legalPost(issuerPath,tokenMap.get(LEGAL),
+     {...issuerBody,issuerLabel:"Different candidate identity"}),409,
+     "PH12 changed issuer proposal cannot replay same request key");
+   await status(await legalPost(issuerPath,tokenMap.get(LEGAL),
+     {...issuerBody,candidateState:"VERIFIED"}),400,
+     "PH12 client cannot introduce trusted issuer status");
+   const scoped=await status(await get(issuerPath,tokenMap.get(LEGAL)),200,
+     "PH12 candidate readable only to scoped legal reviewer");
+   ok(scoped.items.length===1&&scoped.items[0].candidateId===nominated.candidateId&&
+      scoped.items[0].state==="PENDING_ISSUER_AUTHENTICATION",
+     "PH12 catalog is a pending-only candidate view");
+   const crossList=await status(await get("/v1/tenants/"+B+
+     "/ph12/share-market/official-source-issuer-candidates",tokenMap.get(LEGAL)),200,
+     "PH12 tenant B legal reviewer sees only its own candidates");
+   ok(crossList.items.length===0,
+     "PH12 tenant B cannot enumerate candidate owner for tenant A");
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.ph12_cooperative_source_issuer_candidates SET candidate_state='PENDING_ISSUER_AUTHENTICATION' WHERE candidate_id=$1",
+     [nominated.candidateId]));
+   checks++;
+   const fixedStatus=await db.query(
+     "SELECT candidate_state FROM tto.ph12_cooperative_source_issuer_candidates WHERE candidate_id=$1",
+     [nominated.candidateId]);
+   ok(fixedStatus.rows[0].candidate_state==="PENDING_ISSUER_AUTHENTICATION",
+     "PH12 immutable candidate cannot be verified with DB status edit");
+   console.log("PH12_OFFICIAL_ISSUER_CANDIDATE_REAL_NEST_PG17_HOLD_PASS");
+
+   {
+   // CHILD-06: REAL company identifier and names from user-supplied published
+   // notice text, but NO personal national IDs and NO claim of issuer validation.
+   // Tenant A and all authentication identities are isolated CI fixtures.
+   const legalPath="/v1/tenants/"+A+"/child06/legal-notices";
+   const boardPeople=[
+    ["عباس قنبری طرقدری","BOARD_CHAIR"],
+    ["سید جواد شاکری","BOARD_VICE_CHAIR"],
+    ["مجتبی گلپری","BOARD_SECRETARY"],
+    ["ثورج سلطانی","BOARD_MEMBER"],
+    ["مرتضی افخمی","BOARD_MEMBER"],
+    ["محمد معمرزاده طرقبه","BOARD_MEMBER"],
+    ["مرتضی کابلیان شاندیز","BOARD_MEMBER"],
+    ["مرتضی کابلیان شاندیز","CEO"]
+   ];
+   const dated="1404/08/06",until="1406/12/20";
+   const board=boardPeople.map(([personName,office])=>({
+    personName,office,eventType:"APPOINTED",eventOn:dated,termEnd:until
+   }));
+   board.push({personName:"مجتبی گلپری",office:"CEO",
+    eventType:"RESIGNED",eventOn:dated,termEnd:dated});
+   const signing=[
+    {authorityKind:"BINDING_FINANCIAL",
+     requiredSigner:"مرتضی کابلیان شاندیز",
+     alternateSigners:["عباس قنبری طرقدری","سید جواد شاکری"],
+     requiresSeal:true,effectiveFrom:dated,statedEnd:until,
+     description:"اسناد تعهدآور بانکی با امضای ثابت مدیرعامل و یکی از رئیس یا نایب‌رئیس هیئت‌مدیره همراه مهر تعاونی"},
+    {authorityKind:"ORDINARY_LETTERS",
+     requiredSigner:"مرتضی کابلیان شاندیز",alternateSigners:[],
+     requiresSeal:true,effectiveFrom:dated,statedEnd:until,
+     description:"تمامی اوراق و نامه‌های عادی با امضای مدیرعامل و مهر شرکت مطابق متن آگهی اظهارشده"}
+   ];
+   const torghabeh={
+    requestKey:randomUUID(),cooperativeLegalNationalId:"14007823781",
+    registrationNumber:"65549",sourceType:"COMPANY_REGISTRY",
+    noticeKind:"BOARD_CHANGE",sourceNoticeNumber:null,gazetteIssue:null,
+    publishedOn:null,resolutionOn:dated,authorityLetter:"1293",
+    authorityLetterOn:"1404/11/05",sourceUrl:null,
+    summary:"طبق متن آگهی ارائه‌شده، مدیرعامل جدید برای باقی‌مانده دوره هیئت‌مدیره انتخاب گردیده و ترکیب هیئت‌مدیره و امضاکنندگان مجاز اعلام شده‌اند. شماره و تصویر اصل آگهی هنوز مستقل تصدیق نشده است.",
+    board,signing
+   };
+   await status(await post(legalPath,"",torghabeh),401,
+     "Child06 archive requires bearer session");
+   await status(await post(legalPath,tokenMap.get(USER),torghabeh),403,
+     "Child06 shareholder cannot alter legal archive");
+   await status(await post(legalPath,tokenMap.get(MANAGER),
+     {...torghabeh,summary:torghabeh.summary+" کد ملی 0000000000"}),400,
+     "Child06 public archive rejects individual national ID");
+   await status(await post(legalPath,tokenMap.get(MANAGER),{
+     ...torghabeh,signing:[{...signing[0],alternateSigners:["9".repeat(10)]}]
+   }),400,"Child06 archive rejects unredacted numeric person references in signing alternatives");
+   const notice=await status(await post(legalPath,tokenMap.get(MANAGER),torghabeh),
+     201,"Child06 manager appends source-declared Torghabeh-Shandiz notice");
+   ok(notice.state==="USER_SUPPLIED_SOURCE_NOT_AUTHENTICATED"&&
+      notice.officialSourceAuthenticated===false&&notice.tariffActivated===false,
+      "Child06 archived real company claim cannot become legal authority");
+   const replay=await status(await post(legalPath,tokenMap.get(MANAGER),torghabeh),
+     201,"Child06 replay is idempotent");
+   ok(replay.noticeId===notice.noticeId&&replay.replayed===true,
+      "Child06 notice replay uses same immutable ID");
+   await status(await post(legalPath,tokenMap.get(MANAGER),
+     {...torghabeh,summary:torghabeh.summary+" تغییر غیرمجاز"}),409,
+     "Child06 archive rejects conflicting same-key replay");
+   const shadowNotice={...torghabeh,requestKey:randomUUID(),sourceType:"OFFICIAL_GAZETTE",
+     sourceNoticeNumber:"CI-SYNTHETIC-GAZETTE-002",gazetteIssue:"CI-TEST",
+     noticeKind:"OTHER",resolutionOn:"1404/09/01",
+     summary:"آگهی کاملاً ساختگی فقط برای آزمون چندمنبعی و حفظ سوابق بدون بازنویسی آگهی اصلی. هیچ ادعای انتشار واقعی در روزنامه رسمی وجود ندارد.",
+     board:[],signing:[]};
+   const n2=await status(await post(legalPath,tokenMap.get(MANAGER),shadowNotice),
+     201,"Child06 additional fictional Gazette entry is appended");
+   ok(n2.noticeId!==notice.noticeId,
+     "Child06 additional notice coexists without modifying the first");
+
+
+   const memberHistory=await status(await get(
+     "/v1/tenants/"+A+"/child06/governance-history",tokenMap.get(USER)),
+     200,"Child06 shareholder reads full notice and board chronology");
+   ok(memberHistory.tenantId===A&&memberHistory.publishedVerified===false&&
+     memberHistory.confersSigningPower===false&&memberHistory.confersVotingRights===false&&
+     memberHistory.notices.length===2&&memberHistory.boardHistory.length===9&&
+     memberHistory.signingHistory.length===2,
+     "Child06 history returns both sources, board events and two signing rules");
+   ok(memberHistory.boardHistory.some(x=>x.personName==="مجتبی گلپری"&&
+       x.office==="CEO"&&x.eventType==="RESIGNED")&&
+      memberHistory.boardHistory.some(x=>x.personName==="مرتضی کابلیان شاندیز"&&
+       x.office==="CEO"&&x.termEnd==="1406/12/20"),
+      "Child06 preserves resignation and current CEO appointment separately");
+   ok(!JSON.stringify(memberHistory).includes("0000000000"),
+      "Child06 response never discloses personal national identifiers");
+   const governanceBff=sh.origin+"/api/tenants/"+A+"/governance-history";
+   await status(await fetch(governanceBff),401,
+     "Shareholder BFF denies anonymous governance history");
+   const bff=await status(await fetch(governanceBff,{
+    headers:{Cookie:"tto_session="+tokenMap.get(USER)},cache:"no-store"}),
+     200,"Shareholder Next BFF serves redacted historical records under session");
+   ok(bff.available===true&&bff.verified===false&&bff.notices.length===2&&
+      bff.boardHistory.length===9&&bff.signingHistory.length===2,
+      "Shareholder BFF only exposes archival claims, not legal verification");
+   await status(await get("/v1/tenants/"+B+"/child06/governance-history",
+      tokenMap.get(USER)),403,"Child06 tenant B cannot read tenant A claims");
+   await assert.rejects(()=>db.query(
+     "DELETE FROM tto.cooperative_legal_notice_archive WHERE notice_id=$1",
+     [notice.noticeId]));checks++;
+   const immutable=(await db.query(
+     "SELECT provenance_status FROM tto.cooperative_legal_notice_archive WHERE notice_id=$1",
+     [notice.noticeId])).rows[0];
+   ok(immutable.provenance_status==="USER_SUPPLIED_SOURCE_NOT_AUTHENTICATED",
+     "Child06 even a CI admin cannot silently promote source by editing immutable notice");
+   console.log("CHILD06_TORGHABEH_REAL_NAMED_SOURCE_DECLARED_HISTORY_NEST_PG17_BFF_PASS");
+   // CHILD-06 POINT-IN-TIME: two clocks, publication vs meeting/effect,
+   // append-only correction and revocation, no inferred legal validity.
+   const baseAsOf="/v1/tenants/"+A+"/child06/governance-as-of";
+   const temporal=async(day,known)=>await status(await get(
+      baseAsOf+"?date="+encodeURIComponent(day)+(known?
+       "&knownAt="+encodeURIComponent(known):""),tokenMap.get(USER)),
+      200,"Child06 temporal member as-of "+day);
+   const nowEarlier=new Date().toISOString();
+   const initialAsOf=await temporal("1404/08/06");
+   ok(initialAsOf.certainty==="INCOMPLETE_SOURCE_HOLD"&&
+      initialAsOf.officialSourceAuthenticated===false&&
+      initialAsOf.boardLegallyApproved===false&&initialAsOf.tariffActivated===false,
+      "point-in-time never grants legal authority when original publication missing");
+   ok(initialAsOf.candidateOffices.some(x=>x.office==="CEO"&&
+       x.personName==="مرتضی کابلیان شاندیز")&&
+      initialAsOf.endedOffices.some(x=>x.office==="CEO"&&
+       x.personName==="مجتبی گلپری")&&
+      initialAsOf.signingCandidates.length===2,
+      "as-of resolves both reported CEO appointment and historical resignation");
+   ok(initialAsOf.issues.some(x=>x.startsWith("NOTICE_PUBLICATION_UNKNOWN")),
+      "unknown Gazette publication is explicit, not silently treated as certified");
+   await status(await get(baseAsOf+"?date=1404%2F13%2F11",
+      tokenMap.get(USER)),400,"temporal invalid Jalali month rejected");
+   await status(await get(baseAsOf+"?date=1404%2F08%2F06",
+      tokenMap.get(MANAGER)),200,"manager may audit same tenant timeline");
+   await status(await get("/v1/tenants/"+B+"/child06/governance-as-of?date=1404%2F08%2F06",
+      tokenMap.get(USER)),403,"temporal cross-tenant denied");
+   const correctionNotice={
+      ...torghabeh,requestKey:randomUUID(),sourceType:"OFFICIAL_GAZETTE",
+      sourceNoticeNumber:"CI-CORRECTION-004",gazetteIssue:"CI-GAZETTE-004",
+      publishedOn:"1404/10/11",resolutionOn:"1404/10/10",noticeKind:"CEO_CHANGE",
+      summary:"تصحیح کاملاً ساختگی برای آزمون بازسازی زمان‌مند؛ هیچ سمت حقوقی در شرکت واقعی با این داده تغییر نمی‌کند.",
+      board:[{personName:"شخص ساختگی آزمون",office:"CEO",eventType:"APPOINTED",
+         eventOn:"1404/10/10",termEnd:"1405/12/20"}],
+      signing:[{...signing[1],requiredSigner:"شخص ساختگی آزمون",
+         effectiveFrom:"1404/10/10",statedEnd:"1405/12/20"}]};
+   const corrective=await status(await post(legalPath,tokenMap.get(MANAGER),
+      correctionNotice),201,"separate append-only synthetic Gazette correction recorded");
+   const transitionPath="/v1/tenants/"+A+"/child06/notice-transitions";
+   const correction={
+     requestKey:randomUUID(),targetNoticeId:notice.noticeId,
+     replacementNoticeId:corrective.noticeId,action:"CORRECTED",
+     effectiveOn:"1404/10/10",publishedOn:"1404/10/11",
+     sourceReference:"CI synthetic correction reference only"};
+   await status(await post(transitionPath,tokenMap.get(USER),correction),403,
+      "member cannot claim Gazette corrections");
+   await status(await post(transitionPath,tokenMap.get(MANAGER),{
+      ...correction,replacementNoticeId:n2.noticeId,
+      targetNoticeId:randomUUID()}),403,
+      "source correction cannot target nonexistent notice");
+   const corrected=await status(await post(transitionPath,tokenMap.get(MANAGER),
+      correction),201,"manager reports append-only fictional correction");
+   ok(corrected.state==="USER_SUPPLIED_SOURCE_NOT_AUTHENTICATED"&&
+      corrected.officiallyVerified===false&&corrected.tariffActivated===false,
+      "correction cannot authenticate source or activate tariff");
+   const correctionReplay=await status(await post(transitionPath,
+      tokenMap.get(MANAGER),correction),201,"transition idempotent replay");
+   ok(correctionReplay.replayed===true&&
+      correctionReplay.transitionId===corrected.transitionId,
+      "transition immutable idempotency");
+   await status(await post(transitionPath,tokenMap.get(MANAGER),
+      {...correction,sourceReference:"CI changed details"}),409,
+      "conflicting transition request key denied");
+   const beforePublish=await temporal("1404/10/10");
+   ok(beforePublish.candidateOffices.some(x=>x.personName===
+        "مرتضی کابلیان شاندیز"&&x.office==="CEO")&&
+      !beforePublish.candidateOffices.some(x=>x.personName===
+        "شخص ساختگی آزمون"),
+      "effective correction date alone cannot hide prior until publication date");
+   const afterPublish=await temporal("1404/10/11");
+   ok(!afterPublish.candidateOffices.some(x=>x.personName===
+         "مرتضی کابلیان شاندیز"&&x.office==="CEO")&&
+      afterPublish.candidateOffices.some(x=>x.personName==="شخص ساختگی آزمون"&&
+         x.office==="CEO"),
+      "published correction replaces prior notice without deleting immutable records");
+   const asKnownBefore=await temporal("1404/10/12",nowEarlier);
+   ok(asKnownBefore.candidateOffices.some(x=>x.personName==="مرتضی کابلیان شاندیز"
+      &&x.office==="CEO"),
+      "knowledge cutoff predating correction reconstructs older known view");
+   const revokedTransition={requestKey:randomUUID(),targetNoticeId:corrective.noticeId,
+      replacementNoticeId:null,action:"REVOKED",effectiveOn:"1405/01/01",
+      publishedOn:"1405/01/02",sourceReference:"CI synthetic revocation source"};
+   const revokedReceipt=await status(await post(transitionPath,tokenMap.get(MANAGER),
+      revokedTransition),201,"future effective synthetic Gazette revocation archived");
+   ok(revokedReceipt.state==="USER_SUPPLIED_SOURCE_NOT_AUTHENTICATED",
+      "revoke event is a source claim, not legal adjudication");
+   const revocationPrior=await temporal("1405/01/01");
+   ok(revocationPrior.candidateOffices.some(x=>x.personName==="شخص ساختگی آزمون"),
+      "prior to revocation publication source claim remains applicable");
+   const revocationAfter=await temporal("1405/01/02");
+   ok(!revocationAfter.candidateOffices.some(x=>x.personName==="شخص ساختگی آزمون")&&
+       !revocationAfter.candidateOffices.some(x=>x.personName==="مرتضی کابلیان شاندیز"),
+      "revocation removes corrected notice; old notice not silently resurrected");
+   const independentOther={...torghabeh,requestKey:randomUUID(),
+      sourceType:"OFFICIAL_GAZETTE",sourceNoticeNumber:"CI-SECOND-CONFLICT-005",
+      gazetteIssue:"CI-SECOND",publishedOn:"1404/10/12",
+      resolutionOn:"1404/10/12",noticeKind:"CEO_CHANGE",
+      summary:"منبع ساختگی دارای ادعای معارض درباره مدیرعامل جهت آزمون تشخیص تعارض، بدون ادعای ثبت واقعی.",
+      board:[{personName:"مدیر آزمایشی دوم",office:"CEO",eventType:"APPOINTED",
+        eventOn:"1404/10/12",termEnd:"1405/12/20"}],signing:[]};
+   const conflictNotice=await status(await post(legalPath,tokenMap.get(MANAGER),
+      independentOther),201,"conflicting fictional CEO announcement appended");
+   ok(conflictNotice.noticeId!==corrective.noticeId,"independent notice stored");
+   const conflicted=await temporal("1404/10/13");
+   ok(conflicted.certainty==="CONFLICT_HOLD"&&
+      conflicted.conflicts.includes("MULTIPLE_CLAIMANTS:CEO"),
+      "two valid-by-date CEO claims return conflict instead of selecting latest");
+   await assert.rejects(()=>db.query(
+      "DELETE FROM tto.cooperative_notice_transitions WHERE transition_id=$1",
+      [corrected.transitionId]));checks++;
+   const bffAsOf=sh.origin+"/api/tenants/"+A+"/governance-as-of?date=1404%2F10%2F13";
+   const temporalAnonymous=await fetch(bffAsOf);
+   if(temporalAnonymous.status!==401)
+    console.error("CHILD06_TEMPORAL_BFF_ANON_DIAGNOSTIC",
+      temporalAnonymous.status,await temporalAnonymous.clone().text());
+   await status(temporalAnonymous,401,
+      "shareholder temporal BFF denies anonymous");
+   const bffSnapshot=await status(await fetch(bffAsOf,{
+      headers:{Cookie:"tto_session="+tokenMap.get(USER)},cache:"no-store"}),
+      200,"authenticated shareholder BFF renders date-specific disputed roles");
+   ok(bffSnapshot.available===true&&bffSnapshot.verified===false&&
+      bffSnapshot.certainty==="CONFLICT_HOLD"&&
+      Array.isArray(bffSnapshot.candidateOffices),
+      "BFF returns temporal conflict without inferred legal authority");
+
+   // Multi-hop chain A->B->C, fork/merge/cycle. All are explicitly
+   // fictional, and must never be misrepresented as a real Gazette entry.
+   const newMockNotice=async(number,day)=>await status(await post(legalPath,
+      tokenMap.get(MANAGER),{...torghabeh,requestKey:randomUUID(),
+      sourceType:"OFFICIAL_GAZETTE",sourceNoticeNumber:number,
+      gazetteIssue:"CI-CHAIN-ONLY",publishedOn:day,resolutionOn:day,
+      noticeKind:"OTHER",summary:"زنجیره ساختگی فقط برای آزمون چند اصلاحیه و تشخیص تعارض؛ هیچ اعتبار حقوقی واقعی ندارد.",
+      board:[],signing:[]}),201,"synthetic correction-chain node "+number);
+   const chA=await newMockNotice("CI-CHAIN-A-01","1404/11/10");
+   const chB=await newMockNotice("CI-CHAIN-B-02","1404/11/11");
+   const chC=await newMockNotice("CI-CHAIN-C-03","1404/11/12");
+   const makeChange=(targetNoticeId,replacementNoticeId,effectiveOn)=>
+    ({requestKey:randomUUID(),targetNoticeId,replacementNoticeId,
+      action:"CORRECTED",effectiveOn,publishedOn:effectiveOn,
+      sourceReference:"CI mock chain reference; no real legal effect"});
+   await status(await post(transitionPath,tokenMap.get(MANAGER),
+     makeChange(chA.noticeId,chB.noticeId,"1404/11/11")),201,"chain A to B");
+   const midChain=await temporal("1404/11/11");
+   ok(midChain.consideredNoticeIds.includes(chB.noticeId)&&
+       !midChain.consideredNoticeIds.includes(chA.noticeId)&&
+       !midChain.consideredNoticeIds.includes(chC.noticeId),
+       "known published A->B chain resolves to B without assuming C early");
+   await status(await post(transitionPath,tokenMap.get(MANAGER),
+     makeChange(chB.noticeId,chC.noticeId,"1404/11/12")),201,"chain B to C");
+   const fullChain=await temporal("1404/11/12");
+   ok(fullChain.consideredNoticeIds.includes(chC.noticeId)&&
+       !fullChain.consideredNoticeIds.includes(chA.noticeId)&&
+       !fullChain.consideredNoticeIds.includes(chB.noticeId),
+       "three-link chain selects terminal source only, without latest-only guess");
+   const catalogPath="/v1/tenants/"+A+"/child06/notice-transition-catalog";
+   await status(await get(catalogPath,tokenMap.get(USER)),403,
+      "member cannot browse manager source-transition catalog");
+   const catalog=await status(await get(catalogPath,tokenMap.get(MANAGER)),200,
+      "manager reads bounded notice transition catalog");
+   ok(catalog.sourceAuthenticated===false&&catalog.tariffActivated===false&&
+      catalog.notices.some(x=>x.noticeId===chC.noticeId)&&
+      catalog.transitions.some(x=>x.targetNoticeId===chB.noticeId),
+      "catalog exposes source nodes and transitions without legal promotion");
+   const managerBff=cm.origin+"/api/tenants/"+A+"/notice-transitions";
+   await status(await fetch(managerBff),401,"manager transition BFF denies anonymous");
+   const managerCatalog=await status(await fetch(managerBff,{
+      headers:{Cookie:"tto_session="+tokenMap.get(MANAGER)},cache:"no-store"}),
+      200,"manager Next BFF loads archived sources and transition references");
+   ok(managerCatalog.available===true&&managerCatalog.verified===false&&
+      managerCatalog.notices.some(x=>x.noticeId===chA.noticeId),
+      "manager form source catalog renders only tenant's source declarations");
+   const bffPayload=makeChange(chA.noticeId,chC.noticeId,"1404/11/12");
+   await status(await fetch(managerBff,{method:"POST",
+      headers:{"Content-Type":"application/json","Origin":"http://untrusted.test",
+        "Cookie":"tto_session="+tokenMap.get(MANAGER)},
+      body:JSON.stringify(bffPayload)}),403,"manager BFF denies cross-origin writes");
+   const invalidBffPost=await fetch(managerBff,{method:"POST",
+      headers:{"Content-Type":"application/json","Origin":cm.origin,
+        "Cookie":"tto_session="+tokenMap.get(MANAGER)},
+      body:JSON.stringify({...bffPayload,targetNoticeId:"BAD"})});
+   if(invalidBffPost.status!==400)console.error("CHILD06_MANAGER_BFF_POST_DIAGNOSTIC",
+      invalidBffPost.status,await invalidBffPost.clone().text());
+   await status(invalidBffPost,400,"manager BFF rejects bad source UUID");
+   const forkReceipt=await status(await fetch(managerBff,{method:"POST",
+      headers:{"Content-Type":"application/json","Origin":cm.origin,
+        "Cookie":"tto_session="+tokenMap.get(MANAGER)},
+      body:JSON.stringify(bffPayload)}),201,
+      "manager BFF submits second conflicting correction without legal elevation");
+   ok(forkReceipt.verified===false&&forkReceipt.tariffActivated===false,
+      "manager correction receipt is only source-declared");
+   const forkSnapshot=await temporal("1404/11/12");
+   ok(forkSnapshot.certainty==="CONFLICT_HOLD"&&
+     forkSnapshot.conflicts.includes("CONFLICTING_NOTICE_TRANSITIONS:"+chA.noticeId)&&
+     !forkSnapshot.consideredNoticeIds.includes(chC.noticeId),
+     "fork taints all connected successors rather than selecting one correction");
+   await status(await post(transitionPath,tokenMap.get(MANAGER),
+     makeChange(chC.noticeId,chA.noticeId,"1404/11/12")),201,
+     "synthetic C->A cycle is retained as evidence");
+   const cyclic=await temporal("1404/11/12");
+   ok(cyclic.certainty==="CONFLICT_HOLD"&&
+      cyclic.conflicts.some(x=>x.startsWith("CORRECTION_CYCLE:"))&&
+      !cyclic.consideredNoticeIds.includes(chA.noticeId)&&
+      !cyclic.consideredNoticeIds.includes(chB.noticeId)&&
+      !cyclic.consideredNoticeIds.includes(chC.noticeId),
+      "cycles are detected and related notices are all quarantined");
+   const chD=await newMockNotice("CI-CHAIN-D-04","1404/11/12");
+   await status(await post(transitionPath,tokenMap.get(MANAGER),
+     makeChange(chD.noticeId,chC.noticeId,"1404/11/12")),201,
+     "synthetic correction merge linked to same successor");
+   const merged=await temporal("1404/11/12");
+   ok(merged.conflicts.includes("MULTIPLE_PREDECESSORS:"+chC.noticeId)&&
+      !merged.consideredNoticeIds.includes(chD.noticeId),
+      "two predecessors pointing to one replacement are marked ambiguous");
+
+   // CHILD06 INDEPENDENT CONFLICT REVIEW: source fingerprints + immutable
+   // referenced notice/transition evidence + reviewer isolation, no legal grant.
+   const disputePath="/v1/tenants/"+A+"/child06/governance-conflicts";
+   const conflictSourceCode="CONFLICTING_NOTICE_TRANSITIONS:"+chA.noticeId;
+   const evidence=[{kind:"NOTICE",sourceId:chA.noticeId,
+      reference:"Synthetic archive notice A for repeat-correction conflict",sha256:null},
+     {kind:"NOTICE",sourceId:chC.noticeId,
+      reference:"Synthetic archive notice C for repeat-correction conflict",sha256:null}];
+   const dispute={requestKey:randomUUID(),asOf:"1404/11/12",
+      conflictCode:conflictSourceCode,evidence};
+   await status(await post(disputePath,"",dispute),401,"conflict case session required");
+   await status(await post(disputePath,tokenMap.get(USER),dispute),403,
+      "ordinary member cannot open independent conflict audit");
+   await status(await post(disputePath,tokenMap.get(LEGAL),dispute),403,
+      "legal reviewer cannot open source author case");
+   await status(await post(disputePath,tokenMap.get(MANAGER),
+      {...dispute,conflictCode:"MULTIPLE_CLAIMANTS:FAKE_CEO"}),400,
+      "case must bind to a conflict actually computed by temporal reducer");
+   await status(await post(disputePath,tokenMap.get(MANAGER),
+      {...dispute,evidence:[{...evidence[0],sourceId:randomUUID()}]}),400,
+      "case evidence must reference actual source in this tenant snapshot");
+   const opened=await status(await post(disputePath,tokenMap.get(MANAGER),dispute),
+      201,"manager opens source-bound conflict with two archival notices");
+   ok(opened.caseId&&opened.legalAuthorityVerified===false&&
+      opened.tariffActivated===false&&opened.officialEvidenceAuthenticated===false,
+      "conflict case is source-declared and legally blocked");
+   const replayCase=await status(await post(disputePath,tokenMap.get(MANAGER),dispute),
+      201,"conflict case request-key replay idempotent");
+   ok(replayCase.caseId===opened.caseId&&replayCase.replayed===true,
+      "open case replay returns same immutable case ID");
+   await status(await post(disputePath,tokenMap.get(MANAGER),
+      {...dispute,evidence:[{...evidence[0],reference:"Different reference in replay"}]}),
+      409,"changed evidence with same request-key conflicts");
+   await status(await get(disputePath,tokenMap.get(USER)),403,
+      "member cannot inspect independent reviewer case details");
+   const auditManager=await status(await get(disputePath,tokenMap.get(MANAGER)),
+      200,"manager can read traceable review queue");
+   const auditLegal=await status(await get(disputePath,tokenMap.get(LEGAL)),
+      200,"independent reviewer can inspect evidence before review");
+   ok(auditManager.cases.length===1&&auditLegal.cases.length===1&&
+      auditManager.cases[0].review===null&&
+      auditLegal.cases[0].evidence.length===2&&
+      auditLegal.legalAuthorityVerified===false&&auditLegal.tariffActivated===false,
+      "case retains referenced notices and is initially pending");
+   const reviewPath=disputePath+"/"+opened.caseId+"/review";
+   const citations=auditLegal.cases[0].evidence.map(x=>x.evidenceId);
+   const finding={requestKey:randomUUID(),outcome:"HOLD_OFFICIAL_SOURCE_REQUIRED",
+      evidenceIds:citations,
+      reason:"مطابقت مستقل صادرکننده رسمی آگهی‌ها هنوز اثبات نشده است و نتیجه صرفاً توقف حقوقی آزمایشگاهی است."};
+   await status(await post(reviewPath,tokenMap.get(MANAGER),finding),403,
+      "case author/manager cannot enter independent reviewer disposition");
+   await status(await post(reviewPath,tokenMap.get(LEGAL),
+      {...finding,outcome:"MOCK_APPROVED_FOR_TARIFF"}),400,
+      "positive legal/tariff approval is impossible through reviewer API");
+   await status(await post(reviewPath,tokenMap.get(LEGAL),
+      {...finding,evidenceIds:[randomUUID()]}),400,
+      "independent reviewer cannot cite unbound evidence");
+   const legalReview=await status(await post(reviewPath,tokenMap.get(LEGAL),finding),
+      201,"independent legal reviewer records immutable evidence-citing HOLD");
+   ok(legalReview.independentReviewRecorded===true&&
+      legalReview.legalAuthorityVerified===false&&
+      legalReview.officialEvidenceAuthenticated===false&&
+      legalReview.tariffActivated===false&&legalReview.outcome==="HOLD_OFFICIAL_SOURCE_REQUIRED",
+      "reviewer disposition cannot grant official source authentication");
+   const reviewReplay=await status(await post(reviewPath,tokenMap.get(LEGAL),finding),
+      201,"same reviewer decision idempotent replay");
+   ok(reviewReplay.dispositionId===legalReview.dispositionId&&
+      reviewReplay.replayed===true,"review maintains immutable id");
+   await status(await post(reviewPath,tokenMap.get(LEGAL),
+      {...finding,outcome:"REJECT_SOURCE_CLAIM",requestKey:randomUUID()}),409,
+      "later contradictory reviewer outcome cannot replace fixed HOLD");
+   const completed=await status(await get(disputePath,tokenMap.get(MANAGER)),
+      200,"reviewed conflict audit remains traceable");
+   ok(completed.cases[0].review.dispositionId===legalReview.dispositionId&&
+      completed.cases[0].review.evidenceIds.length===2&&
+      completed.legalAuthorityVerified===false&&completed.tariffActivated===false,
+      "immutable review joins exactly cited evidence, no rights escalation");
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.cooperative_governance_conflict_dispositions SET disposition='REJECT_SOURCE_CLAIM' WHERE disposition_id=$1",
+     [legalReview.dispositionId]));checks++;
+   await assert.rejects(()=>db.query(
+     "DELETE FROM tto.cooperative_governance_conflict_evidence WHERE case_id=$1",
+     [opened.caseId]));checks++;
+   const uiBase=cm.origin+"/api/tenants/"+A+"/governance-conflicts";
+   const unauthConflict=await fetch(uiBase);
+   if(unauthConflict.status!==401)console.error("CHILD06_CONFLICT_BFF_ANON_DIAGNOSTIC",
+      unauthConflict.status,await unauthConflict.clone().text());
+   await status(unauthConflict,401,"manager conflict BFF refuses anonymous audit");
+   const uiAudit=await status(await fetch(uiBase,{headers:{
+      Cookie:"tto_session="+tokenMap.get(MANAGER)},cache:"no-store"}),200,
+      "manager BFF displays traceable source/evidence/review audit");
+   ok(uiAudit.available===true&&uiAudit.verified===false&&
+      uiAudit.cases[0].review.outcome==="HOLD_OFFICIAL_SOURCE_REQUIRED",
+      "BFF cannot promote reviewer finding to official legal validity");
+   await status(await fetch(uiBase,{method:"POST",headers:{
+     "Content-Type":"application/json",Origin:"http://evil.test",
+     Cookie:"tto_session="+tokenMap.get(MANAGER)},body:JSON.stringify({
+     ...dispute,requestKey:randomUUID()})}),403,
+     "cross-origin evidence intake blocked");
+   const otherDispute={...dispute,requestKey:randomUUID(),
+     evidence:[{...evidence[0],reference:"Another independent hypothetical evidence reference"}]};
+   const uiOpen=await status(await fetch(uiBase,{method:"POST",headers:{
+     "Content-Type":"application/json",Origin:cm.origin,
+     Cookie:"tto_session="+tokenMap.get(MANAGER)},body:JSON.stringify(otherDispute)}),
+     201,"manager Next BFF opens second source-declared evidence case");
+   ok(uiOpen.verified===false&&uiOpen.tariffActivated===false,
+      "manager BFF cannot grant tariff activation");
+   const secondCases=await status(await get(disputePath,tokenMap.get(LEGAL)),
+      200,"independent reviewer sees second case");
+   const second=secondCases.cases.find(x=>x.caseId===uiOpen.caseId);
+   ok(second&&second.evidence.length===1,
+      "independent reviewer sees only attached evidence for second case");
+   const reviewUi=cm.origin+"/api/tenants/"+A+"/governance-conflicts/"+
+      uiOpen.caseId+"/review";
+   await status(await fetch(reviewUi,{method:"POST",headers:{
+      "Content-Type":"application/json",Origin:"http://evil.test",
+      Cookie:"tto_session="+tokenMap.get(LEGAL)},
+      body:JSON.stringify(finding)}),403,"cross-origin review BFF blocked");
+   const secondReview=await status(await fetch(reviewUi,{method:"POST",headers:{
+      "Content-Type":"application/json",Origin:cm.origin,
+      Cookie:"tto_session="+tokenMap.get(LEGAL)},
+      body:JSON.stringify({requestKey:randomUUID(),outcome:"HOLD_INSUFFICIENT_EVIDENCE",
+       evidenceIds:[second.evidence[0].evidenceId],
+       reason:"شواهد موجود در پرونده دوم برای تصدیق رسمی سمت‌ها و اختیار امضا کفایت نمی‌کند."})}),
+      201,"independent reviewer BFF records HOLD against second case");
+   ok(secondReview.verified===false&&secondReview.tariffActivated===false,
+      "reviewer BFF provides traceability without legal activation");
+   console.log("CHILD06_INDEPENDENT_CONFLICT_EVIDENCE_REVIEW_NEST_NEXT_PG17_HOLD_PASS");
+
+   console.log("CHILD06_CHAIN_FORK_MERGE_CYCLE_MANAGER_BFF_REAL_NEST_PG17_PASS");
+
+   console.log("CHILD06_GOVERNANCE_BITEMPORAL_CORRECTION_REVOCATION_CONFLICT_REAL_HTTP_PG17_PASS");
+   }
+
+
+   // PH12: Real Nest HTTP -> signed loopback issuer -> PostgreSQL trust
+   // checkpoint, two independent Nest processes, no legal/ACTIVE promotion.
+   const labPath="/v1/tenants/"+A+"/ph12/lab/signed-issuer-recheck";
+   const labSubject={entityId:"SYNTHETIC_ENTITY_A"};
+   const labA=mockIssuers[0];
+   const holder=(value,state)=>{
+    ok(value.state===state&&value.officialSourceAuthenticated===false&&
+       value.boardLegallyApproved===false&&value.tariffActivated===false&&
+       value.syntheticOnly===true,
+       "PH12 mock bridge never becomes a legal or tariff approval: "+state);
+   };
+   await status(await post(labPath,"",labSubject),401,"PH12 mock bridge anonymous denied");
+   await status(await post(labPath,tokenMap.get(USER),labSubject),403,
+    "PH12 mock bridge member denied");
+   await status(await post(labPath,tokenMap.get(MANAGER),labSubject),403,
+    "PH12 mock bridge manager cannot gain legal reviewer ability");
+   await status(await post(labPath,tokenMap.get(LEGAL),{entityId:"not-synthetic"}),400,
+    "PH12 mock bridge only accepts synthetic identifiers");
+   const first=await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
+    "PH12 Nest verifies signed issuer response and persists monotonic synthetic checkpoint");
+   holder(first,"MOCK_ELIGIBLE_IN_LAB_ONLY");
+   const initial=await db.query("SELECT source_version,revoked,trust_epoch FROM tto.ph12_mock_lab_checkpoints WHERE tenant_id=$1 AND entity_id=$2",[A,labSubject.entityId]);
+   ok(initial.rows.length===1&&Number(initial.rows[0].source_version)===1&&
+      initial.rows[0].revoked===false&&Number(initial.rows[0].trust_epoch)===1,
+     "PH12 signed result binds synthetic tenant in actual PG17 checkpoint");
+   const cross=await status(await post(
+      "/v1/tenants/"+B+"/ph12/lab/signed-issuer-recheck",tokenMap.get(LEGAL),labSubject),
+      200,"PH12 different tenant with no lab trust fails closed");
+   holder(cross,"MOCK_HOLD_NO_PINNED_TRUST");
+   labA.setTransform(e=>{e.payload.version=5;return e;});
+   holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
+      "PH12 tampering invalidates real Nest signature check"),"MOCK_HOLD_SIGNATURE_INVALID");
+   labA.setTransform(null);
+   labA.setOffline(true);
+   holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
+      "PH12 outage must not inherit cached approval"),"MOCK_HOLD_ISSUER_UNAVAILABLE");
+   labA.setOffline(false);
+   labA.setRecord(A,labSubject.entityId,newRecord({version:2,recordHash:"2".repeat(64)}));
+   holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
+      "PH12 recovered issuer makes signed v2 monotonic advance"),"MOCK_ELIGIBLE_IN_LAB_ONLY");
+   labA.setRecord(A,labSubject.entityId,newRecord({version:1}));
+   holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
+      "PH12 rollback blocked after recovery"),"MOCK_HOLD_VERSION_ROLLBACK");
+   labA.setRecord(A,labSubject.entityId,newRecord({version:2,recordHash:"2".repeat(64)}));
+   // Independent Nest process uses the same PostgreSQL trust and checkpoint,
+   // not a local in-memory cache. PG row locks serialize concurrent replies.
+   const api2="http://127.0.0.1:31998";
+   await launch("Nest second PG trust consumer",["dist/main.js"],
+      resolve(ROOT,"services/api"),{...labApiEnv,PORT:"31998"},api2+"/ready");
+   const labPost2=()=>fetch(api2+labPath,{
+      method:"POST",headers:{"Content-Type":"application/json",
+        Authorization:"Bearer "+tokenMap.get(LEGAL)},
+      body:JSON.stringify(labSubject),signal:AbortSignal.timeout(12000)});
+   const both=await Promise.all([post(labPath,tokenMap.get(LEGAL),labSubject),labPost2()]);
+   for(const response of both)holder(await status(response,200,
+      "PH12 concurrent separate Nest processes agree on PG trust"),"MOCK_ELIGIBLE_IN_LAB_ONLY");
+   const beforeRotation=await db.query(
+      "SELECT source_version,trust_epoch FROM tto.ph12_mock_lab_checkpoints WHERE tenant_id=$1",
+      [A]);
+   ok(beforeRotation.rows.length===1&&Number(beforeRotation.rows[0].source_version)===2,
+      "PH12 concurrent processes share one monotonic record");
+   const labB=makeMockIssuer({keyId:"PH12_TEST_ED25519_KEY_02"});
+   mockIssuers.push(labB);
+   const issuer2Url=await labB.start();
+   labB.setRecord(A,labSubject.entityId,newRecord({version:3,recordHash:"3".repeat(64)}));
+   // CI administrator supplies a new synthetic key; DB trigger enforces
+   // monotonic epochs, rejects old-key resurrection and appends immutable audit.
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.ph12_mock_lab_trust SET trust_epoch=0 WHERE tenant_id=$1",[A]));
+   checks++;
+   await db.query("UPDATE tto.ph12_mock_lab_trust SET trust_epoch=2,key_id=$2,issuer_url=$3,public_key_pem=$4,modified_at=clock_timestamp() WHERE tenant_id=$1",[
+     A,labB.keyId,issuer2Url,labB.publicKey.export({type:"spki",format:"pem"})]);
+   holder(await status(await labPost2(),200,
+      "PH12 new issuer key and epoch accepted on independent Nest instance"),
+      "MOCK_ELIGIBLE_IN_LAB_ONLY");
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.ph12_mock_lab_trust SET trust_epoch=1 WHERE tenant_id=$1",[A]));
+   checks++;
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.ph12_mock_lab_trust SET trust_epoch=3,key_id=$2,issuer_url=$3,public_key_pem=$4 WHERE tenant_id=$1",[
+     A,labA.keyId,firstMockIssuerUrl,labA.publicKey.export({type:"spki",format:"pem"})]));
+   checks++;
+   labB.setTransform(e=>signedEnvelope(e.payload,labA.privateKey,labA.keyId));
+   holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
+      "PH12 issuer response signed by retired key rejected"),"MOCK_HOLD_BAD_ENVELOPE_OR_KEY");
+   labB.setTransform(null);
+   const audit=await db.query(
+      "SELECT trust_epoch,key_id,transition FROM tto.ph12_mock_lab_trust_history WHERE tenant_id=$1 ORDER BY trust_epoch",[A]);
+   ok(audit.rows.length===2&&Number(audit.rows[0].trust_epoch)===1&&
+      Number(audit.rows[1].trust_epoch)===2&&audit.rows[0].transition==="BOOTSTRAP"&&
+      audit.rows[1].transition==="ROTATION"&&audit.rows[1].key_id===labB.keyId,
+      "PH12 trust transition history is monotonic and contains both rotation witnesses");
+   await assert.rejects(()=>db.query(
+     "DELETE FROM tto.ph12_mock_lab_trust_history WHERE tenant_id=$1",[A]));
+   checks++;
+   labB.setRecord(A,labSubject.entityId,newRecord({
+     version:4,recordHash:"4".repeat(64),status:"REVOKED"}));
+   holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
+      "PH12 revocation persisted through first Nest instance"),"MOCK_HOLD_REVOKED");
+   labB.setRecord(A,labSubject.entityId,newRecord({
+      version:5,recordHash:"5".repeat(64),status:"CURRENT"}));
+   holder(await status(await labPost2(),200,
+      "PH12 second Nest sees durable revocation even after signed CURRENT"),
+      "MOCK_HOLD_REVOKED");
+   // Restarting a second Nest instance does not clear the shared revocation.
+   const secondProc=running.find(proc=>proc.exitCode===null&&proc.pid!==undefined&&
+      proc!==running[0]&&proc===running[running.length-1]);
+   if(secondProc){secondProc.kill("SIGTERM");await new Promise(r=>setTimeout(r,250));}
+   await launch("Nest restarted PG trust consumer",["dist/main.js"],
+       resolve(ROOT,"services/api"),{...labApiEnv,PORT:"31998"},api2+"/ready");
+   holder(await status(await labPost2(),200,
+      "PH12 fresh Nest process recovers persisted revoked state"),"MOCK_HOLD_REVOKED");
+      const finalLab=await db.query("SELECT source_version,revoked,trust_epoch FROM tto.ph12_mock_lab_checkpoints WHERE tenant_id=$1",[A]);
+   ok(finalLab.rows.length===1&&finalLab.rows[0].revoked===true&&
+      Number(finalLab.rows[0].trust_epoch)===2,
+      "PH12 revocation remains sticky in PostgreSQL after mock key rotation");
+   const unchangedLab=await db.query("SELECT status FROM tto.ph12_tariff_drafts WHERE draft_id=$1",[saved.draftId]);
+   ok(unchangedLab.rows[0].status==="DRAFT_UNVERIFIED",
+      "PH12 signed mock API cannot modify real tariff state");
+   console.log("PH12_NEST_PG17_TWO_INSTANCE_SIGNED_ISSUER_ROTATION_REVOCATION_PASS");
+
+
+
+
+ }
 
  await db.query("UPDATE tto.legal_authorities SET revoked_at=now() WHERE authority_id=$1",[auth]);
  await status(await fetch(draftBff,{headers:managerCookie}),403,
@@ -568,4 +1448,4 @@ async function main(){
  console.log("TTO_CF02_NO_REAL_IDENTITIES_NO_SHARE_LEDGER_NO_HOSTED_MIGRATION");
 }
 main().catch(e=>{console.error("TTO_CF02_E2E_FAIL",e?.stack??String(e));process.exitCode=1})
-.finally(async()=>{for(const proc of running)if(proc.exitCode===null)proc.kill("SIGTERM");await db.end().catch(()=>{});});
+.finally(async()=>{for(const proc of running)if(proc.exitCode===null)proc.kill("SIGTERM");for(const issuer of mockIssuers)await issuer.stop().catch(()=>{});await db.end().catch(()=>{});});

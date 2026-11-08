@@ -130,7 +130,12 @@ export default function OfficialRecordsPage(){
  }
  return <main dir="rtl" style={{fontFamily:"var(--tto-font),sans-serif",
    padding:"clamp(16px,4vw,40px)",maxWidth:1040,margin:"0 auto",color:"#19323a"}}>
-  <nav><a href="/" style={{color:"#166778"}}>بازگشت به پنل مدیریت تعاونی</a></nav>
+  <nav style={{display:"flex",gap:18,flexWrap:"wrap"}}>
+   <a href="/" style={{color:"#166778"}}>بازگشت به پنل مدیریت تعاونی</a>
+   <a href="/legal-notice-archive" style={{color:"#166778",fontWeight:700}}>
+    ثبت آگهی کامل و سوابق چنددوره‌ای هیئت‌مدیره ←
+   </a>
+  </nav>
   <h1 style={{fontSize:"clamp(22px,3vw,32px)",marginTop:24}}>
    ثبت دستی آخرین اطلاعات آگهی‌های رسمی تعاونی
   </h1>

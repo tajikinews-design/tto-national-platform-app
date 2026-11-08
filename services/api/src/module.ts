@@ -1,7 +1,8 @@
-import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req } from "@nestjs/common";
+import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req, Query } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
-import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, createPublicKey, verify as cryptoVerify, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
+import { reconstructGovernanceSnapshot } from "./governance-temporal";
 import { scanQuarantineBytes } from "./clamd-evidence";
 
 @Injectable()
@@ -2055,5 +2056,628 @@ export class Ph12TariffBoardDocumentController {
  }
 }
 
-@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController,Ph12TariffDraftController,Ph12TariffBoardDocumentController],providers:[ApiIrSmsOtpProvider]})
+
+/** PH12 legal source intake: no legal approval and no ACTIVE transition. */
+@Controller("v1/tenants")
+export class Ph12BoardLegalSourceController {
+ constructor(private readonly db:Database){}
+ @Post(":tenantId/ph12/share-market/tariff-board-cases/:caseId/legal-source-checks")
+ @HttpCode(201)
+ async record(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("caseId",new ParseUUIDPipe()) caseId:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"PH12_LEGAL_SOURCE_INTAKE_DISABLED"});
+  const fields=["requestKey","sourceCategory","sourceReference","sourceVersion",
+   "sha256","observedAt","expiresAt","result"];
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+    Object.keys(v).some(k=>!fields.includes(k))||
+    fields.some(k=>typeof v[k]!=="string"))
+   throw new BadRequestException({code:"PH12_LEGAL_SOURCE_INPUT_INVALID"});
+  if(!["PENDING_OFFICIAL_VERIFICATION","SOURCE_REJECTED"].includes(v.result as string))
+   throw new BadRequestException({code:"PH12_LEGAL_SOURCE_UNAPPROVED_STATUS"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+     "SELECT * FROM tto.ph12_record_board_legal_source_check($1::uuid,$2::text,$3::text,$4::text,$5::text,$6::timestamptz,$7::timestamptz,$8::text,$9::uuid)",
+     [caseId,v.sourceCategory,v.sourceReference,v.sourceVersion,v.sha256,
+      v.observedAt,v.expiresAt,v.result,v.requestKey]);
+    const row=q.rows[0];
+    return {tenantId:tenant,caseId,checkId:row.check_id,
+     state:row.verification_state,replayed:row.replayed,
+     signerIdentityAuthenticated:false,signerAuthorityAuthenticated:false,
+     boardLegallyApproved:false,tariffActivated:false,
+     officialFeePaid:false,legalShareTransfer:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"PH12_LEGAL_SOURCE_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"PH12_LEGAL_SOURCE_REPLAY_CONFLICT"});
+   if(code==="22023"||code==="22007"||code==="22P02")
+    throw new BadRequestException({code:"PH12_LEGAL_SOURCE_INPUT_INVALID"});
+   throw e;
+  }
+ }
+ @Post(":tenantId/ph12/share-market/tariff-board-cases/:caseId/legal-dispositions")
+ @HttpCode(201)
+ async recordLegalDisposition(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("caseId",new ParseUUIDPipe()) caseId:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"PH12_LEGAL_REVIEW_NOT_RELEASED"});
+  const fields=["requestKey","documentReviewId","sourceCheckIds","decision","findingReference"];
+  const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+     Object.keys(v).some(k=>!fields.includes(k))||
+     ![v.requestKey,v.documentReviewId].every(x=>typeof x==="string"&&uuid.test(x))||
+     !Array.isArray(v.sourceCheckIds)||
+     v.sourceCheckIds.length<1||v.sourceCheckIds.length>20||
+     !v.sourceCheckIds.every(x=>typeof x==="string"&&uuid.test(x))||
+     typeof v.findingReference!=="string"||
+     typeof v.decision!=="string"||
+     !["LEGAL_HOLD_SOURCE_UNVERIFIED","LEGAL_REJECTED"].includes(v.decision))
+   throw new BadRequestException({code:"PH12_LEGAL_DISPOSITION_INPUT_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+     "SELECT * FROM tto.ph12_record_tariff_board_legal_disposition($1::uuid,$2::uuid,$3::uuid[],$4::text,$5::text,$6::uuid)",
+     [caseId,v.documentReviewId,v.sourceCheckIds,v.decision,v.findingReference,v.requestKey]);
+    const row=q.rows[0];
+    return {tenantId:tenant,caseId,dispositionId:row.disposition_id,
+     legalDecision:row.legal_state,replayed:row.replayed,
+     officialSourceAuthenticated:false,signerIdentityAuthenticated:false,
+     signerAuthorityAuthenticated:false,boardLegallyApproved:false,
+     tariffActivated:false,officialFeePaid:false,legalShareTransfer:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"PH12_LEGAL_DISPOSITION_SCOPE_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"PH12_LEGAL_DISPOSITION_CONFLICT"});
+   if(code==="22023"||code==="22007"||code==="22P02")
+     throw new BadRequestException({code:"PH12_LEGAL_DISPOSITION_INPUT_INVALID"});
+   throw e;
+  }
+ }
+ @Post(":tenantId/ph12/share-market/tariff-board-cases/:caseId/legal-source-checks/:checkId/invalidate")
+ @HttpCode(201)
+ async invalidateLegalSource(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("caseId",new ParseUUIDPipe()) caseId:string,
+  @Param("checkId",new ParseUUIDPipe()) checkId:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"PH12_SOURCE_INVALIDATION_NOT_RELEASED"});
+  const keys=["requestKey","reason","evidenceReference"];
+  const validId=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+    Object.keys(v).some(k=>!keys.includes(k))||
+    typeof v.requestKey!=="string"||!validId.test(v.requestKey)||
+    typeof v.reason!=="string"||![
+     "SOURCE_WITHDRAWN","SOURCE_UNREACHABLE",
+     "SOURCE_SUPERSEDED_REPORTED","SOURCE_REVOCATION_REPORTED"
+    ].includes(v.reason)||typeof v.evidenceReference!=="string")
+   throw new BadRequestException({code:"PH12_SOURCE_INVALIDATION_INPUT_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+     "SELECT * FROM tto.ph12_invalidate_tariff_board_source_check($1::uuid,$2::uuid,$3::text,$4::text,$5::uuid)",
+     [caseId,checkId,v.reason,v.evidenceReference,v.requestKey]);
+    const row=q.rows[0];
+    return {tenantId:tenant,caseId,checkId,invalidationId:row.invalidation_id,
+     state:row.source_state,replayed:row.replayed,
+     officialSourceAuthenticated:false,signerAuthorityAuthenticated:false,
+     boardLegallyApproved:false,tariffActivated:false};
+   });
+  }catch(e){
+   if(e instanceof ForbiddenException)throw e;
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"PH12_SOURCE_INVALIDATION_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"PH12_SOURCE_INVALIDATION_CONFLICT"});
+   if(code==="22023"||code==="22P02")
+    throw new BadRequestException({code:"PH12_SOURCE_INVALIDATION_INPUT_INVALID"});
+   throw e;
+  }
+ }
+ @Get(":tenantId/ph12/share-market/tariff-board-cases/:caseId/source-recheck")
+ async legalSourceRecheck(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("caseId",new ParseUUIDPipe()) caseId:string,
+  @Headers("authorization") auth:string|undefined){
+  if(process.env.TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"PH12_SOURCE_RECHECK_NOT_RELEASED"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+      "SELECT * FROM tto.ph12_tariff_board_source_recheck($1::uuid)",[caseId]);
+    const r=q.rows[0];
+    return {tenantId:tenant,caseId,assessment:r.assessment,
+      sourceChecks:Number(r.source_checks),staleChecks:Number(r.stale_checks),
+      invalidatedChecks:Number(r.invalidated_checks),
+      rejectedChecks:Number(r.rejected_checks),
+      legalReviewRecorded:r.legal_review_recorded,
+      officialSourceAuthenticated:false,legalAuthorityVerified:false,
+      boardLegallyApproved:false,tariffActivated:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"PH12_SOURCE_RECHECK_DENIED"});
+   if(code==="22023"||code==="22P02")
+     throw new BadRequestException({code:"PH12_SOURCE_RECHECK_INPUT_INVALID"});
+   throw e;
+  }
+ }
+ @Get(":tenantId/ph12/share-market/official-source-issuer-candidates")
+ async issuerCandidates(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined){
+  if(process.env.TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"PH12_ISSUER_CANDIDATE_INTAKE_DISABLED"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query("SELECT * FROM tto.ph12_list_cooperative_source_issuer_candidates()");
+    return {tenantId:tenant,items:q.rows.map(x=>({
+     candidateId:x.candidate_id,sourcePurpose:x.source_purpose,
+     issuerKind:x.issuer_kind,issuerLabel:x.issuer_label,
+     publicReference:x.public_reference,legalBasisReference:x.legal_basis_reference,
+     state:x.candidate_state,proposedAt:x.proposed_at
+    })),officialIssuerAuthenticated:false,
+     signatoryAuthorityVerified:false,boardLegallyApproved:false,tariffActivated:false};
+   });
+  }catch(e){
+   if((e as {code?:string})?.code==="42501")
+     throw new ForbiddenException({code:"PH12_ISSUER_CANDIDATE_ACCESS_DENIED"});
+   throw e;
+  }
+ }
+ @Post(":tenantId/ph12/share-market/official-source-issuer-candidates")
+ @HttpCode(201)
+ async proposeIssuer(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+   @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"PH12_ISSUER_CANDIDATE_INTAKE_DISABLED"});
+  const fields=["requestKey","sourcePurpose","issuerKind","issuerLabel",
+    "publicReference","legalBasisReference"];
+  const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+      Object.keys(v).some(k=>!fields.includes(k))||
+      fields.some(k=>typeof v[k]!=="string")||
+      !uuid.test(v.requestKey as string))
+   throw new BadRequestException({code:"PH12_ISSUER_CANDIDATE_INPUT_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+     "SELECT * FROM tto.ph12_propose_cooperative_source_issuer($1::text,$2::text,$3::text,$4::text,$5::text,$6::uuid)",
+     [v.sourcePurpose,v.issuerKind,v.issuerLabel,
+      v.publicReference,v.legalBasisReference,v.requestKey]);
+    const row=q.rows[0];
+    return {tenantId:tenant,candidateId:row.candidate_id,
+     state:row.candidate_state,replayed:row.replayed,
+     officialIssuerAuthenticated:false,signatoryAuthorityVerified:false,
+     boardLegallyApproved:false,tariffActivated:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"PH12_ISSUER_CANDIDATE_ACCESS_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"PH12_ISSUER_CANDIDATE_CONFLICT"});
+   if(code==="22023"||code==="22P02")
+    throw new BadRequestException({code:"PH12_ISSUER_CANDIDATE_INPUT_INVALID"});
+   throw e;
+  }
+ }
+}
+
+
+/**
+ * PH12 synthetic signed-issuer bridge.
+ * Strict CI-only; no real registry requests, no tariff or legal approval transition.
+ * All trust/checkpoints exist exclusively in tests/sql/ph12-mock-issuer-bridge-ci-schema.sql.
+ */
+function ph12LabCanonical(x:unknown):string {
+ if(x===null||typeof x==="string"||typeof x==="boolean")return JSON.stringify(x);
+ if(typeof x==="number"&&Number.isFinite(x))return JSON.stringify(x);
+ if(Array.isArray(x))return "["+x.map(ph12LabCanonical).join(",")+"]";
+ if(x&&typeof x==="object"&&Object.getPrototypeOf(x)===Object.prototype){
+  const o=x as Record<string,unknown>;const keys=Object.keys(o).sort();
+  if(keys.some(k=>["__proto__","constructor","prototype"].includes(k)))
+   throw new Error("PH12_MOCK_BAD_CANONICAL_KEY");
+  return "{"+keys.map(k=>JSON.stringify(k)+":"+ph12LabCanonical(o[k])).join(",")+"}";
+ }
+ throw new Error("PH12_MOCK_BAD_CANONICAL_VALUE");
+}
+function ph12LabExact(x:unknown,keys:string[]):x is Record<string,unknown>{
+ return !!x&&typeof x==="object"&&!Array.isArray(x)&&
+   Object.keys(x).sort().join("|")===keys.slice().sort().join("|");
+}
+@Controller("v1/tenants")
+export class Ph12MockIssuerBridgeController {
+ constructor(private readonly db:Database){}
+ @Post(":tenantId/ph12/lab/signed-issuer-recheck")
+ @HttpCode(200)
+ async recheck(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined,
+  @Body() v:Record<string,unknown>){
+  if(process.env.NODE_ENV!=="test"||process.env.TTO_LOOPBACK_E2E!=="1"||
+     process.env.TTO_PH12_MOCK_ISSUER_LAB!=="1"||process.env.VERCEL)
+   throw new ServiceUnavailableException({code:"PH12_MOCK_BRIDGE_DISABLED"});
+  if(!ph12LabExact(v,["entityId"])||
+     typeof v.entityId!=="string"||
+     !/^SYNTHETIC_[A-Za-z0-9_]{1,80}$/.test(v.entityId))
+   throw new BadRequestException({code:"PH12_MOCK_SUBJECT_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  const fail=(state:string)=>({tenantId:tenant,entityId:v.entityId,
+    state,syntheticOnly:true,officialSourceAuthenticated:false,
+    signerAuthorityAuthenticated:false,boardLegallyApproved:false,
+    tariffActivated:false});
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    // The SQL function takes a transaction-long FOR UPDATE lock. Key rotation
+    // and another Nest process cannot pass this critical section concurrently.
+    const q=await client.query<{
+      issuer_id:string;key_id:string;issuer_url:string;
+      public_key_pem:string;trust_epoch:string
+    }>("SELECT * FROM tto.ph12_mock_lab_lock_trust()");
+    const trust=q.rows[0];
+    if(!trust)return fail("MOCK_HOLD_NO_PINNED_TRUST");
+    if(!/^http:\/\/127[.]0[.]0[.]1:\d{2,5}$/.test(trust.issuer_url))
+     return fail("MOCK_HOLD_NON_LOOPBACK_ISSUER");
+    const nonce=randomUUID();
+    let env:unknown;
+    try{
+     const url=trust.issuer_url+"/v1/synthetic/"+tenant+"/"+v.entityId;
+     const response=await fetch(url,{
+       method:"GET",headers:{"x-ph12-nonce":nonce},
+       cache:"no-store",signal:AbortSignal.timeout(1800)});
+     if(!response.ok)return fail("MOCK_HOLD_ISSUER_UNAVAILABLE");
+     const body=await response.text();
+     if(body.length>8192)return fail("MOCK_HOLD_RESPONSE_OVERSIZED");
+     env=JSON.parse(body);
+    }catch{return fail("MOCK_HOLD_ISSUER_UNAVAILABLE");}
+    if(!ph12LabExact(env,["protectedHeader","payload","signature"]))
+     return fail("MOCK_HOLD_BAD_ENVELOPE");
+    const header=env.protectedHeader,p=env.payload,sig=env.signature;
+    if(!ph12LabExact(header,["alg","kid","format"])||
+       header.alg!=="Ed25519"||header.format!=="PH12_SYNTHETIC_V1"||
+       header.kid!==trust.key_id||typeof sig!=="string"||
+       !/^[A-Za-z0-9_-]{86}$/.test(sig)||
+       !ph12LabExact(p,["issuerId","tenantId","entityId","nonce",
+        "version","recordHash","status","observedAt","expiresAt"]))
+      return fail("MOCK_HOLD_BAD_ENVELOPE_OR_KEY");
+    try{
+     const body=Buffer.from(ph12LabCanonical({protectedHeader:header,payload:p}));
+     const pub=createPublicKey(trust.public_key_pem);
+     if(pub.asymmetricKeyType!=="ed25519"||
+        !cryptoVerify(null,body,pub,Buffer.from(sig,"base64url")))
+      return fail("MOCK_HOLD_SIGNATURE_INVALID");
+    }catch{return fail("MOCK_HOLD_SIGNATURE_INVALID");}
+    if(p.issuerId!==trust.issuer_id||p.tenantId!==tenant||
+       p.entityId!==v.entityId||p.nonce!==nonce)
+     return fail("MOCK_HOLD_SUBJECT_OR_NONCE_MISMATCH");
+    if(typeof p.version!=="number"||!Number.isSafeInteger(p.version)||
+       p.version<1||typeof p.status!=="string"||!["CURRENT","REVOKED"].includes(p.status)||
+       typeof p.recordHash!=="string"||!/^[a-f0-9]{64}$/.test(p.recordHash)||
+       typeof p.observedAt!=="string"||typeof p.expiresAt!=="string")
+     return fail("MOCK_HOLD_INVALID_SOURCE_FIELDS");
+    const now=Date.now(),observed=Date.parse(p.observedAt),expiry=Date.parse(p.expiresAt);
+    if(!Number.isFinite(observed)||!Number.isFinite(expiry)||
+       observed>now+1000||expiry<=now||observed>=expiry)
+     return fail("MOCK_HOLD_SOURCE_EXPIRED_OR_FUTURE");
+    const state=await client.query<{state:string}>(
+     "SELECT tto.ph12_mock_lab_accept($1::text,$2::bigint,$3::text,$4::boolean,$5::bigint) AS state",
+     [v.entityId,p.version,p.recordHash,p.status==="REVOKED",trust.trust_epoch]);
+    return fail(state.rows[0]?.state??"MOCK_HOLD_NO_CHECKPOINT");
+   });
+  }catch(e){
+   if((e as {code?:string})?.code==="42501")
+    throw new ForbiddenException({code:"PH12_MOCK_BRIDGE_SCOPE_DENIED"});
+   if((e as {code?:string})?.code==="22023")
+    throw new BadRequestException({code:"PH12_MOCK_BRIDGE_SOURCE_INVALID"});
+   throw e;
+  }
+ }
+}
+
+/** CHILD-06 archival governance API: multi-notice, longitudinal, read-only for members.
+ * This DOES NOT confer CEO authority, role grants, legal validation or tariff ACTIVE.
+ */
+@Controller("v1/tenants")
+export class Child06GovernanceArchiveController {
+ constructor(private readonly db:Database){}
+ @Post(":tenantId/child06/legal-notices")
+ @HttpCode(201)
+ async archive(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined,
+  @Body() v:Record<string,unknown>){
+  if(process.env.TTO_CHILD06_GOVERNANCE_NOTICE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_GOVERNANCE_ARCHIVE_INTAKE_DISABLED"});
+  const keys=["requestKey","cooperativeLegalNationalId","registrationNumber","sourceType",
+   "noticeKind","sourceNoticeNumber","gazetteIssue","publishedOn","resolutionOn",
+   "authorityLetter","authorityLetterOn","summary","sourceUrl","board","signing"];
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+    Object.keys(v).some(k=>!keys.includes(k))||
+    typeof v.requestKey!=="string"||!uuidPattern.test(v.requestKey)||
+    typeof v.cooperativeLegalNationalId!=="string"||
+    typeof v.registrationNumber!=="string"||
+    typeof v.sourceType!=="string"||typeof v.noticeKind!=="string"||
+    typeof v.resolutionOn!=="string"||typeof v.summary!=="string"||
+    !Array.isArray(v.board)||!Array.isArray(v.signing)||
+    v.board.length>30||v.signing.length>6||
+    v.board.some(x=>!x||typeof x!=="object"||Array.isArray(x)||
+      Object.keys(x).some(k=>!["personName","office","eventType","eventOn","termEnd"].includes(k)))||
+    v.signing.some(x=>!x||typeof x!=="object"||Array.isArray(x)||
+      Object.keys(x).some(k=>!["authorityKind","requiredSigner","alternateSigners",
+       "requiresSeal","effectiveFrom","statedEnd","description"].includes(k))))
+   throw new BadRequestException({code:"CHILD06_GOVERNANCE_INVALID_FIELDS"});
+  const optional=(key:string)=>typeof v[key]==="string"?v[key]:null;
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+      "SELECT * FROM tto.cooperative_append_legal_notice($1::text,$2::text,$3::text,$4::text,"+
+      "$5::text,$6::text,$7::text,$8::text,$9::text,$10::text,$11::text,$12::text,"+
+      "$13::jsonb,$14::jsonb,$15::uuid)",
+      [v.cooperativeLegalNationalId,v.registrationNumber,v.sourceType,v.noticeKind,
+       optional("sourceNoticeNumber"),optional("gazetteIssue"),optional("publishedOn"),
+       v.resolutionOn,optional("authorityLetter"),optional("authorityLetterOn"),
+       v.summary,optional("sourceUrl"),JSON.stringify(v.board),JSON.stringify(v.signing),v.requestKey]);
+    const r=q.rows[0];
+    return {tenantId:tenant,noticeId:r.notice_id,state:r.source_state,replayed:r.replayed,
+     officialSourceAuthenticated:false,legalSignerAuthorityGranted:false,
+     shareholderVoteEntitlementGranted:false,tariffActivated:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"CHILD06_GOVERNANCE_SCOPE_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"CHILD06_GOVERNANCE_DUPLICATE_OR_REPLAY"});
+   if(code==="22023"||code==="23514"||code==="23502"||code==="22P02")
+    throw new BadRequestException({code:"CHILD06_GOVERNANCE_INPUT_INVALID"});
+   throw e;
+  }
+ }
+ @Get(":tenantId/child06/notice-transition-catalog")
+ async transitionCatalog(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined){
+  if(process.env.TTO_CHILD06_GOVERNANCE_NOTICE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_TRANSITION_CATALOG_DISABLED"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query<{result:Record<string,unknown>}>(
+      "SELECT tto.cooperative_notice_transition_catalog() AS result");
+    const v=q.rows[0]?.result;
+    if(!v||v.tenantId!==tenant||v.sourceAuthenticated!==false||
+      v.legalSigningPowerGranted!==false||v.tariffActivated!==false||
+      !Array.isArray(v.notices)||!Array.isArray(v.transitions))
+     throw new ServiceUnavailableException({code:"CHILD06_TRANSITION_CATALOG_UNSAFE"});
+    return v;
+   });
+  }catch(e){
+   if((e as {code?:string})?.code==="42501")
+    throw new ForbiddenException({code:"CHILD06_TRANSITION_CATALOG_SCOPE_DENIED"});
+   if((e as {code?:string})?.code==="22023")
+    throw new ServiceUnavailableException({code:"CHILD06_TRANSITION_CATALOG_TOO_LARGE"});
+   throw e;
+  }
+ }
+ @Post(":tenantId/child06/notice-transitions")
+ @HttpCode(201)
+ async reportTransition(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_CHILD06_GOVERNANCE_NOTICE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_TRANSITION_INTAKE_DISABLED"});
+  const keys=["requestKey","targetNoticeId","replacementNoticeId","action",
+    "effectiveOn","publishedOn","sourceReference"];
+  if(!v||typeof v!=="object"||Array.isArray(v)||Object.keys(v).some(k=>!keys.includes(k))||
+     typeof v.requestKey!=="string"||!uuidPattern.test(v.requestKey)||
+     typeof v.targetNoticeId!=="string"||!uuidPattern.test(v.targetNoticeId)||
+     (v.replacementNoticeId!==null&&v.replacementNoticeId!==undefined&&
+       (typeof v.replacementNoticeId!=="string"||!uuidPattern.test(v.replacementNoticeId)))||
+     typeof v.action!=="string"||typeof v.effectiveOn!=="string"||
+     typeof v.sourceReference!=="string"||
+     (v.publishedOn!==null&&v.publishedOn!==undefined&&typeof v.publishedOn!=="string"))
+   throw new BadRequestException({code:"CHILD06_TRANSITION_FIELDS_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+     "SELECT * FROM tto.cooperative_append_notice_transition($1::uuid,$2::uuid,"+
+      "$3::text,$4::text,$5::text,$6::text,$7::uuid)",
+     [v.targetNoticeId,v.replacementNoticeId??null,v.action,
+      v.effectiveOn,v.publishedOn??null,v.sourceReference,v.requestKey]);
+    const row=q.rows[0];
+    return {tenantId:tenant,transitionId:row.transition_id,state:row.state,
+     replayed:row.replayed,officiallyVerified:false,legalSignerAuthorityGranted:false,
+     tariffActivated:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"CHILD06_TRANSITION_SCOPE_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"CHILD06_TRANSITION_REPLAY_CONFLICT"});
+   if(code==="22023"||code==="23514"||code==="23502"||code==="22P02")
+     throw new BadRequestException({code:"CHILD06_TRANSITION_INVALID"});
+   throw e;
+  }
+ }
+ /** Conflict review is an immutable lab audit, NEVER legal validation or tariff activation. */
+ @Post(":tenantId/child06/governance-conflicts")
+ @HttpCode(201)
+ async openGovernanceConflict(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_CHILD06_GOVERNANCE_NOTICE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_CONFLICT_INTAKE_DISABLED"});
+  const datePattern=/^14[0-9]{2}[/](0[1-9]|1[0-2])[/](0[1-9]|[12][0-9]|3[01])$/;
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+    Object.keys(v).some(k=>!["asOf","conflictCode","evidence","requestKey"].includes(k))||
+    typeof v.asOf!=="string"||!datePattern.test(v.asOf)||
+    typeof v.conflictCode!=="string"||v.conflictCode.length>180||
+    !Array.isArray(v.evidence)||v.evidence.length<1||v.evidence.length>20||
+    typeof v.requestKey!=="string"||!uuidPattern.test(v.requestKey)||
+    v.evidence.some(x=>!x||typeof x!=="object"||Array.isArray(x)||
+      Object.keys(x).some(k=>!["kind","sourceId","reference","sha256"].includes(k))||
+      !["NOTICE","TRANSITION"].includes(x.kind)||typeof x.sourceId!=="string"||
+      !uuidPattern.test(x.sourceId)||typeof x.reference!=="string"||
+      (x.sha256!==undefined&&x.sha256!==null&&
+       (typeof x.sha256!=="string"||!/^[0-9a-f]{64}$/.test(x.sha256)))))
+   throw new BadRequestException({code:"CHILD06_CONFLICT_INPUT_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const capture=new Date().toISOString();
+    const facts=await client.query<{facts:Record<string,unknown>}>(
+     "SELECT tto.cooperative_governance_temporal_facts($1::timestamptz) AS facts",[capture]);
+    const snapshot=reconstructGovernanceSnapshot(facts.rows[0]?.facts,v.asOf as string,capture);
+    const codes=snapshot.conflicts;
+    if(!Array.isArray(codes)||!codes.includes(v.conflictCode))
+     throw new BadRequestException({code:"CHILD06_CONFLICT_NOT_PRESENT_IN_SOURCE"});
+    const payload=facts.rows[0].facts;
+    const evidenceSources=new Set<string>([
+      ...((payload.notices as Array<{noticeId:string}>).map(n=>"NOTICE:"+n.noticeId)),
+      ...((payload.transitions as Array<{transitionId:string}>).map(n=>"TRANSITION:"+n.transitionId))
+    ]);
+    for(const e of v.evidence as Array<{kind:string;sourceId:string}>)
+      if(!evidenceSources.has(e.kind+":"+e.sourceId))
+       throw new BadRequestException({code:"CHILD06_CONFLICT_EVIDENCE_NOT_IN_SNAPSHOT"});
+    const sha=createHash("sha256").update(JSON.stringify({
+      notices:payload.notices,board:payload.board,signing:payload.signing,
+      transitions:payload.transitions})).digest("hex");
+    const r=await client.query(
+      "SELECT * FROM tto.cooperative_open_governance_conflict_case("+
+      "$1::text,$2::text,$3::text,$4::jsonb,$5::uuid)",
+      [v.asOf,v.conflictCode,sha,JSON.stringify(v.evidence),v.requestKey]);
+    return {tenantId:tenant,caseId:r.rows[0].case_id,
+      status:r.rows[0].state,replayed:r.rows[0].replayed,
+      reviewed:false,officialEvidenceAuthenticated:false,
+      legalAuthorityVerified:false,tariffActivated:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"CHILD06_CONFLICT_OPEN_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"CHILD06_CONFLICT_REQUEST_CONFLICT"});
+   if(["22023","23514","23502","22P02"].includes(code??""))
+    throw new BadRequestException({code:"CHILD06_CONFLICT_EVIDENCE_INVALID"});
+   if(e instanceof Error&&e.message.startsWith("CHILD06_TEMPORAL_"))
+    throw new ServiceUnavailableException({code:"CHILD06_CONFLICT_TEMPORAL_FAIL_CLOSED"});
+   throw e;
+  }
+ }
+ @Post(":tenantId/child06/governance-conflicts/:caseId/review")
+ @HttpCode(201)
+ async reviewGovernanceConflict(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("caseId",new ParseUUIDPipe()) caseId:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_CHILD06_GOVERNANCE_NOTICE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_CONFLICT_REVIEW_DISABLED"});
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+    Object.keys(v).some(k=>!["outcome","evidenceIds","reason","requestKey"].includes(k))||
+    !["HOLD_OFFICIAL_SOURCE_REQUIRED","REJECT_SOURCE_CLAIM",
+      "HOLD_INSUFFICIENT_EVIDENCE"].includes(v.outcome as string)||
+    !Array.isArray(v.evidenceIds)||v.evidenceIds.length<1||v.evidenceIds.length>20||
+    v.evidenceIds.some(x=>typeof x!=="string"||!uuidPattern.test(x))||
+    typeof v.reason!=="string"||v.reason.length<25||v.reason.length>1400||
+    typeof v.requestKey!=="string"||!uuidPattern.test(v.requestKey))
+   throw new BadRequestException({code:"CHILD06_CONFLICT_REVIEW_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const r=await client.query(
+     "SELECT * FROM tto.cooperative_review_governance_conflict("+
+     "$1::uuid,$2::text,$3::uuid[],$4::text,$5::uuid)",
+      [caseId,v.outcome,v.evidenceIds,v.reason,v.requestKey]);
+    return {tenantId:tenant,caseId,dispositionId:r.rows[0].disposition_id,
+     outcome:r.rows[0].outcome,replayed:r.rows[0].replayed,
+     independentReviewRecorded:true,legalAuthorityVerified:false,
+     officialEvidenceAuthenticated:false,tariffActivated:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"CHILD06_CONFLICT_INDEPENDENT_REVIEW_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"CHILD06_CONFLICT_DISPOSITION_IMMUTABLE"});
+   if(["22023","23514","23502","22P02"].includes(code??""))
+    throw new BadRequestException({code:"CHILD06_CONFLICT_REVIEW_EVIDENCE_INVALID"});
+   throw e;
+  }
+ }
+ @Get(":tenantId/child06/governance-conflicts")
+ async governanceConflicts(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined){
+  if(process.env.TTO_CHILD06_GOVERNANCE_HISTORY_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_CONFLICT_AUDIT_DISABLED"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const r=await client.query<{v:Record<string,unknown>}>(
+      "SELECT tto.cooperative_governance_conflict_audit() AS v");
+    const result=r.rows[0]?.v;
+    if(!result||result.tenantId!==tenant||result.legalAuthorityVerified!==false||
+      result.tariffActivated!==false||result.officialEvidenceAuthenticated!==false||
+      !Array.isArray(result.cases))throw new ServiceUnavailableException({
+       code:"CHILD06_CONFLICT_AUDIT_UNSAFE"});
+    return result;
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"CHILD06_CONFLICT_AUDIT_DENIED"});
+   if(code==="22023")throw new ServiceUnavailableException({code:"CHILD06_CONFLICT_AUDIT_TOO_LARGE"});
+   throw e;
+  }
+ }
+ @Get(":tenantId/child06/governance-as-of")
+ async governanceAsOf(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined,
+  @Query("date") date:string|undefined,@Query("knownAt") knownAt:string|undefined){
+  if(process.env.TTO_CHILD06_GOVERNANCE_HISTORY_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_TEMPORAL_READ_DISABLED"});
+  if(typeof date!=="string"||!/^14[0-9]{2}[/](0[1-9]|1[0-2])[/](0[1-9]|[12][0-9]|3[01])$/.test(date)||
+     (knownAt!==undefined&&(typeof knownAt!=="string"||
+      knownAt.length>40||!Number.isFinite(Date.parse(knownAt)))))
+   throw new BadRequestException({code:"CHILD06_ASOF_DATE_INVALID"});
+  const capture=knownAt?new Date(knownAt).toISOString():new Date().toISOString();
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query<{facts:Record<string,unknown>}>(
+      "SELECT tto.cooperative_governance_temporal_facts($1::timestamptz) AS facts",[capture]);
+    return reconstructGovernanceSnapshot(q.rows[0]?.facts,date,capture);
+   });
+  }catch(e){
+   if((e as {code?:string})?.code==="42501")
+     throw new ForbiddenException({code:"CHILD06_TEMPORAL_ROLE_DENIED"});
+   if((e as {code?:string})?.code==="22023")
+     throw new ServiceUnavailableException({code:"CHILD06_TEMPORAL_SOURCE_INCOMPLETE"});
+   if(e instanceof Error&&e.message.startsWith("CHILD06_TEMPORAL_"))
+     throw new ServiceUnavailableException({code:"CHILD06_TEMPORAL_FAIL_CLOSED"});
+   throw e;
+  }
+ }
+ @Get(":tenantId/child06/governance-history")
+ async listForShareholder(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined){
+  if(process.env.TTO_CHILD06_GOVERNANCE_HISTORY_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_GOVERNANCE_HISTORY_NOT_RELEASED"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query<{out:Record<string,unknown>}>(
+      "SELECT tto.cooperative_shareholder_governance_history() AS out");
+    const result=q.rows[0]?.out;
+    if(!result||result.tenantId!==tenant||
+      result.publishedVerified!==false||
+      result.confersSigningPower!==false||
+      result.confersVotingRights!==false||
+      !Array.isArray(result.notices)||!Array.isArray(result.boardHistory)||
+      !Array.isArray(result.signingHistory))
+      throw new ServiceUnavailableException({code:"CHILD06_GOVERNANCE_UNSAFE_RESPONSE"});
+    return result;
+   });
+  }catch(e){
+   if((e as {code?:string})?.code==="42501")
+    throw new ForbiddenException({code:"CHILD06_GOVERNANCE_MEMBER_SCOPE_DENIED"});
+   throw e;
+  }
+ }
+}
+
+@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController,Ph12TariffDraftController,Ph12TariffBoardDocumentController,Ph12BoardLegalSourceController,Ph12MockIssuerBridgeController,Child06GovernanceArchiveController],providers:[ApiIrSmsOtpProvider]})
 export class AppModule {}
