@@ -4,7 +4,7 @@ import { createCipheriv, createDecipheriv, createHash, createHmac, createPublicK
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
 import { reconstructGovernanceSnapshot } from "./governance-temporal";
 import { scanQuarantineBytes } from "./clamd-evidence";
-import {encryptGovernancePdf,unlockGovernancePdf,SourcePacket} from "./governance-pdf-envelope";
+import {encryptGovernancePdf,unlockAnyGovernancePdf,encryptKmsGovernancePdf,SourcePacket} from "./governance-pdf-envelope";
 
 @Injectable()
 export class Database {
@@ -2626,18 +2626,28 @@ export class Child06GovernanceArchiveController {
      !bytes.subarray(0,5).equals(Buffer.from("%PDF-"))||
      !bytes.subarray(Math.max(0,bytes.length-2048)).includes(Buffer.from("%%EOF")))
     throw new BadRequestException({code:"CHILD06_PDF_ESCROW_INVALID_PDF"});
-   let packet:ReturnType<typeof encryptGovernancePdf>;
-   try{packet=encryptGovernancePdf(bytes,tenant,v.evidenceId as string);}
-   catch{throw new ServiceUnavailableException({code:"CHILD06_ESCROW_VERSIONED_KEY_UNAVAILABLE"});}
+   let packet:ReturnType<typeof encryptGovernancePdf>|Awaited<ReturnType<typeof encryptKmsGovernancePdf>>;
+   try{
+    packet=process.env.TTO_CHILD06_PDF_ESCROW_ACTIVE_KEY_VERSION==="child06-kms-v1"?
+      await encryptKmsGovernancePdf(bytes,tenant,v.evidenceId as string):
+      encryptGovernancePdf(bytes,tenant,v.evidenceId as string);
+   }catch{throw new ServiceUnavailableException({code:"CHILD06_ESCROW_KEY_CUSTODY_UNAVAILABLE"});}
 
    const actor=await this.db.sessionActor(auth);
    try{
     return await this.db.inTenant(actor,tenant,async client=>{
+     const kms=packet.version==="child06-kms-v1";
      const q=await client.query(
+      kms?
+      "SELECT * FROM tto.cooperative_store_governance_source_file_kms("+
+       "$1::uuid,$2::uuid,$3::integer,$4::bytea,$5::bytea,$6::bytea,$7::bytea,$8::text,$9::text,$10::uuid)":
       "SELECT * FROM tto.cooperative_store_governance_source_file_versioned("+
-      "$1::uuid,$2::uuid,$3::integer,$4::bytea,$5::bytea,$6::bytea,$7::bytea,$8::text,$9::uuid)",
-      [v.evidenceId,v.issuerCandidateId,bytes.length,packet.digest,packet.iv,
-       packet.tag,packet.encrypted,packet.version,v.requestKey]);
+       "$1::uuid,$2::uuid,$3::integer,$4::bytea,$5::bytea,$6::bytea,$7::bytea,$8::text,$9::uuid)",
+      kms?[v.evidenceId,v.issuerCandidateId,bytes.length,packet.digest,packet.iv,
+       packet.tag,packet.encrypted,packet.version,
+       (packet as Awaited<ReturnType<typeof encryptKmsGovernancePdf>>).wrapped,v.requestKey]:
+       [v.evidenceId,v.issuerCandidateId,bytes.length,packet.digest,packet.iv,
+        packet.tag,packet.encrypted,packet.version,v.requestKey]);
      const row=q.rows[0];
      return {tenantId:tenant,fileId:row.file_id,evidenceId:v.evidenceId,
       state:row.source_state,replayed:row.replayed,encrypted:true,
@@ -2666,11 +2676,11 @@ export class Child06GovernanceArchiveController {
   try{
    return await this.db.inTenant(actor,tenant,async client=>{
     const q=await client.query<SourcePacket>(
-     "SELECT * FROM tto.cooperative_governance_source_integrity_packet($1::uuid)",[fileId]);
+     "SELECT * FROM tto.cooperative_governance_source_kms_packet($1::uuid)",[fileId]);
     const item=q.rows[0];
     if(!item)throw new ForbiddenException({code:"CHILD06_PDF_INTEGRITY_NOT_AVAILABLE"});
     let plain:Buffer|undefined;
-    try{plain=unlockGovernancePdf(item,tenant);}
+    try{plain=await unlockAnyGovernancePdf(item,tenant);}
     catch{throw new ServiceUnavailableException({code:"CHILD06_PDF_INTEGRITY_FAILED_CLOSED"});}
     finally{plain?.fill(0);}
     return {tenantId:tenant,fileId,evidenceId:item.evidence_id,
@@ -2705,12 +2715,12 @@ export class Child06GovernanceArchiveController {
    if(role.rows[0]?.allowed!==true)
     throw new ForbiddenException({code:"CHILD06_PDF_SCAN_INDEPENDENT_REVIEWER_REQUIRED"});
    const data=await client.query<SourcePacket>(
-    "SELECT * FROM tto.cooperative_governance_source_integrity_packet($1::uuid)",[fileId]);
+    "SELECT * FROM tto.cooperative_governance_source_kms_packet($1::uuid)",[fileId]);
    const item=data.rows[0];
    if(!item)throw new ForbiddenException({code:"CHILD06_PDF_SCAN_SCOPE_DENIED"});
    let plain:Buffer|undefined,scan:Awaited<ReturnType<typeof scanQuarantineBytes>>;
    try{
-    plain=unlockGovernancePdf(item,tenant);
+    plain=await unlockAnyGovernancePdf(item,tenant);
     scan=await scanQuarantineBytes(plain);
    }catch{
     throw new ServiceUnavailableException({code:"CHILD06_PDF_SCAN_FAIL_CLOSED"});
