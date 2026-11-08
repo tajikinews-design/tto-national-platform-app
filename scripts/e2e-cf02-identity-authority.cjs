@@ -6,6 +6,8 @@ const {resolve}=require("node:path");
 const {createRequire}=require("node:module");
 const ROOT=resolve(__dirname,"..");
 const {Client}=createRequire(resolve(ROOT,"services/api/package.json"))("pg");
+const {makeMockIssuer,newRecord}=require("./ci/ph12-mock-official-issuer.cjs");
+const mockIssuers=[];let labApiEnv;
 const url=process.env.TEST_ADMIN_DATABASE_URL;
 if(!url||process.env.APIIR_TOKEN)throw Error("DISPOSABLE_POSTGRES_ONLY_NO_SMS");
 const db=new Client({connectionString:url});
@@ -64,9 +66,20 @@ async function fixture(){
  await db.query("INSERT INTO tto.identity_review_authorizations(user_id,tenant_id,approved_by,evidence_id,valid_until) VALUES($1,$2,$3,$4,now()+interval '2 hours')",
  [REVIEWER,A,APPROVER,DEC]);
  for(const uid of [USER,MANAGER,NATIONAL,REVIEWER,APPROVER,LEGAL])await issueSession(uid);
- const apiEnv={DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"31997",
+ if(process.env.TTO_PH12_LEGAL_E2E==="1"){
+  process.env.TTO_PH12_MOCK_ISSUER_LAB="1";
+  const issuer=makeMockIssuer();mockIssuers.push(issuer);
+  const url=await issuer.start();
+  issuer.setRecord(A,"SYNTHETIC_ENTITY_A",newRecord());
+  await db.query("INSERT INTO tto.ph12_mock_lab_trust(tenant_id,issuer_id,key_id,trust_epoch,issuer_url,public_key_pem) VALUES($1,'PH12_SYNTHETIC_ISSUER_NOT_OFFICIAL',$2,1,$3,$4)",[
+   A,issuer.keyId,url,issuer.publicKey.export({type:"spki",format:"pem"})]);
+ }
+  const apiEnv={DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"31997",
    NODE_ENV:"test",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",
-   TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED:process.env.TTO_PH12_LEGAL_E2E==="1"?"true":"false",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa"};
+   TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED:process.env.TTO_PH12_LEGAL_E2E==="1"?"true":"false",
+   TTO_PH12_MOCK_ISSUER_LAB:process.env.TTO_PH12_LEGAL_E2E==="1"?"1":"0",
+   TTO_LOOPBACK_E2E:"1",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa"};
+ labApiEnv=apiEnv;
  await launch("Nest",["dist/main.js"],resolve(ROOT,"services/api"),apiEnv,API+"/ready");
 }
 async function portal(slug,port){
@@ -598,6 +611,102 @@ async function main(){
      "PH12 immutable candidate cannot be verified with DB status edit");
    console.log("PH12_OFFICIAL_ISSUER_CANDIDATE_REAL_NEST_PG17_HOLD_PASS");
 
+   // PH12: Real Nest HTTP -> signed loopback issuer -> PostgreSQL trust
+   // checkpoint, two independent Nest processes, no legal/ACTIVE promotion.
+   const labPath="/v1/tenants/"+A+"/ph12/lab/signed-issuer-recheck";
+   const labSubject={entityId:"SYNTHETIC_ENTITY_A"};
+   const labA=mockIssuers[0];
+   const holder=(value,state)=>{
+    ok(value.state===state&&value.officialSourceAuthenticated===false&&
+       value.boardLegallyApproved===false&&value.tariffActivated===false&&
+       value.syntheticOnly===true,
+       "PH12 mock bridge never becomes a legal or tariff approval: "+state);
+   };
+   await status(await post(labPath,"",labSubject),401,"PH12 mock bridge anonymous denied");
+   await status(await post(labPath,tokenMap.get(USER),labSubject),403,
+    "PH12 mock bridge member denied");
+   await status(await post(labPath,tokenMap.get(MANAGER),labSubject),403,
+    "PH12 mock bridge manager cannot gain legal reviewer ability");
+   await status(await post(labPath,tokenMap.get(LEGAL),{entityId:"not-synthetic"}),400,
+    "PH12 mock bridge only accepts synthetic identifiers");
+   const first=await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
+    "PH12 Nest verifies signed issuer response and persists monotonic synthetic checkpoint");
+   holder(first,"MOCK_ELIGIBLE_IN_LAB_ONLY");
+   const initial=await db.query("SELECT source_version,revoked,trust_epoch FROM tto.ph12_mock_lab_checkpoints WHERE tenant_id=$1 AND entity_id=$2",[A,labSubject.entityId]);
+   ok(initial.rows.length===1&&Number(initial.rows[0].source_version)===1&&
+      initial.rows[0].revoked===false&&Number(initial.rows[0].trust_epoch)===1,
+     "PH12 signed result binds synthetic tenant in actual PG17 checkpoint");
+   const cross=await status(await post(
+      "/v1/tenants/"+B+"/ph12/lab/signed-issuer-recheck",tokenMap.get(LEGAL),labSubject),
+      200,"PH12 different tenant with no lab trust fails closed");
+   holder(cross,"MOCK_HOLD_NO_PINNED_TRUST");
+   labA.setTransform(e=>{e.payload.version=5;return e;});
+   holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
+      "PH12 tampering invalidates real Nest signature check"),"MOCK_HOLD_SIGNATURE_INVALID");
+   labA.setTransform(null);
+   labA.setOffline(true);
+   holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
+      "PH12 outage must not inherit cached approval"),"MOCK_HOLD_ISSUER_UNAVAILABLE");
+   labA.setOffline(false);
+   labA.setRecord(A,labSubject.entityId,newRecord({version:2,recordHash:"2".repeat(64)}));
+   holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
+      "PH12 recovered issuer makes signed v2 monotonic advance"),"MOCK_ELIGIBLE_IN_LAB_ONLY");
+   labA.setRecord(A,labSubject.entityId,newRecord({version:1}));
+   holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
+      "PH12 rollback blocked after recovery"),"MOCK_HOLD_VERSION_ROLLBACK");
+   labA.setRecord(A,labSubject.entityId,newRecord({version:2,recordHash:"2".repeat(64)}));
+   // Independent Nest process uses the same PostgreSQL trust and checkpoint,
+   // not a local in-memory cache. PG row locks serialize concurrent replies.
+   const api2="http://127.0.0.1:31998";
+   await launch("Nest second PG trust consumer",["dist/main.js"],
+      resolve(ROOT,"services/api"),{...labApiEnv,PORT:"31998"},api2+"/ready");
+   const labPost2=()=>fetch(api2+labPath,{
+      method:"POST",headers:{"Content-Type":"application/json",
+        Authorization:"Bearer "+tokenMap.get(LEGAL)},
+      body:JSON.stringify(labSubject),signal:AbortSignal.timeout(12000)});
+   const both=await Promise.all([post(labPath,tokenMap.get(LEGAL),labSubject),labPost2()]);
+   for(const response of both)holder(await status(response,200,
+      "PH12 concurrent separate Nest processes agree on PG trust"),"MOCK_ELIGIBLE_IN_LAB_ONLY");
+   const beforeRotation=await db.query(
+      "SELECT source_version,trust_epoch FROM tto.ph12_mock_lab_checkpoints WHERE tenant_id=$1",
+      [A]);
+   ok(beforeRotation.rows.length===1&&Number(beforeRotation.rows[0].source_version)===2,
+      "PH12 concurrent processes share one monotonic record");
+   const labB=makeMockIssuer({keyId:"PH12_TEST_ED25519_KEY_02"});
+   mockIssuers.push(labB);
+   const issuer2Url=await labB.start();
+   labB.setRecord(A,labSubject.entityId,newRecord({version:3,recordHash:"3".repeat(64)}));
+   // Test administrator rotates the pinned trust data; response cannot add a key.
+   await db.query("UPDATE tto.ph12_mock_lab_trust SET trust_epoch=2,key_id=$2,issuer_url=$3,public_key_pem=$4,modified_at=clock_timestamp() WHERE tenant_id=$1",[
+     A,labB.keyId,issuer2Url,labB.publicKey.export({type:"spki",format:"pem"})]);
+   holder(await status(await labPost2(),200,
+      "PH12 new issuer key and epoch accepted on independent Nest instance"),
+      "MOCK_ELIGIBLE_IN_LAB_ONLY");
+   await db.query("UPDATE tto.ph12_mock_lab_trust SET issuer_url=$2 WHERE tenant_id=$1",
+      [A,labApiEnv.__old_issuer_url||"http://127.0.0.1:1"]);
+   holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
+      "PH12 old issuer no longer permitted after key rotation"),"MOCK_HOLD_ISSUER_UNAVAILABLE");
+   await db.query("UPDATE tto.ph12_mock_lab_trust SET issuer_url=$2 WHERE tenant_id=$1",
+      [A,issuer2Url]);
+   labB.setRecord(A,labSubject.entityId,newRecord({
+     version:4,recordHash:"4".repeat(64),status:"REVOKED"}));
+   holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
+      "PH12 revocation persisted through first Nest instance"),"MOCK_HOLD_REVOKED");
+   labB.setRecord(A,labSubject.entityId,newRecord({
+      version:5,recordHash:"5".repeat(64),status:"CURRENT"}));
+   holder(await status(await labPost2(),200,
+      "PH12 second Nest sees durable revocation even after signed CURRENT"),
+      "MOCK_HOLD_REVOKED");
+   const finalLab=await db.query("SELECT source_version,revoked,trust_epoch FROM tto.ph12_mock_lab_checkpoints WHERE tenant_id=$1",[A]);
+   ok(finalLab.rows.length===1&&finalLab.rows[0].revoked===true&&
+      Number(finalLab.rows[0].trust_epoch)===2,
+      "PH12 revocation remains sticky in PostgreSQL after mock key rotation");
+   const unchangedLab=await db.query("SELECT status FROM tto.ph12_tariff_drafts WHERE draft_id=$1",[saved.draftId]);
+   ok(unchangedLab.rows[0].status==="DRAFT_UNVERIFIED",
+      "PH12 signed mock API cannot modify real tariff state");
+   console.log("PH12_NEST_PG17_TWO_INSTANCE_SIGNED_ISSUER_ROTATION_REVOCATION_PASS");
+
+
 
 
  }
@@ -853,4 +962,4 @@ async function main(){
  console.log("TTO_CF02_NO_REAL_IDENTITIES_NO_SHARE_LEDGER_NO_HOSTED_MIGRATION");
 }
 main().catch(e=>{console.error("TTO_CF02_E2E_FAIL",e?.stack??String(e));process.exitCode=1})
-.finally(async()=>{for(const proc of running)if(proc.exitCode===null)proc.kill("SIGTERM");await db.end().catch(()=>{});});
+.finally(async()=>{for(const proc of running)if(proc.exitCode===null)proc.kill("SIGTERM");for(const issuer of mockIssuers)await issuer.stop().catch(()=>{});await db.end().catch(()=>{});});
