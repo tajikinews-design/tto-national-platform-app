@@ -1,0 +1,68 @@
+name: CHILD06 REAL ClamAV official signatures (NO DEPLOY)
+on:
+  push:
+    branches: [feat/child06-three-external-gates-20261108]
+  pull_request:
+    branches: [feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-av-disposable:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: "true"
+      TTO_CHILD06_REAL_CLAMD: "1"
+      TTO_COOP_CLAMD_SOCKET: /run/clamav/clamd.ctl
+      VERCEL: ""
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Install real ClamAV engine, updater and Unix socket daemon
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq clamav clamav-daemon clamav-freshclam
+          sudo systemctl stop clamav-freshclam clamav-daemon clamav-daemon.socket || true
+          # Official Cisco-Talos signatures via FreshClam. No synthetic .ndb accepted.
+          sudo freshclam --stdout
+          clamscan --version
+          for ext in cvd cld; do
+            if [ -f "/var/lib/clamav/daily.$ext" ]; then
+              sudo sigtool --info "/var/lib/clamav/daily.$ext" | tee "$RUNNER_TEMP/child06-daily-info.txt"
+              break
+            fi
+          done
+          test -s "$RUNNER_TEMP/child06-daily-info.txt"
+          node - "$RUNNER_TEMP/child06-daily-info.txt" <<'NODE'
+          const fs=require("node:fs");
+          const text=fs.readFileSync(process.argv[2],"utf8");
+          const match=text.match(/^Build time:\s*(.+)$/m);
+          if(!match)throw Error("CHILD06_CLAMAV_SIGNATURE_BUILD_TIME_MISSING");
+          const issued=new Date(match[1]);
+          const age=(Date.now()-issued.getTime())/3600000;
+          if(!Number.isFinite(age)||age<0||age>168)
+            throw Error("CHILD06_CLAMAV_OFFICIAL_SIGNATURE_STALE hours="+age);
+          console.log("CHILD06_FRESHCLAM_REAL_DATABASE_AGE_HOURS="+age.toFixed(1));
+          NODE
+          sudo systemctl start clamav-daemon
+          for i in $(seq 1 120); do
+            if [ -S "$TTO_COOP_CLAMD_SOCKET" ];then break; fi
+            sleep 1
+          done
+          test -S "$TTO_COOP_CLAMD_SOCKET"
+          sudo chmod 666 "$TTO_COOP_CLAMD_SOCKET"
+          sudo systemctl is-active --quiet clamav-daemon
+      - name: Real official-signature ClamAV scan via project adapter
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.18.0
+          pnpm install --frozen-lockfile
+          pnpm --dir services/api build
+          timeout --signal=TERM --kill-after=5s 120s node scripts/ci/child06-real-clamd.test.cjs
+          echo "CHILD06_REAL_CLAMAV_TEST_PASS_NO_PRODUCTION_PDF_CERTIFICATION"
