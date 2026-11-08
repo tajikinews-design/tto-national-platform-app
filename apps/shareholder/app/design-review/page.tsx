@@ -8,6 +8,7 @@ export default function DesignReview(){
   <div role="note" style={{background:"#fff1d5",padding:"11px 20px",color:"#68451c",
     textAlign:"center",fontSize:13,fontWeight:700}}>
    بازبینی فقط‌خواندنی طرح مصوب · داده واقعی، ورود کاربر و عملیات تجاری در این صفحه اجرا نمی‌شوند
+   · <a href="/review" style={{marginRight:14,color:"#075b88"}}>بازبینی ۱۱ بخش</a>
    · <a href="/login" style={{marginRight:14,color:"#075b88"}}>رفتن به صفحه ورود</a>
   </div>
   <PortalShell surface="shareholder"/>
