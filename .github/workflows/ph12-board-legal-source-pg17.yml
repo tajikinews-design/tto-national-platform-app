@@ -41,7 +41,7 @@ jobs:
             docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" >/dev/null
             count=$((count+1))
           done
-          test "$count" -ge 77
+          test "$count" -ge 78
           # Disposable simulation only; never installed as a project migration.
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-mock-issuer-bridge-ci-schema.sql
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-board-legal-source-checks-hold.sql
@@ -51,6 +51,7 @@ jobs:
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-issuer-candidate-hold.sql
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/child06_legal_notices_history_fence.sql
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/child06_governance_bitemporal_fence.sql
+          docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/child06_notice_transition_catalog_fence.sql
           # Synthetic-only: fictional entity, fictitious board roster, registry,
           # signatures, quorum, expiry/revocation. Transaction always ROLLBACK.
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-synthetic-official-authority-lab.sql
