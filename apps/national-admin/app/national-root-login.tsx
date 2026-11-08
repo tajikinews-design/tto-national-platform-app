@@ -6,6 +6,7 @@ const button={marginTop:16,padding:"12px 25px",background:"#075b88",border:0,bor
 export default function NationalRootLogin(){
  const [username,setUsername]=useState("");
  const [password,setPassword]=useState("");
+ const [rememberDevice,setRememberDevice]=useState(true);
  const [phase,setPhase]=useState<Phase>("checking");
  const [busy,setBusy]=useState(false);
  const [notice,setNotice]=useState("");
@@ -35,7 +36,7 @@ export default function NationalRootLogin(){
   try{
    const response=await fetch("/api/national-login",{
     method:"POST",credentials:"same-origin",cache:"no-store",
-    headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password})
+    headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password,rememberDevice})
    });
    if(response.status===429){setNotice("تعداد تلاش‌ها بیش از حد مجاز است؛ بعداً دوباره تلاش کنید.");return;}
    if(response.status===401){setNotice("نام کاربری یا رمز عبور معتبر نیست.");return;}
@@ -119,6 +120,12 @@ export default function NationalRootLogin(){
     <label htmlFor="national-password" style={{display:"block",margin:"16px 0 6px"}}>رمز عبور</label>
     <input id="national-password" dir="ltr" type="password" autoComplete="current-password" value={password}
      onChange={e=>setPassword(e.target.value)} minLength={1} maxLength={128} required disabled={busy} style={field}/>
+    <label style={{display:"flex",alignItems:"center",gap:9,marginTop:18,lineHeight:1.9,cursor:"pointer"}}>
+     <input type="checkbox" checked={rememberDevice} disabled={busy}
+      onChange={e=>setRememberDevice(e.target.checked)} aria-label="مرا در این مرورگر به خاطر بسپار"/>
+     مرا در این مرورگر به خاطر بسپار (تا ۷ روز)
+    </label>
+    <p style={{fontSize:13,color:"#53697b",lineHeight:1.9}}>فقط در دستگاه شخصی فعال بگذارید. با خروج امن، تغییر رمز یا پایان اعتبار، ورود دوباره لازم می‌شود.</p>
     <button type="submit" disabled={busy} style={button}>{busy?"در حال بررسی…":"ورود به پنل ملی"}</button>
    </form>}
   {notice?<p role="status" style={{lineHeight:2,color:"#7d341a"}}>{notice}</p>:null}
