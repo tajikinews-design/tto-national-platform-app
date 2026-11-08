@@ -2098,6 +2098,47 @@ export class Ph12BoardLegalSourceController {
    throw e;
   }
  }
+ @Post(":tenantId/ph12/share-market/tariff-board-cases/:caseId/legal-dispositions")
+ @HttpCode(201)
+ async recordLegalDisposition(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("caseId",new ParseUUIDPipe()) caseId:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"PH12_LEGAL_REVIEW_NOT_RELEASED"});
+  const fields=["requestKey","documentReviewId","sourceCheckIds","decision","findingReference"];
+  const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+     Object.keys(v).some(k=>!fields.includes(k))||
+     ![v.requestKey,v.documentReviewId].every(x=>typeof x==="string"&&uuid.test(x))||
+     !Array.isArray(v.sourceCheckIds)||
+     v.sourceCheckIds.length<1||v.sourceCheckIds.length>20||
+     !v.sourceCheckIds.every(x=>typeof x==="string"&&uuid.test(x))||
+     typeof v.findingReference!=="string"||
+     typeof v.decision!=="string"||
+     !["LEGAL_HOLD_SOURCE_UNVERIFIED","LEGAL_REJECTED"].includes(v.decision))
+   throw new BadRequestException({code:"PH12_LEGAL_DISPOSITION_INPUT_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+     "SELECT * FROM tto.ph12_record_tariff_board_legal_disposition($1::uuid,$2::uuid,$3::uuid[],$4::text,$5::text,$6::uuid)",
+     [caseId,v.documentReviewId,v.sourceCheckIds,v.decision,v.findingReference,v.requestKey]);
+    const row=q.rows[0];
+    return {tenantId:tenant,caseId,dispositionId:row.disposition_id,
+     legalDecision:row.legal_state,replayed:row.replayed,
+     officialSourceAuthenticated:false,signerIdentityAuthenticated:false,
+     signerAuthorityAuthenticated:false,boardLegallyApproved:false,
+     tariffActivated:false,officialFeePaid:false,legalShareTransfer:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"PH12_LEGAL_DISPOSITION_SCOPE_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"PH12_LEGAL_DISPOSITION_CONFLICT"});
+   if(code==="22023"||code==="22007"||code==="22P02")
+     throw new BadRequestException({code:"PH12_LEGAL_DISPOSITION_INPUT_INVALID"});
+   throw e;
+  }
+ }
 }
 
 @Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController,Ph12TariffDraftController,Ph12TariffBoardDocumentController,Ph12BoardLegalSourceController],providers:[ApiIrSmsOtpProvider]})
