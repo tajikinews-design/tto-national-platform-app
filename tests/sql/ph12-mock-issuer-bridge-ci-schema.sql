@@ -32,6 +32,8 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,tto AS $fn$
 DECLARE tid uuid:=tto.context_tenant_id();actor uuid:=tto.context_actor_id();
 BEGIN
  IF tid IS NULL OR actor IS NULL OR NOT tto.has_tenant_role(tid,'LEGAL_REVIEWER')
+    OR tto.has_tenant_role(tid,'COOPERATIVE_MANAGER')
+    OR tto.has_tenant_role(tid,'DOCUMENT_REVIEWER')
  THEN RAISE EXCEPTION 'PH12_MOCK_LAB_SCOPE_DENIED' USING ERRCODE='42501';END IF;
  -- This row lock serializes two Nest processes and administrative key rotation.
  RETURN QUERY SELECT t.issuer_id,t.key_id,t.issuer_url,t.public_key_pem,t.trust_epoch
@@ -46,6 +48,8 @@ DECLARE tid uuid:=tto.context_tenant_id();actor uuid:=tto.context_actor_id();
  tr record;prior record;
 BEGIN
  IF tid IS NULL OR actor IS NULL OR NOT tto.has_tenant_role(tid,'LEGAL_REVIEWER')
+    OR tto.has_tenant_role(tid,'COOPERATIVE_MANAGER')
+    OR tto.has_tenant_role(tid,'DOCUMENT_REVIEWER')
  THEN RAISE EXCEPTION 'PH12_MOCK_LAB_SCOPE_DENIED' USING ERRCODE='42501';END IF;
  IF p_entity IS NULL OR p_entity !~ '^SYNTHETIC_[A-Za-z0-9_]{1,80}$' OR
   p_version IS NULL OR p_version<=0 OR
