@@ -10,7 +10,7 @@ export default async function ModulePage({params}:{params:Promise<{id:string}>})
   <PortalShell surface="shareholder" activeId={moduleId}>
    <PortalModuleWorkbench surface="shareholder" moduleId={moduleId}/>
    <ShareholderWorkspace initialView={focus??"overview"} {...(sectionId?{initialSectionId:sectionId}:{})}/>
-   <p className="sw-footnote">ورود معتبر جایگزین اثبات رابطه عضویت، دفتر مالکیت سهم یا مجوز خریدوفروش نیست.</p>
+   <p className="sw-footnote">ورود معتبر جایگزین اثبات رابطه عضویت، دفتر مالکیت سهم یا مجوز خریدوفروش نیست. بدون استعلام معتبر هیچ موجودی یا تأییدیه شخصی نمایش داده نمی‌شود.</p>
   </PortalShell>
  </PortalSessionGate>;
 }
