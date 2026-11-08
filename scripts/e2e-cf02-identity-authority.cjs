@@ -134,7 +134,13 @@ async function main(){
  const pwApi="/v1/portal/password/login";
  const loginBody={surface:"cooperative",username:"ci-manager",
   password:syntheticPassword,workspaceSlug:"ci-legal-a"};
- const managerLogin=await status(await post(pwApi,undefined,loginBody),200,
+ const managerResponse=await post(pwApi,undefined,loginBody);
+ if(managerResponse.status!==200){
+  const problem=await managerResponse.json().catch(()=>({}));
+  throw Error("CI_SYNTHETIC_PASSWORD_LOGIN_REJECTED_STATUS_"+managerResponse.status+
+    "_CODE_"+(problem?.code??problem?.message??"UNKNOWN"));
+ }
+ const managerLogin=await status(managerResponse,200,
     "independent synthetic manager password session");
  ok(managerLogin.authenticated===true&&managerLogin.surface==="cooperative"&&
     managerLogin.workspaceSlug==="ci-legal-a"&&managerLogin.tenantId===A&&
