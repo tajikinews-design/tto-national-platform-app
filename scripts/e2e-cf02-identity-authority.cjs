@@ -7,7 +7,7 @@ const {createRequire}=require("node:module");
 const ROOT=resolve(__dirname,"..");
 const {Client}=createRequire(resolve(ROOT,"services/api/package.json"))("pg");
 const {makeMockIssuer,newRecord}=require("./ci/ph12-mock-official-issuer.cjs");
-const mockIssuers=[];let labApiEnv;
+const mockIssuers=[];let labApiEnv,firstMockIssuerUrl;
 const url=process.env.TEST_ADMIN_DATABASE_URL;
 if(!url||process.env.APIIR_TOKEN)throw Error("DISPOSABLE_POSTGRES_ONLY_NO_SMS");
 const db=new Client({connectionString:url});
@@ -69,7 +69,7 @@ async function fixture(){
  if(process.env.TTO_PH12_LEGAL_E2E==="1"){
   process.env.TTO_PH12_MOCK_ISSUER_LAB="1";
   const issuer=makeMockIssuer();mockIssuers.push(issuer);
-  const url=await issuer.start();
+  const url=await issuer.start();firstMockIssuerUrl=url;
   issuer.setRecord(A,"SYNTHETIC_ENTITY_A",newRecord());
   await db.query("INSERT INTO tto.ph12_mock_lab_trust(tenant_id,issuer_id,key_id,trust_epoch,issuer_url,public_key_pem) VALUES($1,'PH12_SYNTHETIC_ISSUER_NOT_OFFICIAL',$2,1,$3,$4)",[
    A,issuer.keyId,url,issuer.publicKey.export({type:"spki",format:"pem"})]);
@@ -683,9 +683,9 @@ async function main(){
       "PH12 new issuer key and epoch accepted on independent Nest instance"),
       "MOCK_ELIGIBLE_IN_LAB_ONLY");
    await db.query("UPDATE tto.ph12_mock_lab_trust SET issuer_url=$2 WHERE tenant_id=$1",
-      [A,labApiEnv.__old_issuer_url||"http://127.0.0.1:1"]);
+      [A,firstMockIssuerUrl]);
    holder(await status(await post(labPath,tokenMap.get(LEGAL),labSubject),200,
-      "PH12 old issuer no longer permitted after key rotation"),"MOCK_HOLD_ISSUER_UNAVAILABLE");
+      "PH12 old issuer no longer permitted after key rotation"),"MOCK_HOLD_BAD_ENVELOPE_OR_KEY");
    await db.query("UPDATE tto.ph12_mock_lab_trust SET issuer_url=$2 WHERE tenant_id=$1",
       [A,issuer2Url]);
    labB.setRecord(A,labSubject.entityId,newRecord({
