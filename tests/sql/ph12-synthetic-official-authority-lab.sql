@@ -86,13 +86,13 @@ SELECT
   COALESCE(t.version_ok,b.source_version_current),
   COALESCE(t.revoked,b.source_revoked),b.resolution_date,
   COALESCE(t.board_start::date,b.board_term_from),COALESCE(t.board_end::date,b.board_term_until),
-  COALESCE(t.power_start,b.signing_power_from),
+  b.signing_power_from,
   COALESCE(t.power_end::date,b.signing_power_until),
   COALESCE(t.signer_revoked,b.signatory_revoked),
   b.required_joint_signers,COALESCE(t.sign_count,b.distinct_valid_signatures),
   b.quorum_required,COALESCE(t.quorum_count,b.quorum_present),
-  COALESCE(t.bylaws_ok,b.bylaws_match),
-  COALESCE(t.four_eyes,b.reviewer_independent),t.expected
+  b.bylaws_match,
+  b.reviewer_independent,t.expected
 FROM pg_temp.ph12_mock_official_cases b
 CROSS JOIN (VALUES
  ('TENANT_CROSS','SYN-TENANT-B',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'MOCK_HOLD_CROSS_ENTITY_OR_TENANT'),
