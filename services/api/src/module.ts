@@ -2500,6 +2500,127 @@ export class Child06GovernanceArchiveController {
    throw e;
   }
  }
+ /** Conflict review is an immutable lab audit, NEVER legal validation or tariff activation. */
+ @Post(":tenantId/child06/governance-conflicts")
+ @HttpCode(201)
+ async openGovernanceConflict(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_CHILD06_GOVERNANCE_NOTICE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_CONFLICT_INTAKE_DISABLED"});
+  const datePattern=/^14[0-9]{2}[/](0[1-9]|1[0-2])[/](0[1-9]|[12][0-9]|3[01])$/;
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+    Object.keys(v).some(k=>!["asOf","conflictCode","evidence","requestKey"].includes(k))||
+    typeof v.asOf!=="string"||!datePattern.test(v.asOf)||
+    typeof v.conflictCode!=="string"||v.conflictCode.length>180||
+    !Array.isArray(v.evidence)||v.evidence.length<1||v.evidence.length>20||
+    typeof v.requestKey!=="string"||!uuidPattern.test(v.requestKey)||
+    v.evidence.some(x=>!x||typeof x!=="object"||Array.isArray(x)||
+      Object.keys(x).some(k=>!["kind","sourceId","reference","sha256"].includes(k))||
+      !["NOTICE","TRANSITION"].includes(x.kind)||typeof x.sourceId!=="string"||
+      !uuidPattern.test(x.sourceId)||typeof x.reference!=="string"||
+      (x.sha256!==undefined&&x.sha256!==null&&
+       (typeof x.sha256!=="string"||!/^[0-9a-f]{64}$/.test(x.sha256)))))
+   throw new BadRequestException({code:"CHILD06_CONFLICT_INPUT_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const capture=new Date().toISOString();
+    const facts=await client.query<{facts:Record<string,unknown>}>(
+     "SELECT tto.cooperative_governance_temporal_facts($1::timestamptz) AS facts",[capture]);
+    const snapshot=reconstructGovernanceSnapshot(facts.rows[0]?.facts,v.asOf as string,capture);
+    const codes=snapshot.conflicts;
+    if(!Array.isArray(codes)||!codes.includes(v.conflictCode))
+     throw new BadRequestException({code:"CHILD06_CONFLICT_NOT_PRESENT_IN_SOURCE"});
+    const payload=facts.rows[0].facts;
+    const evidenceSources=new Set<string>([
+      ...((payload.notices as Array<{noticeId:string}>).map(n=>"NOTICE:"+n.noticeId)),
+      ...((payload.transitions as Array<{transitionId:string}>).map(n=>"TRANSITION:"+n.transitionId))
+    ]);
+    for(const e of v.evidence as Array<{kind:string;sourceId:string}>)
+      if(!evidenceSources.has(e.kind+":"+e.sourceId))
+       throw new BadRequestException({code:"CHILD06_CONFLICT_EVIDENCE_NOT_IN_SNAPSHOT"});
+    const sha=createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    const r=await client.query(
+      "SELECT * FROM tto.cooperative_open_governance_conflict_case("+
+      "$1::text,$2::text,$3::text,$4::jsonb,$5::uuid)",
+      [v.asOf,v.conflictCode,sha,JSON.stringify(v.evidence),v.requestKey]);
+    return {tenantId:tenant,caseId:r.rows[0].case_id,
+      status:r.rows[0].state,replayed:r.rows[0].replayed,
+      reviewed:false,officialEvidenceAuthenticated:false,
+      legalAuthorityVerified:false,tariffActivated:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"CHILD06_CONFLICT_OPEN_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"CHILD06_CONFLICT_REQUEST_CONFLICT"});
+   if(["22023","23514","23502","22P02"].includes(code??""))
+    throw new BadRequestException({code:"CHILD06_CONFLICT_EVIDENCE_INVALID"});
+   if(e instanceof Error&&e.message.startsWith("CHILD06_TEMPORAL_"))
+    throw new ServiceUnavailableException({code:"CHILD06_CONFLICT_TEMPORAL_FAIL_CLOSED"});
+   throw e;
+  }
+ }
+ @Post(":tenantId/child06/governance-conflicts/:caseId/review")
+ @HttpCode(201)
+ async reviewGovernanceConflict(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("caseId",new ParseUUIDPipe()) caseId:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_CHILD06_GOVERNANCE_NOTICE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_CONFLICT_REVIEW_DISABLED"});
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+    Object.keys(v).some(k=>!["outcome","evidenceIds","reason","requestKey"].includes(k))||
+    !["HOLD_OFFICIAL_SOURCE_REQUIRED","REJECT_SOURCE_CLAIM",
+      "HOLD_INSUFFICIENT_EVIDENCE"].includes(v.outcome as string)||
+    !Array.isArray(v.evidenceIds)||v.evidenceIds.length<1||v.evidenceIds.length>20||
+    v.evidenceIds.some(x=>typeof x!=="string"||!uuidPattern.test(x))||
+    typeof v.reason!=="string"||v.reason.length<25||v.reason.length>1400||
+    typeof v.requestKey!=="string"||!uuidPattern.test(v.requestKey))
+   throw new BadRequestException({code:"CHILD06_CONFLICT_REVIEW_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const r=await client.query(
+     "SELECT * FROM tto.cooperative_review_governance_conflict("+
+     "$1::uuid,$2::text,$3::uuid[],$4::text,$5::uuid)",
+      [caseId,v.outcome,v.evidenceIds,v.reason,v.requestKey]);
+    return {tenantId:tenant,caseId,dispositionId:r.rows[0].disposition_id,
+     outcome:r.rows[0].outcome,replayed:r.rows[0].replayed,
+     independentReviewRecorded:true,legalAuthorityVerified:false,
+     officialEvidenceAuthenticated:false,tariffActivated:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"CHILD06_CONFLICT_INDEPENDENT_REVIEW_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"CHILD06_CONFLICT_DISPOSITION_IMMUTABLE"});
+   if(["22023","23514","23502","22P02"].includes(code??""))
+    throw new BadRequestException({code:"CHILD06_CONFLICT_REVIEW_EVIDENCE_INVALID"});
+   throw e;
+  }
+ }
+ @Get(":tenantId/child06/governance-conflicts")
+ async governanceConflicts(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined){
+  if(process.env.TTO_CHILD06_GOVERNANCE_HISTORY_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_CONFLICT_AUDIT_DISABLED"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const r=await client.query<{v:Record<string,unknown>}>(
+      "SELECT tto.cooperative_governance_conflict_audit() AS v");
+    const result=r.rows[0]?.v;
+    if(!result||result.tenantId!==tenant||result.legalAuthorityVerified!==false||
+      result.tariffActivated!==false||result.officialEvidenceAuthenticated!==false||
+      !Array.isArray(result.cases))throw new ServiceUnavailableException({
+       code:"CHILD06_CONFLICT_AUDIT_UNSAFE"});
+    return result;
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"CHILD06_CONFLICT_AUDIT_DENIED"});
+   if(code==="22023")throw new ServiceUnavailableException({code:"CHILD06_CONFLICT_AUDIT_TOO_LARGE"});
+   throw e;
+  }
+ }
  @Get(":tenantId/child06/governance-as-of")
  async governanceAsOf(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
   @Headers("authorization") auth:string|undefined,
