@@ -15,6 +15,8 @@ export const managementNavigation = [
   "پروژه و توسعه", "ریسک و شفافیت", "گزارش و هوشمندی", "تنظیمات"
 ] as const;
 
+const nationalNavigation = ["داشبورد", "تعاونی‌ها", ...managementNavigation.slice(2)] as const;
+
 /** Source-aligned NAV-01 .. NAV-11.  No number is ever inferred from the DB. */
 const surfaces: Record<Surface, {
   title: string; description: string; chips: readonly string[];
@@ -65,7 +67,7 @@ const surfaces: Record<Surface, {
     title: "مرکز مدیریت ملی",
     description: "پایش شاخص‌های تجمیعی و سلامت شبکه تعاونی‌ها",
     chips: ["تعاونی‌های فعال", "گیت‌های حقوقی", "سلامت سامانه", "گزارش‌های تجمیعی"],
-    navigation: managementNavigation,
+    navigation: nationalNavigation,
     sectionDescriptions: [
       "نمای شبکه‌ای و شاخص‌های تجمیعی پس از اعمال قواعد دسترسی ملی.",
       "پایش وضعیت تعاونی‌ها و داده‌های تجمیعی مجاز؛ بدون دسترسی پیش‌فرض به هویت و سهام اشخاص.",
