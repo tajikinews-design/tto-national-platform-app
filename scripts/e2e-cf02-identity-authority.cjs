@@ -1020,8 +1020,10 @@ async function main(){
      "DELETE FROM tto.cooperative_governance_conflict_evidence WHERE case_id=$1",
      [opened.caseId]));checks++;
    const uiBase=cm.origin+"/api/tenants/"+A+"/governance-conflicts";
-   await status(await fetch(uiBase),401,
-      "manager conflict BFF refuses anonymous audit");
+   const unauthConflict=await fetch(uiBase);
+   if(unauthConflict.status!==401)console.error("CHILD06_CONFLICT_BFF_ANON_DIAGNOSTIC",
+      unauthConflict.status,await unauthConflict.clone().text());
+   await status(unauthConflict,401,"manager conflict BFF refuses anonymous audit");
    const uiAudit=await status(await fetch(uiBase,{headers:{
       Cookie:"tto_session="+tokenMap.get(MANAGER)},cache:"no-store"}),200,
       "manager BFF displays traceable source/evidence/review audit");
