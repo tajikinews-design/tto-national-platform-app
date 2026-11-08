@@ -1,0 +1,39 @@
+name: PH12 three-portal linked Preview UI build (NO DEPLOY)
+on:
+  push:
+    branches: [feat/ph12-portal-preview-modules-api-navigation-20261108]
+  pull_request:
+    branches: [feat/child06-coop-two-person-attestation-hold-20261108]
+permissions:
+  contents: read
+jobs:
+  build-preview-navigation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: "true"
+      VERCEL: ""
+      NEXT_TELEMETRY_DISABLED: "1"
+      TTO_API_BASE_URL: ""
+      DATABASE_URL: ""
+      APIIR_TOKEN: ""
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Install workspace and validate all preview portals
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.18.0
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm check
+          echo "TTO_3PORTAL_NAVIGATION_FULL_BUILD_GREEN"
+      - name: Ensure all module links target reviewed existing Next route and preserve HOLD
+        run: |
+          set -euo pipefail
+          node scripts/ci/ph12-preview-module-route-map.cjs
+          echo "TTO_3PORTAL_PREVIEW_SAFE_ROUTE_CONTRACT_PASS"
