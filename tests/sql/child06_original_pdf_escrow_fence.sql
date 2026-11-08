@@ -26,6 +26,9 @@ BEGIN
      NOT (SELECT prosecdef FROM pg_proc WHERE oid=func)
   THEN RAISE EXCEPTION 'CHILD06_ESCROW_GUARDED_FUNCTION_MISSING';END IF;
  END LOOP;
+ IF position(':conflict-review:' in pg_get_functiondef(
+      'tto.cooperative_store_governance_source_file(uuid,uuid,integer,bytea,bytea,bytea,bytea,uuid)'::regprocedure))=0
+ THEN RAISE EXCEPTION 'CHILD06_ESCROW_REVIEW_RACE_FENCE_MISSING';END IF;
  IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE
     conrelid='tto.cooperative_governance_source_files'::regclass AND
     pg_get_constraintdef(oid) LIKE '%ENCRYPTED_QUARANTINED_UNAUTHENTICATED%')
