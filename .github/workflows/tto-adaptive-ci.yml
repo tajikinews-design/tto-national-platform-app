@@ -542,6 +542,18 @@ jobs:
             export TTO_PCS014_BROWSER=1
           fi
           timeout --signal=TERM --kill-after=5s 220s node scripts/e2e-cf02-identity-authority.cjs
+      - name: CHILD06 encrypted PDF logical PG17 backup and recovery (CI ONLY)
+        if: github.event_name == 'pull_request' && github.head_ref == 'feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108' && steps.scope.outputs.suite != 'lite'
+        env:
+          CI: "true"
+          TTO_PH12_LEGAL_E2E: "1"
+          TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
+          APIIR_TOKEN: ""
+        run: |
+          set -euo pipefail
+          node --check scripts/ci/child06-pdf-logical-restore.test.cjs
+          timeout --signal=TERM --kill-after=5s 150s node scripts/ci/child06-pdf-logical-restore.test.cjs
+          echo "CHILD06_PDF_RESTORE_IS_DISPOSABLE_NOT_OFFSITE_CERTIFIED"
       - name: Complete historical SQL, OTP, login/logout and authority regression
         if: steps.scope.outputs.suite == 'release' && env.TTO_W2_NO_DOCKER_BRANCH != 'true'
         env:
