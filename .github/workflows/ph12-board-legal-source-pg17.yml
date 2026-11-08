@@ -41,11 +41,12 @@ jobs:
             docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f" >/dev/null
             count=$((count+1))
           done
-          test "$count" -ge 74
+          test "$count" -ge 75
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-board-legal-source-checks-hold.sql
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-board-legal-source-functions-adversarial.sql
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-independent-legal-disposition-hold.sql
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-source-invalidation-recheck-hold.sql
+          docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-issuer-candidate-hold.sql
           echo "PH12_LEGAL_SOURCE_DISPOSABLE_PG17_SCHEMA_PASS count=$count"
       - name: Destroy isolated PG17
         if: always()
