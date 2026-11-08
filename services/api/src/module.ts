@@ -52,6 +52,10 @@ export class Database {
     }
   }
   async onModuleDestroy(): Promise<void> { await this.pool.end(); }
+  async demoCommercePlans(){
+    const r=await this.pool.query('SELECT code,title,duration_days AS "durationDays",features FROM tto.commerce_demo_plans WHERE active AND preview_only ORDER BY duration_days');
+    return r.rows;
+  }
   async workspaceExists(slug:string):Promise<boolean>{
     const result=await this.pool.query(
       "SELECT 1 FROM tto.cooperative_workspace_addresses WHERE slug=$1 AND state='RESERVED' LIMIT 1",
@@ -359,9 +363,8 @@ export class FoundationCommandsController {
   @Get("commerce/demo/plans")
   async demoCommercePlans(){
     if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
-    const rows=await this.db.pool.query<{code:string;title:string;durationDays:number;features:string[]}>(
-      'SELECT code,title,duration_days AS "durationDays",features FROM tto.commerce_demo_plans WHERE active AND preview_only ORDER BY duration_days');
-    return {plans:rows.rows,realPaymentEnabled:false};
+    const plans=await this.db.demoCommercePlans();
+    return {plans,realPaymentEnabled:false};
   }
 
   @Post("commerce/demo/confirm")
