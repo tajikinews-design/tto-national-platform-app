@@ -54,9 +54,9 @@ BEGIN
  RETURN true;
 END $fn$;
 CREATE FUNCTION tto.portal_password_credential_lookup(p_surface text,p_username text)
-RETURNS TABLE(user_id uuid,tenant_id uuid,password_scrypt text,must_rotate boolean)
+RETURNS TABLE(user_id uuid,tenant_id uuid,password_scrypt text,must_rotate boolean,workspace_slug text)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto AS $fn$
- SELECT c.user_id,c.tenant_id,c.password_scrypt,c.must_rotate
+ SELECT c.user_id,c.tenant_id,c.password_scrypt,c.must_rotate,t.slug
  FROM tto.portal_password_credentials c
  JOIN tto.user_accounts u ON u.user_id=c.user_id AND u.status='ACTIVE'
  JOIN tto.tenants t ON t.tenant_id=c.tenant_id AND t.status='ACTIVE'
