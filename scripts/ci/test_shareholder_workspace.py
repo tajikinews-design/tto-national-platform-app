@@ -136,25 +136,24 @@ class ShareholderWorkspaceContractTests(unittest.TestCase):
     def test_runtime_smoke_checks_protected_module_states_instead_of_old_placeholder(self):
         smoke=(ROOT/"scripts/smoke-next-otp.mjs").read_text(encoding="utf-8")
         for marker in (
-            'protectedShareholder=slug==="shareholder"',
-            '"/modules/nav-02","/modules/nav-03","/modules/nav-05"',
             'const moduleCases=Array.from({length:10}',
-            'return ["/modules/"+nav.toLowerCase(),nav]',
-            'html.includes("در این نسخه پیش‌نمایش")',
+            '"/modules/nav-"+String(i+2).padStart(2,"0")',
+            'html.includes("در حال بررسی دسترسی")',
             'html.includes("کارپوشه شخصی سهامدار")',
             'html.includes("عضویت فعال — منبع تأییدشده")',
-            'management module bypassed safe OTP shell or leaked private data',
             'const anonymous=await fetch(endpoint)',
             'const forged=await fetch(endpoint',
             'payload.code!=="SESSION_REQUIRED"',
             '"member-record","shareholding"',
             '"X-Role":"MEMBER"',
             'cache-control',
+            'approved 11-slot non-data visual review missing',
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker,smoke)
-        self.assertIn('if(!html.includes(title)||!html.includes(\'aria-current="page"\'))',smoke)
+        self.assertNotIn('protectedShareholder=slug==="shareholder"',smoke)
         self.assertNotIn('module view missing safe placeholder/current navigation',smoke)
+        self.assertIn('TTO_NEXT_3PORTAL_PASSWORD_GATED_RUNTIME_SMOKE_PASS=',smoke)
 
     def test_navigation_and_design_are_responsive_and_accessible(self):
         for key in ('NAV-02','NAV-03','NAV-05'):
