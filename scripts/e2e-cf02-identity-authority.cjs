@@ -521,12 +521,12 @@ async function main(){
    await status(await legalPost(invalidationEndpoint,tokenMap.get(LEGAL),
      {...invalidationPayload,requestKey:randomUUID()}),409,
      "PH12 invalidation cannot be overwritten by another request");
-   const post=await status(await get(recheckEndpoint,tokenMap.get(LEGAL)),200,
+   const postRecheck=await status(await get(recheckEndpoint,tokenMap.get(LEGAL)),200,
      "PH12 re-evaluation after revocation report");
-   ok(post.assessment==="HOLD_SOURCE_INVALIDATED"&&
-      post.invalidatedChecks===1&&post.sourceChecks===2&&
-      post.legalReviewRecorded===true&&
-      post.legalAuthorityVerified===false&&post.tariffActivated===false,
+   ok(postRecheck.assessment==="HOLD_SOURCE_INVALIDATED"&&
+      postRecheck.invalidatedChecks===1&&postRecheck.sourceChecks===2&&
+      postRecheck.legalReviewRecorded===true&&
+      postRecheck.legalAuthorityVerified===false&&postRecheck.tariffActivated===false,
      "PH12 later withdrawal changes current HOLD while preserving legal history");
    await assert.rejects(()=>db.query(
      "UPDATE tto.ph12_tariff_board_source_invalidations SET reason='SOURCE_UNREACHABLE' WHERE invalidation_id=$1",
