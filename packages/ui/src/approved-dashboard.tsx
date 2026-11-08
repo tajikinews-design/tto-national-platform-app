@@ -22,6 +22,11 @@ const profiles:Record<Surface,Profile>={
   campaigns:["اطلاعیه‌های مجاز سهامداران","پیشنهادها و خدمات منتشرشده"],
   primaryAction:{label:"مشاهده عضویت و سهام",href:"/modules/nav-02"},chart:"روند ارزش سهام"}
 };
+const actionHrefs:Record<Surface,[string,string,string]>={
+ national:["/cooperatives/new","/cooperatives/onboarding","/cooperatives/onboarding"],
+ cooperative:["/official-records","/share-market/tariffs","/share-market/board-review"],
+ shareholder:["/modules/nav-02","/modules/nav-03","/modules/nav-05"]
+};
 const numeric=(value:string)=> <strong aria-label="داده معتبر دریافت نشده">{value}</strong>;
 export function ApprovedDashboardHome({surface,children}:{surface:Surface;children?:ReactNode}){
  const p=profiles[surface];
@@ -42,7 +47,7 @@ export function ApprovedDashboardHome({surface,children}:{surface:Surface;childr
     {p.alerts.map((x,i)=><div className="tto-widget-row" key={x}><span className={"tto-state state-"+i}>{i===0?"نیازمند بررسی":"بدون داده"}</span><div><strong>{x}</strong><small>اطلاعات پس از دریافت از منبع معتبر ظاهر می‌شود</small></div></div>)}
    </section>
    <section className="tto-widget tto-actions"><div className="tto-widget-title"><h2>اقدام‌های در انتظار</h2><span>گردش کار</span></div>
-     {p.actions.map((x,i)=><div className="tto-widget-row" key={x}><span className="tto-state">آماده بررسی</span><div><strong>{x}</strong><small>فقط پس از احراز نقش و محدوده تعاونی</small></div></div>)}
+     {p.actions.map((x,i)=><div className="tto-widget-row" key={x}><span className="tto-state">دسترسی مجاز</span><div><a href={actionHrefs[surface][i]} className="tto-approved-action-link">{x} ←</a><small>فقط پس از احراز نقش و محدوده تعاونی</small></div></div>)}
      {children}
    </section>
    <section className="tto-widget tto-chart"><div className="tto-widget-title"><h2>{p.chart}</h2><span>شش ماه گذشته</span></div>
