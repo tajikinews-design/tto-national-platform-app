@@ -381,7 +381,7 @@ export class FoundationCommandsController {
     const rawName=input?.name;
     if(typeof provinceCode!=="string"||!/^[0-9]{2}$/.test(provinceCode)||
        typeof rawName!=="string")throw new BadRequestException("INVALID_COUNTY");
-    const name=rawName.trim().replace(/ي/g,"ی").replace(/ك/g,"ک").replace(/\\s+/g," ");
+    const name=rawName.trim().replace(/ي/g,"ی").replace(/ك/g,"ک").replace(/\s+/g," ");
     if(name.length<2||name.length>100||!/^[آ-ی\u200c\s-]+$/.test(name))
       throw new BadRequestException("INVALID_COUNTY");
     const actor=await this.db.sessionActor(auth);
