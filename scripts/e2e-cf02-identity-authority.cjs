@@ -833,7 +833,11 @@ async function main(){
       "DELETE FROM tto.cooperative_notice_transitions WHERE transition_id=$1",
       [corrected.transitionId]));checks++;
    const bffAsOf=sh.origin+"/api/tenants/"+A+"/governance-as-of?date=1404%2F10%2F13";
-   await status(await fetch(bffAsOf),401,
+   const temporalAnonymous=await fetch(bffAsOf);
+   if(temporalAnonymous.status!==401)
+    console.error("CHILD06_TEMPORAL_BFF_ANON_DIAGNOSTIC",
+      temporalAnonymous.status,await temporalAnonymous.clone().text());
+   await status(temporalAnonymous,401,
       "shareholder temporal BFF denies anonymous");
    const bffSnapshot=await status(await fetch(bffAsOf,{
       headers:{Cookie:"tto_session="+tokenMap.get(USER)},cache:"no-store"}),
