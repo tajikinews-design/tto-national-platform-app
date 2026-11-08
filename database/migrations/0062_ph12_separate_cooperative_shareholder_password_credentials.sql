@@ -19,6 +19,16 @@ CREATE TABLE tto.portal_password_credentials (
  UNIQUE(surface,user_id,tenant_id),
  CHECK(independently_provisioned_by<>user_id)
 );
+CREATE TABLE tto.portal_password_session_bindings (
+ session_id uuid PRIMARY KEY REFERENCES tto.user_sessions(session_id),
+ surface text NOT NULL CHECK(surface IN ('cooperative','shareholder')),
+ user_id uuid NOT NULL REFERENCES tto.user_accounts(user_id),
+ tenant_id uuid NOT NULL REFERENCES tto.tenants(tenant_id),
+ issued_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+ALTER TABLE tto.portal_password_session_bindings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tto.portal_password_session_bindings FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON tto.portal_password_session_bindings FROM PUBLIC,tto_app;
 CREATE TABLE tto.portal_password_attempts(
  attempt_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  fingerprint bytea NOT NULL CHECK(octet_length(fingerprint)=32),
@@ -61,7 +71,7 @@ $fn$;
 CREATE FUNCTION tto.issue_portal_password_session(p_surface text,p_username text,
  p_user uuid,p_tenant uuid,p_hash bytea)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,tto AS $fn$
-DECLARE ok boolean;
+DECLARE ok boolean;new_session uuid;
 BEGIN
  IF octet_length(p_hash)<>32 OR p_surface NOT IN ('cooperative','shareholder') THEN RETURN false;END IF;
  SELECT EXISTS(SELECT 1 FROM tto.portal_password_credential_lookup(p_surface,p_username) c
@@ -69,15 +79,39 @@ BEGIN
  IF NOT ok THEN RETURN false;END IF;
  INSERT INTO tto.user_sessions(session_id,user_id,session_hash,security_epoch,expires_at)
  SELECT gen_random_uuid(),u.user_id,p_hash,u.security_epoch,clock_timestamp()+interval '15 minutes'
- FROM tto.user_accounts u WHERE u.user_id=p_user AND u.status='ACTIVE';
- RETURN FOUND;
+ FROM tto.user_accounts u WHERE u.user_id=p_user AND u.status='ACTIVE'
+ RETURNING session_id INTO new_session;
+ IF new_session IS NULL THEN RETURN false;END IF;
+ INSERT INTO tto.portal_password_session_bindings(session_id,surface,user_id,tenant_id)
+ VALUES(new_session,p_surface,p_user,p_tenant);
+ RETURN true;
 END $fn$;
+CREATE FUNCTION tto.portal_password_session_identity(p_hash bytea,p_surface text)
+RETURNS TABLE(user_id uuid,tenant_id uuid,slug text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,tto AS $fn$
+ SELECT b.user_id,b.tenant_id,t.slug FROM tto.user_sessions sess
+ JOIN tto.portal_password_session_bindings b ON b.session_id=sess.session_id
+ JOIN tto.user_accounts u ON u.user_id=b.user_id AND u.status='ACTIVE'
+ JOIN tto.tenants t ON t.tenant_id=b.tenant_id AND t.status='ACTIVE'
+ JOIN tto.portal_password_credentials c ON c.user_id=b.user_id
+  AND c.tenant_id=b.tenant_id AND c.surface=b.surface AND c.revoked_at IS NULL
+ JOIN tto.role_assignments role ON role.user_id=b.user_id AND role.tenant_id=b.tenant_id
+  AND role.role_code=CASE b.surface WHEN 'cooperative' THEN 'COOPERATIVE_MANAGER'
+                                   WHEN 'shareholder' THEN 'MEMBER' ELSE '-' END
+  AND role.revoked_at IS NULL AND (role.expires_at IS NULL OR role.expires_at>now())
+ WHERE sess.session_hash=p_hash AND sess.user_id=b.user_id AND b.surface=p_surface
+  AND sess.revoked_at IS NULL AND sess.expires_at>now()
+  AND sess.security_epoch=u.security_epoch AND c.must_rotate=false
+ LIMIT 1
+$fn$;
 REVOKE ALL ON FUNCTION tto.reserve_portal_password_attempt(bytea),
  tto.portal_password_credential_lookup(text,text),
- tto.issue_portal_password_session(text,text,uuid,uuid,bytea) FROM PUBLIC;
+ tto.issue_portal_password_session(text,text,uuid,uuid,bytea),
+ tto.portal_password_session_identity(bytea,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION tto.reserve_portal_password_attempt(bytea),
  tto.portal_password_credential_lookup(text,text),
- tto.issue_portal_password_session(text,text,uuid,uuid,bytea) TO tto_app;
+ tto.issue_portal_password_session(text,text,uuid,uuid,bytea),
+ tto.portal_password_session_identity(bytea,text) TO tto_app;
 COMMENT ON TABLE tto.portal_password_credentials IS
  'Independently provisioned, tenant-specific real-person sign-in. Never seed from a pending unverified cooperative notice. No direct app role table grants.';
 COMMENT ON FUNCTION tto.issue_portal_password_session(text,text,uuid,uuid,bytea) IS
