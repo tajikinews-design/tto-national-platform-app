@@ -1,4 +1,4 @@
-import { PortalShell, OtpLogin, parsePortalModuleId } from "@tto/ui";
+import { PortalShell, PortalModuleWorkbench, OtpLogin, parsePortalModuleId } from "@tto/ui";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +15,7 @@ export default async function ModulePage({params}:{params:Promise<{id:string}>})
    <strong>دسترسی ماژول نیازمند تأیید مجوز است</strong>
    <span>عنوان و توضیحات قابل مشاهده‌اند؛ اطلاعات و عملیات اختصاصی فقط پس از تأیید نشست و محدوده مجاز.</span>
   </div>
+  <PortalModuleWorkbench surface="cooperative" moduleId={moduleId}/>
   <OtpLogin surface="cooperative" enabled={Boolean(process.env.TTO_API_BASE_URL)}
     initialManagementModuleId={moduleId}/>
   <p className="sw-footnote">تأیید محدوده، مجوز انجام عملیات این بخش نیست. گردش‌کارهای دامنه فقط پس از اجرای آزمون‌ها و تأیید اختیار قانونی فعال می‌شوند.</p>
