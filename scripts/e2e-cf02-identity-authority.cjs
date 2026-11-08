@@ -1214,6 +1214,36 @@ async function main(){
       201,"independent reviewer BFF records HOLD against second case");
    ok(secondReview.verified===false&&secondReview.tariffActivated===false,
       "reviewer BFF provides traceability without legal activation");
+   // Stress actual independent-review vs escrow contention on the exact same case.
+   // At most one immutable original can win; no late attachment can bypass review.
+   const stressDispute={...dispute,requestKey:randomUUID(),evidence:[evidence[0]]};
+   const stressCase=await status(await post(disputePath,tokenMap.get(MANAGER),
+     stressDispute),201,"create independent synthetic stress-conflict case");
+   const stressAudit=await status(await get(disputePath,tokenMap.get(LEGAL)),200,
+      "read stress-case bound evidence IDs");
+   const stressEvidence=stressAudit.cases.find(x=>x.caseId===stressCase.caseId).evidence[0].evidenceId;
+   const stressedUpload={requestKey:randomUUID(),evidenceId:stressEvidence,
+     issuerCandidateId:candidate.candidateId,mimeType:"application/pdf",
+     contentBase64:pdf.toString("base64")};
+   const stressReview={requestKey:randomUUID(),outcome:"HOLD_OFFICIAL_SOURCE_REQUIRED",
+      evidenceIds:[stressEvidence],
+      reason:"این بررسی در محیط آزمایشی هم‌زمان با ثبت فایل انجام شده و مجوز حقوقی صادر نمی‌کند."};
+   const stressPut=Array.from({length:16},()=>post(escrowPath,tokenMap.get(MANAGER),
+     stressedUpload).then(r=>r.status));
+   const stressDecide=post(disputePath+"/"+stressCase.caseId+"/review",
+     tokenMap.get(LEGAL),stressReview).then(r=>r.status);
+   const outcomes=await Promise.all([...stressPut,stressDecide]);
+   ok(outcomes[16]===201&&outcomes.slice(0,16).every(x=>x===201||x===403),
+     "16 concurrent uploads versus independent immutable review fail closed");
+   const finalEscrowCount=(await db.query(
+      "SELECT count(*)::int AS n FROM tto.cooperative_governance_source_files "+
+      "WHERE case_id=$1",[stressCase.caseId])).rows[0].n;
+   ok(finalEscrowCount<=1,
+     "concurrent requests cannot create duplicate or late original file rows");
+   await status(await post(escrowPath,tokenMap.get(MANAGER),{
+     ...stressedUpload,requestKey:randomUUID()}),403,
+     "after review, distinct idempotency key cannot attach another document");
+   console.log("CHILD06_PDF_ESCROW_REVIEW_16WAY_CONCURRENCY_PG17_HOLD_PASS");
    console.log("CHILD06_INDEPENDENT_CONFLICT_EVIDENCE_REVIEW_NEST_NEXT_PG17_HOLD_PASS");
 
    console.log("CHILD06_CHAIN_FORK_MERGE_CYCLE_MANAGER_BFF_REAL_NEST_PG17_PASS");
