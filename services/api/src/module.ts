@@ -356,6 +356,46 @@ export class FoundationCommandsController {
    * tenants require a separate formally approved national directory read model.
    * Never infer legal registration or tenant activation from a reserved slug.
    */
+  @Get("national/geo/provinces-counties")
+  async nationalGeography(@Headers("authorization") auth:string|undefined){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ISOLATED_DEMO_DATABASE_REQUIRED");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const permission=await client.query<{allowed:boolean}>("SELECT tto.has_national_root() AS allowed");
+      if(permission.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const provinces=await client.query<{code:string;name:string}>(
+        'SELECT province_code AS "code",name FROM tto.geo_provinces ORDER BY name');
+      const counties=await client.query<{id:string;provinceCode:string;name:string;provenance:string}>(
+        'SELECT county_id AS "id",province_code AS "provinceCode",name,provenance FROM tto.geo_counties ORDER BY name');
+      return {sourceYear:"1404",provinces:provinces.rows,counties:counties.rows};
+    });
+  }
+
+  @Post("national/geo/counties")
+  @HttpCode(201)
+  async addNationalCounty(@Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ISOLATED_DEMO_DATABASE_REQUIRED");
+    const provinceCode=input?.provinceCode;
+    const rawName=input?.name;
+    if(typeof provinceCode!=="string"||!/^[0-9]{2}$/.test(provinceCode)||
+       typeof rawName!=="string")throw new BadRequestException("INVALID_COUNTY");
+    const name=rawName.trim().replace(/ي/g,"ی").replace(/ك/g,"ک").replace(/\\s+/g," ");
+    if(name.length<2||name.length>100||!/^[آ-ی\u200c\s-]+$/.test(name))
+      throw new BadRequestException("INVALID_COUNTY");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const permission=await client.query<{allowed:boolean}>("SELECT tto.has_national_root() AS allowed");
+      if(permission.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const result=await client.query<{id:string;provinceCode:string;name:string;provenance:string}>(
+        'INSERT INTO tto.geo_counties(province_code,name,provenance,created_by) VALUES ($1,$2,\'NATIONAL_ADMIN_UNVERIFIED\',$3) RETURNING county_id AS "id",province_code AS "provinceCode",name,provenance',
+        [provinceCode,name,actor]
+      ).catch(e=>{if((e as {code?:string}).code==="23505")throw new ConflictException("COUNTY_EXISTS");throw e});
+      return result.rows[0];
+    });
+  }
+
   @Get("national/cooperative-registry")
   async nationalCooperativeRegistry(@Headers("authorization") auth:string|undefined){
     if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
