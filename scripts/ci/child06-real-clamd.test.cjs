@@ -13,7 +13,8 @@ const eicar="X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+
  const clean=Buffer.from("%PDF-1.7\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n");
  const cleanResult=await scanQuarantineBytes(clean);
  assert.equal(cleanResult.verdict,"CLEAN","clean PDF must be clean");
- assert.match(cleanResult.engine,/^ClamAV [0-9]/,"real daemon must identify engine");
+ assert.match(cleanResult.engine,/^ClamAV (?:[0-9]|PING_OK_VERSION_DISABLED)/,
+  "real local daemon either reports version or responds to hardened VERSION-disabled PING");
  const found=await scanQuarantineBytes(Buffer.from(eicar,"ascii"));
  assert.equal(found.verdict,"MALWARE","real antivirus database must recognize actual EICAR");
  assert.notEqual(found.signature,"NONE");
