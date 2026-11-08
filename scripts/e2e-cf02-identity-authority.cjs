@@ -898,11 +898,13 @@ async function main(){
       headers:{"Content-Type":"application/json","Origin":"http://untrusted.test",
         "Cookie":"tto_session="+tokenMap.get(MANAGER)},
       body:JSON.stringify(bffPayload)}),403,"manager BFF denies cross-origin writes");
-   await status(await fetch(managerBff,{method:"POST",
+   const invalidBffPost=await fetch(managerBff,{method:"POST",
       headers:{"Content-Type":"application/json","Origin":cm.origin,
         "Cookie":"tto_session="+tokenMap.get(MANAGER)},
-      body:JSON.stringify({...bffPayload,targetNoticeId:"BAD"})}),400,
-      "manager BFF rejects bad source UUID");
+      body:JSON.stringify({...bffPayload,targetNoticeId:"BAD"})});
+   if(invalidBffPost.status!==400)console.error("CHILD06_MANAGER_BFF_POST_DIAGNOSTIC",
+      invalidBffPost.status,await invalidBffPost.clone().text());
+   await status(invalidBffPost,400,"manager BFF rejects bad source UUID");
    const forkReceipt=await status(await fetch(managerBff,{method:"POST",
       headers:{"Content-Type":"application/json","Origin":cm.origin,
         "Cookie":"tto_session="+tokenMap.get(MANAGER)},
