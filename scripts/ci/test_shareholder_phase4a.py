@@ -52,9 +52,10 @@ class Phase4A(unittest.TestCase):
     def test_route_gate_is_not_just_anonymous_preview(self):
         self.assertIn('if(!moduleId)notFound()',self.module)
         self.assertIn('shareholderSectionId(moduleId)',self.module)
-        self.assertIn('initialShareholderSectionId={sectionId}',self.module)
-        self.assertIn('enabled={Boolean(process.env.TTO_API_BASE_URL)}',self.module)
-        self.assertIn('<OtpLogin surface="shareholder"',self.module)
+        self.assertIn('initialSectionId:sectionId',self.module)
+        self.assertIn('PortalSessionGate surface="shareholder"',self.module)
+        self.assertIn('ShareholderWorkspace',self.module)
+        self.assertNotIn('OtpLogin',self.module)
         self.assertIn('سطح',self.rules)
         self.assertIn('بدون استعلام معتبر',self.module)
         self.assertIn('verified?<div>',self.login)
@@ -97,8 +98,8 @@ class Phase4A(unittest.TestCase):
                        'readEvidence(root+"shareholding"',
                        '<ShareholderReadModels tenantId=', 'ثبت و پیگیری غیرفعال'):
             self.assertIn(marker,self.ui)
-        self.assertIn('if(focus)return <PortalShell',self.module)
-        self.assertIn('PortalModulePreview',self.module)
+        self.assertIn('focus=moduleId',self.module)
+        self.assertIn('PortalSessionGate surface="shareholder"',self.module)
         self.assertIn('.sw-closed-section',self.css)
         self.assertIn('@media(max-width:640px)',self.css)
         self.assertIn('management module bypassed safe OTP shell or leaked private data',self.smoke)
