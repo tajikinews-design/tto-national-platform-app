@@ -935,6 +935,134 @@ async function main(){
    ok(merged.conflicts.includes("MULTIPLE_PREDECESSORS:"+chC.noticeId)&&
       !merged.consideredNoticeIds.includes(chD.noticeId),
       "two predecessors pointing to one replacement are marked ambiguous");
+
+   // CHILD06 INDEPENDENT CONFLICT REVIEW: source fingerprints + immutable
+   // referenced notice/transition evidence + reviewer isolation, no legal grant.
+   const disputePath="/v1/tenants/"+A+"/child06/governance-conflicts";
+   const conflictSourceCode="CONFLICTING_NOTICE_TRANSITIONS:"+chA.noticeId;
+   const evidence=[{kind:"NOTICE",sourceId:chA.noticeId,
+      reference:"Synthetic archive notice A for repeat-correction conflict",sha256:null},
+     {kind:"NOTICE",sourceId:chC.noticeId,
+      reference:"Synthetic archive notice C for repeat-correction conflict",sha256:null}];
+   const dispute={requestKey:randomUUID(),asOf:"1404/11/12",
+      conflictCode:conflictSourceCode,evidence};
+   await status(await post(disputePath,"",dispute),401,"conflict case session required");
+   await status(await post(disputePath,tokenMap.get(USER),dispute),403,
+      "ordinary member cannot open independent conflict audit");
+   await status(await post(disputePath,tokenMap.get(LEGAL),dispute),403,
+      "legal reviewer cannot open source author case");
+   await status(await post(disputePath,tokenMap.get(MANAGER),
+      {...dispute,conflictCode:"MULTIPLE_CLAIMANTS:FAKE_CEO"}),400,
+      "case must bind to a conflict actually computed by temporal reducer");
+   await status(await post(disputePath,tokenMap.get(MANAGER),
+      {...dispute,evidence:[{...evidence[0],sourceId:randomUUID()}]}),400,
+      "case evidence must reference actual source in this tenant snapshot");
+   const opened=await status(await post(disputePath,tokenMap.get(MANAGER),dispute),
+      201,"manager opens source-bound conflict with two archival notices");
+   ok(opened.caseId&&opened.legalAuthorityVerified===false&&
+      opened.tariffActivated===false&&opened.officialEvidenceAuthenticated===false,
+      "conflict case is source-declared and legally blocked");
+   const replayCase=await status(await post(disputePath,tokenMap.get(MANAGER),dispute),
+      201,"conflict case request-key replay idempotent");
+   ok(replayCase.caseId===opened.caseId&&replayCase.replayed===true,
+      "open case replay returns same immutable case ID");
+   await status(await post(disputePath,tokenMap.get(MANAGER),
+      {...dispute,evidence:[{...evidence[0],reference:"Different reference in replay"}]}),
+      409,"changed evidence with same request-key conflicts");
+   await status(await get(disputePath,tokenMap.get(USER)),403,
+      "member cannot inspect independent reviewer case details");
+   const auditManager=await status(await get(disputePath,tokenMap.get(MANAGER)),
+      200,"manager can read traceable review queue");
+   const auditLegal=await status(await get(disputePath,tokenMap.get(LEGAL)),
+      200,"independent reviewer can inspect evidence before review");
+   ok(auditManager.cases.length===1&&auditLegal.cases.length===1&&
+      auditManager.cases[0].review===null&&
+      auditLegal.cases[0].evidence.length===2&&
+      auditLegal.legalAuthorityVerified===false&&auditLegal.tariffActivated===false,
+      "case retains referenced notices and is initially pending");
+   const reviewPath=disputePath+"/"+opened.caseId+"/review";
+   const citations=auditLegal.cases[0].evidence.map(x=>x.evidenceId);
+   const finding={requestKey:randomUUID(),outcome:"HOLD_OFFICIAL_SOURCE_REQUIRED",
+      evidenceIds:citations,
+      reason:"مطابقت مستقل صادرکننده رسمی آگهی‌ها هنوز اثبات نشده است و نتیجه صرفاً توقف حقوقی آزمایشگاهی است."};
+   await status(await post(reviewPath,tokenMap.get(MANAGER),finding),403,
+      "case author/manager cannot enter independent reviewer disposition");
+   await status(await post(reviewPath,tokenMap.get(LEGAL),
+      {...finding,outcome:"MOCK_APPROVED_FOR_TARIFF"}),400,
+      "positive legal/tariff approval is impossible through reviewer API");
+   await status(await post(reviewPath,tokenMap.get(LEGAL),
+      {...finding,evidenceIds:[randomUUID()]}),400,
+      "independent reviewer cannot cite unbound evidence");
+   const legalReview=await status(await post(reviewPath,tokenMap.get(LEGAL),finding),
+      201,"independent legal reviewer records immutable evidence-citing HOLD");
+   ok(legalReview.independentReviewRecorded===true&&
+      legalReview.legalAuthorityVerified===false&&
+      legalReview.officialEvidenceAuthenticated===false&&
+      legalReview.tariffActivated===false&&legalReview.outcome==="HOLD_OFFICIAL_SOURCE_REQUIRED",
+      "reviewer disposition cannot grant official source authentication");
+   const reviewReplay=await status(await post(reviewPath,tokenMap.get(LEGAL),finding),
+      201,"same reviewer decision idempotent replay");
+   ok(reviewReplay.dispositionId===legalReview.dispositionId&&
+      reviewReplay.replayed===true,"review maintains immutable id");
+   await status(await post(reviewPath,tokenMap.get(LEGAL),
+      {...finding,outcome:"REJECT_SOURCE_CLAIM",requestKey:randomUUID()}),409,
+      "later contradictory reviewer outcome cannot replace fixed HOLD");
+   const completed=await status(await get(disputePath,tokenMap.get(MANAGER)),
+      200,"reviewed conflict audit remains traceable");
+   ok(completed.cases[0].review.dispositionId===legalReview.dispositionId&&
+      completed.cases[0].review.evidenceIds.length===2&&
+      completed.legalAuthorityVerified===false&&completed.tariffActivated===false,
+      "immutable review joins exactly cited evidence, no rights escalation");
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.cooperative_governance_conflict_dispositions SET disposition='REJECT_SOURCE_CLAIM' WHERE disposition_id=$1",
+     [legalReview.dispositionId]));checks++;
+   await assert.rejects(()=>db.query(
+     "DELETE FROM tto.cooperative_governance_conflict_evidence WHERE case_id=$1",
+     [opened.caseId]));checks++;
+   const uiBase=cm.origin+"/api/tenants/"+A+"/governance-conflicts";
+   await status(await fetch(uiBase),401,
+      "manager conflict BFF refuses anonymous audit");
+   const uiAudit=await status(await fetch(uiBase,{headers:{
+      Cookie:"tto_session="+tokenMap.get(MANAGER)},cache:"no-store"}),200,
+      "manager BFF displays traceable source/evidence/review audit");
+   ok(uiAudit.available===true&&uiAudit.verified===false&&
+      uiAudit.cases[0].review.outcome==="HOLD_OFFICIAL_SOURCE_REQUIRED",
+      "BFF cannot promote reviewer finding to official legal validity");
+   await status(await fetch(uiBase,{method:"POST",headers:{
+     "Content-Type":"application/json",Origin:"http://evil.test",
+     Cookie:"tto_session="+tokenMap.get(MANAGER)},body:JSON.stringify({
+     ...dispute,requestKey:randomUUID()})}),403,
+     "cross-origin evidence intake blocked");
+   const otherDispute={...dispute,requestKey:randomUUID(),
+     evidence:[{...evidence[0],reference:"Another independent hypothetical evidence reference"}]};
+   const uiOpen=await status(await fetch(uiBase,{method:"POST",headers:{
+     "Content-Type":"application/json",Origin:cm.origin,
+     Cookie:"tto_session="+tokenMap.get(MANAGER)},body:JSON.stringify(otherDispute)}),
+     201,"manager Next BFF opens second source-declared evidence case");
+   ok(uiOpen.verified===false&&uiOpen.tariffActivated===false,
+      "manager BFF cannot grant tariff activation");
+   const secondCases=await status(await get(disputePath,tokenMap.get(LEGAL)),
+      200,"independent reviewer sees second case");
+   const second=secondCases.cases.find(x=>x.caseId===uiOpen.caseId);
+   ok(second&&second.evidence.length===1,
+      "independent reviewer sees only attached evidence for second case");
+   const reviewUi=cm.origin+"/api/tenants/"+A+"/governance-conflicts/"+
+      uiOpen.caseId+"/review";
+   await status(await fetch(reviewUi,{method:"POST",headers:{
+      "Content-Type":"application/json",Origin:"http://evil.test",
+      Cookie:"tto_session="+tokenMap.get(LEGAL)},
+      body:JSON.stringify(finding)}),403,"cross-origin review BFF blocked");
+   const secondReview=await status(await fetch(reviewUi,{method:"POST",headers:{
+      "Content-Type":"application/json",Origin:cm.origin,
+      Cookie:"tto_session="+tokenMap.get(LEGAL)},
+      body:JSON.stringify({requestKey:randomUUID(),outcome:"HOLD_INSUFFICIENT_EVIDENCE",
+       evidenceIds:[second.evidence[0].evidenceId],
+       reason:"شواهد موجود در پرونده دوم برای تصدیق رسمی سمت‌ها و اختیار امضا کفایت نمی‌کند."})}),
+      201,"independent reviewer BFF records HOLD against second case");
+   ok(secondReview.verified===false&&secondReview.tariffActivated===false,
+      "reviewer BFF provides traceability without legal activation");
+   console.log("CHILD06_INDEPENDENT_CONFLICT_EVIDENCE_REVIEW_NEST_NEXT_PG17_HOLD_PASS");
+
    console.log("CHILD06_CHAIN_FORK_MERGE_CYCLE_MANAGER_BFF_REAL_NEST_PG17_PASS");
 
    console.log("CHILD06_GOVERNANCE_BITEMPORAL_CORRECTION_REVOCATION_CONFLICT_REAL_HTTP_PG17_PASS");
