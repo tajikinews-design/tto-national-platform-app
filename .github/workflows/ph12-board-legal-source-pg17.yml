@@ -47,6 +47,10 @@ jobs:
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-independent-legal-disposition-hold.sql
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-source-invalidation-recheck-hold.sql
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-issuer-candidate-hold.sql
+          # Synthetic-only: fictional entity, fictitious board roster, registry,
+          # signatures, quorum, expiry/revocation. Transaction always ROLLBACK.
+          docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-synthetic-official-authority-lab.sql
+          echo "PH12_MOCK_AUTHORITY_DISPOSABLE_PG17_PASS"
           echo "PH12_LEGAL_SOURCE_DISPOSABLE_PG17_SCHEMA_PASS count=$count"
       - name: Destroy isolated PG17
         if: always()
