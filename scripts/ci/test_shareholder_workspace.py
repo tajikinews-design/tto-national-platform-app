@@ -20,12 +20,15 @@ class ShareholderWorkspaceContractTests(unittest.TestCase):
         cls.module=MODULE.read_text(encoding="utf-8")
         cls.css=CSS.read_text(encoding="utf-8")
 
-    def test_shareholder_is_part_of_verified_otp_session_only(self):
+    def test_shareholder_requires_password_provenance_and_verified_tenant(self):
         self.assertIn('verified?<div>',self.login)
         self.assertIn('surface==="shareholder"?<ShareholderWorkspace',self.login)
         self.assertIn('initialShareholderView',self.login)
         self.assertIn('surface="shareholder" suppressStaticKpis',self.home)
-        self.assertIn('home && !suppressStaticKpis',self.shell)
+        self.assertIn('<ApprovedDashboardHome surface={surface}>',self.shell)
+        self.assertIn('PortalSessionGate surface="shareholder"',self.home)
+        self.assertIn('ShareholderWorkspace',self.module)
+        self.assertNotIn('OtpLogin',self.module)
 
     def test_tenant_and_source_reads_are_scoped_by_current_session(self):
         s=self.ui
