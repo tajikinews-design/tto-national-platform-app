@@ -79,6 +79,27 @@ export class Database {
     );
     return r.rows[0]?.ok===true;
   }
+  async portalPasswordCredential(surface:string,username:string):Promise<{user_id:string;tenant_id:string;password_scrypt:string;must_rotate:boolean}|null>{
+    const r=await this.pool.query<{user_id:string;tenant_id:string;password_scrypt:string;must_rotate:boolean}>(
+      "SELECT * FROM tto.portal_password_credential_lookup($1,$2)",[surface,username]);
+    return r.rows[0]??null;
+  }
+  async reservePortalPasswordAttempt(fingerprint:Buffer):Promise<boolean>{
+    const r=await this.pool.query<{allowed:boolean}>(
+     "SELECT tto.reserve_portal_password_attempt($1) AS allowed",[fingerprint]);
+    return r.rows[0]?.allowed===true;
+  }
+  async portalTenantSlug(tenantId:string):Promise<string|null>{
+    const r=await this.pool.query<{slug:string}>(
+     "SELECT slug FROM tto.tenants WHERE tenant_id=$1 AND status='ACTIVE'",[tenantId]);
+    return r.rows[0]?.slug??null;
+  }
+  async issuePortalPasswordSession(surface:string,username:string,userId:string,tenantId:string,tokenHash:Buffer):Promise<boolean>{
+    const r=await this.pool.query<{issued:boolean}>(
+     "SELECT tto.issue_portal_password_session($1,$2,$3::uuid,$4::uuid,$5) AS issued",
+     [surface,username,userId,tenantId,tokenHash]);
+    return r.rows[0]?.issued===true;
+  }
   async reserveNationalRootAttempt(key:Buffer):Promise<boolean>{
     const result=await this.pool.query<{allowed:boolean}>(
       "SELECT tto.reserve_national_root_attempt($1) AS allowed",[key]);
@@ -254,6 +275,55 @@ export class FoundationCommandsController {
       const data=await c.query<{out:T}>(sql,values);
       return data.rows[0].out;
     });
+  }
+
+  /**
+   * Individual portal username/password login. Not a registration route.
+   * Credentials are provisioned only after independent natural-person identity
+   * verification and ACTIVE legal tenant role. No self-signup or role grant.
+   */
+  @Post("portal/password/login")
+  @HttpCode(200)
+  async loginPortalPassword(@Body() input:Record<string,unknown>,@Req() req:{ip?:string}){
+    if(process.env.TTO_PORTAL_PASSWORD_LOGIN_ENABLED!=="true" ||
+       process.env.TTO_SECURE_REAL_DATA_STAGING_ENABLED!=="true" ||
+       (process.env.VERCEL==="1"&&process.env.VERCEL_ENV!=="preview"))
+      throw new ServiceUnavailableException({code:"PORTAL_PASSWORD_STAGING_NOT_RELEASED"});
+    const surface=input?.surface, username=input?.username, password=input?.password;
+    const slug=input?.workspaceSlug;
+    if((surface!=="cooperative"&&surface!=="shareholder")||
+       typeof username!=="string"||!/^[a-z][a-z0-9._-]{4,63}$/.test(username)||
+       typeof password!=="string"||password.length<1||password.length>128||
+       (slug!==undefined&&(typeof slug!=="string"||
+           !/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))))
+      throw new BadRequestException({code:"INVALID_PORTAL_CREDENTIAL_REQUEST"});
+    const secret=process.env.TTO_PORTAL_PASSWORD_ATTEMPT_SECRET;
+    const ip=req?.ip;
+    if(!secret||Buffer.byteLength(secret)<32||typeof ip!=="string"||ip.length<3||ip.length>64)
+      throw new ServiceUnavailableException({code:"PORTAL_PASSWORD_SECURE_CONFIG_REQUIRED"});
+    const fingerprint=(scope:string)=>createHmac("sha256",secret).update(scope).digest();
+    if(!await this.db.reservePortalPasswordAttempt(fingerprint("ip:"+ip+":"+surface))||
+       !await this.db.reservePortalPasswordAttempt(fingerprint("username:"+surface+":"+username)))
+      throw new ForbiddenException({code:"PORTAL_PASSWORD_RATE_LIMITED"});
+    const credential=await this.db.portalPasswordCredential(surface,username);
+    // Equal-cost scrypt check for unknown accounts; never reveal username existence.
+    const fakeSalt=Buffer.alloc(16,0x41);
+    const fakeEncoded="scrypt$v1$"+fakeSalt.toString("hex")+"$"+
+      scryptSync("TTO_FAKE_PASSWORD_NOT_AN_ACCOUNT",fakeSalt,64,
+       {N:16384,r:8,p:1,maxmem:64*1024*1024}).toString("hex");
+    const valid=verifyNationalPassword(password,credential?.password_scrypt??fakeEncoded);
+    if(!valid||!credential||credential.must_rotate)
+      throw new UnauthorizedException({code:"INVALID_PORTAL_CREDENTIALS"});
+    const tenantSlug=await this.db.portalTenantSlug(credential.tenant_id);
+    if(!tenantSlug|| (slug!==undefined&&slug!==tenantSlug))
+      throw new ForbiddenException({code:"PORTAL_TENANT_SCOPE_DENIED"});
+    const token=randomBytes(48).toString("base64url");
+    const issued=await this.db.issuePortalPasswordSession(surface,username,
+      credential.user_id,credential.tenant_id,
+      createHash("sha256").update(token).digest());
+    if(!issued)throw new ServiceUnavailableException({code:"PORTAL_LOGIN_RECHECK_REQUIRED"});
+    return {accessToken:token,tenantId:credential.tenant_id,workspaceSlug:tenantSlug,
+      surface,authenticated:true,legalPowerGranted:false,shareTransferEnabled:false};
   }
 
   @Get("national/cooperative-workspaces/:slug")
