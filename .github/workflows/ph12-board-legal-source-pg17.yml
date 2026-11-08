@@ -69,6 +69,18 @@ jobs:
           node --check scripts/ci/ph12-root-signed-pg17-crash-recovery.test.cjs
           node --test scripts/ci/ph12-root-signed-pg17-crash-recovery.test.cjs
           echo "PH12_ROOT_SIGNED_PG17_CRASH_RESTORE_RECOVERY_PASS"
+      - name: Independent durable PG17 witness + full project PH12 schema crash restore
+        env:
+          CI: "true"
+          TTO_PH12_MOCK_ISSUER_LAB: "1"
+          DATABASE_URL: ""
+          TEST_ADMIN_DATABASE_URL: ""
+          VERCEL: ""
+        run: |
+          set -euo pipefail
+          node --check scripts/ci/ph12-independent-anchor-full-pg17-restore.test.cjs
+          node --test scripts/ci/ph12-independent-anchor-full-pg17-restore.test.cjs
+          echo "PH12_INDEPENDENT_ANCHOR_FULL_PG17_RESTORE_PASS"
       - name: Destroy isolated PG17
         if: always()
         run: docker rm -f tto-ph12-legal || true
