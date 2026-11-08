@@ -79,8 +79,8 @@ export class Database {
     );
     return r.rows[0]?.ok===true;
   }
-  async portalPasswordCredential(surface:string,username:string):Promise<{user_id:string;tenant_id:string;password_scrypt:string;must_rotate:boolean}|null>{
-    const r=await this.pool.query<{user_id:string;tenant_id:string;password_scrypt:string;must_rotate:boolean}>(
+  async portalPasswordCredential(surface:string,username:string):Promise<{user_id:string;tenant_id:string;password_scrypt:string;must_rotate:boolean;workspace_slug:string}|null>{
+    const r=await this.pool.query<{user_id:string;tenant_id:string;password_scrypt:string;must_rotate:boolean;workspace_slug:string}>(
       "SELECT * FROM tto.portal_password_credential_lookup($1,$2)",[surface,username]);
     return r.rows[0]??null;
   }
@@ -335,7 +335,9 @@ export class FoundationCommandsController {
     const valid=verifyNationalPassword(password,credential?.password_scrypt??fakeEncoded);
     if(!valid||!credential||credential.must_rotate)
       throw new UnauthorizedException({code:"INVALID_PORTAL_CREDENTIALS"});
-    const tenantSlug=await this.db.portalTenantSlug(credential.tenant_id);
+    // Role-verified credential lookup runs as a SECURITY DEFINER on tenant RLS,
+    // so browser-facing login must not run an unscoped SELECT on tto.tenants.
+    const tenantSlug=credential.workspace_slug;
     if(!tenantSlug|| (slug!==undefined&&slug!==tenantSlug))
       throw new ForbiddenException({code:"PORTAL_TENANT_SCOPE_DENIED"});
     const token=randomBytes(48).toString("base64url");
