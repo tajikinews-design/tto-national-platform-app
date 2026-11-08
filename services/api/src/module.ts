@@ -2161,14 +2161,9 @@ export class Ph12BoardLegalSourceController {
   try{
    return await this.db.inTenant(actor,tenant,async client=>{
     const q=await client.query(
-     "SELECT * FROM tto.ph12_invalidate_tariff_board_source_check($1::uuid,$2::text,$3::text,$4::uuid)",
-     [checkId,v.reason,v.evidenceReference,v.requestKey]);
+     "SELECT * FROM tto.ph12_invalidate_tariff_board_source_check($1::uuid,$2::uuid,$3::text,$4::text,$5::uuid)",
+     [caseId,checkId,v.reason,v.evidenceReference,v.requestKey]);
     const row=q.rows[0];
-    const scoped=await client.query<{present:boolean}>(
-     "SELECT EXISTS (SELECT 1 FROM tto.ph12_tariff_board_source_recheck($1::uuid)) AS present",
-     [caseId]);
-    if(scoped.rows[0]?.present!==true)
-      throw new ForbiddenException({code:"PH12_SOURCE_CASE_DENIED"});
     return {tenantId:tenant,caseId,checkId,invalidationId:row.invalidation_id,
      state:row.source_state,replayed:row.replayed,
      officialSourceAuthenticated:false,signerAuthorityAuthenticated:false,
