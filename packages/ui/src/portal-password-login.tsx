@@ -3,7 +3,7 @@ import {useEffect,useState,type FormEvent} from "react";
 type Surface="cooperative"|"shareholder";
 export function PortalPasswordLogin({surface,workspaceSlug}:{surface:Surface;workspaceSlug?:string}){
  const [username,setUsername]=useState(""),[password,setPassword]=useState("");
- const [phase,setPhase]=useState<"checking"|"login"|"ready"|"error">("checking");
+ const [phase,setPhase]=useState<"checking"|"login"|"ready"|"error">("login");
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
  const label=surface==="cooperative"?"مدیر تعاونی":"سهامدار";
  useEffect(()=>{
