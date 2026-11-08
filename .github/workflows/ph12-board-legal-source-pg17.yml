@@ -56,6 +56,19 @@ jobs:
           TTO_PH12_MOCK_ISSUER_LAB=1 node --test scripts/ci/ph12-mock-official-issuer.test.cjs
           echo "PH12_SIGNED_MOCK_HTTP_ED25519_RECOVERY_TESTS_PASS"
           echo "PH12_LEGAL_SOURCE_DISPOSABLE_PG17_SCHEMA_PASS count=$count"
+      - name: Root-signed mock trust rotation + real PG17 forced crash and stale backup restore
+        env:
+          CI: "true"
+          TTO_PH12_MOCK_ISSUER_LAB: "1"
+          DATABASE_URL: ""
+          TEST_ADMIN_DATABASE_URL: ""
+          VERCEL: ""
+        run: |
+          set -euo pipefail
+          node --check scripts/ci/ph12-synthetic-root-trust-protocol.cjs
+          node --check scripts/ci/ph12-root-signed-pg17-crash-recovery.test.cjs
+          node --test scripts/ci/ph12-root-signed-pg17-crash-recovery.test.cjs
+          echo "PH12_ROOT_SIGNED_PG17_CRASH_RESTORE_RECOVERY_PASS"
       - name: Destroy isolated PG17
         if: always()
         run: docker rm -f tto-ph12-legal || true
