@@ -10,7 +10,7 @@ const url=process.env.TEST_ADMIN_DATABASE_URL;
 if(!url||process.env.APIIR_TOKEN)throw Error("DISPOSABLE_POSTGRES_ONLY_NO_SMS");
 const db=new Client({connectionString:url});
 const A=randomUUID(),B=randomUUID(),PARTY=randomUUID(),PARTY2=randomUUID();
-const USER=randomUUID(),MANAGER=randomUUID(),NATIONAL=randomUUID(),REVIEWER=randomUUID(),APPROVER=randomUUID();
+const USER=randomUUID(),MANAGER=randomUUID(),NATIONAL=randomUUID(),REVIEWER=randomUUID(),APPROVER=randomUUID(),LEGAL=randomUUID();
 const REQ=randomUUID(),DEC=randomUUID();
 const API="http://127.0.0.1:31997";
 const running=[];let checks=0;
@@ -46,7 +46,7 @@ async function issueSession(user){
 }
 async function fixture(){
  await db.connect();await db.query("ALTER ROLE tto_app LOGIN");
- for(const id of [USER,MANAGER,NATIONAL,REVIEWER,APPROVER])
+ for(const id of [USER,MANAGER,NATIONAL,REVIEWER,APPROVER,LEGAL])
   await db.query("INSERT INTO tto.user_accounts(user_id) VALUES($1)",[id]);
  await db.query("INSERT INTO tto.tenants(tenant_id,slug,display_name,status) VALUES($1,'ci-legal-a','Test Cooperative A','ACTIVE'),($2,'ci-legal-b','Test Cooperative B','ACTIVE')",[A,B]);
  await db.query("INSERT INTO tto.parties(party_id,party_kind,display_label) VALUES($1,'PERSON','CI Person'),($2,'ORGANIZATION','CI Organization')",[PARTY,PARTY2]);
@@ -63,7 +63,7 @@ async function fixture(){
   [NATIONAL,REVIEWER,APPROVER,DEC]);
  await db.query("INSERT INTO tto.identity_review_authorizations(user_id,tenant_id,approved_by,evidence_id,valid_until) VALUES($1,$2,$3,$4,now()+interval '2 hours')",
  [REVIEWER,A,APPROVER,DEC]);
- for(const uid of [USER,MANAGER,NATIONAL,REVIEWER,APPROVER])await issueSession(uid);
+ for(const uid of [USER,MANAGER,NATIONAL,REVIEWER,APPROVER,LEGAL])await issueSession(uid);
  const apiEnv={DATABASE_URL:"postgresql://tto_app@127.0.0.1:5432/tto",PORT:"31997",
    NODE_ENV:"test",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",
    TTO_PH12_LEGAL_SOURCE_INTAKE_ENABLED:process.env.TTO_PH12_LEGAL_E2E==="1"?"true":"false",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa"};
@@ -385,6 +385,73 @@ async function main(){
    ok(after.rows[0].status==="DRAFT_UNVERIFIED",
       "PH12 direct DB update cannot activate tariff");
    console.log("PH12_LEGAL_SOURCE_REAL_NEST_PG17_NEGATIVE_HTTP_PASS_HOLD_ONLY");
+   // Separate governance role, independent actor, and signed-independent finding.
+   // Source records are still PENDING, so the only permitted disposition is HOLD or REJECT.
+   const reviewEndpoint="/v1/tenants/"+A+"/ph12/share-market/tariff-board-cases/"+
+     submit.caseId+"/legal-dispositions";
+   const reviewPayload={
+     requestKey:randomUUID(),documentReviewId:reviewed.reviewId,
+     sourceCheckIds:[legalStored.checkId],decision:"LEGAL_HOLD_SOURCE_UNVERIFIED",
+     findingReference:"CI-LEGAL-HOLD-OFFICIAL-SOURCE-UNVERIFIED-001"
+   };
+   await status(await legalPost(reviewEndpoint,"",reviewPayload),401,
+     "PH12 legal disposition needs an authenticated session");
+   await status(await legalPost(reviewEndpoint,tokenMap.get(REVIEWER),reviewPayload),403,
+     "PH12 document reviewer has no legal reviewer role");
+   await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'LEGAL_REVIEWER')",
+      [randomUUID(),MANAGER,A]);
+   await status(await legalPost(reviewEndpoint,tokenMap.get(MANAGER),reviewPayload),403,
+     "PH12 draft submitter cannot file legal disposition even with LEGAL_REVIEWER role");
+   await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'LEGAL_REVIEWER')",
+      [randomUUID(),REVIEWER,A]);
+   await status(await legalPost(reviewEndpoint,tokenMap.get(REVIEWER),reviewPayload),403,
+     "PH12 document reviewer and source checker cannot self-certify legal disposition");
+   await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'LEGAL_REVIEWER')",
+      [randomUUID(),APPROVER,A]);
+   await status(await legalPost(reviewEndpoint,tokenMap.get(APPROVER),reviewPayload),403,
+     "PH12 claimed board signatory cannot file legal disposition");
+   await db.query("INSERT INTO tto.role_assignments(assignment_id,user_id,tenant_id,role_code) VALUES($1,$2,$3,'LEGAL_REVIEWER'),($4,$2,$5,'LEGAL_REVIEWER')",
+      [randomUUID(),LEGAL,A,randomUUID(),B]);
+   await status(await legalPost("/v1/tenants/"+B+"/ph12/share-market/tariff-board-cases/"+
+     submit.caseId+"/legal-dispositions",tokenMap.get(LEGAL),reviewPayload),403,
+     "PH12 independent legal role cannot cross cooperative case");
+   await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),
+     {...reviewPayload,sourceCheckIds:[randomUUID()]}),403,
+     "PH12 source-check IDs must belong to the same case and tenant");
+   await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),
+     {...reviewPayload,sourceCheckIds:[legalStored.checkId,legalStored.checkId]}),403,
+     "PH12 repeated check ID cannot satisfy evidence set");
+   await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),
+     {...reviewPayload,sourceCheckIds:[]}),400,
+     "PH12 legal disposition requires referenced source evidence");
+   await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),
+     {...reviewPayload,decision:"LEGAL_APPROVED"}),400,
+     "PH12 official approval is never accepted from client");
+   const held=await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),reviewPayload),201,
+     "PH12 independent legal reviewer records HOLD tied to source and file review");
+   ok(held.legalDecision==="LEGAL_HOLD_SOURCE_UNVERIFIED"&&
+      held.signerAuthorityAuthenticated===false&&
+      held.boardLegallyApproved===false&&held.tariffActivated===false,
+     "PH12 separate legal disposition never authenticates board signatures");
+   const heldReplay=await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),reviewPayload),201,
+     "PH12 same legal decision request idempotent");
+   ok(heldReplay.dispositionId===held.dispositionId&&heldReplay.replayed===true,
+     "PH12 immutable legal disposition same-key replay");
+   await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),
+     {...reviewPayload,decision:"LEGAL_REJECTED"}),409,
+     "PH12 altered legal decision replay is rejected");
+   await status(await legalPost(reviewEndpoint,tokenMap.get(LEGAL),
+     {...reviewPayload,requestKey:randomUUID()}),409,
+     "PH12 second decision cannot overwrite immutable disposition");
+   await assert.rejects(()=>db.query(
+     "UPDATE tto.ph12_tariff_board_legal_dispositions SET decision='LEGAL_REJECTED' WHERE disposition_id=$1",
+     [held.dispositionId]));
+   checks++;
+   const finalDraft=await db.query("SELECT status FROM tto.ph12_tariff_drafts WHERE draft_id=$1",[saved.draftId]);
+   ok(finalDraft.rows[0].status==="DRAFT_UNVERIFIED",
+     "PH12 legal hold does not mutate tariff status");
+   console.log("PH12_INDEPENDENT_LEGAL_DISPOSITION_REAL_PG17_HTTP_NEGATIVE_PASS_HOLD_ONLY");
+
  }
 
  await db.query("UPDATE tto.legal_authorities SET revoked_at=now() WHERE authority_id=$1",[auth]);
