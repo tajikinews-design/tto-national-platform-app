@@ -32,7 +32,7 @@ export function PortalPasswordLogin({surface,workspaceSlug}:{surface:Surface;wor
   }catch{setNotice("ارتباط با سرویس امن ورود برقرار نشد.")}
   finally{setBusy(false)}
  }
- return <section className="tto-login-card" aria-label={"ورود مستقل "+label} dir="rtl">
+ return <section className="tto-login-card" data-tto-auth-surface={surface} aria-label={"ورود مستقل "+label} dir="rtl">
    <span className="tto-login-mark">TTO</span>
    <p className="tto-login-eyebrow">پلتفرم ملی تعاونی توسعه و عمران</p>
    <h1>ورود {label}</h1>
