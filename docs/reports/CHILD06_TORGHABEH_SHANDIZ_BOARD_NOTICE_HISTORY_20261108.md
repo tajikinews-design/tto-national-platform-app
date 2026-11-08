@@ -38,16 +38,16 @@ The actual start date of the **former** CEO tenure is not provided; the new noti
 - **Shareholder Next BFF** `GET /api/tenants/:tenantId/governance-history` authenticates the HttpOnly session; projects only safe chronology fields and returns a strict `verified:false` source boundary.
 - **Shareholder RTL page** `/tenants/:tenantId/governance-history` accessible from the shareholder’s own records; includes chronological notices, historical office events, all reported signing-rule modes and prominent provenance warning.
 - **Manager RTL page** `/legal-notice-archive` linked from existing `/official-records`; permits multi-person/multi-source archival submissions. Its BFF `POST /api/tenants/:tenantId/governance-archive` enforces same-origin, cookie, input/size validation and development-only feature gate. Existing PH10 preview manual one-person source-claim screen remains intact.
-- No automated scraping or issuer integration and no bulk import of every historically existing Gazette entry is claimed. Archive enables adding each entry; completeness depends on collecting the actual notices.
+- The latest privacy hardening also rejects numeric identity-looking tokens in alternative-signature names; no automated scraping or issuer integration and no bulk import of every historically existing Gazette entry is claimed. Archive enables adding each entry; completeness depends on collecting the actual notices.
 
 ## 4. Actual CI acceptance
 | Evidence | Outcome |
 | --- | --- |
-| Full PostgreSQL17 migrations, **76 files** | SUCCESS; https://github.com/tajikinews-design/tto-national-platform-app/actions/runs/42474943593 |
+| Full PostgreSQL17 migrations, **76 files** | SUCCESS; https://github.com/tajikinews-design/tto-national-platform-app/actions/runs/42475387357 |
 | PostgreSQL structural/RLS/immutability and no-approval checks | PASS |
-| Full Nest real HTTP + PostgreSQL + shareholder Next cookie/BFF E2E with user-supplied company names/legal ID (no individual IDs) | SUCCESS; https://github.com/tajikinews-design/tto-national-platform-app/actions/runs/42474943575 |
-| Manager intake, member read, 9 role events, 2 signing rules, 2 preserved notices, idempotency/conflict and cross-tenant denial | PASS; marker `CHILD06_TORGHABEH_REAL_NAMED_SOURCE_DECLARED_HISTORY_NEST_PG17_BFF_PASS` |
-| Regression suite | `TTO_CF02_IDENTITY_MANAGER_NATIONAL_E2E_PASS_CHECKS=348`, previously 328 |
+| Full Nest real HTTP + PostgreSQL + shareholder Next cookie/BFF E2E with user-supplied company names/legal ID (no individual IDs) | SUCCESS; https://github.com/tajikinews-design/tto-national-platform-app/actions/runs/42475387334 |
+| Manager intake, member read, 9 role events, 2 signing rules, 2 preserved notices, idempotency/conflict, cross-tenant denial and denial of person-identifier-shaped signing alternatives | PASS; marker `CHILD06_TORGHABEH_REAL_NAMED_SOURCE_DECLARED_HISTORY_NEST_PG17_BFF_PASS` |
+| Regression suite | `TTO_CF02_IDENTITY_MANAGER_NATIONAL_E2E_PASS_CHECKS=349`, previously 328 |
 | Prior PG17 root-signed, durable anchor/restore and 21 synthetic Ed25519 HTTP checks | PASS in dedicated CI |
 
 The second/Gazette notice in the regression is explicitly **synthetic**, only to prove a second source record coexists without deleting the source-supplied first notice. Its notice number is `CI-SYNTHETIC-GAZETTE-002`, **not a real publication number**.
