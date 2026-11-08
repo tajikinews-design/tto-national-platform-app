@@ -25,12 +25,12 @@ function exactKeys(o,keys){
  return o!==null&&typeof o==="object"&&!Array.isArray(o)&&
  Object.keys(o).sort().join("|")===keys.slice().sort().join("|");
 }
-function signedEnvelope(payload,privateKey){
- const protectedHeader={alg:"Ed25519",kid:KID,format:"PH12_SYNTHETIC_V1"};
+function signedEnvelope(payload,privateKey,kid=KID){
+ const protectedHeader={alg:"Ed25519",kid,format:"PH12_SYNTHETIC_V1"};
  const signature=sign(null,Buffer.from(canonical({protectedHeader,payload})),privateKey).toString("base64url");
  return {protectedHeader,payload,signature};
 }
-function makeMockIssuer(){
+function makeMockIssuer({keyId=KID}={}){
  if(process.env.TTO_PH12_MOCK_ISSUER_LAB!=="1")throw Error("LAB_FLAG_REQUIRED");
  const keys=generateKeyPairSync("ed25519");
  const records=new Map();let offline=false,transform=null;
@@ -50,12 +50,12 @@ function makeMockIssuer(){
   const payload={issuerId:ISSUER,tenantId,entityId,nonce,
    version:record.version,recordHash:record.recordHash,status:record.status,
    observedAt:record.observedAt,expiresAt:record.expiresAt};
-  let envelope=signedEnvelope(payload,keys.privateKey);
+  let envelope=signedEnvelope(payload,keys.privateKey,keyId);
   if(transform)envelope=transform(structuredClone(envelope));
   res.writeHead(200);res.end(JSON.stringify(envelope));
  });
  return {
-  publicKey:keys.publicKey, privateKey:keys.privateKey,
+  publicKey:keys.publicKey, privateKey:keys.privateKey,keyId,
   setRecord(tenant,entity,record){records.set(tenant+":"+entity,{...record});},
   setOffline(value){offline=!!value;},
   setTransform(fn){transform=fn;},
