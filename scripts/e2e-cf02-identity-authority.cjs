@@ -613,6 +613,7 @@ async function main(){
      "PH12 immutable candidate cannot be verified with DB status edit");
    console.log("PH12_OFFICIAL_ISSUER_CANDIDATE_REAL_NEST_PG17_HOLD_PASS");
 
+   {
    // CHILD-06: REAL company identifier and names from user-supplied published
    // notice text, but NO personal national IDs and NO claim of issuer validation.
    // Tenant A and all authentication identities are isolated CI fixtures.
@@ -716,6 +717,7 @@ async function main(){
    ok(immutable.provenance_status==="USER_SUPPLIED_SOURCE_NOT_AUTHENTICATED",
      "Child06 even a CI admin cannot silently promote source by editing immutable notice");
    console.log("CHILD06_TORGHABEH_REAL_NAMED_SOURCE_DECLARED_HISTORY_NEST_PG17_BFF_PASS");
+   }
 
 
    // PH12: Real Nest HTTP -> signed loopback issuer -> PostgreSQL trust
