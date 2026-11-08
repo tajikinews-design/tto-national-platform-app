@@ -483,10 +483,10 @@ jobs:
           # foundation 0001-0010. Its real CF02 E2E now exercises PH12 DRAFT
           # persistence, so load only the isolated additive migration 0047.
           # No hosted database, deployment, financial operation or promotion.
-          if [ "${GITHUB_HEAD_REF}" = "feat/ph12-child06-child07-canonical-failclosed-20261106" ] || [ "${GITHUB_HEAD_REF}" = "feat/ph12-board-legal-gate-hold-20261107" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-original-pdf-escrow-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108" ]; then
+          if [ "${GITHUB_HEAD_REF}" = "feat/ph12-child06-child07-canonical-failclosed-20261106" ] || [ "${GITHUB_HEAD_REF}" = "feat/ph12-board-legal-gate-hold-20261107" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-original-pdf-escrow-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-three-external-gates-20261108" ]; then
             docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0047_ph12_tariff_drafts_private.sql
             docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0048_ph12_tariff_board_document_review.sql
-            if [ "${GITHUB_HEAD_REF}" = "feat/ph12-board-legal-gate-hold-20261107" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-original-pdf-escrow-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108" ]; then
+            if [ "${GITHUB_HEAD_REF}" = "feat/ph12-board-legal-gate-hold-20261107" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-original-pdf-escrow-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-three-external-gates-20261108" ]; then
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0049_ph12_board_legal_source_checks_hold.sql
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0050_ph12_record_board_legal_source_check.sql
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0051_ph12_independent_legal_disposition_hold.sql
@@ -498,6 +498,7 @@ jobs:
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0057_child06_conflict_evidence_independent_review_hold.sql
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0058_child06_original_pdf_encrypted_escrow_hold.sql
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0059_child06_pdf_scan_issuer_hold_key_version.sql
+              docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0060_child06_external_vault_dek_envelope_hold.sql
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/child06_pdf_scan_source_key_version_fence.sql
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/child06_original_pdf_escrow_fence.sql
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/child06_conflict_independent_review_fence.sql
@@ -533,7 +534,7 @@ jobs:
         if: steps.scope.outputs.suite != 'lite' && env.TTO_W2_NO_DOCKER_BRANCH != 'true'
         env:
           TEST_ADMIN_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/tto
-          TTO_PH12_LEGAL_E2E: ${{ (github.head_ref == 'feat/ph12-board-legal-gate-hold-20261107' || github.head_ref == 'feat/child06-original-pdf-escrow-hold-20261108' || github.head_ref == 'feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108') && '1' || '0' }}
+          TTO_PH12_LEGAL_E2E: ${{ (github.head_ref == 'feat/ph12-board-legal-gate-hold-20261107' || github.head_ref == 'feat/child06-original-pdf-escrow-hold-20261108' || github.head_ref == 'feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108' || github.head_ref == 'feat/child06-three-external-gates-20261108') && '1' || '0' }}
         run: |
           set -euo pipefail
           if [ "$GITHUB_HEAD_REF" = "feat/tto-pcs-014-shareholder-browser-sources-20261101" ]; then
@@ -543,7 +544,7 @@ jobs:
           fi
           timeout --signal=TERM --kill-after=5s 220s node scripts/e2e-cf02-identity-authority.cjs
       - name: CHILD06 encrypted PDF logical PG17 backup and recovery (CI ONLY)
-        if: github.event_name == 'pull_request' && github.head_ref == 'feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108' && steps.scope.outputs.suite != 'lite'
+        if: github.event_name == 'pull_request' && github.head_ref == 'feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108' || github.head_ref == 'feat/child06-three-external-gates-20261108' && steps.scope.outputs.suite != 'lite'
         env:
           CI: "true"
           TTO_PH12_LEGAL_E2E: "1"
