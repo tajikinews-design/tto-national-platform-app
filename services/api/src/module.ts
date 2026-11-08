@@ -1,6 +1,6 @@
 import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
-import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, createPublicKey, verify as cryptoVerify, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
 import { scanQuarantineBytes } from "./clamd-evidence";
 
@@ -2268,5 +2268,115 @@ export class Ph12BoardLegalSourceController {
  }
 }
 
-@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController,Ph12TariffDraftController,Ph12TariffBoardDocumentController,Ph12BoardLegalSourceController],providers:[ApiIrSmsOtpProvider]})
+
+/**
+ * PH12 synthetic signed-issuer bridge.
+ * Strict CI-only; no real registry requests, no tariff or legal approval transition.
+ * All trust/checkpoints exist exclusively in tests/sql/ph12-mock-issuer-bridge-ci-schema.sql.
+ */
+function ph12LabCanonical(x:unknown):string {
+ if(x===null||typeof x==="string"||typeof x==="boolean")return JSON.stringify(x);
+ if(typeof x==="number"&&Number.isFinite(x))return JSON.stringify(x);
+ if(Array.isArray(x))return "["+x.map(ph12LabCanonical).join(",")+"]";
+ if(x&&typeof x==="object"&&Object.getPrototypeOf(x)===Object.prototype){
+  const o=x as Record<string,unknown>;const keys=Object.keys(o).sort();
+  if(keys.some(k=>["__proto__","constructor","prototype"].includes(k)))
+   throw new Error("PH12_MOCK_BAD_CANONICAL_KEY");
+  return "{"+keys.map(k=>JSON.stringify(k)+":"+ph12LabCanonical(o[k])).join(",")+"}";
+ }
+ throw new Error("PH12_MOCK_BAD_CANONICAL_VALUE");
+}
+function ph12LabExact(x:unknown,keys:string[]):x is Record<string,unknown>{
+ return !!x&&typeof x==="object"&&!Array.isArray(x)&&
+   Object.keys(x).sort().join("|")===keys.slice().sort().join("|");
+}
+@Controller("v1/tenants")
+export class Ph12MockIssuerBridgeController {
+ constructor(private readonly db:Database){}
+ @Post(":tenantId/ph12/lab/signed-issuer-recheck")
+ @HttpCode(200)
+ async recheck(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined,
+  @Body() v:Record<string,unknown>){
+  if(process.env.NODE_ENV!=="test"||process.env.TTO_LOOPBACK_E2E!=="1"||
+     process.env.TTO_PH12_MOCK_ISSUER_LAB!=="1"||process.env.VERCEL)
+   throw new ServiceUnavailableException({code:"PH12_MOCK_BRIDGE_DISABLED"});
+  if(!ph12LabExact(v,["entityId"])||
+     typeof v.entityId!=="string"||
+     !/^SYNTHETIC_[A-Za-z0-9_]{1,80}$/.test(v.entityId))
+   throw new BadRequestException({code:"PH12_MOCK_SUBJECT_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  const fail=(state:string)=>({tenantId:tenant,entityId:v.entityId,
+    state,syntheticOnly:true,officialSourceAuthenticated:false,
+    signerAuthorityAuthenticated:false,boardLegallyApproved:false,
+    tariffActivated:false});
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    // The SQL function takes a transaction-long FOR UPDATE lock. Key rotation
+    // and another Nest process cannot pass this critical section concurrently.
+    const q=await client.query<{
+      issuer_id:string;key_id:string;issuer_url:string;
+      public_key_pem:string;trust_epoch:string
+    }>("SELECT * FROM tto.ph12_mock_lab_lock_trust()");
+    const trust=q.rows[0];
+    if(!trust)return fail("MOCK_HOLD_NO_PINNED_TRUST");
+    if(!/^http:\/\/127[.]0[.]0[.]1:\d{2,5}$/.test(trust.issuer_url))
+     return fail("MOCK_HOLD_NON_LOOPBACK_ISSUER");
+    const nonce=randomUUID();
+    let env:unknown;
+    try{
+     const url=trust.issuer_url+"/v1/synthetic/"+tenant+"/"+v.entityId;
+     const response=await fetch(url,{
+       method:"GET",headers:{"x-ph12-nonce":nonce},
+       cache:"no-store",signal:AbortSignal.timeout(1800)});
+     if(!response.ok)return fail("MOCK_HOLD_ISSUER_UNAVAILABLE");
+     const body=await response.text();
+     if(body.length>8192)return fail("MOCK_HOLD_RESPONSE_OVERSIZED");
+     env=JSON.parse(body);
+    }catch{return fail("MOCK_HOLD_ISSUER_UNAVAILABLE");}
+    if(!ph12LabExact(env,["protectedHeader","payload","signature"]))
+     return fail("MOCK_HOLD_BAD_ENVELOPE");
+    const header=env.protectedHeader,p=env.payload,sig=env.signature;
+    if(!ph12LabExact(header,["alg","kid","format"])||
+       header.alg!=="Ed25519"||header.format!=="PH12_SYNTHETIC_V1"||
+       header.kid!==trust.key_id||typeof sig!=="string"||
+       !/^[A-Za-z0-9_-]{86}$/.test(sig)||
+       !ph12LabExact(p,["issuerId","tenantId","entityId","nonce",
+        "version","recordHash","status","observedAt","expiresAt"]))
+      return fail("MOCK_HOLD_BAD_ENVELOPE_OR_KEY");
+    try{
+     const body=Buffer.from(ph12LabCanonical({protectedHeader:header,payload:p}));
+     const pub=createPublicKey(trust.public_key_pem);
+     if(pub.asymmetricKeyType!=="ed25519"||
+        !cryptoVerify(null,body,pub,Buffer.from(sig,"base64url")))
+      return fail("MOCK_HOLD_SIGNATURE_INVALID");
+    }catch{return fail("MOCK_HOLD_SIGNATURE_INVALID");}
+    if(p.issuerId!==trust.issuer_id||p.tenantId!==tenant||
+       p.entityId!==v.entityId||p.nonce!==nonce)
+     return fail("MOCK_HOLD_SUBJECT_OR_NONCE_MISMATCH");
+    if(typeof p.version!=="number"||!Number.isSafeInteger(p.version)||
+       p.version<1||!["CURRENT","REVOKED"].includes(p.status)||
+       typeof p.recordHash!=="string"||!/^[a-f0-9]{64}$/.test(p.recordHash)||
+       typeof p.observedAt!=="string"||typeof p.expiresAt!=="string")
+     return fail("MOCK_HOLD_INVALID_SOURCE_FIELDS");
+    const now=Date.now(),observed=Date.parse(p.observedAt),expiry=Date.parse(p.expiresAt);
+    if(!Number.isFinite(observed)||!Number.isFinite(expiry)||
+       observed>now+1000||expiry<=now||observed>=expiry)
+     return fail("MOCK_HOLD_SOURCE_EXPIRED_OR_FUTURE");
+    const state=await client.query<{state:string}>(
+     "SELECT tto.ph12_mock_lab_accept($1::text,$2::bigint,$3::text,$4::boolean,$5::bigint) AS state",
+     [v.entityId,p.version,p.recordHash,p.status==="REVOKED",trust.trust_epoch]);
+    return fail(state.rows[0]?.state??"MOCK_HOLD_NO_CHECKPOINT");
+   });
+  }catch(e){
+   if((e as {code?:string})?.code==="42501")
+    throw new ForbiddenException({code:"PH12_MOCK_BRIDGE_SCOPE_DENIED"});
+   if((e as {code?:string})?.code==="22023")
+    throw new BadRequestException({code:"PH12_MOCK_BRIDGE_SOURCE_INVALID"});
+   throw e;
+  }
+ }
+}
+
+@Module({imports:[DatabaseModule,IdentityModule,TenantPartyModule,DocumentsAuditModule],controllers:[HealthController,FoundationCommandsController,Pcs010FixtureController,Ph07PortalController,Ph09PortalController,Ph10Phase08ReadController,Ph12TariffDraftController,Ph12TariffBoardDocumentController,Ph12BoardLegalSourceController,Ph12MockIssuerBridgeController],providers:[ApiIrSmsOtpProvider]})
 export class AppModule {}
