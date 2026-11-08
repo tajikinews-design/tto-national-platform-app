@@ -51,10 +51,17 @@ status, financial operations or share transfer.
    intentionally restricted technical pilot, not a full production document
    repository. Production should use resumable streamed uploads with strict
    quotas, rate limits and backpressure.
-5. **No comprehensive behavioral E2E yet:** dedicated PG17 CI tests
-   installation, RLS, immutable triggers and negative flag schema. Full
-   manager/reviewer HTTP, multi-tenant, bad-key/tag and backup restore tests
-   are separate acceptance gates before technical GREEN.
+5. **Synthetic HTTP E2E added and executed:** the adaptive workflow on
+   commit `0ea21f0c36def39d69a8f112ee92bf8d57052f63` was SUCCESS
+   ([run 42491479807](https://github.com/tajikinews-design/tto-national-platform-app/actions/runs/42491479807)).
+   Its 469 integrated controls include real Nest POST/GET, tenant roles,
+   same-request replay, changed payload refusal, linked pending issuer,
+   PostgreSQL ciphertext/digest inspection, GCM tamper detection, immutable
+   data and late-attachment refusal. This run predates the additional
+   shared transaction advisory lock added afterward; the final-commit CI
+   must still succeed. Independent concurrent-transaction stress tests,
+   key-loss/recovery tests, malware-scanner clearance and backup restore
+   for this escrow remain separate acceptance gates.
 6. No PR merge, deployment, data migration on hosted databases, real legal
    approval, tariff activation, payment or share operation is authorized.
 
