@@ -15,6 +15,7 @@ const registry:Record<Surface,Entry[]>={
   {module:"NAV-04",title:"تأیید دو‌نفره اصل PDF",href:"/legal-notice-archive",description:"زیرساخت تأیید داخلی دو شخص در PostgreSQL آزمایش شده؛ فرم امضای عملیاتی و MFA هنوز HOLD.",api:"Migration 0061 / API not released",readiness:"hold"}
  ],
  national:[
+  {module:"NAV-02",title:"فهرست تعاونی‌ها",href:"/cooperatives",description:"نمایش شناسه و تاریخ رزرو تعاونی‌های ثبت‌شده در محیط توسعه؛ بدون ادعای تأیید حقوقی یا فعال‌سازی.",api:"GET /api/cooperatives",readiness:"protected"},
   {module:"NAV-02",title:"ایجاد پرونده تعاونی",href:"/cooperatives/new",description:"ثبت اولیه تعاونی با نشست و اختیار مدیریت ملی.",api:"/api/cooperatives/*",readiness:"protected"},
   {module:"NAV-04",title:"پذیرش و راستی‌آزمایی اولیه",href:"/cooperatives/onboarding",description:"گردش کار بررسی مدارک و آغاز هویت معتبر؛ تأیید آگهی قابل جعل خودکار نیست.",api:"/api/cooperatives/onboarding*",readiness:"protected"},
   {module:"NAV-09",title:"نمایش وضعیت پرونده‌های ملی",href:"/demo",description:"نمونه نمایشی و بی‌خطر برای کنترل ظاهر، نه گزارش واقعی.",api:"Demo only",readiness:"review"}
