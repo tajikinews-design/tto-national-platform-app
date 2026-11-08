@@ -1064,6 +1064,7 @@ async function main(){
    ok(scanned.malwareVerdict==="CLEAN"&&scanned.originalPdfReleased===false&&
       scanned.legalAuthorityVerified===false&&scanned.tariffActivated===false,
       "synthetic scanner clean never authorizes release or legal approval");
+   { // Isolate DB-attestation fixture locals from legacy E2E declarations.
    // CHILD06 owner-approved TWO VERIFIED NATURAL PERSONS, DB policy laboratory.
    // Bootstrap records are inserted by disposable PG17 migration owner ONLY.
    // The app-role cannot seed trust and no valid attestation grants official validity.
@@ -1153,6 +1154,7 @@ async function main(){
      [stored.fileId,attDigest,ack,randomUUID()]));
    checks++;
    console.log("CHILD06_TWO_VERIFIED_DISTINCT_PARTIES_PG17_INTERNAL_ONLY_HOLD_PASS");
+   }
    const sameScan=await status(await post(scannerPath,tokenMap.get(REVIEWER),scanRequest),201,
       "scan replay immutable");
    ok(sameScan.scanId===scanned.scanId&&sameScan.replayed===true,
