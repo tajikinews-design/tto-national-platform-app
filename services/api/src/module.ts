@@ -2599,6 +2599,113 @@ export class Child06GovernanceArchiveController {
    throw e;
   }
  }
+
+ /**
+  * Development-only CHILD-06 original-PDF quarantine.
+  * A matching SHA256 and a candidate issuer NEVER authenticate a legal notice.
+  */
+ @Post(":tenantId/child06/governance-conflicts/source-files")
+ @HttpCode(201)
+ async escrowGovernanceSourcePdf(
+  @Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_CHILD06_ORIGINAL_PDF_ESCROW_ENABLED!=="true"||process.env.VERCEL)
+   throw new ServiceUnavailableException({code:"CHILD06_PDF_ESCROW_LAB_ONLY"});
+  const key=process.env.TTO_CHILD06_PDF_ESCROW_KEY_HEX??"";
+  if(!/^[a-fA-F0-9]{64}$/.test(key))
+   throw new ServiceUnavailableException({code:"CHILD06_PDF_ESCROW_KEY_UNAVAILABLE"});
+  if(!v||typeof v!=="object"||Array.isArray(v)||
+     Object.keys(v).some(x=>!["requestKey","evidenceId","issuerCandidateId","mimeType","contentBase64"].includes(x))||
+     typeof v.requestKey!=="string"||!uuidPattern.test(v.requestKey)||
+     typeof v.evidenceId!=="string"||!uuidPattern.test(v.evidenceId)||
+     typeof v.issuerCandidateId!=="string"||!uuidPattern.test(v.issuerCandidateId)||
+     v.mimeType!=="application/pdf"||typeof v.contentBase64!=="string"||
+     v.contentBase64.length>700000||!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(v.contentBase64))
+   throw new BadRequestException({code:"CHILD06_PDF_ESCROW_INVALID_INPUT"});
+  const bytes=Buffer.from(v.contentBase64,"base64");
+  try{
+   if(bytes.length<8||bytes.length>524288||bytes.toString("base64")!==v.contentBase64||
+     !bytes.subarray(0,5).equals(Buffer.from("%PDF-"))||
+     !bytes.subarray(Math.max(0,bytes.length-2048)).includes(Buffer.from("%%EOF")))
+    throw new BadRequestException({code:"CHILD06_PDF_ESCROW_INVALID_PDF"});
+   const digest=createHash("sha256").update(bytes).digest();
+   const iv=randomBytes(12);
+   const cipher=createCipheriv("aes-256-gcm",Buffer.from(key,"hex"),iv);
+   cipher.setAAD(Buffer.from("CHILD06_ORIGINAL_PDF_V1|"+tenant+"|"+v.evidenceId,"utf8"));
+   const encrypted=Buffer.concat([cipher.update(bytes),cipher.final()]);
+   const tag=cipher.getAuthTag();
+   const actor=await this.db.sessionActor(auth);
+   try{
+    return await this.db.inTenant(actor,tenant,async client=>{
+     const q=await client.query(
+      "SELECT * FROM tto.cooperative_store_governance_source_file("+
+      "$1::uuid,$2::uuid,$3::integer,$4::bytea,$5::bytea,$6::bytea,$7::bytea,$8::uuid)",
+      [v.evidenceId,v.issuerCandidateId,bytes.length,digest,iv,tag,encrypted,v.requestKey]);
+     const row=q.rows[0];
+     return {tenantId:tenant,fileId:row.file_id,evidenceId:v.evidenceId,
+      state:row.source_state,replayed:row.replayed,encrypted:true,
+      malwareStatus:"NOT_SCANNED_QUARANTINED",integrityCheckedAtIntake:true,
+      issuerCandidateOnly:true,officialSourceAuthenticated:false,
+      legalAuthorityVerified:false,tariffActivated:false};
+    });
+   }catch(e){
+    const c=(e as {code?:string})?.code;
+    if(c==="42501")throw new ForbiddenException({code:"CHILD06_ESCROW_SCOPE_DENIED"});
+    if(c==="23505")throw new ConflictException({code:"CHILD06_ESCROW_DUPLICATE_OR_REPLAY"});
+    if(["22023","23502","23514","22P02"].includes(c??""))
+     throw new BadRequestException({code:"CHILD06_ESCROW_ENVELOPE_DENIED"});
+    throw e;
+   }
+  }finally{bytes.fill(0);}
+ }
+ @Get(":tenantId/child06/governance-conflicts/source-files/:fileId/integrity")
+ async governanceSourcePdfIntegrity(
+  @Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Param("fileId",new ParseUUIDPipe()) fileId:string,
+  @Headers("authorization") auth:string|undefined){
+  if(process.env.TTO_CHILD06_ORIGINAL_PDF_ESCROW_ENABLED!=="true"||process.env.VERCEL)
+   throw new ServiceUnavailableException({code:"CHILD06_PDF_INTEGRITY_LAB_ONLY"});
+  const key=process.env.TTO_CHILD06_PDF_ESCROW_KEY_HEX??"";
+  if(!/^[a-fA-F0-9]{64}$/.test(key))
+   throw new ServiceUnavailableException({code:"CHILD06_PDF_ESCROW_KEY_UNAVAILABLE"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query<{
+     evidence_id:string;issuer_candidate_id:string;file_size:number;
+     plaintext_sha256:Buffer;aes_gcm_iv:Buffer;aes_gcm_tag:Buffer;
+     encrypted_body:Buffer;encryption_version:string;source_state:string
+    }>("SELECT * FROM tto.cooperative_governance_source_integrity_packet($1::uuid)",[fileId]);
+    const item=q.rows[0];
+    if(!item||item.encryption_version!=="child06-lab-v1"||
+       item.source_state!=="ENCRYPTED_QUARANTINED_UNAUTHENTICATED")
+     throw new ForbiddenException({code:"CHILD06_PDF_INTEGRITY_NOT_AVAILABLE"});
+    let plain:Buffer|undefined;
+    try{
+     const decipher=createDecipheriv("aes-256-gcm",Buffer.from(key,"hex"),item.aes_gcm_iv);
+     decipher.setAAD(Buffer.from("CHILD06_ORIGINAL_PDF_V1|"+tenant+"|"+item.evidence_id,"utf8"));
+     decipher.setAuthTag(item.aes_gcm_tag);
+     plain=Buffer.concat([decipher.update(item.encrypted_body),decipher.final()]);
+     const digest=createHash("sha256").update(plain).digest();
+     if(plain.length!==item.file_size||item.plaintext_sha256.length!==32||
+        !timingSafeEqual(digest,item.plaintext_sha256)||
+        !plain.subarray(0,5).equals(Buffer.from("%PDF-")))
+      throw new Error("CHILD06_PDF_INTEGRITY_MISMATCH");
+    }catch{
+     throw new ServiceUnavailableException({code:"CHILD06_PDF_INTEGRITY_FAILED_CLOSED"});
+    }finally{plain?.fill(0);}
+    return {tenantId:tenant,fileId,evidenceId:item.evidence_id,
+     issuerCandidateId:item.issuer_candidate_id,integrity:"MATCH",
+     malwareStatus:"NOT_SCANNED_QUARANTINED",originalPdfReadable:false,
+     issuerCandidateOnly:true,officialSourceAuthenticated:false,
+     legalAuthorityVerified:false,tariffActivated:false};
+   });
+  }catch(e){
+   if((e as {code?:string})?.code==="42501")
+    throw new ForbiddenException({code:"CHILD06_PDF_INTEGRITY_ROLE_DENIED"});
+   throw e;
+  }
+ }
  @Get(":tenantId/child06/governance-conflicts")
  async governanceConflicts(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
   @Headers("authorization") auth:string|undefined){
