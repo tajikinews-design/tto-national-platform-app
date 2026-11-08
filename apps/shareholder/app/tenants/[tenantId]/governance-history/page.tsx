@@ -50,6 +50,7 @@ export default function GovernanceHistoryPage(){
   <nav><a href={"/tenants/"+encodeURIComponent(tenantId)+"/my-records"}>
    بازگشت به پرونده سهامدار</a></nav>
   <h1>آرشیو آگهی‌های رسمی و سوابق هیئت‌مدیره</h1>
+  <p><a href={"/tenants/"+encodeURIComponent(tenantId)+"/governance-as-of"}>بازسازی ترکیب و صاحبان امضا در تاریخ انتخابی ←</a></p>
   <p>سوابق در طول زمان حفظ می‌شوند؛ انتصاب جدید، سابقه سمت‌های گذشته را حذف نمی‌کند.</p>
   <aside role="note" style={{...box,background:"#fff7e6",borderColor:"#e6c986"}}>
    <strong>وضعیت اعتبار منابع: نیازمند بررسی اصل آگهی</strong>
