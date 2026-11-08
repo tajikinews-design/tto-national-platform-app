@@ -38,9 +38,16 @@ export async function scanQuarantineBytes(bytes:Buffer):Promise<MalwareVerdict>{
  const socketPath=localSocketPath();
  // Use a short-lived local UNIX socket for both VERSION and INSTREAM.
  // In CI a synthetic signature DB is used; this DOES NOT assert daily CVD freshness.
- const version=await command(socketPath,Buffer.from("zVERSION\0"));
- if(!/^ClamAV [0-9][\\x20-\\x7e]{3,200}$/.test(version))
-   throw new Error("CLAMD_VERSION_UNVERIFIED: "+JSON.stringify(version.slice(0,190)));
+ let version=await command(socketPath,Buffer.from("zVERSION\\0"));
+ if(version==="COMMAND UNAVAILABLE"){
+  // Some hardened ClamAV daemons disable VERSION: check exact local PING.
+  // PONG alone is NOT a signature freshness certification.
+  const ping=await command(socketPath,Buffer.from("zPING\\0"));
+  if(ping!=="PONG")throw new Error("CLAMD_PING_UNVERIFIED");
+  version="ClamAV PING_OK_VERSION_DISABLED";
+ }else if(!/^ClamAV [0-9][\\x20-\\x7e]{3,200}$/.test(version)){
+  throw new Error("CLAMD_VERSION_UNVERIFIED");
+ }
  const size=Buffer.alloc(4);size.writeUInt32BE(bytes.length,0);
  const zero=Buffer.alloc(4);
  const result=await command(socketPath,Buffer.concat([
