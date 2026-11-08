@@ -5,7 +5,7 @@
 const {createServer}=require("node:net");
 const {unlink}=require("node:fs/promises");
 function mockClamd(socketPath){
- const server=createServer(socket=>{
+ const server=createServer({allowHalfOpen:true},socket=>{
   const chunks=[];
   socket.on("data",chunk=>chunks.push(chunk));
   socket.on("end",()=>{
