@@ -1,7 +1,8 @@
-import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req } from "@nestjs/common";
+import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req, Query } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
 import { createCipheriv, createDecipheriv, createHash, createHmac, createPublicKey, verify as cryptoVerify, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
+import { reconstructGovernanceSnapshot } from "./governance-temporal";
 import { scanQuarantineBytes } from "./clamd-evidence";
 
 @Injectable()
@@ -2432,6 +2433,73 @@ export class Child06GovernanceArchiveController {
    if(code==="23505")throw new ConflictException({code:"CHILD06_GOVERNANCE_DUPLICATE_OR_REPLAY"});
    if(code==="22023"||code==="23514"||code==="23502"||code==="22P02")
     throw new BadRequestException({code:"CHILD06_GOVERNANCE_INPUT_INVALID"});
+   throw e;
+  }
+ }
+ @Post(":tenantId/child06/notice-transitions")
+ @HttpCode(201)
+ async reportTransition(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined,@Body() v:Record<string,unknown>){
+  if(process.env.TTO_CHILD06_GOVERNANCE_NOTICE_INTAKE_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_TRANSITION_INTAKE_DISABLED"});
+  const keys=["requestKey","targetNoticeId","replacementNoticeId","action",
+    "effectiveOn","publishedOn","sourceReference"];
+  if(!v||typeof v!=="object"||Array.isArray(v)||Object.keys(v).some(k=>!keys.includes(k))||
+     typeof v.requestKey!=="string"||!uuidPattern.test(v.requestKey)||
+     typeof v.targetNoticeId!=="string"||!uuidPattern.test(v.targetNoticeId)||
+     (v.replacementNoticeId!==null&&v.replacementNoticeId!==undefined&&
+       (typeof v.replacementNoticeId!=="string"||!uuidPattern.test(v.replacementNoticeId)))||
+     typeof v.action!=="string"||typeof v.effectiveOn!=="string"||
+     typeof v.sourceReference!=="string"||
+     (v.publishedOn!==null&&v.publishedOn!==undefined&&typeof v.publishedOn!=="string"))
+   throw new BadRequestException({code:"CHILD06_TRANSITION_FIELDS_INVALID"});
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query(
+     "SELECT * FROM tto.cooperative_append_notice_transition($1::uuid,$2::uuid,"+
+      "$3::text,$4::text,$5::text,$6::text,$7::uuid)",
+     [v.targetNoticeId,v.replacementNoticeId??null,v.action,
+      v.effectiveOn,v.publishedOn??null,v.sourceReference,v.requestKey]);
+    const row=q.rows[0];
+    return {tenantId:tenant,transitionId:row.transition_id,state:row.state,
+     replayed:row.replayed,officiallyVerified:false,legalSignerAuthorityGranted:false,
+     tariffActivated:false};
+   });
+  }catch(e){
+   const code=(e as {code?:string})?.code;
+   if(code==="42501")throw new ForbiddenException({code:"CHILD06_TRANSITION_SCOPE_DENIED"});
+   if(code==="23505")throw new ConflictException({code:"CHILD06_TRANSITION_REPLAY_CONFLICT"});
+   if(code==="22023"||code==="23514"||code==="23502"||code==="22P02")
+     throw new BadRequestException({code:"CHILD06_TRANSITION_INVALID"});
+   throw e;
+  }
+ }
+ @Get(":tenantId/child06/governance-as-of")
+ async governanceAsOf(@Param("tenantId",new ParseUUIDPipe()) tenant:string,
+  @Headers("authorization") auth:string|undefined,
+  @Query("date") date:string|undefined,@Query("knownAt") knownAt:string|undefined){
+  if(process.env.TTO_CHILD06_GOVERNANCE_HISTORY_ENABLED!=="true")
+   throw new ServiceUnavailableException({code:"CHILD06_TEMPORAL_READ_DISABLED"});
+  if(typeof date!=="string"||!/^14[0-9]{2}\\\/(0[1-9]|1[0-2])\\\/(0[1-9]|[12][0-9]|3[01])$/.test(date)||
+     (knownAt!==undefined&&(typeof knownAt!=="string"||
+      knownAt.length>40||!Number.isFinite(Date.parse(knownAt)))))
+   throw new BadRequestException({code:"CHILD06_ASOF_DATE_INVALID"});
+  const capture=knownAt?new Date(knownAt).toISOString():new Date().toISOString();
+  const actor=await this.db.sessionActor(auth);
+  try{
+   return await this.db.inTenant(actor,tenant,async client=>{
+    const q=await client.query<{facts:Record<string,unknown>}>(
+      "SELECT tto.cooperative_governance_temporal_facts($1::timestamptz) AS facts",[capture]);
+    return reconstructGovernanceSnapshot(q.rows[0]?.facts,date,capture);
+   });
+  }catch(e){
+   if((e as {code?:string})?.code==="42501")
+     throw new ForbiddenException({code:"CHILD06_TEMPORAL_ROLE_DENIED"});
+   if((e as {code?:string})?.code==="22023")
+     throw new ServiceUnavailableException({code:"CHILD06_TEMPORAL_SOURCE_INCOMPLETE"});
+   if(e instanceof Error&&e.message.startsWith("CHILD06_TEMPORAL_"))
+     throw new ServiceUnavailableException({code:"CHILD06_TEMPORAL_FAIL_CLOSED"});
    throw e;
   }
  }
