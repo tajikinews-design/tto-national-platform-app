@@ -120,7 +120,7 @@ REVOKE ALL ON FUNCTION
  tto.ph12_tariff_board_source_recheck(uuid)
  FROM PUBLIC,tto_app;
 GRANT EXECUTE ON FUNCTION
- tto.ph12_invalidate_tariff_board_source_check(uuid,text,text,uuid),
+ tto.ph12_invalidate_tariff_board_source_check(uuid,uuid,text,text,uuid),
  tto.ph12_tariff_board_source_recheck(uuid) TO tto_app;
 COMMENT ON TABLE tto.ph12_tariff_board_source_invalidations IS
  'Append-only withdrawal/report of a source check. Reported revocation is NOT authenticated issuer revocation; all legal authority remains unverified.';
