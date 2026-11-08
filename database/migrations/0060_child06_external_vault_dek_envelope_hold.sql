@@ -103,4 +103,19 @@ REVOKE ALL ON FUNCTION tto.cooperative_governance_source_kms_packet(uuid)
 GRANT EXECUTE ON FUNCTION tto.cooperative_governance_source_kms_packet(uuid) TO tto_app;
 COMMENT ON COLUMN tto.cooperative_governance_source_files.wrapped_data_key IS
  'Vault Transit-wrapped per-file DEK; never persisted plaintext key; issuer not authenticated.';
+-- Deny the submitter BEFORE reading/decrypting bytes or reaching ClamAV.
+CREATE FUNCTION tto.cooperative_governance_pdf_scan_eligible(p_file uuid)
+RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path=pg_catalog,tto AS $fn$
+DECLARE tid uuid:=tto.context_tenant_id();actor uuid:=tto.context_actor_id();
+BEGIN
+ RETURN tid IS NOT NULL AND actor IS NOT NULL
+  AND tto.has_tenant_role(tid,'DOCUMENT_REVIEWER')
+  AND EXISTS(
+   SELECT 1 FROM tto.cooperative_governance_source_files f
+   WHERE f.tenant_id=tid AND f.file_id=p_file AND f.submitted_by<>actor
+  );
+END $fn$;
+REVOKE ALL ON FUNCTION tto.cooperative_governance_pdf_scan_eligible(uuid) FROM PUBLIC,tto_app;
+GRANT EXECUTE ON FUNCTION tto.cooperative_governance_pdf_scan_eligible(uuid) TO tto_app;
 COMMIT;
