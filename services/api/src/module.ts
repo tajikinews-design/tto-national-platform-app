@@ -2355,7 +2355,7 @@ export class Ph12MockIssuerBridgeController {
        p.entityId!==v.entityId||p.nonce!==nonce)
      return fail("MOCK_HOLD_SUBJECT_OR_NONCE_MISMATCH");
     if(typeof p.version!=="number"||!Number.isSafeInteger(p.version)||
-       p.version<1||!["CURRENT","REVOKED"].includes(p.status)||
+       p.version<1||typeof p.status!=="string"||!["CURRENT","REVOKED"].includes(p.status)||
        typeof p.recordHash!=="string"||!/^[a-f0-9]{64}$/.test(p.recordHash)||
        typeof p.observedAt!=="string"||typeof p.expiresAt!=="string")
      return fail("MOCK_HOLD_INVALID_SOURCE_FIELDS");
