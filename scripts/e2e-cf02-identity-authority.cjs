@@ -685,6 +685,43 @@ async function main(){
      201,"Child06 additional fictional Gazette entry is appended");
    ok(n2.noticeId!==notice.noticeId,
      "Child06 additional notice coexists without modifying the first");
+
+
+   const memberHistory=await status(await get(
+     "/v1/tenants/"+A+"/child06/governance-history",tokenMap.get(USER)),
+     200,"Child06 shareholder reads full notice and board chronology");
+   ok(memberHistory.tenantId===A&&memberHistory.publishedVerified===false&&
+     memberHistory.confersSigningPower===false&&memberHistory.confersVotingRights===false&&
+     memberHistory.notices.length===2&&memberHistory.boardHistory.length===9&&
+     memberHistory.signingHistory.length===2,
+     "Child06 history returns both sources, board events and two signing rules");
+   ok(memberHistory.boardHistory.some(x=>x.personName==="مجتبی گلپری"&&
+       x.office==="CEO"&&x.eventType==="RESIGNED")&&
+      memberHistory.boardHistory.some(x=>x.personName==="مرتضی کابلیان شاندیز"&&
+       x.office==="CEO"&&x.termEnd==="1406/12/20"),
+      "Child06 preserves resignation and current CEO appointment separately");
+   ok(!JSON.stringify(memberHistory).includes("0932358977"),
+      "Child06 response never discloses personal national identifiers");
+   const governanceBff=sh.origin+"/api/tenants/"+A+"/governance-history";
+   await status(await fetch(governanceBff),401,
+     "Shareholder BFF denies anonymous governance history");
+   const bff=await status(await fetch(governanceBff,{
+    headers:{Cookie:"tto_session="+tokenMap.get(USER)},cache:"no-store"}),
+     200,"Shareholder Next BFF serves redacted historical records under session");
+   ok(bff.available===true&&bff.verified===false&&bff.notices.length===2&&
+      bff.boardHistory.length===9&&bff.signingHistory.length===2,
+      "Shareholder BFF only exposes archival claims, not legal verification");
+   await status(await get("/v1/tenants/"+B+"/child06/governance-history",
+      tokenMap.get(USER)),403,"Child06 tenant B cannot read tenant A claims");
+   await assert.rejects(()=>db.query(
+     "DELETE FROM tto.cooperative_legal_notice_archive WHERE notice_id=$1",
+     [notice.noticeId]));checks++;
+   const immutable=(await db.query(
+     "SELECT provenance_status FROM tto.cooperative_legal_notice_archive WHERE notice_id=$1",
+     [notice.noticeId])).rows[0];
+   ok(immutable.provenance_status==="USER_SUPPLIED_SOURCE_NOT_AUTHENTICATED",
+     "Child06 even a CI admin cannot silently promote source by editing immutable notice");
+   console.log("CHILD06_TORGHABEH_REAL_NAMED_SOURCE_DECLARED_HISTORY_NEST_PG17_BFF_PASS");
    // CHILD-06 POINT-IN-TIME: two clocks, publication vs meeting/effect,
    // append-only correction and revocation, no inferred legal validity.
    const baseAsOf="/v1/tenants/"+A+"/child06/governance-as-of";
@@ -806,42 +843,6 @@ async function main(){
       Array.isArray(bffSnapshot.candidateOffices),
       "BFF returns temporal conflict without inferred legal authority");
    console.log("CHILD06_GOVERNANCE_BITEMPORAL_CORRECTION_REVOCATION_CONFLICT_REAL_HTTP_PG17_PASS");
-
-   const memberHistory=await status(await get(
-     "/v1/tenants/"+A+"/child06/governance-history",tokenMap.get(USER)),
-     200,"Child06 shareholder reads full notice and board chronology");
-   ok(memberHistory.tenantId===A&&memberHistory.publishedVerified===false&&
-     memberHistory.confersSigningPower===false&&memberHistory.confersVotingRights===false&&
-     memberHistory.notices.length===2&&memberHistory.boardHistory.length===9&&
-     memberHistory.signingHistory.length===2,
-     "Child06 history returns both sources, board events and two signing rules");
-   ok(memberHistory.boardHistory.some(x=>x.personName==="مجتبی گلپری"&&
-       x.office==="CEO"&&x.eventType==="RESIGNED")&&
-      memberHistory.boardHistory.some(x=>x.personName==="مرتضی کابلیان شاندیز"&&
-       x.office==="CEO"&&x.termEnd==="1406/12/20"),
-      "Child06 preserves resignation and current CEO appointment separately");
-   ok(!JSON.stringify(memberHistory).includes("0932358977"),
-      "Child06 response never discloses personal national identifiers");
-   const governanceBff=sh.origin+"/api/tenants/"+A+"/governance-history";
-   await status(await fetch(governanceBff),401,
-     "Shareholder BFF denies anonymous governance history");
-   const bff=await status(await fetch(governanceBff,{
-    headers:{Cookie:"tto_session="+tokenMap.get(USER)},cache:"no-store"}),
-     200,"Shareholder Next BFF serves redacted historical records under session");
-   ok(bff.available===true&&bff.verified===false&&bff.notices.length===2&&
-      bff.boardHistory.length===9&&bff.signingHistory.length===2,
-      "Shareholder BFF only exposes archival claims, not legal verification");
-   await status(await get("/v1/tenants/"+B+"/child06/governance-history",
-      tokenMap.get(USER)),403,"Child06 tenant B cannot read tenant A claims");
-   await assert.rejects(()=>db.query(
-     "DELETE FROM tto.cooperative_legal_notice_archive WHERE notice_id=$1",
-     [notice.noticeId]));checks++;
-   const immutable=(await db.query(
-     "SELECT provenance_status FROM tto.cooperative_legal_notice_archive WHERE notice_id=$1",
-     [notice.noticeId])).rows[0];
-   ok(immutable.provenance_status==="USER_SUPPLIED_SOURCE_NOT_AUTHENTICATED",
-     "Child06 even a CI admin cannot silently promote source by editing immutable notice");
-   console.log("CHILD06_TORGHABEH_REAL_NAMED_SOURCE_DECLARED_HISTORY_NEST_PG17_BFF_PASS");
    }
 
 
