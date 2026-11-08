@@ -8,7 +8,7 @@ export function PortalPasswordLogin({surface,workspaceSlug}:{surface:Surface;wor
  const label=surface==="cooperative"?"مدیر تعاونی":"سهامدار";
  useEffect(()=>{
   let alive=true;
-  fetch("/api/auth/session",{credentials:"same-origin",cache:"no-store"}).then(r=>r.json()).then(d=>{
+  fetch("/api/auth/password/session",{credentials:"same-origin",cache:"no-store"}).then(r=>r.json()).then(d=>{
    if(alive)setPhase(d.authenticated===true?"ready":"login");
   }).catch(()=>{if(alive)setPhase("error")});
   return()=>{alive=false};
