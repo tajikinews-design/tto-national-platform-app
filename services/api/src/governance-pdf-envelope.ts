@@ -3,11 +3,12 @@
  * Deliberately NOT a production KMS, verified issuer or file-release gate.
  */
 import {createCipheriv,createDecipheriv,createHash,randomBytes,timingSafeEqual} from "node:crypto";
+import {newChild06DataKey,wrapChild06DataKey,unwrapChild06DataKey} from "./child06-vault-transit";
 type KeyVersion="child06-lab-v1"|"child06-lab-v2";
 export type SourcePacket={
  evidence_id:string;issuer_candidate_id:string;file_size:number;
  plaintext_sha256:Buffer;aes_gcm_iv:Buffer;aes_gcm_tag:Buffer;
- encrypted_body:Buffer;encryption_version:string;source_state:string
+ encrypted_body:Buffer;encryption_version:string;source_state:string;wrapped_data_key?:string|null
 };
 function versionKey(version:string):Buffer{
  const keyName=version==="child06-lab-v1"?"TTO_CHILD06_PDF_ESCROW_KEY_HEX":
@@ -59,4 +60,39 @@ export function unlockGovernancePdf(packet:SourcePacket,tenant:string):Buffer{
    throw new Error("CHILD06_ESCROW_INTEGRITY_MISMATCH");
   const out=plain;plain=undefined;return out;
  }finally{key.fill(0);plain?.fill(0);}
+}
+
+/** Async KMS-backed original PDF path, never caches the master key or plaintext DEK. */
+export async function encryptKmsGovernancePdf(bytes:Buffer,tenant:string,evidence:string){
+ const dek=newChild06DataKey();
+ try{
+  const wrapped=await wrapChild06DataKey(dek);
+  const iv=randomBytes(12),c=createCipheriv("aes-256-gcm",dek,iv);
+  c.setAAD(Buffer.from("CHILD06_KMS_ORIGINAL_V1|"+tenant+"|"+evidence,"utf8"));
+  const encrypted=Buffer.concat([c.update(bytes),c.final()]);
+  return {version:"child06-kms-v1" as const,iv,tag:c.getAuthTag(),encrypted,
+   digest:createHash("sha256").update(bytes).digest(),wrapped};
+ }finally{dek.fill(0);}
+}
+export async function unlockAnyGovernancePdf(packet:SourcePacket,tenant:string):Promise<Buffer>{
+ if(packet.encryption_version!=="child06-kms-v1")
+  return unlockGovernancePdf(packet,tenant);
+ if(!packet.wrapped_data_key||packet.source_state!=="ENCRYPTED_QUARANTINED_UNAUTHENTICATED"||
+    packet.aes_gcm_iv?.length!==12||packet.aes_gcm_tag?.length!==16||
+    packet.encrypted_body?.length!==packet.file_size||packet.plaintext_sha256?.length!==32)
+  throw new Error("CHILD06_KMS_ENVELOPE_INVALID");
+ const dek=await unwrapChild06DataKey(packet.wrapped_data_key);
+ let plain:Buffer|undefined;
+ try{
+  const decipher=createDecipheriv("aes-256-gcm",dek,packet.aes_gcm_iv);
+  decipher.setAAD(Buffer.from("CHILD06_KMS_ORIGINAL_V1|"+tenant+"|"+packet.evidence_id,"utf8"));
+  decipher.setAuthTag(packet.aes_gcm_tag);
+  plain=Buffer.concat([decipher.update(packet.encrypted_body),decipher.final()]);
+  const digest=createHash("sha256").update(plain).digest();
+  if(plain.length!==packet.file_size||!timingSafeEqual(digest,packet.plaintext_sha256)||
+     !plain.subarray(0,5).equals(Buffer.from("%PDF-"))||
+     !plain.subarray(Math.max(0,plain.length-2048)).includes(Buffer.from("%%EOF")))
+    throw new Error("CHILD06_KMS_ENVELOPE_INTEGRITY_FAILED");
+  const verified=plain;plain=undefined;return verified;
+ }finally{dek.fill(0);plain?.fill(0);}
 }
