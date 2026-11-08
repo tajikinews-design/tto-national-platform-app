@@ -38,7 +38,7 @@ class NationalLoginHomeNavigationTest(unittest.TestCase):
         dashboard = DASHBOARD.read_text(encoding="utf-8")
         self.assertIn('PortalSessionGate surface="national"', home)
         self.assertIn('<PortalShell surface="national"/>', home)
-        self.assertIn('primaryAction:{label:"ثبت و بررسی تعاونی",href:"/cooperatives/new"}', dashboard)
+        self.assertIn('primaryAction:{label:"مشاهده فهرست تعاونی‌ها",href:"/cooperatives"}', dashboard)
 
 
 if __name__ == "__main__":
