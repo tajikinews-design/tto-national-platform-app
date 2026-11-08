@@ -78,7 +78,8 @@ class SyntheticSessionBrowserContract(unittest.TestCase):
             'authenticated module leaked data or bypassed session gate',
             'const loginRes=await fetch("http://127.0.0.1:"+port+"/login")',
             'const review=await fetch("http://127.0.0.1:"+port+"/design-review")',
-            'loginHtml.includes("ورود با رمز یک‌بارمصرف")',
+            'loginHtml.includes(\'id="portal-user"\')',
+            'loginHtml.includes(\'id="portal-pass"\')',
             'html.includes("کارپوشه شخصی سهامدار")',
         ):
             with self.subTest(marker=marker):
