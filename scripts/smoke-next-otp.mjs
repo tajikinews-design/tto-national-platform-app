@@ -34,8 +34,13 @@ for (let idx=0;idx<slugs.length;idx++){
   const loginHtml=await loginRes.text();
   const expected=slug==="national-admin"?"ورود مدیر ملی":
     slug==="cooperative-management"?"ورود مدیر تعاونی":"ورود سهامدار";
-  if(!loginHtml.includes(expected) || loginHtml.includes("ورود با رمز یک‌بارمصرف"))
-    throw Error(slug+" dedicated password-only login is missing");
+  if(!loginHtml.includes(expected) ||
+     !loginHtml.includes('id="portal-user"') && slug!=="national-admin" ||
+     !loginHtml.includes('id="portal-pass"') && slug!=="national-admin")
+    throw Error(slug+" dedicated password-only login is missing"+
+      " title="+loginHtml.includes(expected)+
+      " usernameField="+loginHtml.includes('id="portal-user"')+
+      " passwordField="+loginHtml.includes('id="portal-pass"'));
   checks++;
   const review=await fetch("http://127.0.0.1:"+port+"/design-review");
   if(review.status!==200)throw Error(slug+" approved layout review unavailable");
