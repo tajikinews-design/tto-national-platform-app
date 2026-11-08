@@ -89,6 +89,12 @@ export class Database {
      "SELECT tto.reserve_portal_password_attempt($1) AS allowed",[fingerprint]);
     return r.rows[0]?.allowed===true;
   }
+  async portalPasswordSessionIdentity(authorization:string|undefined,surface:string):Promise<{user_id:string;tenant_id:string;slug:string}|null>{
+    const digest=this.sessionDigest(authorization);
+    const r=await this.pool.query<{user_id:string;tenant_id:string;slug:string}>(
+     "SELECT * FROM tto.portal_password_session_identity($1,$2)",[digest,surface]);
+    return r.rows[0]??null;
+  }
   async portalTenantSlug(tenantId:string):Promise<string|null>{
     const r=await this.pool.query<{slug:string}>(
      "SELECT slug FROM tto.tenants WHERE tenant_id=$1 AND status='ACTIVE'",[tenantId]);
@@ -282,6 +288,21 @@ export class FoundationCommandsController {
    * Credentials are provisioned only after independent natural-person identity
    * verification and ACTIVE legal tenant role. No self-signup or role grant.
    */
+  @Get("portal/password/session")
+  async portalPasswordSession(@Query("surface") surface:string,
+    @Headers("authorization") auth?:string){
+    if(surface!=="cooperative"&&surface!=="shareholder")
+      throw new BadRequestException({code:"INVALID_PORTAL_SURFACE"});
+    if(process.env.TTO_PORTAL_PASSWORD_LOGIN_ENABLED!=="true"||
+       process.env.TTO_SECURE_REAL_DATA_STAGING_ENABLED!=="true"||
+       (process.env.VERCEL==="1"&&process.env.VERCEL_ENV!=="preview"))
+      throw new ServiceUnavailableException({code:"PORTAL_PASSWORD_STAGING_NOT_RELEASED"});
+    const verified=await this.db.portalPasswordSessionIdentity(auth,surface);
+    if(!verified)throw new UnauthorizedException({code:"PORTAL_PASSWORD_SESSION_REQUIRED"});
+    return {authenticated:true,surface,tenantId:verified.tenant_id,
+      workspaceSlug:verified.slug,legalPowerGranted:false};
+  }
+
   @Post("portal/password/login")
   @HttpCode(200)
   async loginPortalPassword(@Body() input:Record<string,unknown>,@Req() req:{ip?:string}){
