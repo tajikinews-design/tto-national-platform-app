@@ -88,7 +88,7 @@ async function portal(slug,port){
  const cwd=resolve(ROOT,"apps",slug);
  const origin="http://127.0.0.1:"+port;
  await launch(slug,[resolve(cwd,"node_modules/next/dist/bin/next"),"start","-p",String(port)],cwd,
- {NODE_ENV:"test",CI:"true",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",TTO_PH12_PUBLIC_ORIGIN:origin,TTO_LOOPBACK_E2E:"1",TTO_API_BASE_URL:API,PORT:String(port),NEXT_TELEMETRY_DISABLED:"1",APIIR_TOKEN:""},
+ {NODE_ENV:"test",CI:"true",TTO_PH12_TARIFF_DRAFT_INTAKE_ENABLED:"true",TTO_PH12_PUBLIC_ORIGIN:origin,TTO_CHILD06_GOVERNANCE_ARCHIVE_UI:"true",TTO_LOOPBACK_E2E:"1",TTO_API_BASE_URL:API,PORT:String(port),NEXT_TELEMETRY_DISABLED:"1",APIIR_TOKEN:""},
  origin+"/");
  return {origin,slug};
 }
@@ -846,6 +846,95 @@ async function main(){
       bffSnapshot.certainty==="CONFLICT_HOLD"&&
       Array.isArray(bffSnapshot.candidateOffices),
       "BFF returns temporal conflict without inferred legal authority");
+
+   // Multi-hop chain A->B->C, fork/merge/cycle. All are explicitly
+   // fictional, and must never be misrepresented as a real Gazette entry.
+   const newMockNotice=async(number,day)=>await status(await post(legalPath,
+      tokenMap.get(MANAGER),{...torghabeh,requestKey:randomUUID(),
+      sourceType:"OFFICIAL_GAZETTE",sourceNoticeNumber:number,
+      gazetteIssue:"CI-CHAIN-ONLY",publishedOn:day,resolutionOn:day,
+      noticeKind:"OTHER",summary:"زنجیره ساختگی فقط برای آزمون چند اصلاحیه و تشخیص تعارض؛ هیچ اعتبار حقوقی واقعی ندارد.",
+      board:[],signing:[]}),201,"synthetic correction-chain node "+number);
+   const chA=await newMockNotice("CI-CHAIN-A-01","1404/11/10");
+   const chB=await newMockNotice("CI-CHAIN-B-02","1404/11/11");
+   const chC=await newMockNotice("CI-CHAIN-C-03","1404/11/12");
+   const makeChange=(targetNoticeId,replacementNoticeId,effectiveOn)=>
+    ({requestKey:randomUUID(),targetNoticeId,replacementNoticeId,
+      action:"CORRECTED",effectiveOn,publishedOn:effectiveOn,
+      sourceReference:"CI mock chain reference; no real legal effect"});
+   await status(await post(transitionPath,tokenMap.get(MANAGER),
+     makeChange(chA.noticeId,chB.noticeId,"1404/11/11")),201,"chain A to B");
+   const midChain=await temporal("1404/11/11");
+   ok(midChain.consideredNoticeIds.includes(chB.noticeId)&&
+       !midChain.consideredNoticeIds.includes(chA.noticeId)&&
+       !midChain.consideredNoticeIds.includes(chC.noticeId),
+       "known published A->B chain resolves to B without assuming C early");
+   await status(await post(transitionPath,tokenMap.get(MANAGER),
+     makeChange(chB.noticeId,chC.noticeId,"1404/11/12")),201,"chain B to C");
+   const fullChain=await temporal("1404/11/12");
+   ok(fullChain.consideredNoticeIds.includes(chC.noticeId)&&
+       !fullChain.consideredNoticeIds.includes(chA.noticeId)&&
+       !fullChain.consideredNoticeIds.includes(chB.noticeId),
+       "three-link chain selects terminal source only, without latest-only guess");
+   const catalogPath="/v1/tenants/"+A+"/child06/notice-transition-catalog";
+   await status(await get(catalogPath,tokenMap.get(USER)),403,
+      "member cannot browse manager source-transition catalog");
+   const catalog=await status(await get(catalogPath,tokenMap.get(MANAGER)),200,
+      "manager reads bounded notice transition catalog");
+   ok(catalog.sourceAuthenticated===false&&catalog.tariffActivated===false&&
+      catalog.notices.some(x=>x.noticeId===chC.noticeId)&&
+      catalog.transitions.some(x=>x.targetNoticeId===chB.noticeId),
+      "catalog exposes source nodes and transitions without legal promotion");
+   const managerBff=cm.origin+"/api/tenants/"+A+"/notice-transitions";
+   await status(await fetch(managerBff),401,"manager transition BFF denies anonymous");
+   const managerCatalog=await status(await fetch(managerBff,{
+      headers:{Cookie:"tto_session="+tokenMap.get(MANAGER)},cache:"no-store"}),
+      200,"manager Next BFF loads archived sources and transition references");
+   ok(managerCatalog.available===true&&managerCatalog.verified===false&&
+      managerCatalog.notices.some(x=>x.noticeId===chA.noticeId),
+      "manager form source catalog renders only tenant's source declarations");
+   const bffPayload=makeChange(chA.noticeId,chC.noticeId,"1404/11/12");
+   await status(await fetch(managerBff,{method:"POST",
+      headers:{"Content-Type":"application/json","Origin":"http://untrusted.test",
+        "Cookie":"tto_session="+tokenMap.get(MANAGER)},
+      body:JSON.stringify(bffPayload)}),403,"manager BFF denies cross-origin writes");
+   await status(await fetch(managerBff,{method:"POST",
+      headers:{"Content-Type":"application/json","Origin":cm.origin,
+        "Cookie":"tto_session="+tokenMap.get(MANAGER)},
+      body:JSON.stringify({...bffPayload,targetNoticeId:"BAD"})}),400,
+      "manager BFF rejects bad source UUID");
+   const forkReceipt=await status(await fetch(managerBff,{method:"POST",
+      headers:{"Content-Type":"application/json","Origin":cm.origin,
+        "Cookie":"tto_session="+tokenMap.get(MANAGER)},
+      body:JSON.stringify(bffPayload)}),201,
+      "manager BFF submits second conflicting correction without legal elevation");
+   ok(forkReceipt.verified===false&&forkReceipt.tariffActivated===false,
+      "manager correction receipt is only source-declared");
+   const forkSnapshot=await temporal("1404/11/12");
+   ok(forkSnapshot.certainty==="CONFLICT_HOLD"&&
+     forkSnapshot.conflicts.includes("CONFLICTING_NOTICE_TRANSITIONS:"+chA.noticeId)&&
+     !forkSnapshot.consideredNoticeIds.includes(chC.noticeId),
+     "fork taints all connected successors rather than selecting one correction");
+   await status(await post(transitionPath,tokenMap.get(MANAGER),
+     makeChange(chC.noticeId,chA.noticeId,"1404/11/12")),201,
+     "synthetic C->A cycle is retained as evidence");
+   const cyclic=await temporal("1404/11/12");
+   ok(cyclic.certainty==="CONFLICT_HOLD"&&
+      cyclic.conflicts.some(x=>x.startsWith("CORRECTION_CYCLE:"))&&
+      !cyclic.consideredNoticeIds.includes(chA.noticeId)&&
+      !cyclic.consideredNoticeIds.includes(chB.noticeId)&&
+      !cyclic.consideredNoticeIds.includes(chC.noticeId),
+      "cycles are detected and related notices are all quarantined");
+   const chD=await newMockNotice("CI-CHAIN-D-04","1404/11/12");
+   await status(await post(transitionPath,tokenMap.get(MANAGER),
+     makeChange(chD.noticeId,chC.noticeId,"1404/11/12")),201,
+     "synthetic correction merge linked to same successor");
+   const merged=await temporal("1404/11/12");
+   ok(merged.conflicts.includes("MULTIPLE_PREDECESSORS:"+chC.noticeId)&&
+      !merged.consideredNoticeIds.includes(chD.noticeId),
+      "two predecessors pointing to one replacement are marked ambiguous");
+   console.log("CHILD06_CHAIN_FORK_MERGE_CYCLE_MANAGER_BFF_REAL_NEST_PG17_PASS");
+
    console.log("CHILD06_GOVERNANCE_BITEMPORAL_CORRECTION_REVOCATION_CONFLICT_REAL_HTTP_PG17_PASS");
    }
 
