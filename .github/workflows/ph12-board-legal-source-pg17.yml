@@ -42,6 +42,8 @@ jobs:
             count=$((count+1))
           done
           test "$count" -ge 75
+          # Disposable simulation only; never installed as a project migration.
+          docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-mock-issuer-bridge-ci-schema.sql
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-board-legal-source-checks-hold.sql
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-board-legal-source-functions-adversarial.sql
           docker exec -i tto-ph12-legal psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12-independent-legal-disposition-hold.sql
