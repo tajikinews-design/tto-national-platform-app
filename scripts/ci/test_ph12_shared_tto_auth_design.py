@@ -55,8 +55,36 @@ class SharedTtoAuthenticationUi(unittest.TestCase):
         self.assertIn(".tto-auth-page",css)
         self.assertIn(".tto-auth-layout",css)
         self.assertIn(".tto-auth-method-tabs",css)
+        self.assertIn("width:min(870px,100%)",css)
+        self.assertIn("min-height:min(615px,calc(100svh - 44px))",css)
+        self.assertIn("place-items:center",css)
+        self.assertIn("@media (min-width:681px) and (max-height:720px)",css)
         self.assertIn("@media(max-width:680px)",css)
         self.assertIn("@media(prefers-reduced-motion:reduce)",css)
+
+    def test_checkout_reuses_compact_branding_without_changing_payment_contract(self):
+        frame=source("packages/ui/src/auth-frame.tsx")
+        order=source("apps/cooperative-management/app/subscribe/page.tsx")
+        backend=source("apps/cooperative-management/app/api/commerce/route.ts")
+        css=source("packages/ui/src/styles.css")
+        self.assertIn('export type AuthMode="login"|"register"|"order"',frame)
+        self.assertIn('mode="order"',order)
+        self.assertIn('AuthFrame',order)
+        self.assertIn('type Step="details"|"confirm"|"done"',order)
+        for label in ("نام پیشنهادی تعاونی","شناسه اختصاصی زیردامنه",
+                      "شماره همراه خریدار","پلن اشتراک",
+                      "مبلغ اعلامی آزمایشی","ثبت و تأیید مبلغ آزمایشی"):
+            self.assertIn(label,order)
+        for guard in ("Number.isSafeInteger","/api/commerce","response.status===409",
+                      'response.status===401||response.status===403',
+                      'data.tenantActivated!==true'):
+            self.assertIn(guard,order)
+        for boundary in ("پرداخت واقعی غیرفعال","وجهی دریافت نمی‌شود",
+                         "managerRoleGranted!==false","DEMO_AMOUNT_ATTESTED"):
+            self.assertTrue(boundary in frame or boundary in order or boundary in backend)
+        self.assertIn(".tto-checkout-progress",css)
+        self.assertIn(".tto-checkout-domain",css)
+        self.assertIn(".tto-checkout-warning",css)
 
 if __name__=="__main__":
     unittest.main()
