@@ -95,8 +95,8 @@ function navHref(i: number, basePath = "") {
 }
 
 export function PortalShell({
-  surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, allowedModules
-}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[]}) {
+  surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, allowedModules, canManageSettings = false, settingsSection
+}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users"}) {
  const cfg=surfaces[surface],selection=Math.max(NAV_IDS.indexOf(activeId),0);
  const home=selection===0,currentTitle=home?cfg.title:cfg.navigation[selection];
  return <div className="shell tto-approved-shell" lang="fa" dir="rtl" data-tto-demo-only={demoOnly?"true":undefined}>
@@ -104,11 +104,32 @@ export function PortalShell({
    <aside className="nav-area">
      <a className="logo" href={basePath||"/"} aria-label="پلتفرم ملی تعاونی توسعه و عمران"><span className="tto-brand-mark">❖</span><strong>پلتفرم ملی تعاونی توسعه و عمران</strong><span>شبکه هوشمند خدمات و راهبری تعاونی‌ها</span></a>
      <nav aria-label={"منوی "+cfg.title}>
-      {cfg.navigation.map((name,i)=>!allowedModules||allowedModules.includes(NAV_IDS[i])?<a href={navHref(i,basePath)} key={NAV_IDS[i]}
-        aria-current={i===selection?"page":undefined}
-        className={i===selection?"nav-link current":"nav-link"}>
+      {cfg.navigation.map((name,i)=>{
+       if(allowedModules&&!allowedModules.includes(NAV_IDS[i]))return null;
+       const active=i===selection;
+       if(surface==="cooperative"&&i===10&&basePath.startsWith("/c/")&&canManageSettings){
+        return <details key="cooperative-settings" className="tto-settings-tree" open={active}>
+         <summary className={active?"nav-link current":"nav-link"} aria-label="بازکردن زیرمنوی تنظیمات">
+          <span aria-hidden="true" className="tto-nav-symbol">⚙</span><span>{name}</span>
+          <span className="tto-settings-chevron" aria-hidden="true">⌄</span>
+         </summary>
+         <div className="tto-settings-submenu" aria-label="زیرمنوهای تنظیمات">
+          <a className={settingsSection==="credentials"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/settings/credentials"} aria-current={settingsSection==="credentials"?"page":undefined}>
+            <span aria-hidden="true">◇</span> تغییر نام کاربری و رمز عبور
+          </a>
+          <a className={settingsSection==="users"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/settings/users"} aria-current={settingsSection==="users"?"page":undefined}>
+            <span aria-hidden="true">♧</span> کاربران و سطح دسترسی
+          </a>
+         </div>
+        </details>;
+       }
+       return <a href={navHref(i,basePath)} key={NAV_IDS[i]}
+        aria-current={active?"page":undefined} className={active?"nav-link current":"nav-link"}>
         <span aria-hidden="true" className="tto-nav-symbol">{["▦","♙","▥","♜","♧","⚙","▤","▥","♢","▥","⚙"][i]}</span>
-        <span>{name}</span></a>:null)}
+        <span>{name}</span></a>;
+      })}
      </nav>
      <a className="tto-logout-link" href={basePath||"/login"}>ورود / خروج از حساب ↗</a>
    </aside>
