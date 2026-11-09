@@ -8,6 +8,18 @@ export function OtpLogin({enabled,surface,initialShareholderView="overview",init
  const [mobile,setMobile]=useState("");
  const [code,setCode]=useState("");
  const [requestId,setRequestId]=useState("");
+ const [otpDeadline,setOtpDeadline]=useState<number|null>(null);
+ const [timerNow,setTimerNow]=useState(()=>Date.now());
+ const remainingSeconds=otpDeadline===null?0:Math.max(0,Math.ceil((otpDeadline-timerNow)/1000));
+ useEffect(()=>{
+  if(otpDeadline===null)return;
+  const tick=()=>setTimerNow(Date.now());
+  tick();
+  const interval=window.setInterval(tick,250);
+  document.addEventListener("visibilitychange",tick);
+  window.addEventListener("focus",tick);
+  return()=>{window.clearInterval(interval);document.removeEventListener("visibilitychange",tick);window.removeEventListener("focus",tick)};
+ },[otpDeadline]);
  const [busy,setBusy]=useState(false);
  const [message,setMessage]=useState("");
  const [verified,setVerified]=useState(false);
@@ -85,23 +97,26 @@ export function OtpLogin({enabled,surface,initialShareholderView="overview",init
   };
  },[enabled,verified,surface,invalidateSession]);
  async function issue(e:FormEvent){
-  e.preventDefault();if(!enabled||busy)return;
+  e.preventDefault();if(!enabled||busy||remainingSeconds>0)return;
   setBusy(true);setMessage("");
   try{
    const resp=await fetch("/api/auth/otp/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mobile}),cache:"no-store"});
-   const data=await resp.json();
+   const data=await resp.json() as {requestId?:unknown;expiresInSeconds?:unknown};
    if(!resp.ok||typeof data.requestId!=="string")throw Error("درخواست پیامک انجام نشد.");
-   setRequestId(data.requestId);setMessage("در صورت وجود حساب معتبر، کد برای شماره ثبت‌شده ارسال می‌شود.");
+   const ttl=typeof data.expiresInSeconds==="number"&&Number.isInteger(data.expiresInSeconds)?
+      Math.max(0,Math.min(60,data.expiresInSeconds)):60;
+   setRequestId(data.requestId);setCode("");setTimerNow(Date.now());setOtpDeadline(Date.now()+ttl*1000);
+   setMessage("درخواست کد تأیید ثبت شد. کد حداکثر ۶۰ ثانیه اعتبار دارد.");
   }catch{setMessage("امکان درخواست کد وجود ندارد؛ لطفاً بعداً تلاش کنید.");}
   finally{setBusy(false);}
  }
  async function verify(e:FormEvent){
-  e.preventDefault();if(!enabled||busy||!requestId)return;
+  e.preventDefault();if(!enabled||busy||!requestId||remainingSeconds<=0)return;
   setBusy(true);setMessage("");
   try{
    const resp=await fetch("/api/auth/otp/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({challengeId:requestId,otp:code}),cache:"no-store"});
    if(!resp.ok)throw Error("INVALID");
-   setVerified(true);setMessage("کد تأیید شد. دسترسی به خدمات تابع نقش و محدوده تعاونی شماست.");
+   setVerified(true);setOtpDeadline(null);setRequestId("");setCode("");setMessage("کد تأیید شد. دسترسی به خدمات تابع نقش و محدوده تعاونی شماست.");
   }catch{setMessage("کد معتبر نیست یا مهلت آن پایان یافته است.");}
   finally{setBusy(false);}
  }
@@ -111,7 +126,7 @@ export function OtpLogin({enabled,surface,initialShareholderView="overview",init
   try{
    const res=await fetch("/api/auth/logout",{method:"POST",cache:"no-store"});
    if(res.status!==204)throw Error("LOGOUT_NOT_CONFIRMED");
-   setVerified(false);setRequestId("");setMobile("");setCode("");
+   setVerified(false);setRequestId("");setOtpDeadline(null);setMobile("");setCode("");
    setMessage("خروج از حساب تأیید شد.");
   }catch{
    setMessage("لغو نشست در سرور تأیید نشد. لطفاً مجدداً برای خروج تلاش کنید.");
@@ -128,16 +143,18 @@ export function OtpLogin({enabled,surface,initialShareholderView="overview",init
     <form onSubmit={issue}>
      <label htmlFor="tto-mobile">شماره موبایل ثبت‌شده</label>
      <input id="tto-mobile" dir="ltr" autoComplete="tel" inputMode="tel" maxLength={11}
-      placeholder="09xxxxxxxxx" value={mobile} onChange={e=>setMobile(e.target.value)}
+      placeholder="09xxxxxxxxx" value={mobile} onChange={e=>{setMobile(e.target.value);if(requestId){setRequestId("");setOtpDeadline(null);setCode("");}}}
       pattern="09[0-9]{9}" required disabled={busy}/>
-     <button type="submit" disabled={busy}>دریافت کد</button>
+     <button type="submit" disabled={busy||remainingSeconds>0}>{remainingSeconds>0?"در انتظار پایان اعتبار کد":requestId?"دریافت مجدد کد":"دریافت کد"}</button>
     </form>
     {requestId?<form onSubmit={verify}>
+     {remainingSeconds>0?<p role="timer" aria-live="off">زمان باقی‌مانده: <strong style={{fontVariantNumeric:"tabular-nums"}}>{remainingSeconds.toLocaleString("fa-IR")} ثانیه</strong></p>:
+      <p role="status">اعتبار کد پایان یافته است. برای دریافت کد جدید، «دریافت مجدد کد» را انتخاب کنید.</p>}
      <label htmlFor="tto-code">کد یک‌بارمصرف</label>
      <input id="tto-code" dir="ltr" inputMode="numeric" autoComplete="one-time-code"
        minLength={6} maxLength={10} pattern="[0-9]{6,10}" value={code}
-       onChange={e=>setCode(e.target.value)} required disabled={busy}/>
-     <button type="submit" disabled={busy}>تأیید کد</button>
+       onChange={e=>setCode(e.target.value)} required disabled={busy||remainingSeconds<=0}/>
+     <button type="submit" disabled={busy||remainingSeconds<=0}>تأیید کد</button>
     </form>:null}
    </div>}
   {enabled&&!verified&&!checkFailed&&message?<p role="status" aria-live="polite">{message}</p>:null}
