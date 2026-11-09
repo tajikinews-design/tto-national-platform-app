@@ -20,7 +20,7 @@ export async function POST(req:NextRequest){
    method:"POST",headers:{"Content-Type":"application/json",...trustedBackendHeaders(req)},
    body:JSON.stringify(data),cache:"no-store",redirect:"error",signal:AbortSignal.timeout(9500)});
   if(!r.ok)return fail(r.status===401?401:503,isVerify?"INVALID_OR_EXPIRED_CODE":"REGISTRATION_UNAVAILABLE");
-  const result=await r.json() as {requestId?:unknown;accessToken?:unknown};
+  const result=await r.json() as {requestId?:unknown;accessToken?:unknown;expiresInSeconds?:unknown};
   if(isVerify){
    if(typeof result.accessToken!=="string"||!/^[A-Za-z0-9_-]{32,256}$/.test(result.accessToken))return fail(502,"INVALID_RESPONSE");
    const out=NextResponse.json({verified:true},{headers:H});
@@ -28,6 +28,10 @@ export async function POST(req:NextRequest){
    return out;
   }
   if(typeof result.requestId!=="string")return fail(502,"INVALID_RESPONSE");
-  return NextResponse.json({requestId:result.requestId,status:"ACCEPTED"},{status:202,headers:H});
+  const expiresInSeconds=Number.isInteger(result.expiresInSeconds)&&
+   Number(result.expiresInSeconds)>=0&&Number(result.expiresInSeconds)<=60?
+   Number(result.expiresInSeconds):60;
+  return NextResponse.json({requestId:result.requestId,status:"ACCEPTED",expiresInSeconds},
+   {status:202,headers:H});
  }catch{return fail(503,"REGISTRATION_UNAVAILABLE")}
 }
