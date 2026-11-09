@@ -18,7 +18,8 @@ const SAFE_LOGIN_APIS=new Set([
  "/api/auth/session","/api/auth/password/session","/api/auth/password/login",
  "/api/auth/otp/request","/api/auth/otp/verify","/api/auth/logout",
  "/api/me/tenant-options",
- "/api/commerce/workspaces", "/api/commerce/password-login", "/api/commerce/subscriptions", "/api/commerce/team", "/api/commerce/nav02"
+ "/api/commerce/workspaces", "/api/commerce/password-login", "/api/commerce/subscriptions", "/api/commerce/team", "/api/commerce/nav02",
+ "/api/commerce/nav02/photo"
 ]);
 const CONTEXT_API=/^\/api\/tenants\/[0-9a-f-]{36}\/context$/i;
 
