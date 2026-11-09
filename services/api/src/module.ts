@@ -375,6 +375,61 @@ export class FoundationCommandsController {
    * tenants require a separate formally approved national directory read model.
    * Never infer legal registration or tenant activation from a reserved slug.
    */
+  @Get("commerce/demo/team")
+  async demoTeam(@Headers("authorization") auth:string|undefined,@Query("slug") slug:string){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
+      throw new BadRequestException("INVALID_SLUG");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      const r=await c.query<{items:unknown}>("SELECT tto.commerce_demo_team_list($1) AS items",[slug]);
+      return {items:r.rows[0]?.items??[]};
+    });
+  }
+  @Post("commerce/demo/team")
+  @HttpCode(200)
+  async demoTeamCommand(@Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    if(!input||typeof input!=="object"||Array.isArray(input)||
+       Object.keys(input).some(k=>!["action","slug","username","displayName","password","permissions","id","state"].includes(k)))
+      throw new BadRequestException("INVALID_TEAM_BODY");
+    const slug=input.slug,permissions=input.permissions,action=input.action;
+    const validPerm=(v:unknown):v is string[]=>Array.isArray(v)&&v.length>0&&v.length<=11&&
+      v.every(x=>typeof x==="string"&&/^NAV-(0[1-9]|1[01])$/.test(x))&&
+      v.includes("NAV-01")&&new Set(v).size===v.length;
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||!validPerm(permissions))
+      throw new BadRequestException("INVALID_TEAM_PERMISSIONS");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      if(action==="create"){
+        if(typeof input.username!=="string"||!/^staff_[a-z][a-z0-9._-]{4,58}$/.test(input.username)||
+           typeof input.displayName!=="string"||input.displayName.trim().length<3||input.displayName.length>120||
+           typeof input.password!=="string"||input.password.length<14||input.password.length>128)
+          throw new BadRequestException("INVALID_TEAM_USER");
+        const salt=randomBytes(16);
+        const hash="scrypt$v1$"+salt.toString("hex")+"$"+
+          scryptSync(input.password,salt,64,{N:16384,r:8,p:1,maxmem:64*1024*1024}).toString("hex");
+        try{
+         const x=await c.query<{record:unknown}>(
+          "SELECT tto.commerce_demo_team_create($1,$2,$3,$4,$5::text[]) AS record",
+          [slug,input.username,input.displayName,hash,permissions]);
+         return {created:true,user:x.rows[0]?.record};
+        }catch(e){if((e as {code?:string}).code==="23505")throw new ConflictException("USERNAME_TAKEN");throw e}
+      }
+      if(action==="update"){
+        if(typeof input.id!=="string"||!/^[0-9a-f-]{36}$/i.test(input.id)||
+           !["ACTIVE","DISABLED"].includes(String(input.state)))
+          throw new BadRequestException("INVALID_TEAM_UPDATE");
+        const x=await c.query<{changed:boolean}>(
+         "SELECT tto.commerce_demo_team_update($1,$2::uuid,$3::text[],$4) AS changed",
+         [slug,input.id,permissions,input.state]);
+        if(!x.rows[0]?.changed)throw new ForbiddenException("WORKSPACE_OWNER_REQUIRED");
+        return {changed:true};
+      }
+      throw new BadRequestException("INVALID_TEAM_ACTION");
+    });
+  }
+
   @Get("commerce/demo/workspaces")
   async commerceDemoWorkspaces(@Headers("authorization") auth:string|undefined){
     if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
