@@ -75,6 +75,39 @@ for (let idx=0;idx<slugs.length;idx++){
      throw Error(slug+" authenticated module leaked data or bypassed session gate");
    checks++;
   }
+  // PH12 owner onboarding: SSR must show only safe checking states without a session.
+  // This exercises the actual compiled Next routes, not just static source strings.
+  if(slug==="cooperative-management"){
+    const routes=[
+      ["/entry","در حال شناسایی فضای اختصاصی"],
+      ["/c/qa-tto-coop-1405","در حال بررسی دسترسی و آماده‌سازی ورود"],
+      ["/setup/qa-tto-coop-1405","در حال بررسی مالکیت فضای تعاونی"],
+      ["/owner/qa-tto-coop-1405","در حال بررسی دسترسی به فضای اختصاصی"]
+    ];
+    for(const [path,marker] of routes){
+      const resp=await fetch("http://127.0.0.1:"+port+path);
+      if(resp.status!==200)throw Error("PH12_ONBOARDING_ROUTE_BAD_STATUS "+path+" "+resp.status);
+      const html=await resp.text();
+      if(!html.includes(marker)||html.includes("مدیریت قانونی تعاونی: فعال نشده")||
+         html.includes("روزهای باقی‌مانده:"))
+        throw Error("PH12_ONBOARDING_UNAUTHENTICATED_SSR_LEAK "+path);
+      checks++;
+    }
+    const ownerApis=[
+      ["/api/commerce/workspaces","GET",401],
+      ["/api/commerce/password-login","POST",403],
+      ["/api/commerce","POST",401]
+    ];
+    for(const [path,method,expected] of ownerApis){
+      const resp=await fetch("http://127.0.0.1:"+port+path,{
+        method,headers:method==="POST"?{"Content-Type":"application/json"}:{},
+        ...(method==="POST"?{body:"{}"}:{})
+      });
+      if(resp.status!==expected)throw Error("PH12_OWNER_API_NOT_FAIL_CLOSED "+path+" "+resp.status);
+      checks++;
+    }
+    console.log("PH12_OWNER_ONBOARDING_ANONYMOUS_RUNTIME_FAIL_CLOSED_PASS");
+  }
   // Tenant context BFF must fail closed even in protected Preview, without a user session.
   const tid="44444444-4444-4444-8444-444444444444";
   const contextUrl="http://127.0.0.1:"+port+"/api/tenants/"+tid+"/context";
