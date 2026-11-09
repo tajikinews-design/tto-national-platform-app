@@ -17,7 +17,8 @@ const RESERVED=new Set([
 const SAFE_LOGIN_APIS=new Set([
  "/api/auth/session","/api/auth/password/session","/api/auth/password/login",
  "/api/auth/otp/request","/api/auth/otp/verify","/api/auth/logout",
- "/api/me/tenant-options"
+ "/api/me/tenant-options",
+ "/api/commerce/workspaces", "/api/commerce/password-login", "/api/commerce/subscriptions"
 ]);
 const CONTEXT_API=/^\/api\/tenants\/[0-9a-f-]{36}\/context$/i;
 
@@ -64,7 +65,9 @@ export function proxy(request:NextRequest){
   }
   return NextResponse.next();
  }
- if(path==="/c/"+slug)return NextResponse.next(); // PortalSessionGate validates role & tenant context
+ if(path==="/c/"+slug)return NextResponse.next(); // owner setup or formal manager gate validates access
+ if(path==="/setup/"+slug||path==="/owner/"+slug)return NextResponse.next();
+ if(path==="/customer-login"||path==="/settings/subscription")return NextResponse.next();
  if(SAFE_LOGIN_APIS.has(path)||CONTEXT_API.test(path))return NextResponse.next();
  return unavailable(request);
 }
