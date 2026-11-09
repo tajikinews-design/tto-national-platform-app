@@ -24,6 +24,11 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
+      - name: Enforce owner-approved TTO-AUTH-UI-V1 freeze (NO UI DRIFT)
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/test_ph12_auth_ui_freeze.py -v
+          echo "TTO_AUTH_UI_V1_FROZEN_GREEN"
       - name: Install workspace and validate all preview portals
         run: |
           set -euo pipefail
