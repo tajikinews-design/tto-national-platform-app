@@ -28,7 +28,7 @@ class CooperativeOnboardingFlow(unittest.TestCase):
  def test_entry_uses_real_owner_scope_and_rejects_guessing(self):
   entry=src("apps/cooperative-management/app/entry/page.tsx")
   gate=src("apps/cooperative-management/app/c/[slug]/entry-gate.tsx")
-  for x in ['"/api/auth/session"','"/api/commerce/workspaces"','window.location.replace("/c/"+','tenantActive===true']:
+  for x in ['"/api/auth/password/session"','evidence.authenticated===true','"/api/auth/session"','"/api/commerce/workspaces"','window.location.replace("/c/"+','tenantActive===true']:
    self.assertIn(x,entry)
   for x in ['"/api/auth/password/session"','managerSession.workspaceSlug===slug',
     '"/api/commerce/workspaces"','x.slug===slug&&x.tenantActive===true',
