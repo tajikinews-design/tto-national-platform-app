@@ -82,8 +82,16 @@ async function checkPortal(slug,index) {
  if(slug==="national-admin"){
   // PH10 national root uses its own server-verified password session.
   // It must never attempt member SMS-OTP or infer authority from a URL.
-  assert.ok(html.includes('ورود مدیر ملی')&&html.includes('ورود مدیر اصلی'),
-    "national root SSR must show the dedicated password authentication shell");checks++;
+  // Anonymous national dashboard must be session-gated, while the approved
+  // national password form is served only at the independent /login route.
+  assert.ok(html.includes('در حال بررسی دسترسی')&&
+    html.includes('رفتن به صفحه ورود مستقل'),
+    "national root must render fail-closed session gate");checks++;
+  const loginPage=await fetch(url+"/login",{cache:"no-store"});
+  assertStatus(loginPage,200,"national dedicated login page");
+  const loginHtml=await loginPage.text();
+  assert.ok(loginHtml.includes('ورود مدیر ملی')&&loginHtml.includes('ورود مدیر اصلی'),
+    "national password form must remain on the separate login route");checks++;
   assert.ok(!html.includes('در این نسخه پیش‌نمایش، پایگاه داده'),"national root SSR disclosed preview data");checks++;
   const anon=await fetch(url+"/api/auth/session",{cache:"no-store"});
   assertStatus(anon,200,"national root anonymous session check");
