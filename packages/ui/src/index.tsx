@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, ComponentType } from "react";
 import {shareholderNavigation} from "./shareholder-navigation";
 import {PortalModuleWorkbench} from "./portal-module-workbench";
 import {ApprovedDashboardHome} from "./approved-dashboard";
@@ -95,15 +95,16 @@ function navHref(i: number, basePath = "") {
 }
 
 export function PortalShell({
-  surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, allowedModules, canManageSettings = false, settingsSection
-}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users"}) {
+  surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, allowedModules, canManageSettings = false, settingsSection, NavigationLink
+}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users";NavigationLink?:ComponentType<{href:string;children:ReactNode;className?:string;"aria-current"?: "page";"aria-label"?:string}>}) {
  const cfg=surfaces[surface],selection=Math.max(NAV_IDS.indexOf(activeId),0);
+ const InternalLink=NavigationLink??"a";
  const home=selection===0,currentTitle=settingsSection==="credentials"?"تغییر نام کاربری و رمز عبور":
   settingsSection==="users"?"کاربران و سطح دسترسی":home?cfg.title:cfg.navigation[selection];
  return <div className="shell tto-approved-shell" lang="fa" dir="rtl" data-tto-demo-only={demoOnly?"true":undefined}>
    <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
    <aside className="nav-area">
-     <a className="logo" href={basePath||"/"} aria-label="پلتفرم ملی تعاونی توسعه و عمران"><span className="tto-brand-mark">❖</span><strong>پلتفرم ملی تعاونی توسعه و عمران</strong><span>شبکه هوشمند خدمات و راهبری تعاونی‌ها</span></a>
+     <InternalLink className="logo" href={basePath||"/"} aria-label="پلتفرم ملی تعاونی توسعه و عمران"><span className="tto-brand-mark">❖</span><strong>پلتفرم ملی تعاونی توسعه و عمران</strong><span>شبکه هوشمند خدمات و راهبری تعاونی‌ها</span></InternalLink>
      <nav aria-label={"منوی "+cfg.title}>
       {cfg.navigation.map((name,i)=>{
        if(allowedModules&&!allowedModules.includes(NAV_IDS[i]))return null;
@@ -115,21 +116,21 @@ export function PortalShell({
           <span className="tto-settings-chevron" aria-hidden="true">⌄</span>
          </summary>
          <div className="tto-settings-submenu" aria-label="زیرمنوهای تنظیمات">
-          <a className={settingsSection==="credentials"?"tto-settings-sublink selected":"tto-settings-sublink"}
+          <InternalLink className={settingsSection==="credentials"?"tto-settings-sublink selected":"tto-settings-sublink"}
            href={basePath+"/settings/credentials"} aria-current={settingsSection==="credentials"?"page":undefined}>
             <span aria-hidden="true">◇</span> تغییر نام کاربری و رمز عبور
-          </a>
-          <a className={settingsSection==="users"?"tto-settings-sublink selected":"tto-settings-sublink"}
+          </InternalLink>
+          <InternalLink className={settingsSection==="users"?"tto-settings-sublink selected":"tto-settings-sublink"}
            href={basePath+"/settings/users"} aria-current={settingsSection==="users"?"page":undefined}>
             <span aria-hidden="true">♧</span> کاربران و سطح دسترسی
-          </a>
+          </InternalLink>
          </div>
         </details>;
        }
-       return <a href={navHref(i,basePath)} key={NAV_IDS[i]}
+       return <InternalLink href={navHref(i,basePath)} key={NAV_IDS[i]}
         aria-current={i===selection?"page":undefined} className={active?"nav-link current":"nav-link"}>
         <span aria-hidden="true" className="tto-nav-symbol">{["▦","♙","▥","♜","♧","⚙","▤","▥","♢","▥","⚙"][i]}</span>
-        <span>{name}</span></a>;
+        <span>{name}</span></InternalLink>;
       })}
      </nav>
      <a className="tto-logout-link" href={basePath||"/login"}>ورود / خروج از حساب ↗</a>
@@ -140,7 +141,7 @@ export function PortalShell({
        <div className="tto-top-meta"><span>اعلان‌ها ♧</span><strong>{demoOnly?"پیش‌نمایش مدیریت تعاونی":cfg.title}</strong></div>
       </div>
       {demoOnly?<section className="tto-login-scope" role="status" style={{marginBottom:16}}>پیش‌نمایش مدیریت تعاونی · عملیات رسمی و مالی تا احراز اختیار قانونی مدیر غیرفعال است.</section>:null}
-      {!home&&<div className="breadcrumb"><a href={basePath||"/"}>داشبورد</a><span>‹</span><span>{currentTitle}</span></div>}
+      {!home&&<div className="breadcrumb"><InternalLink href={basePath||"/"}>داشبورد</InternalLink><span>‹</span><span>{currentTitle}</span></div>}
       {home?<ApprovedDashboardHome surface={surface} demoOnly={demoOnly}>{children}</ApprovedDashboardHome>:
       <>
        {!settingsSection?<section className="hero"><h1>{currentTitle}</h1><p>{cfg.sectionDescriptions[selection]}</p></section>:null}
@@ -149,7 +150,7 @@ export function PortalShell({
            <strong>اطلاعات این بخش در انتظار اتصال معتبر است</strong>
            <span>برای اجرای واقعی باید نشست مجاز، دسترسی محدود به تعاونی و API تأیید شده وجود داشته باشد.</span>
           </div><p>{cfg.boundary}</p></>}
-         {!settingsSection?<a className="return-link" href={basePath||"/"}>بازگشت به داشبورد</a>:null}
+         {!settingsSection?<InternalLink className="return-link" href={basePath||"/"}>بازگشت به داشبورد</InternalLink>:null}
        </section>
       </>}
       <footer>محیط آزمایش TTO · ثبت اطلاعات واقعی فقط با دسترسی مجاز و کنترل حفاظت داده · بدون ایجاد اثر حقوقی یا عملیات مالی</footer>
