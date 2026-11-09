@@ -299,3 +299,12 @@ button,input,textarea,select{font-family:var(--tto-font),Vazirmatn,Tahoma,Arial,
 @media(max-width:840px){.tto-auth-layout{grid-template-columns:minmax(0,.75fr) minmax(0,1fr)}.tto-auth-brand{padding:24px}.tto-auth-brand-content{padding-top:34px}.tto-auth-orbit{height:190px}.tto-auth-form-panel{padding:30px}}
 @media(max-width:680px){.tto-auth-page{padding:12px;display:block}.tto-auth-layout{display:flex;flex-direction:column;min-height:calc(100vh - 24px);border-radius:21px}.tto-auth-brand{display:none}.tto-auth-mobile-brand{display:flex;align-items:center;gap:11px;margin-bottom:30px;font-size:12px;color:#15425e}.tto-auth-mobile-logo{font:900 14px Arial,sans-serif;display:grid;place-items:center;border-radius:11px;color:#054d5c;background:linear-gradient(135deg,#6bebdf,#c6fafa);height:41px;width:41px;letter-spacing:-1px}.tto-auth-form-panel{padding:26px 21px 20px;min-height:calc(100vh - 28px)}.tto-auth-form-inner{margin:0 auto;max-width:440px}.tto-auth-footer{margin-top:44px;padding-top:17px}.tto-auth-description{margin-bottom:20px}.tto-auth-controls .tto-auth-method-tabs .tto-auth-tab{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.tto-auth-page *, .tto-auth-page *::before,.tto-auth-page *::after{animation:none!important;transition:none!important}}
+
+
+.tto-auth-controls .tto-auth-otp-verification{padding:15px;margin-top:18px;background:#f4f9fc;border:1px solid #dfedf5;border-radius:14px}
+.tto-auth-controls .tto-auth-otp-verification input{text-align:center;letter-spacing:4px;font-size:19px!important;font-weight:800!important}
+.tto-auth-controls .tto-auth-otp-verification form{margin-top:10px}
+.tto-auth-controls .tto-auth-code-form input{letter-spacing:4px;font-size:19px;font-weight:800;text-align:center}
+.tto-auth-controls .otp-panel .tto-auth-code-form{background:#f4f9fc;border:1px solid #dfedf5;border-radius:14px;padding:15px;margin-top:16px}
+.tto-auth-controls .tto-auth-remember{margin:16px 0 0!important}
+.tto-auth-controls .tto-auth-remember input{margin:0;flex-shrink:0}
