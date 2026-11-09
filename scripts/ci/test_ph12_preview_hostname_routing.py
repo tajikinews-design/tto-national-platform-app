@@ -35,7 +35,10 @@ class TestTtoHostRouting(unittest.TestCase):
  def test_authorization_still_checks_tenant_context(self):
   gate=read("packages/ui/src/portal-session-gate.tsx")
   self.assertIn('/api/me/tenant-options',gate)
-  self.assertIn('context.slug===workspaceSlug',gate)
+  self.assertIn('attested.workspaceSlug!==workspaceSlug',gate)
+  self.assertIn('item.evidenceStatus==="ROLE_AUTHORITY_EVIDENCE"',gate)
+  self.assertIn('context.tenantContextVerified!==true',gate)
+  self.assertIn('context.tenantId!==attested.tenantId',gate)
   self.assertIn('if(!authorized.some(Boolean))',gate)
   self.assertIn('if(state!=="ready")',gate)
  def test_frozen_auth_untouched_by_test_site(self):
