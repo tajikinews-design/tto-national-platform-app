@@ -455,6 +455,66 @@ export class FoundationCommandsController {
     });
   }
 
+  /**
+   * NAV02 photo upload is encrypted in memory and stored only in private
+   * seven-day quarantine. NEVER return bytes or grant scan/release status.
+   * Synthetic image testing only; real PII needs separate security clearance.
+   */
+  @Post("commerce/demo/nav02/photo")
+  @HttpCode(200)
+  async nav02QuarantinePhoto(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
+      throw new ServiceUnavailableException("PREVIEW_ONLY");
+    if(!input||typeof input!=="object"||Array.isArray(input)||
+      Object.keys(input).some(k=>!["slug","draftId","mime","dataBase64"].includes(k)))
+      throw new BadRequestException("INVALID_PHOTO_BODY");
+    const {slug,draftId,mime,dataBase64}=input;
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+      typeof draftId!=="string"||!uuidPattern.test(draftId)||
+      !["image/jpeg","image/png","image/webp"].includes(String(mime))||
+      typeof dataBase64!=="string"||dataBase64.length>1398104||
+      dataBase64.length<88||!/^[A-Za-z0-9+/]+={0,2}$/.test(dataBase64))
+      throw new BadRequestException("INVALID_PHOTO_INPUT");
+    const raw=Buffer.from(dataBase64,"base64");
+    if(raw.length<68||raw.length>1048576||raw.toString("base64")!==dataBase64)
+      throw new BadRequestException("PHOTO_TOO_LARGE_OR_INVALID");
+    const signature=(mime==="image/png"&&raw.subarray(0,8).equals(
+       Buffer.from("89504e470d0a1a0a","hex"))&&raw.toString("ascii",12,16)==="IHDR")||
+      (mime==="image/jpeg"&&raw[0]===0xff&&raw[1]===0xd8&&raw[2]===0xff&&
+       raw[raw.length-2]===0xff&&raw[raw.length-1]===0xd9)||
+      (mime==="image/webp"&&raw.toString("ascii",0,4)==="RIFF"&&
+       raw.toString("ascii",8,12)==="WEBP"&&raw.readUInt32LE(4)+8===raw.length);
+    if(!signature)throw new BadRequestException("PHOTO_SIGNATURE_MISMATCH");
+    const encodedKey=process.env.TTO_NAV02_PHOTO_KEY;
+    if(!encodedKey)throw new ServiceUnavailableException("PRIVATE_PHOTO_KEY_UNAVAILABLE");
+    const key=Buffer.from(encodedKey,"base64");
+    if(key.length!==32||key.toString("base64")!==encodedKey)
+      throw new ServiceUnavailableException("PRIVATE_PHOTO_KEY_INVALID");
+    const sha=createHash("sha256").update(raw).digest();
+    const iv=randomBytes(12);
+    const cipher=createCipheriv("aes-256-gcm",key,iv);
+    cipher.setAAD(Buffer.from(slug+":"+draftId+":"+mime+":"+sha.toString("hex"),"utf8"));
+    const encrypted=Buffer.concat([cipher.update(raw),cipher.final()]);
+    const tag=cipher.getAuthTag();
+    raw.fill(0);
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      try{
+        const result=await c.query<{record:Record<string,unknown>}>(
+          "SELECT tto.commerce_demo_nav02_quarantine_photo($1,$2::uuid,$3,$4,$5,$6,$7,$8) AS record",
+          [slug,draftId,mime,encrypted.length,sha,iv,tag,encrypted]);
+        return {saved:true,quarantine:result.rows[0]?.record??null};
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="23505")throw new ConflictException("PHOTO_ALREADY_QUARANTINED");
+        if(code==="42501")throw new ForbiddenException("NAV02_OWNER_REQUIRED");
+        if(code==="22023"||code==="23514")throw new BadRequestException("INVALID_QUARANTINE");
+        throw e;
+      }
+    });
+  }
+
   @Get("commerce/demo/team")
   async demoTeam(@Headers("authorization") auth:string|undefined,@Query("slug") slug:string){
     if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
