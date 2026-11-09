@@ -34,19 +34,27 @@ for (let idx=0;idx<slugs.length;idx++){
   const loginHtml=await loginRes.text();
   const expected=slug==="national-admin"?"ورود مدیر ملی":
     slug==="cooperative-management"?"ورود مدیر تعاونی":"ورود سهامدار";
-  // Next.js SSR can delimit separately rendered heading text with React markers.
-  // Verify both meaningful tokens and actual fields, never demand one contiguous phrase.
+  // Next SSR must show the shared role-specific authentication shell.
+  // Password sign-in for cooperative/shareholder is a client-selectable tab.
+  // Their default OTP panel intentionally starts with fail-closed session checking,
+  // so password inputs and OTP mobile fields are not both present in initial SSR.
   const titleVerified=slug==="national-admin"?
     loginHtml.includes("ورود مدیر ملی"):
     loginHtml.includes("ورود")&&
       loginHtml.includes(slug==="shareholder"?"سهامدار":"مدیر تعاونی");
-  if(!titleVerified ||
-     (!loginHtml.includes('id="portal-user"') && slug!=="national-admin") ||
-     (!loginHtml.includes('id="portal-pass"') && slug!=="national-admin"))
-    throw Error(slug+" dedicated password-only login is missing"+
-      " title="+titleVerified+
-      " usernameField="+loginHtml.includes('id="portal-user"')+
-      " passwordField="+loginHtml.includes('id="portal-pass"'));
+  const sharedFrame=loginHtml.includes('class="tto-auth-page"')&&
+    loginHtml.includes('class="tto-auth-layout"');
+  const correctMethod=slug==="national-admin"?
+    loginHtml.includes('id="national-username"')&&
+    loginHtml.includes('id="national-password"')&&
+    loginHtml.includes("OTP مدیر ملی هنوز"):
+    loginHtml.includes('role="tablist"')&&
+    loginHtml.includes("رمز یک‌بارمصرف")&&
+    loginHtml.includes("نام کاربری و رمز")&&
+    loginHtml.includes("در حال بررسی نشست");
+  if(!titleVerified||!sharedFrame||!correctMethod)
+    throw Error(slug+" unified role-specific login is missing"+
+      " title="+titleVerified+" frame="+sharedFrame+" method="+correctMethod);
   checks++;
   const review=await fetch("http://127.0.0.1:"+port+"/design-review");
   if(review.status!==200)throw Error(slug+" approved layout review unavailable");
