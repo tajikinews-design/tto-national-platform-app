@@ -29,6 +29,12 @@ jobs:
           set -euo pipefail
           python3 scripts/ci/test_ph12_auth_ui_freeze.py -v
           echo "TTO_AUTH_UI_V1_FROZEN_GREEN"
+      - name: Check customer-selected trial domain and complete onboarding source contracts
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/test_ph12_name_first_demo_workspace.py -v
+          python3 scripts/ci/test_ph12_cooperative_onboarding_flow.py -v
+          echo "TTO_CUSTOM_VANITY_DOMAIN_CONTRACT_PASS"
       - name: Install workspace and validate all preview portals
         run: |
           set -euo pipefail
