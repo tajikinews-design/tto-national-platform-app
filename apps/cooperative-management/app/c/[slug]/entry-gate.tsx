@@ -81,8 +81,8 @@ function InlineFirstCredentials({workspace}:{workspace:Workspace}){
   </form>{notice?<p role="alert">{notice}</p>:null}
  </div>;
 }
-export function CooperativeEntryGate({slug,manager,moduleId="NAV-01"}:
- {slug:string;manager:ReactNode;moduleId?:string}){
+export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettings}:
+ {slug:string;manager:ReactNode;moduleId?:string;ownerSettings?:ReactNode}){
  const [phase,setPhase]=useState<"checking"|"manager"|"demo"|"login"|"denied"|"unavailable">("checking");
  const [workspace,setWorkspace]=useState<Workspace|null>(null);
  useEffect(()=>{
@@ -118,6 +118,7 @@ export function CooperativeEntryGate({slug,manager,moduleId="NAV-01"}:
  if(phase==="demo"&&workspace)return <PortalShell surface="cooperative"
   activeId={moduleId} basePath={"/c/"+slug} demoOnly>
   {moduleId==="NAV-01"&&!workspace.credentialsReady?<InlineFirstCredentials workspace={workspace}/>:null}
+  {moduleId==="NAV-11"&&ownerSettings?ownerSettings:null}
  </PortalShell>;
  if(phase==="login")return <WorkspaceSignIn slug={slug}/>;
  return <main className="tto-login-page" lang="fa" dir="rtl"><section className="tto-login-card" role="status">

@@ -1,6 +1,7 @@
 import {notFound} from "next/navigation";
 import {PortalSessionGate,PortalShell,NAV_IDS} from "@tto/ui";
 import {CooperativeEntryGate} from "../../entry-gate";
+import {CooperativeSecuritySettings} from "./security-settings";
 export const dynamic="force-dynamic";
 export default async function WorkspaceModule({params}:
  {params:Promise<{slug:string;moduleId:string}>}){
@@ -10,6 +11,7 @@ export default async function WorkspaceModule({params}:
  const activeId=moduleId.toUpperCase();
  if(!NAV_IDS.includes(activeId))notFound();
  return <CooperativeEntryGate slug={slug} moduleId={activeId}
+  ownerSettings={activeId==="NAV-11"?<CooperativeSecuritySettings slug={slug}/>:undefined}
   manager={<PortalSessionGate surface="cooperative" workspaceSlug={slug}>
    <PortalShell surface="cooperative" activeId={activeId} basePath={"/c/"+slug}/>
   </PortalSessionGate>}/>;
