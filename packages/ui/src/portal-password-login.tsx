@@ -41,7 +41,7 @@ export function PortalPasswordLogin({surface,workspaceSlug}:{surface:Surface;wor
      <button className="tto-auth-tab" type="button" role="tab" aria-selected={method==="otp"} onClick={()=>{setNotice("");setMethod("otp")}}>رمز یک‌بارمصرف</button>
      <button className="tto-auth-tab" type="button" role="tab" aria-selected={method==="password"} onClick={()=>{setNotice("");setMethod("password")}}>نام کاربری و رمز</button>
    </div>
-   {method==="otp"?<OtpLogin enabled={true} surface={surface}/>:
+   {method==="otp"?<OtpLogin enabled={true} surface={surface} postLoginRedirect={workspaceSlug?"/c/"+encodeURIComponent(workspaceSlug):"/"}/>:
    phase==="checking"?<p role="status">در حال بررسی نشست…</p>:
     phase==="ready"?<div className="tto-login-scope"><p>نشست شما معتبر است.</p><a href={workspaceSlug?"/c/"+workspaceSlug:"/"}>ورود به داشبورد ←</a></div>:
     <form onSubmit={submit} autoComplete="on">
