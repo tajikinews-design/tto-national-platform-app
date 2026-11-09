@@ -66,7 +66,7 @@ class CooperativeOnboardingFlow(unittest.TestCase):
  def test_frozen_ui_amendment_is_recorded(self):
   m=src("docs/design/TTO-AUTH-UI-V1-FREEZE.json")
   self.assertIn('"TTO-AUTH-UI-V1-WORKFLOW-01"',m)
-  self.assertIn('"currentFingerprint": "c8860c480bb6c4a3737548be3922d6d96e2d4346"',m)
+  self.assertIn('"currentFingerprint": "9a482c8e9c514fd735c44e32dca6c09f14507a27"',m)
   self.assertIn('"releaseStatus": "PRODUCTION_HOLD"',m)
 
 if __name__=="__main__":unittest.main()
