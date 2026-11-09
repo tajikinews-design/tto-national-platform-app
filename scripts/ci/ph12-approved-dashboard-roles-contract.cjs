@@ -3,7 +3,7 @@ const fs=require("node:fs"),assert=require("node:assert/strict");
 const shell=fs.readFileSync("packages/ui/src/index.tsx","utf8");
 const home=fs.readFileSync("packages/ui/src/approved-dashboard.tsx","utf8");
 assert(shell.includes('grid-template-columns')===false,"geometry must be in one shared CSS");
-assert(shell.includes('<ApprovedDashboardHome surface={surface}>'),"all surfaces must reuse approved dashboard");
+assert(shell.includes('<ApprovedDashboardHome surface={surface} demoOnly={demoOnly}>'),"all surfaces must reuse approved dashboard with preview-only gating");
 assert(!shell.includes('className="module-grid"'),"no secondary brochure menu on approved dashboard");
 for(const slot of ["tto-approved-kpis","tto-approved-grid","tto-alerts","tto-actions","tto-chart","tto-campaigns","tto-ads","tto-mini"]){
  assert(home.includes(slot),"approved image slot missing "+slot);
