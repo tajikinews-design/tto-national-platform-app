@@ -489,9 +489,11 @@ export class FoundationCommandsController {
     return this.db.withActor(actor,async c=>{
       // Never trust or request a mobile number from the browser: resolve
       // ownership from the same server-attested actor as the OTP session.
-      const mobiles=await c.query<{mobile:string}>(
-        "SELECT mobile FROM tto.verified_mobile_identifiers WHERE user_id=$1 AND revoked_at IS NULL ORDER BY verified_at DESC LIMIT 1",
-        [actor]
+      // Session-hash proof only: the unprivileged API never SELECTs identity tables.
+      const proof=this.db.sessionDigest(auth);
+      const mobiles=await c.query<{mobile:string|null}>(
+        "SELECT tto.commerce_demo_verified_mobile_from_session($1) AS mobile",
+        [proof]
       );
       const mobile=mobiles.rows[0]?.mobile;
       if(!mobile)throw new ForbiddenException("VERIFIED_MOBILE_REQUIRED");
