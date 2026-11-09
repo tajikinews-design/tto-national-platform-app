@@ -17,13 +17,16 @@ export function CooperativeEntryGate({slug,manager}:{slug:string;manager:ReactNo
    try{
     // Path 1: independently authorized official manager.
     const managerResult=await fetch("/api/auth/password/session",{credentials:"same-origin",cache:"no-store"});
-    if(!managerResult.ok)throw Error("PASSWORD_SESSION_UNAVAILABLE");
-    const managerSession=await managerResult.json() as {authenticated?:unknown;workspaceSlug?:unknown};
-    if(managerSession.authenticated===true){
-     if(managerSession.workspaceSlug===slug){if(alive)setPhase("manager")}
-     else if(alive)setPhase("denied");
-     return;
+    if(managerResult.ok){
+     const managerSession=await managerResult.json() as {authenticated?:unknown;workspaceSlug?:unknown};
+     if(managerSession.authenticated===true){
+      if(managerSession.workspaceSlug===slug){if(alive)setPhase("manager")}
+      else if(alive)setPhase("denied");
+      return;
+     }
     }
+    // Manager password auth may deliberately be unavailable in isolated Preview.
+    // Commercial onboarding remains independently controlled by OTP + ownership.
     // Path 2: commerce/demo owner. An OTP session never confers manager privileges.
     const session=await fetch("/api/auth/session",{credentials:"same-origin",cache:"no-store"});
     if(!session.ok)throw Error("SESSION_UNAVAILABLE");
