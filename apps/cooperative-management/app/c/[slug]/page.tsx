@@ -1,3 +1,4 @@
+import {CooperativeNavLink} from "./cooperative-nav-link";
 import {notFound} from "next/navigation";
 import {PortalSessionGate,PortalShell} from "@tto/ui";
 import {CooperativeEntryGate} from "./entry-gate";
@@ -5,7 +6,7 @@ export const dynamic="force-dynamic";
 export default async function CooperativeWorkspace({params}:{params:Promise<{slug:string}>}){
  const {slug}=await params;
  if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))notFound();
- return <CooperativeEntryGate slug={slug} manager={<PortalSessionGate surface="cooperative" workspaceSlug={slug}><PortalShell surface="cooperative" basePath={"/c/"+slug}>
+ return <CooperativeEntryGate slug={slug} manager={<PortalSessionGate surface="cooperative" workspaceSlug={slug}><PortalShell surface="cooperative" basePath={"/c/"+slug} NavigationLink={CooperativeNavLink}>
   <section className="tto-login-scope" dir="rtl">
    <h2>فضای اختصاصی تعاونی</h2><p>شناسه نشانی: <b dir="ltr">{slug}</b></p>
    <p>تأیید نشست و نقش مدیر تعاونی الزامی است؛ مالکیت نشانی به‌تنهایی اختیار مدیریت ایجاد نمی‌کند.</p>

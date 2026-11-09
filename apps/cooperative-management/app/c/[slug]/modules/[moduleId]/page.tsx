@@ -1,3 +1,4 @@
+import {CooperativeNavLink} from "../../cooperative-nav-link";
 import {notFound,redirect} from "next/navigation";
 import {PortalSessionGate,PortalShell,NAV_IDS} from "@tto/ui";
 import {CooperativeEntryGate} from "../../entry-gate";
@@ -12,6 +13,6 @@ export default async function WorkspaceModule({params}:
  if(activeId==="NAV-11")redirect("/c/"+encodeURIComponent(slug)+"/settings/credentials");
  return <CooperativeEntryGate slug={slug} moduleId={activeId}
   manager={<PortalSessionGate surface="cooperative" workspaceSlug={slug}>
-   <PortalShell surface="cooperative" activeId={activeId} basePath={"/c/"+slug}/>
+   <PortalShell surface="cooperative" activeId={activeId} basePath={"/c/"+slug} NavigationLink={CooperativeNavLink}/>
   </PortalSessionGate>}/>;
 }

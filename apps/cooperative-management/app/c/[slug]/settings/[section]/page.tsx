@@ -1,3 +1,4 @@
+import {CooperativeNavLink} from "../../cooperative-nav-link";
 import {notFound} from "next/navigation";
 import {PortalSessionGate,PortalShell} from "@tto/ui";
 import {CooperativeEntryGate} from "../../entry-gate";
@@ -15,7 +16,7 @@ export default async function CooperativeSettingsSubpage({params}:
   ownerSettings={content}
   manager={<PortalSessionGate surface="cooperative" workspaceSlug={slug}>
     <PortalShell surface="cooperative" activeId="NAV-11" settingsSection={tab}
-     basePath={"/c/"+slug}>
+     basePath={"/c/"+slug} NavigationLink={CooperativeNavLink}>
      <section className="tto-settings-page">
       <div className="tto-settings-card" role="status">
        <h2>تنظیمات کاربران فضای آزمایشی</h2>
