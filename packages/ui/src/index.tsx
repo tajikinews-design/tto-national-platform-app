@@ -127,7 +127,7 @@ export function PortalShell({
         </details>;
        }
        return <a href={navHref(i,basePath)} key={NAV_IDS[i]}
-        aria-current={active?"page":undefined} className={active?"nav-link current":"nav-link"}>
+        aria-current={i===selection?"page":undefined} className={active?"nav-link current":"nav-link"}>
         <span aria-hidden="true" className="tto-nav-symbol">{["▦","♙","▥","♜","♧","⚙","▤","▥","♢","▥","⚙"][i]}</span>
         <span>{name}</span></a>;
       })}
