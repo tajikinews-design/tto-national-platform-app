@@ -1791,12 +1791,16 @@ export class FoundationCommandsController {
     const digest=createHash("sha256").update(token).digest();
     const accepted=await this.db.consumeChallenge(id,hashedCandidate,digest);
     if(!accepted)throw new UnauthorizedException("Challenge invalid or expired");
-    // A fresh, successfully consumed OTP is the only source of credential-setup proof.
-    // Do not expose an endpoint that lets an existing password session assert OTP.
-    const otpActor=await this.db.sessionActor("Bearer "+token);
-    await this.db.withActor(otpActor,async c=>{
-      await c.query("SELECT tto.mark_commerce_demo_otp_proof($1)",[digest]);
-    });
+    // Only the isolated commercial-demo workspace needs this additional OTP
+    // credential-setup proof. The official auth path must not depend on
+    // preview-only 9999o SQL functions. In demo mode proof failure remains
+    // fail-closed: no successful login response without its database write.
+    if(process.env.TTO_ISOLATED_DEMO_DB==="true"&&process.env.VERCEL_ENV!=="production"){
+      const otpActor=await this.db.sessionActor("Bearer "+token);
+      await this.db.withActor(otpActor,async c=>{
+        await c.query("SELECT tto.mark_commerce_demo_otp_proof($1)",[digest]);
+      });
+    }
     return {accessToken:token,tokenType:"Bearer"};
   }
   @Post("auth/step-up/request")
