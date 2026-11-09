@@ -24,7 +24,7 @@ class TestTtoHostRouting(unittest.TestCase):
   proxy=read("apps/cooperative-management/proxy.ts")
   for name in ["RESERVED","SLUG.test(slug)","SAFE_LOGIN_APIS","CONTEXT_API",
                'path==="/c/"+slug','return unavailable(request)',
-               'destination.searchParams.set("workspace",slug)']:
+               'NextResponse.rewrite(new URL("/c/"+slug,request.url))']:
    self.assertIn(name,proxy)
   self.assertIn("Other routes (including unscoped modules",proxy)
   self.assertIn('"api","admin","national","shareholder"',proxy)

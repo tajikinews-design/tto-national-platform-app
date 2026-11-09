@@ -36,9 +36,12 @@ class CooperativeOnboardingFlow(unittest.TestCase):
    self.assertIn(x,entry)
   for x in ['"/api/auth/password/session"','managerSession.workspaceSlug===slug',
     '"/api/commerce/workspaces"','x.slug===slug&&x.tenantActive===true',
-    'found.credentialsReady===true','"/setup/"','"/owner/"']:
+    'workspace.credentialsReady','demoOnly','<WorkspaceSignIn slug={slug}/>']:
    self.assertIn(x,gate)
   self.assertIn('manager={<PortalSessionGate',src("apps/cooperative-management/app/c/[slug]/page.tsx"))
+  self.assertIn('window.location.replace("/c/"+encodeURIComponent(data.slug))',src("apps/cooperative-management/app/subscribe/page.tsx"))
+  self.assertIn('InlineFirstCredentials',gate)
+  self.assertIn('demoOnly',gate)
  def test_first_login_is_owner_scoped_and_password_mandatory(self):
   setup=src("apps/cooperative-management/app/setup/[slug]/setup-client.tsx")
   for x in ['"/api/auth/session"','"/api/commerce/workspaces"',
@@ -48,7 +51,7 @@ class CooperativeOnboardingFlow(unittest.TestCase):
    self.assertIn(x,setup)
   self.assertIn('out.cookies.set("tto_session",""',src("apps/cooperative-management/app/api/commerce/workspaces/route.ts"))
   password_login=src("apps/cooperative-management/app/customer-login/page.tsx")
-  self.assertIn('window.location.replace("/owner/"+encodeURIComponent(slug))',password_login)
+  self.assertIn('window.location.replace("/c/"+encodeURIComponent(slug))',password_login)
   self.assertNotIn('"/settings/subscription");',password_login)
   owner=src("apps/cooperative-management/app/owner/[slug]/owner-client.tsx")
   self.assertIn('x.slug===slug&&x.tenantActive===true',owner)
@@ -63,7 +66,7 @@ class CooperativeOnboardingFlow(unittest.TestCase):
  def test_wildcard_routes_do_not_open_public_commerce(self):
   proxy=src("apps/cooperative-management/proxy.ts")
   for x in [
-   'if(path==="/setup/"+slug||path==="/owner/"+slug)',
+   'return NextResponse.rewrite(new URL("/c/"+slug,request.url))',
    'if(path==="/customer-login"||path==="/settings/subscription")',
    '"/api/commerce/workspaces", "/api/commerce/password-login", "/api/commerce/subscriptions"',
    'return unavailable(request)', 'RESERVED.has(slug)'
