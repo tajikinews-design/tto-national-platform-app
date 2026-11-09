@@ -13,7 +13,50 @@ export function CooperativeSecuritySettings({slug}:{slug:string}){
  const [current,setCurrent]=useState(""),[username,setUsername]=useState(""),[password,setPassword]=useState(""),[again,setAgain]=useState("");
  const [scopeReady,setScopeReady]=useState(false),[otpSession,setOtpSession]=useState(false);
  const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
- const [rightsMap,setRightsMap]=useState<Record<string,Right[]>>({});
+
+ const [rightsMap,setRightsMap]=useState<Record<string,Right[]>>({"NAV-01":["view"]});
+ const [staffName,setStaffName]=useState(""),[staffUser,setStaffUser]=useState(""),[staffPassword,setStaffPassword]=useState("");
+ const [members,setMembers]=useState<{id:string;username:string;displayName:string;permissions:string[];state:string}[]>([]);
+ const [teamStatus,setTeamStatus]=useState("");
+ async function loadTeam(){
+  try{const res=await fetch("/api/commerce/team?slug="+encodeURIComponent(slug),{cache:"no-store",credentials:"same-origin"});
+   if(!res.ok)throw Error("UNAVAILABLE");
+   const j=await res.json() as {items?:typeof members};
+   if(!Array.isArray(j.items))throw Error("INVALID");
+   setMembers(j.items);
+  }catch{setTeamStatus("دریافت فهرست کاربران در دسترس نیست.")}
+ }
+ useEffect(()=>{void loadTeam()},[slug]);
+ async function createStaff(e:FormEvent<HTMLFormElement>){
+  e.preventDefault();if(busy)return;
+  if(staffPassword.length<14){setTeamStatus("رمز موقت باید حداقل ۱۴ نویسه باشد.");return}
+  setBusy(true);setTeamStatus("");
+  try{
+   const permissions=modules.filter(([id])=>id==="NAV-01"||(rightsMap[id]??[]).includes("view")).map(([id])=>id);
+   const res=await fetch("/api/commerce/team",{method:"POST",credentials:"same-origin",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify({
+     action:"create",slug,displayName:staffName.trim(),username:staffUser.trim().toLowerCase(),
+     password:staffPassword,permissions})});
+   if(!res.ok)throw Error(res.status===409?"این نام کاربری قبلاً ثبت شده است.":
+    res.status===403?"فقط مالک این فضای آزمایشی اجازه ایجاد کاربر دارد.":"ایجاد کاربر تأیید نشد.");
+   setStaffPassword("");setStaffName("");setStaffUser("");setTeamStatus("کاربر آزمایشی ایجاد شد؛ فقط ماژول‌های انتخاب‌شده قابل مشاهده خواهند بود.");
+   await loadTeam();
+  }catch(e){setTeamStatus(e instanceof Error?e.message:"ثبت کاربر انجام نشد.")}
+  finally{setBusy(false)}
+ }
+ async function updateStaff(member:typeof members[number],state:string,permissions:string[]){
+  setBusy(true);setTeamStatus("");
+  try{
+   const res=await fetch("/api/commerce/team",{method:"POST",credentials:"same-origin",
+     headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      action:"update",slug,id:member.id,state,permissions})});
+   if(!res.ok)throw Error("ثبت تغییرات دسترسی انجام نشد.");
+   setTeamStatus("مجوزها ذخیره و نشست‌های قبلی کاربر باطل شدند.");
+   await loadTeam();
+  }catch(e){setTeamStatus(e instanceof Error?e.message:"ثبت انجام نشد.")}
+  finally{setBusy(false)}
+ }
+
  useEffect(()=>{let mounted=true;
   void Promise.all([fetch("/api/auth/session",{cache:"no-store"}),fetch("/api/commerce/workspaces",{cache:"no-store"})])
    .then(async ([s,r])=>{
@@ -67,24 +110,44 @@ export function CooperativeSecuritySettings({slug}:{slug:string}){
   </section>
   <section aria-label="تعریف کاربران و دسترسی ماژول‌ها" style={{padding:20,border:"1px solid #d4e0ed",borderRadius:14}}>
    <h2>تعریف کاربر جدید و مدیریت دسترسی‌ها</h2>
-   <p>فهرست ۱۱ ماژول و سطوح دسترسی آماده تعیین است. تا اتصال کنترل‌های مجوزدهی و ثبت حسابرسی به پایگاه داده، ایجاد حساب و اعمال مجوز غیرفعال می‌ماند.</p>
-   <fieldset disabled style={{border:0,padding:0,display:"grid",gap:12}}>
-    <label>نام و نام خانوادگی <input aria-label="نام و نام خانوادگی کاربر جدید"/></label>
-    <label>نام کاربری جدید <input dir="ltr" aria-label="نام کاربری جدید"/></label>
-    <label>شماره همراه <input dir="ltr" aria-label="شماره همراه کاربر جدید"/></label>
+   <p>برای کاربر جدید نام کاربری با پیشوند <b dir="ltr">staff_</b> انتخاب کنید. مجوزهای این بخش فقط دسترسی مشاهده در فضای آزمایشی است؛ ایجاد، ویرایش، تأیید و مدیریت رسمی تا تصویب حقوقی غیرفعال هستند.</p>
+   <form onSubmit={createStaff} style={{display:"grid",gap:12}}>
+    <label htmlFor="team-name">نام و نام خانوادگی</label>
+    <input id="team-name" required minLength={3} maxLength={120} value={staffName} onChange={e=>setStaffName(e.target.value)}/>
+    <label htmlFor="team-user">نام کاربری زیرمجموعه (با staff_)</label>
+    <input id="team-user" dir="ltr" required pattern="staff_[a-z][a-z0-9._-]{4,58}"
+     value={staffUser} onChange={e=>setStaffUser(e.target.value.toLowerCase().trim())}/>
+    <label htmlFor="team-pass">رمز ورود اولیه (حداقل ۱۴ نویسه)</label>
+    <input id="team-pass" type="password" autoComplete="new-password" required minLength={14} maxLength={128}
+     value={staffPassword} onChange={e=>setStaffPassword(e.target.value)}/>
     <div style={{overflowX:"auto"}}>
      <table style={{width:"100%",borderCollapse:"collapse",textAlign:"center"}}>
       <thead><tr><th scope="col">ماژول</th>{rights.map(([_,title])=><th scope="col" key={title}>{title}</th>)}</tr></thead>
       <tbody>{modules.map(([id,name])=><tr key={id}><th scope="row" style={{textAlign:"right",padding:8}}>{name}</th>
        {rights.map(([right,title])=><td key={right} style={{padding:8}}>
-        <input type="checkbox" aria-label={title+" "+name}
-         checked={(rightsMap[id]??[]).includes(right)} onChange={()=>toggle(id,right)}/>
+        <input type="checkbox" aria-label={title+" "+name} disabled={right!=="view"||id==="NAV-01"}
+         checked={right==="view"&&(id==="NAV-01"||(rightsMap[id]??[]).includes("view"))}
+         onChange={()=>toggle(id,right)}/>
        </td>)}</tr>)}</tbody>
      </table>
     </div>
-    <button disabled>ایجاد کاربر و ثبت دسترسی‌ها</button>
-   </fieldset>
-   <p role="status">وضعیت: تعریف کاربر هنوز عملیاتی نیست؛ هیچ کاربر یا مجوزی با این فرم ایجاد نمی‌شود.</p>
+    <button type="submit" disabled={!scopeReady||busy}>{busy?"در حال ذخیره…":"ایجاد کاربر با مجوزهای انتخاب‌شده"}</button>
+   </form>
+   <h3>کاربران تعریف‌شده</h3>
+   {members.length===0?<p>هنوز کاربری برای این تعاونی ثبت نشده است.</p>:
+     members.map(member=><article key={member.id} className="tto-login-scope" style={{marginBottom:10,padding:12}}>
+      <strong>{member.displayName}</strong> — <b dir="ltr">{member.username}</b>
+      <p>وضعیت: {member.state==="ACTIVE"?"فعال":"غیرفعال"} · ماژول‌ها: {member.permissions.join("، ")}</p>
+      <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+       <button type="button" disabled={busy} onClick={()=>updateStaff(member,
+        member.state==="ACTIVE"?"DISABLED":"ACTIVE",member.permissions)}>
+        {member.state==="ACTIVE"?"غیرفعال‌کردن کاربر":"فعال‌کردن کاربر"}</button>
+       <button type="button" disabled={busy} onClick={()=>updateStaff(member,member.state,
+        modules.filter(([id])=>id==="NAV-01"||(rightsMap[id]??[]).includes("view")).map(([id])=>id))}>
+        اعمال مجوزهای انتخاب‌شده</button>
+      </div>
+     </article>)}
+   {teamStatus?<p role="status">{teamStatus}</p>:null}
   </section>
  </div>;
 }
