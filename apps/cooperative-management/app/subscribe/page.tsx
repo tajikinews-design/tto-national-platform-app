@@ -67,7 +67,8 @@ export default function CommercialCheckout(){
     throw Error("تأیید ثبت فضای نمونه انجام نشد؛ سفارش را موفق در نظر نگیرید.");
    setResult({domain:data.domain,slug:data.slug,status:data.status,expiresAt:data.expiresAt,
     smsStatus:data.smsStatus,username:data.username,dnsReady:data.dnsReady});
-   setStep("done");
+   // Keep the same-origin verified OTP session and enter the scoped dashboard.
+   window.location.replace("/c/"+encodeURIComponent(data.slug));
   }catch(e){setNotice(e instanceof Error?e.message:"ثبت فضای آزمایشی انجام نشد.")}
   finally{setBusy(false)}
  }

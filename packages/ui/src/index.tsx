@@ -90,35 +90,36 @@ export function parsePortalModuleId(raw: string): NavId | null {
   return id !== "NAV-01" && NAV_IDS.includes(id) && raw === id.toLowerCase() ? id : null;
 }
 
-function navHref(i: number) {
-  return i === 0 ? "/" : `/modules/${NAV_IDS[i].toLowerCase()}`;
+function navHref(i: number, basePath = "") {
+  return i === 0 ? (basePath||"/") : basePath+`/modules/${NAV_IDS[i].toLowerCase()}`;
 }
 
 export function PortalShell({
-  surface, children, activeId = "NAV-01", suppressStaticKpis = false
-}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean}) {
+  surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false
+}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean}) {
  const cfg=surfaces[surface],selection=Math.max(NAV_IDS.indexOf(activeId),0);
  const home=selection===0,currentTitle=home?cfg.title:cfg.navigation[selection];
- return <div className="shell tto-approved-shell" lang="fa" dir="rtl">
+ return <div className="shell tto-approved-shell" lang="fa" dir="rtl" data-tto-demo-only={demoOnly?"true":undefined}>
    <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
    <aside className="nav-area">
-     <a className="logo" href="/" aria-label="پلتفرم ملی تعاونی توسعه و عمران"><span className="tto-brand-mark">❖</span><strong>پلتفرم ملی تعاونی توسعه و عمران</strong><span>شبکه هوشمند خدمات و راهبری تعاونی‌ها</span></a>
+     <a className="logo" href={basePath||"/"} aria-label="پلتفرم ملی تعاونی توسعه و عمران"><span className="tto-brand-mark">❖</span><strong>پلتفرم ملی تعاونی توسعه و عمران</strong><span>شبکه هوشمند خدمات و راهبری تعاونی‌ها</span></a>
      <nav aria-label={"منوی "+cfg.title}>
-      {cfg.navigation.map((name,i)=><a href={navHref(i)} key={NAV_IDS[i]}
+      {cfg.navigation.map((name,i)=><a href={navHref(i,basePath)} key={NAV_IDS[i]}
         aria-current={i===selection?"page":undefined}
         className={i===selection?"nav-link current":"nav-link"}>
         <span aria-hidden="true" className="tto-nav-symbol">{["▦","♙","▥","♜","♧","⚙","▤","▥","♢","▥","⚙"][i]}</span>
         <span>{name}</span></a>)}
      </nav>
-     <a className="tto-logout-link" href="/login">ورود / خروج از حساب ↗</a>
+     <a className="tto-logout-link" href={basePath||"/login"}>ورود / خروج از حساب ↗</a>
    </aside>
    <main className="main-content" id="main-content">
       <div className="topbar">
        <div className="tto-top-search"><span aria-hidden="true">⌕</span><span>جست‌وجوی پرونده‌ها، گزارش‌ها، خدمات و ...</span></div>
-       <div className="tto-top-meta"><span>اعلان‌ها ♧</span><strong>{cfg.title}</strong></div>
+       <div className="tto-top-meta"><span>اعلان‌ها ♧</span><strong>{demoOnly?"پیش‌نمایش مدیریت تعاونی":cfg.title}</strong></div>
       </div>
-      {!home&&<div className="breadcrumb"><a href="/">داشبورد</a><span>‹</span><span>{currentTitle}</span></div>}
-      {home?<ApprovedDashboardHome surface={surface}>{children}</ApprovedDashboardHome>:
+      {demoOnly?<section className="tto-login-scope" role="status" style={{marginBottom:16}}>پیش‌نمایش مدیریت تعاونی · عملیات رسمی و مالی تا احراز اختیار قانونی مدیر غیرفعال است.</section>:null}
+      {!home&&<div className="breadcrumb"><a href={basePath||"/"}>داشبورد</a><span>‹</span><span>{currentTitle}</span></div>}
+      {home?<ApprovedDashboardHome surface={surface} demoOnly={demoOnly}>{children}</ApprovedDashboardHome>:
       <>
        <section className="hero"><h1>{currentTitle}</h1><p>{cfg.sectionDescriptions[selection]}</p></section>
        <section className="panel tto-module-content">

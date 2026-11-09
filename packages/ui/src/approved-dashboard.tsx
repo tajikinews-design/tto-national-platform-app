@@ -28,12 +28,12 @@ const actionHrefs:Record<Surface,[string,string,string]>={
  shareholder:["/modules/nav-02","/modules/nav-03","/modules/nav-05"]
 };
 const numeric=(value:string)=> <strong aria-label="داده معتبر دریافت نشده">{value}</strong>;
-export function ApprovedDashboardHome({surface,children}:{surface:Surface;children?:ReactNode}){
+export function ApprovedDashboardHome({surface,children,demoOnly=false}:{surface:Surface;children?:ReactNode;demoOnly?:boolean}){
  const p=profiles[surface];
  return <>
  <section className="tto-approved-hero" aria-label="بنر اصلی مطابق طرح مصوب">
    <div className="tto-hero-overlay"><small>جایگاه تبلیغات · بدون محتوای تأییدشده</small>
-     <h1>{p.hero}</h1><p>{p.intro}</p><a href={p.primaryAction.href}>{p.primaryAction.label} ←</a>
+     <h1>{p.hero}</h1><p>{p.intro}</p>{demoOnly?<span className="tto-state">نیازمند احراز اختیار قانونی</span>:<a href={p.primaryAction.href}>{p.primaryAction.label} ←</a>}
    </div>
  </section>
  <div className="tto-approved-kpis" aria-label="چهار شاخص مطابق مرجع تصویری">
@@ -47,7 +47,9 @@ export function ApprovedDashboardHome({surface,children}:{surface:Surface;childr
     {p.alerts.map((x,i)=><div className="tto-widget-row" key={x}><span className={"tto-state state-"+i}>{i===0?"نیازمند بررسی":"بدون داده"}</span><div><strong>{x}</strong><small>اطلاعات پس از دریافت از منبع معتبر ظاهر می‌شود</small></div></div>)}
    </section>
    <section className="tto-widget tto-actions"><div className="tto-widget-title"><h2>اقدام‌های در انتظار</h2><span>گردش کار</span></div>
-     {p.actions.map((x,i)=><div className="tto-widget-row" key={x}><span className="tto-state">دسترسی مجاز</span><div><a href={actionHrefs[surface][i]} className="tto-approved-action-link">{x} ←</a><small>فقط پس از احراز نقش و محدوده تعاونی</small></div></div>)}
+     {p.actions.map((x,i)=><div className="tto-widget-row" key={x}><span className="tto-state">{demoOnly?"غیرفعال":"دسترسی مجاز"}</span><div>
+       {demoOnly?<strong>{x}</strong>:<a href={actionHrefs[surface][i]} className="tto-approved-action-link">{x} ←</a>}
+       <small>فقط پس از احراز نقش و محدوده تعاونی</small></div></div>)}
      {children}
    </section>
    <section className="tto-widget tto-chart"><div className="tto-widget-title"><h2>{p.chart}</h2><span>شش ماه گذشته</span></div>
