@@ -21,6 +21,14 @@ export async function POST(request:NextRequest){
   const data=await upstream.json() as {accessToken?:unknown};
   if(typeof data.accessToken!=="string"||data.accessToken.length<32)
    return NextResponse.json({error:"INVALID_RESPONSE"},{status:502});
+  // The OTP-verified token may set up a commercial-only password for an owned
+  // subscription; this proof is not a cooperative legal role or share entitlement.
+  try{
+   await fetch(new URL("/v1/commerce/demo/otp-proof",api),{
+    method:"POST",headers:{Authorization:"Bearer "+data.accessToken,...trustedBackendHeaders(request)},
+    cache:"no-store",redirect:"error",signal:AbortSignal.timeout(5000)
+   });
+  }catch{}
   // Do not expose session token to browser JS; do not imply authorization for a Tenant.
   const response=NextResponse.json({verified:true},{headers:{"Cache-Control":"no-store"}});
   response.cookies.set("tto_session",data.accessToken,{httpOnly:true,secure:true,sameSite:"lax",path:"/",maxAge:900});
