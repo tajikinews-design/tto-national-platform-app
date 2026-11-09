@@ -67,7 +67,7 @@ class SyntheticSessionBrowserContract(unittest.TestCase):
         self.assertNotIn('docker system prune',self.runner.lower())
 
     def test_no_backend_smoke_covers_all_ten_module_routes(self):
-        # New owner-approved password route is separate from the actual dashboard.
+        # Unified OTP/password login remains separate from the actual protected dashboard.
         # Exercise all ten module URLs dynamically, and verify every unauthenticated
         # response remains behind PortalSessionGate instead of private workspace.
         for marker in (
@@ -78,8 +78,10 @@ class SyntheticSessionBrowserContract(unittest.TestCase):
             'authenticated module leaked data or bypassed session gate',
             'const loginRes=await fetch("http://127.0.0.1:"+port+"/login")',
             'const review=await fetch("http://127.0.0.1:"+port+"/design-review")',
-            'loginHtml.includes(\'id="portal-user"\')',
-            'loginHtml.includes(\'id="portal-pass"\')',
+            'loginHtml.includes(\'class="tto-auth-page"\')',
+            'loginHtml.includes(\'role="tablist"\')',
+            'loginHtml.includes("در حال بررسی نشست")',
+            'loginHtml.includes(\'id="national-username"\')',
             'html.includes("کارپوشه شخصی سهامدار")',
         ):
             with self.subTest(marker=marker):
