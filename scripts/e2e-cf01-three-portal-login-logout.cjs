@@ -111,7 +111,12 @@ async function checkPortal(slug,index) {
   console.log("CF01_THREE_PORTAL_E2E_NATIONAL_ADMIN_PASSWORD_ONLY_DENIAL_PASS");
   return;
  }
- assert.ok(html.includes('در حال بررسی نشست ورود'),slug+" session restoration SSR shell must be visible");checks++;
+ // PH12 approved auth shell checks the password session before showing any
+ // tenant data. The historical phrase changed when this fail-closed gate shipped.
+ // Still require a visible loading status and a dedicated login destination.
+ assert.ok(html.includes('در حال بررسی دسترسی') &&
+   html.includes('رفتن به صفحه ورود مستقل'),
+   slug+" gated SSR auth status and dedicated login link must be visible");checks++;
  assert.ok(!html.includes("در این نسخه پیش‌نمایش، پایگاه داده"),slug+" still claims backend unavailable");checks++;
 
  const initial=await fetch(url+"/api/auth/session",{cache:"no-store"});
