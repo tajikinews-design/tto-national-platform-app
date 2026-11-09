@@ -14,9 +14,10 @@ export default function CommercialLogin(){
   const r=await fetch("/api/commerce/password-login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({slug,username,password})});
   if(!r.ok){setStatus(r.status===401?"نام کاربری یا رمز اشتباه است.":"ورود در دسترس نیست.");return;}
   setPassword("");
-  const host=window.location.hostname.toLowerCase();
-  const hostSlug=host.endsWith(".ttoir.ir")?host.slice(0,-".ttoir.ir".length):"";
-  window.location.replace(hostSlug===slug?"/owner/"+encodeURIComponent(slug):"/settings/subscription");
+  // The authenticated owner enters the same scoped dashboard in both
+  // wildcard-domain testing and isolated Vercel Preview. Never fall back
+  // to an unscoped settings page after a successful scoped password login.
+  window.location.replace("/owner/"+encodeURIComponent(slug));
  }catch{setStatus("اتصال برقرار نشد.")}finally{setBusy(false)}
  }
  return <main dir="rtl" lang="fa" style={{fontFamily:"Tahoma,Arial",padding:25,maxWidth:700,margin:"auto"}}>
