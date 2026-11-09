@@ -81,9 +81,7 @@ for (let idx=0;idx<slugs.length;idx++){
     const routes=[
       ["/entry","در حال شناسایی فضای اختصاصی"],
       ["/c/qa-tto-coop-1405","در حال بازکردن مدیریت تعاونی"],
-      ["/c/qa-tto-coop-1405/modules/nav-02","در حال بازکردن مدیریت تعاونی"],
-      ["/setup/qa-tto-coop-1405","در حال بررسی مالکیت فضای تعاونی"],
-      ["/owner/qa-tto-coop-1405","در حال بررسی دسترسی به فضای اختصاصی"]
+      ["/c/qa-tto-coop-1405/modules/nav-02","در حال بازکردن مدیریت تعاونی"]
     ];
     for(const [path,marker] of routes){
       const resp=await fetch("http://127.0.0.1:"+port+path);
@@ -93,8 +91,30 @@ for (let idx=0;idx<slugs.length;idx++){
          html.includes("روزهای باقی‌مانده:")||
          html.includes('class="shell tto-approved-shell"'))
         throw Error("PH12_ONBOARDING_UNAUTHENTICATED_SSR_LEAK "+path);
+      if(path==="/entry"&&html.includes('class="tto-auth-layout"'))
+        throw Error("PH12_EXTRA_ENTRY_LOGIN_TEMPLATE_STILL_VISIBLE");
       checks++;
     }
+    // All old alternate templates must be redirects, never separate login forms.
+    for(const path of [
+      "/customer-login?slug=qa-tto-coop-1405",
+      "/first-login?slug=qa-tto-coop-1405",
+      "/setup/qa-tto-coop-1405",
+      "/owner/qa-tto-coop-1405"
+    ]){
+      const resp=await fetch("http://127.0.0.1:"+port+path,{redirect:"manual"});
+      const actual=resp.headers.get("location");
+      if(resp.status!==307||new URL(actual??"/", "http://127.0.0.1:"+port).pathname!=="/c/qa-tto-coop-1405")
+       throw Error("PH12_OLD_LOGIN_TEMPLATE_NOT_RETIRED "+path+" "+resp.status+" "+actual);
+      checks++;
+    }
+    const scoped=await fetch("http://127.0.0.1:"+port+"/login?workspace=qa-tto-coop-1405");
+    const scopedHtml=await scoped.text();
+    if(scoped.status!==200||!scopedHtml.includes('class="tto-auth-layout"')||
+       !scopedHtml.includes("در حال بازکردن مدیریت تعاونی")||
+       scopedHtml.includes('class="tto-login-card"'))
+      throw Error("PH12_SCOPED_LOGIN_NOT_FROZEN_FRAME");
+    checks++;
     const ownerApis=[
       ["/api/commerce/workspaces","GET",401],
       ["/api/commerce/password-login","POST",403],
