@@ -89,8 +89,8 @@ function InlineFirstCredentials({workspace}:{workspace:Workspace}){
   </form>{notice?<p role="alert">{notice}</p>:null}
  </div>;
 }
-export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettings,settingsSection}:
- {slug:string;manager:ReactNode;moduleId?:string;ownerSettings?:ReactNode;settingsSection?:"credentials"|"users"}){
+export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettings,settingsSection,nav02Content,memberSection}:
+ {slug:string;manager:ReactNode;moduleId?:string;ownerSettings?:ReactNode;settingsSection?:"credentials"|"users";nav02Content?:ReactNode;memberSection?:"new"|"shares"}){
  const [phase,setPhase]=useState<"checking"|"manager"|"demo"|"login"|"denied"|"unavailable">(
   ()=>verifiedWorkspaceBySlug.get(slug)?.kind??"checking");
  const [workspace,setWorkspace]=useState<Workspace|null>(
@@ -132,14 +132,16 @@ export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettin
    }catch{verifiedWorkspaceBySlug.delete(slug);if(alive)setPhase("unavailable")}
   }
   void run();return()=>{alive=false}
- },[slug,moduleId,settingsSection]);
+ },[slug,moduleId,settingsSection,memberSection]);
  if(phase==="manager")return <>{manager}</>;
  if(phase==="demo"&&workspace)return <PortalShell surface="cooperative"
   activeId={moduleId} basePath={"/c/"+slug} demoOnly allowedModules={workspace.permissions}
   canManageSettings={workspace.staff!==true} settingsSection={settingsSection}
+  memberSection={memberSection}
   NavigationLink={CooperativeNavLink}>
   {moduleId==="NAV-01"&&workspace.staff!==true&&!workspace.credentialsReady?<InlineFirstCredentials workspace={workspace}/>:null}
   {moduleId==="NAV-11"&&workspace.staff!==true&&ownerSettings?ownerSettings:null}
+  {moduleId==="NAV-02"&&workspace.staff!==true&&nav02Content?nav02Content:null}
  </PortalShell>;
  if(phase==="login")return <WorkspaceSignIn slug={slug}/>;
  // Checking is transient navigation state, NOT an authentication challenge.

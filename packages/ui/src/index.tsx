@@ -95,12 +95,12 @@ function navHref(i: number, basePath = "") {
 }
 
 export function PortalShell({
-  surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, allowedModules, canManageSettings = false, settingsSection, NavigationLink
-}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users";NavigationLink?:ComponentType<{href:string;children:ReactNode;className?:string;"aria-current"?: "page";"aria-label"?:string}>}) {
+  surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, allowedModules, canManageSettings = false, settingsSection, memberSection, NavigationLink
+}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users";memberSection?:"new"|"shares";NavigationLink?:ComponentType<{href:string;children:ReactNode;className?:string;"aria-current"?: "page";"aria-label"?:string}>}) {
  const cfg=surfaces[surface],selection=Math.max(NAV_IDS.indexOf(activeId),0);
  const InternalLink=NavigationLink??"a";
  const home=selection===0,currentTitle=settingsSection==="credentials"?"تغییر نام کاربری و رمز عبور":
-  settingsSection==="users"?"کاربران و سطح دسترسی":home?cfg.title:cfg.navigation[selection];
+  settingsSection==="users"?"کاربران و سطح دسترسی":memberSection==="new"?"افزودن سهامدار":memberSection==="shares"?"اطلاعات اولیه سهام":home?cfg.title:cfg.navigation[selection];
  return <div className="shell tto-approved-shell" lang="fa" dir="rtl" data-tto-demo-only={demoOnly?"true":undefined}>
    <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
    <aside className="nav-area">
@@ -109,6 +109,24 @@ export function PortalShell({
       {cfg.navigation.map((name,i)=>{
        if(allowedModules&&!allowedModules.includes(NAV_IDS[i]))return null;
        const active=i===selection;
+       if(surface==="cooperative"&&i===1&&basePath.startsWith("/c/")){
+        return <details key="cooperative-members" className="tto-settings-tree" open={active}>
+         <summary className={active?"nav-link current":"nav-link"} aria-label="بازکردن زیرمنوی اعضا و سهام">
+          <span aria-hidden="true" className="tto-nav-symbol">♙</span><span>{name}</span>
+          <span className="tto-settings-chevron" aria-hidden="true">⌄</span>
+         </summary>
+         <div className="tto-settings-submenu" aria-label="زیرمنوهای اعضا و سهام">
+          <InternalLink className={memberSection==="new"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/members/new"} aria-current={memberSection==="new"?"page":undefined}>
+           <span aria-hidden="true">♙</span> افزودن سهامدار
+          </InternalLink>
+          <InternalLink className={memberSection==="shares"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/members/shares"} aria-current={memberSection==="shares"?"page":undefined}>
+           <span aria-hidden="true">▥</span> اطلاعات سهام
+          </InternalLink>
+         </div>
+        </details>;
+       }
        if(surface==="cooperative"&&i===10&&basePath.startsWith("/c/")&&canManageSettings){
         return <details key="cooperative-settings" className="tto-settings-tree" open={active}>
          <summary className={active?"nav-link current":"nav-link"} aria-label="بازکردن زیرمنوی تنظیمات">
@@ -144,13 +162,13 @@ export function PortalShell({
       {!home&&<div className="breadcrumb"><InternalLink href={basePath||"/"}>داشبورد</InternalLink><span>‹</span><span>{currentTitle}</span></div>}
       {home?<ApprovedDashboardHome surface={surface} demoOnly={demoOnly}>{children}</ApprovedDashboardHome>:
       <>
-       {!settingsSection?<section className="hero"><h1>{currentTitle}</h1><p>{cfg.sectionDescriptions[selection]}</p></section>:null}
-       <section className={settingsSection?"panel tto-module-content tto-settings-module":"panel tto-module-content"}>
+       {!settingsSection&&!memberSection?<section className="hero"><h1>{currentTitle}</h1><p>{cfg.sectionDescriptions[selection]}</p></section>:null}
+       <section className={(settingsSection||memberSection)?"panel tto-module-content tto-settings-module":"panel tto-module-content"}>
          {children??<><div className="module-status" role="status">
            <strong>اطلاعات این بخش در انتظار اتصال معتبر است</strong>
            <span>برای اجرای واقعی باید نشست مجاز، دسترسی محدود به تعاونی و API تأیید شده وجود داشته باشد.</span>
           </div><p>{cfg.boundary}</p></>}
-         {!settingsSection?<InternalLink className="return-link" href={basePath||"/"}>بازگشت به داشبورد</InternalLink>:null}
+         {!settingsSection&&!memberSection?<InternalLink className="return-link" href={basePath||"/"}>بازگشت به داشبورد</InternalLink>:null}
        </section>
       </>}
       <footer>محیط آزمایش TTO · ثبت اطلاعات واقعی فقط با دسترسی مجاز و کنترل حفاظت داده · بدون ایجاد اثر حقوقی یا عملیات مالی</footer>
