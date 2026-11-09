@@ -33,7 +33,7 @@ export function OtpLogin({enabled,surface,initialShareholderView="overview",init
  useEffect(()=>{
   if(!enabled||!verified||surface!=="cooperative"||!postLoginRedirect)return;
   const target=postLoginRedirect==="/"?"/entry":postLoginRedirect;
-  if(target!=="/entry"&&!/^\\/c\\/[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(target))return;
+  if(target!=="/entry"&&(!target.startsWith("/c/")||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(target.slice(3))))return;
   window.location.replace(target);
  },[enabled,verified,surface,postLoginRedirect]);
  // A 401 from a private BFF read invalidates the authenticated UI on every portal.
