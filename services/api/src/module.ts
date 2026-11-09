@@ -80,7 +80,7 @@ export class Database {
   async isReady(): Promise<void> { await this.pool.query("SELECT 1 FROM tto.tenants LIMIT 0"); }
   async prepareSmsLogin(mobile:string, id:string, hash:Buffer):Promise<boolean>{
     const r=await this.pool.query<{ok:boolean}>(
-      "SELECT tto.begin_smsotp_login($1,$2,$3,clock_timestamp()+interval '4 minutes') AS ok",
+      "SELECT tto.begin_smsotp_login($1,$2,$3,clock_timestamp()+interval '60 seconds') AS ok",
       [mobile,id,hash]
     );
     return r.rows[0]?.ok===true;
@@ -145,7 +145,7 @@ export class Database {
   }
   async beginMobileRegistration(mobile:string,id:string,hash:Buffer):Promise<boolean>{
     const r=await this.pool.query<{ok:boolean}>(
-      "SELECT tto.begin_mobile_registration($1,$2,$3,clock_timestamp()+interval '4 minutes') AS ok",
+      "SELECT tto.begin_mobile_registration($1,$2,$3,clock_timestamp()+interval '60 seconds') AS ok",
       [mobile,id,hash]
     );
     return r.rows[0]?.ok===true;
@@ -1407,14 +1407,16 @@ export class FoundationCommandsController {
     if(!allowed)return {requestId,status:"ACCEPTED"};
     const code=synthetic?"111222":String(randomInt(100000,1000000));
     const hash=createHmac("sha256",pepper).update(requestId+":"+code).digest();
+    const otpStartedAt=Date.now();
     const created=await this.db.beginMobileRegistration(mobile,requestId,hash);
     if(created){
       let sent=false;
       try{sent=await this.sms.send(mobile,code)}catch{sent=false}
       await this.db.attestSmsDelivery(requestId,sent);
     }
-    // Do not reveal whether this mobile already exists or is throttled.
-    return {requestId,status:"ACCEPTED"};
+    // Generic response prevents user enumeration. Count from issuance, not page reload.
+    return {requestId,status:"ACCEPTED",expiresInSeconds:created?
+       Math.max(0,Math.ceil((otpStartedAt+60000-Date.now())/1000)):60};
   }
 
   @Post("auth/registration/verify")
