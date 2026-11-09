@@ -1,23 +1,15 @@
-import { PortalShell, PortalModuleWorkbench, OtpLogin, parsePortalModuleId } from "@tto/ui";
-import { notFound } from "next/navigation";
-
+import {PortalShell,PortalSessionGate,PortalModuleWorkbench,TenantScopePicker,parsePortalModuleId} from "@tto/ui";
+import {notFound} from "next/navigation";
 export const dynamic = "force-dynamic";
-
-/** PH03 secure module route: never render privileged content from the URL alone.
- *  Module navigation is public structure, while every private read requires
- *  a verified session, tenant role, legal authority and per-operation PDP. */
 export default async function ModulePage({params}:{params:Promise<{id:string}>}){
- const {id}=await params;
- const moduleId=parsePortalModuleId(id);
+ const {id}=await params, moduleId=parsePortalModuleId(id);
  if(!moduleId)notFound();
- return <PortalShell surface="cooperative" activeId={moduleId}>
-  <div className="module-status" role="status">
-   <strong>دسترسی ماژول نیازمند تأیید مجوز است</strong>
-   <span>عنوان و توضیحات قابل مشاهده‌اند؛ اطلاعات و عملیات اختصاصی فقط پس از تأیید نشست و محدوده مجاز.</span>
-  </div>
-  <PortalModuleWorkbench surface="cooperative" moduleId={moduleId}/>
-  <OtpLogin surface="cooperative" enabled={Boolean(process.env.TTO_API_BASE_URL)}
-    initialManagementModuleId={moduleId}/>
-  <p className="sw-footnote">تأیید محدوده، مجوز انجام عملیات این بخش نیست. گردش‌کارهای دامنه فقط پس از اجرای آزمون‌ها و تأیید اختیار قانونی فعال می‌شوند.</p>
- </PortalShell>;
+ return <PortalSessionGate surface="cooperative">
+   <PortalShell surface="cooperative" activeId={moduleId}>
+     <div className="module-status" role="status">این بخش فقط پس از بررسی نشست، اختیار و محدوده تعاونی فعال می‌شود.</div>
+     <PortalModuleWorkbench surface="cooperative" moduleId={moduleId}/>
+     <TenantScopePicker surface="cooperative" moduleId={moduleId}/>
+     <p className="sw-footnote">اطلاعات واقعی صرفاً در محدوده تعاونی احرازشده نمایش داده می‌شود. هیچ معامله، امضا یا تأیید حقوقی به‌طور خودکار مجاز نیست.</p>
+   </PortalShell>
+ </PortalSessionGate>;
 }

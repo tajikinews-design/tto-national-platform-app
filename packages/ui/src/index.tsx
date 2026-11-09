@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import type { ReactNode, ComponentType } from "react";
 import {shareholderNavigation} from "./shareholder-navigation";
 import {PortalModuleWorkbench} from "./portal-module-workbench";
+import {ApprovedDashboardHome} from "./approved-dashboard";
 export {shareholderNavigation} from "./shareholder-navigation";
 export {shareholderSectionId} from "./shareholder-section-config";
 
@@ -13,6 +14,8 @@ export const managementNavigation = [
   "ارتباط با سهامداران", "عملیات و خدمات", "کسب‌وکار و بازار",
   "پروژه و توسعه", "ریسک و شفافیت", "گزارش و هوشمندی", "تنظیمات"
 ] as const;
+
+const nationalNavigation = ["داشبورد", "تعاونی‌ها", ...managementNavigation.slice(2)] as const;
 
 /** Source-aligned NAV-01 .. NAV-11.  No number is ever inferred from the DB. */
 const surfaces: Record<Surface, {
@@ -64,7 +67,7 @@ const surfaces: Record<Surface, {
     title: "مرکز مدیریت ملی",
     description: "پایش شاخص‌های تجمیعی و سلامت شبکه تعاونی‌ها",
     chips: ["تعاونی‌های فعال", "گیت‌های حقوقی", "سلامت سامانه", "گزارش‌های تجمیعی"],
-    navigation: managementNavigation,
+    navigation: nationalNavigation,
     sectionDescriptions: [
       "نمای شبکه‌ای و شاخص‌های تجمیعی پس از اعمال قواعد دسترسی ملی.",
       "پایش وضعیت تعاونی‌ها و داده‌های تجمیعی مجاز؛ بدون دسترسی پیش‌فرض به هویت و سهام اشخاص.",
@@ -87,80 +90,91 @@ export function parsePortalModuleId(raw: string): NavId | null {
   return id !== "NAV-01" && NAV_IDS.includes(id) && raw === id.toLowerCase() ? id : null;
 }
 
-function navHref(i: number) {
-  return i === 0 ? "/" : `/modules/${NAV_IDS[i].toLowerCase()}`;
+function navHref(i: number, basePath = "") {
+  return i === 0 ? (basePath||"/") : basePath+`/modules/${NAV_IDS[i].toLowerCase()}`;
 }
 
 export function PortalShell({
-  surface, children, activeId = "NAV-01", suppressStaticKpis = false
-}: { surface: Surface; children?: ReactNode; activeId?: NavId; suppressStaticKpis?: boolean }) {
-  const cfg = surfaces[surface];
-  const active = NAV_IDS.indexOf(activeId);
-  const home = active === 0;
-  const selection = active < 0 ? 0 : active;
-  const currentTitle = home ? cfg.title : cfg.navigation[selection];
-  return <div className="shell" dir="rtl">
-    <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
-    <aside className="nav-area">
-      <a className="logo" href="/" aria-label="بازگشت به داشبورد پلتفرم ملی">TTO <span>پلتفرم ملی تعاونی توسعه و عمران</span></a>
-      <nav aria-label={"منوی اصلی "+cfg.title}>
-        {cfg.navigation.map((name, i) =>
-          <a href={navHref(i)} aria-current={selection === i ? "page" : undefined}
-            className={selection === i ? "nav-link current" : "nav-link"} key={NAV_IDS[i]}>
-            <span aria-hidden="true">◈</span><span>{name}</span><small>{NAV_IDS[i]}</small>
-          </a>)}
-      </nav>
-    </aside>
-    <main className="main-content" id="main-content">
-      <div className="topbar"><strong>{cfg.title}</strong><span className="preview-tag">پیش‌نمایش داخلی · داده واقعی نمایش داده نمی‌شود</span></div>
-      {!home && <div className="breadcrumb"><a href="/">داشبورد</a><span aria-hidden="true">‹</span><span>{currentTitle}</span></div>}
-      <section className="hero">
-        <h1>{currentTitle}</h1><p>{home ? cfg.description : cfg.sectionDescriptions[selection]}</p>
-        <p className="hint">نمایش داده‌های مرتبط با کاربر تنها پس از تأیید نشست، نقش قانونی، محدوده تعاونی و سطح مجوز امکان‌پذیر است.</p>
-      </section>
-      {home && !suppressStaticKpis && <div className="kpi-grid">{cfg.chips.map(label =>
-        <section className="metric" key={label}>
-          <span>{label}</span><strong aria-label="داده موجود نیست">—</strong><small>داده تأییدشده در دسترس نیست</small>
-        </section>)}</div>}
-      <section className="panel">
-        {home ? <>
-          <h2>اقدامات و اطلاعیه‌ها</h2>
-          <p>امکانات نمایش اطلاعات شخصی و اقدام‌های عملیاتی فقط پس از تأیید مجوزهای قانونی و اتصال به منبع داده معتبر فعال خواهند شد.</p>
-          {children}
-          <PortalModuleWorkbench surface={surface}/>
-          <h2 className="module-heading">بخش‌های سامانه</h2>
-          <div className="module-grid" aria-label="فهرست بخش‌های سامانه">
-            {cfg.navigation.slice(1).map((name, i) =>
-              <a href={navHref(i + 1)} className="module-card" key={NAV_IDS[i + 1]}>
-                <span className="module-card-code">{NAV_IDS[i + 1]}</span>
-                <strong>{name}</strong>
-                <span>{cfg.sectionDescriptions[i + 1]}</span>
-                <small>مشاهده ساختار بخش ←</small>
-              </a>)}
-          </div>
-        </> : children ? <>
-          {children}
-          <a className="return-link" href="/">بازگشت به داشبورد</a>
-        </> : <>
-          <div className="module-status" role="status">
-            <strong>ساختار این بخش آماده بررسی است</strong>
-            <span>فعال‌سازی داده و عملیات: در انتظار پیاده‌سازی قرارداد دامنه و تأیید مجوزها</span>
-          </div>
-          <h2>دامنه عملکرد</h2>
-          <p>{cfg.sectionDescriptions[selection]}</p>
-          <h2>شرط دسترسی</h2>
-          <p>{cfg.boundary} احراز هویت به‌تنهایی مجوز مشاهده اطلاعات تعاونی یا اجرای عملیات نیست.</p>
-          <div className="module-empty" aria-label="اطلاعات محرمانه و عملیاتی هنوز بارگذاری نشده‌اند">
-            <strong>—</strong><span>هیچ داده، مانده سهام یا وضعیت پرونده‌ای بدون استعلام معتبر نمایش داده نمی‌شود.</span>
-          </div>
-          <a className="return-link" href="/">بازگشت به داشبورد</a>
-        </>}
-      </section>
-      <footer>{surface==="shareholder"&&children?
-        "پیش‌نمایش محافظت‌شده سهامدار · استعلام فقط‌خواندنی با گیت‌های مستقل منبع و مجوز · ثبت معامله و داده واقعی غیرفعال":
-        "پیش‌نمایش محافظت‌شده Next.js · داده واقعی نمایش داده نمی‌شود؛ عملیات دامنه نیازمند مجوز مستقل است"}</footer>
-    </main>
-  </div>;
+  surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, allowedModules, canManageSettings = false, settingsSection, membersSection, NavigationLink
+}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users";membersSection?:"add"|"shares";NavigationLink?:ComponentType<{href:string;children:ReactNode;className?:string;"aria-current"?: "page";"aria-label"?:string}>}) {
+ const cfg=surfaces[surface],selection=Math.max(NAV_IDS.indexOf(activeId),0);
+ const InternalLink=NavigationLink??"a";
+ const home=selection===0,currentTitle=settingsSection==="credentials"?"تغییر نام کاربری و رمز عبور":
+  settingsSection==="users"?"کاربران و سطح دسترسی":membersSection==="add"?"افزودن سهامدار":membersSection==="shares"?"اطلاعات سهام":home?cfg.title:cfg.navigation[selection];
+ return <div className="shell tto-approved-shell" lang="fa" dir="rtl" data-tto-demo-only={demoOnly?"true":undefined}>
+   <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
+   <aside className="nav-area">
+     <InternalLink className="logo" href={basePath||"/"} aria-label="پلتفرم ملی تعاونی توسعه و عمران"><span className="tto-brand-mark">❖</span><strong>پلتفرم ملی تعاونی توسعه و عمران</strong><span>شبکه هوشمند خدمات و راهبری تعاونی‌ها</span></InternalLink>
+     <nav aria-label={"منوی "+cfg.title}>
+      {cfg.navigation.map((name,i)=>{
+       if(allowedModules&&!allowedModules.includes(NAV_IDS[i]))return null;
+       const active=i===selection;
+
+       if(surface==="cooperative"&&i===1&&basePath.startsWith("/c/")){
+        return <details key="cooperative-members" className="tto-settings-tree" open={active}>
+         <summary className={active?"nav-link current":"nav-link"} aria-label="بازکردن زیرمنوی اعضا و سهام">
+          <span aria-hidden="true" className="tto-nav-symbol">♙</span><span>{name}</span>
+          <span className="tto-settings-chevron" aria-hidden="true">⌄</span>
+         </summary>
+         <div className="tto-settings-submenu" aria-label="زیرمنوهای اعضا و سهام">
+          <InternalLink className={membersSection==="add"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/members/add"} aria-current={membersSection==="add"?"page":undefined}>
+           <span aria-hidden="true">＋</span> افزودن سهامدار
+          </InternalLink>
+          <InternalLink className={membersSection==="shares"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/members/shares"} aria-current={membersSection==="shares"?"page":undefined}>
+           <span aria-hidden="true">▥</span> اطلاعات سهام
+          </InternalLink>
+         </div>
+        </details>;
+       }
+       if(surface==="cooperative"&&i===10&&basePath.startsWith("/c/")&&canManageSettings){
+        return <details key="cooperative-settings" className="tto-settings-tree" open={active}>
+         <summary className={active?"nav-link current":"nav-link"} aria-label="بازکردن زیرمنوی تنظیمات">
+          <span aria-hidden="true" className="tto-nav-symbol">⚙</span><span>{name}</span>
+          <span className="tto-settings-chevron" aria-hidden="true">⌄</span>
+         </summary>
+         <div className="tto-settings-submenu" aria-label="زیرمنوهای تنظیمات">
+          <InternalLink className={settingsSection==="credentials"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/settings/credentials"} aria-current={settingsSection==="credentials"?"page":undefined}>
+            <span aria-hidden="true">◇</span> تغییر نام کاربری و رمز عبور
+          </InternalLink>
+          <InternalLink className={settingsSection==="users"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/settings/users"} aria-current={settingsSection==="users"?"page":undefined}>
+            <span aria-hidden="true">♧</span> کاربران و سطح دسترسی
+          </InternalLink>
+         </div>
+        </details>;
+       }
+       return <InternalLink href={navHref(i,basePath)} key={NAV_IDS[i]}
+        aria-current={i===selection?"page":undefined} className={active?"nav-link current":"nav-link"}>
+        <span aria-hidden="true" className="tto-nav-symbol">{["▦","♙","▥","♜","♧","⚙","▤","▥","♢","▥","⚙"][i]}</span>
+        <span>{name}</span></InternalLink>;
+      })}
+     </nav>
+     <a className="tto-logout-link" href={basePath||"/login"}>ورود / خروج از حساب ↗</a>
+   </aside>
+   <main className="main-content" id="main-content">
+      <div className="topbar">
+       <div className="tto-top-search"><span aria-hidden="true">⌕</span><span>جست‌وجوی پرونده‌ها، گزارش‌ها، خدمات و ...</span></div>
+       <div className="tto-top-meta"><span>اعلان‌ها ♧</span><strong>{demoOnly?"پیش‌نمایش مدیریت تعاونی":cfg.title}</strong></div>
+      </div>
+      {demoOnly?<section className="tto-login-scope" role="status" style={{marginBottom:16}}>پیش‌نمایش مدیریت تعاونی · عملیات رسمی و مالی تا احراز اختیار قانونی مدیر غیرفعال است.</section>:null}
+      {!home&&<div className="breadcrumb"><InternalLink href={basePath||"/"}>داشبورد</InternalLink><span>‹</span><span>{currentTitle}</span></div>}
+      {home?<ApprovedDashboardHome surface={surface} demoOnly={demoOnly}>{children}</ApprovedDashboardHome>:
+      <>
+       {!settingsSection&&!membersSection?<section className="hero"><h1>{currentTitle}</h1><p>{cfg.sectionDescriptions[selection]}</p></section>:null}
+       <section className={settingsSection||membersSection?"panel tto-module-content tto-settings-module":"panel tto-module-content"}>
+         {children??<><div className="module-status" role="status">
+           <strong>اطلاعات این بخش در انتظار اتصال معتبر است</strong>
+           <span>برای اجرای واقعی باید نشست مجاز، دسترسی محدود به تعاونی و API تأیید شده وجود داشته باشد.</span>
+          </div><p>{cfg.boundary}</p></>}
+         {!settingsSection&&!membersSection?<InternalLink className="return-link" href={basePath||"/"}>بازگشت به داشبورد</InternalLink>:null}
+       </section>
+      </>}
+      <footer>محیط آزمایش TTO · ثبت اطلاعات واقعی فقط با دسترسی مجاز و کنترل حفاظت داده · بدون ایجاد اثر حقوقی یا عملیات مالی</footer>
+   </main>
+ </div>;
 }
 
 export function PortalModulePreview({surface,moduleId}:{surface:Surface;moduleId:NavId}){
@@ -172,3 +186,8 @@ export { TenantScopePicker } from "./tenant-scope-picker";
 export { ShareholderWorkspace } from "./shareholder-workspace";
 
 export {PortalModuleWorkbench} from "./portal-module-workbench";
+
+export {PortalPasswordLogin} from "./portal-password-login";
+export {PortalSessionGate} from "./portal-session-gate";
+
+export {AuthFrame} from "./auth-frame";

@@ -1,0 +1,35 @@
+/* Cross-portal form control contract. The original approved login CSS stays frozen.
+   All NEW portal data-entry controls use a single 44px field height. */
+:root{--tto-field-height:44px;--tto-field-radius:11px;--tto-form-border:#d5e3ee;--tto-form-ink:#16314d}
+.tto-approved-shell :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),select){
+ box-sizing:border-box;block-size:var(--tto-field-height);min-block-size:var(--tto-field-height);
+ border-radius:var(--tto-field-radius);font-family:var(--tto-font),Vazirmatn,Tahoma,Arial,sans-serif;
+}
+.tto-approved-shell :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),select):focus-visible{
+ outline:3px solid #86bff8;outline-offset:1px
+}
+.tto-approved-shell input[type="checkbox"]{accent-color:#0878b7;cursor:pointer}
+/* The two new submenu links inherit the approved sidebar's blue/navy vocabulary. */
+.tto-approved-shell .tto-settings-tree{border-radius:11px;overflow:visible}
+.tto-approved-shell .tto-settings-tree>summary{list-style:none;cursor:pointer;user-select:none}
+.tto-approved-shell .tto-settings-tree>summary::-webkit-details-marker{display:none}
+.tto-approved-shell .tto-settings-tree>summary:focus-visible{outline:3px solid #86bff8;outline-offset:2px}
+.tto-approved-shell .tto-settings-chevron{margin-inline-start:auto;color:#4586a3;font-size:18px;transition:transform .2s}
+.tto-approved-shell .tto-settings-tree[open] .tto-settings-chevron{transform:rotate(180deg)}
+.tto-approved-shell .tto-settings-submenu{display:grid;gap:5px;margin:4px 19px 10px 0;padding-right:12px;border-right:2px solid #cbecf4}
+.tto-approved-shell .tto-settings-sublink{display:flex;gap:8px;align-items:center;padding:10px 11px;border-radius:9px;color:#526986;font-weight:650;font-size:12px;text-decoration:none;line-height:1.65;transition:background .15s,color .15s}
+.tto-approved-shell .tto-settings-sublink:hover,.tto-approved-shell .tto-settings-sublink:focus-visible{background:#ecf7fd;color:#075c8f}
+.tto-approved-shell .tto-settings-sublink.selected{background:#e1f6f4;color:#09627c}
+.tto-approved-shell .tto-settings-sublink>span{font-size:16px;color:#07a9ac}
+@media(max-width:800px){.tto-approved-shell .tto-settings-tree{min-width:max-content}
+ .tto-approved-shell .tto-settings-submenu{background:#fff;padding:6px;border:1px solid #deebf1;border-radius:12px;margin:0}}
+
+/* Tenant scoped route verification: a neutral, minimal loading state.
+   Authentication branding is reserved for an actual login, not every click. */
+.tto-workspace-transition{min-height:100svh;background:#f4f8fc;display:grid;place-items:center}
+.tto-workspace-transition-spinner{display:block;width:34px;height:34px;border-radius:50%;
+ border:3px solid #dcebf6;border-top-color:#06989e;animation:tto-spinner .6s linear infinite}
+@keyframes tto-spinner{to{transform:rotate(360deg)}}
+.tto-workspace-access-error{min-height:100svh;display:grid;place-items:center;background:#f4f8fc;padding:20px}
+.tto-workspace-access-error section{max-width:520px;padding:30px;background:#fff;border-radius:14px;border:1px solid #dbe8f1}
+@media(prefers-reduced-motion:reduce){.tto-workspace-transition-spinner{animation:none}}

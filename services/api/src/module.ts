@@ -2,6 +2,7 @@ import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injecta
 import { Pool, PoolClient } from "pg";
 import { createCipheriv, createDecipheriv, createHash, createHmac, createPublicKey, verify as cryptoVerify, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
+import { generateDemoWorkspaceSlug } from "./commerce-demo-slug";
 import { reconstructGovernanceSnapshot } from "./governance-temporal";
 import { scanQuarantineBytes } from "./clamd-evidence";
 import {encryptGovernancePdf,unlockAnyGovernancePdf,encryptKmsGovernancePdf,SourcePacket} from "./governance-pdf-envelope";
@@ -52,6 +53,24 @@ export class Database {
     }
   }
   async onModuleDestroy(): Promise<void> { await this.pool.end(); }
+  async reserveCommerceDemoLoginAttempt(fingerprint:Buffer){
+    const r=await this.pool.query<{allowed:boolean}>("SELECT tto.reserve_commerce_demo_login_attempt($1) AS allowed",[fingerprint]);
+    return r.rows[0]?.allowed===true;
+  }
+  async commerceDemoPasswordLookup(username:string){
+    const r=await this.pool.query<{user_id:string;slug:string;password_scrypt:string}>(
+      "SELECT * FROM tto.commerce_demo_password_lookup($1)",[username]);
+    return r.rows[0]??null;
+  }
+  async issueCommerceDemoPasswordSession(id:string,hash:Buffer){
+    const r=await this.pool.query<{ok:boolean}>(
+      "SELECT tto.issue_commerce_demo_password_session($1::uuid,$2) AS ok",[id,hash]);
+    return r.rows[0]?.ok===true;
+  }
+  async demoCommercePlans(){
+    const r=await this.pool.query('SELECT code,title,duration_days AS "durationDays",features FROM tto.commerce_demo_plans WHERE active AND preview_only ORDER BY duration_days');
+    return r.rows;
+  }
   async workspaceExists(slug:string):Promise<boolean>{
     const result=await this.pool.query(
       "SELECT 1 FROM tto.cooperative_workspace_addresses WHERE slug=$1 AND state='RESERVED' LIMIT 1",
@@ -62,7 +81,7 @@ export class Database {
   async isReady(): Promise<void> { await this.pool.query("SELECT 1 FROM tto.tenants LIMIT 0"); }
   async prepareSmsLogin(mobile:string, id:string, hash:Buffer):Promise<boolean>{
     const r=await this.pool.query<{ok:boolean}>(
-      "SELECT tto.begin_smsotp_login($1,$2,$3,clock_timestamp()+interval '4 minutes') AS ok",
+      "SELECT tto.begin_smsotp_login($1,$2,$3,clock_timestamp()+interval '60 seconds') AS ok",
       [mobile,id,hash]
     );
     return r.rows[0]?.ok===true;
@@ -79,6 +98,33 @@ export class Database {
     );
     return r.rows[0]?.ok===true;
   }
+  async portalPasswordCredential(surface:string,username:string):Promise<{user_id:string;tenant_id:string;password_scrypt:string;must_rotate:boolean;workspace_slug:string}|null>{
+    const r=await this.pool.query<{user_id:string;tenant_id:string;password_scrypt:string;must_rotate:boolean;workspace_slug:string}>(
+      "SELECT * FROM tto.portal_password_credential_lookup($1,$2)",[surface,username]);
+    return r.rows[0]??null;
+  }
+  async reservePortalPasswordAttempt(fingerprint:Buffer):Promise<boolean>{
+    const r=await this.pool.query<{allowed:boolean}>(
+     "SELECT tto.reserve_portal_password_attempt($1) AS allowed",[fingerprint]);
+    return r.rows[0]?.allowed===true;
+  }
+  async portalPasswordSessionIdentity(authorization:string|undefined,surface:string):Promise<{user_id:string;tenant_id:string;slug:string}|null>{
+    const digest=this.sessionDigest(authorization);
+    const r=await this.pool.query<{user_id:string;tenant_id:string;slug:string}>(
+     "SELECT * FROM tto.portal_password_session_identity($1,$2)",[digest,surface]);
+    return r.rows[0]??null;
+  }
+  async portalTenantSlug(tenantId:string):Promise<string|null>{
+    const r=await this.pool.query<{slug:string}>(
+     "SELECT slug FROM tto.tenants WHERE tenant_id=$1 AND status='ACTIVE'",[tenantId]);
+    return r.rows[0]?.slug??null;
+  }
+  async issuePortalPasswordSession(surface:string,username:string,userId:string,tenantId:string,tokenHash:Buffer):Promise<boolean>{
+    const r=await this.pool.query<{issued:boolean}>(
+     "SELECT tto.issue_portal_password_session($1,$2,$3::uuid,$4::uuid,$5) AS issued",
+     [surface,username,userId,tenantId,tokenHash]);
+    return r.rows[0]?.issued===true;
+  }
   async reserveNationalRootAttempt(key:Buffer):Promise<boolean>{
     const result=await this.pool.query<{allowed:boolean}>(
       "SELECT tto.reserve_national_root_attempt($1) AS allowed",[key]);
@@ -92,14 +138,15 @@ export class Database {
     }>("SELECT username,password_scrypt,must_change_credentials,credentials_version FROM tto.national_root_credential_state()");
     return r.rows[0]??null;
   }
-  async issueNationalRootSession(hash:Buffer,version:string):Promise<boolean>{
+  async issueNationalRootSession(hash:Buffer,version:string,rememberDevice:boolean):Promise<boolean>{
     const result=await this.pool.query<{issued:boolean}>(
-      "SELECT tto.issue_national_root_session($1,$2::bigint) AS issued",[hash,version]);
+      "SELECT tto.issue_national_root_session($1,$2::bigint,$3::boolean) AS issued",
+      [hash,version,rememberDevice]);
     return result.rows[0]?.issued===true;
   }
   async beginMobileRegistration(mobile:string,id:string,hash:Buffer):Promise<boolean>{
     const r=await this.pool.query<{ok:boolean}>(
-      "SELECT tto.begin_mobile_registration($1,$2,$3,clock_timestamp()+interval '4 minutes') AS ok",
+      "SELECT tto.begin_mobile_registration($1,$2,$3,clock_timestamp()+interval '60 seconds') AS ok",
       [mobile,id,hash]
     );
     return r.rows[0]?.ok===true;
@@ -253,6 +300,342 @@ export class FoundationCommandsController {
     return this.db.inTenant(actor,tenant,async c=>{
       const data=await c.query<{out:T}>(sql,values);
       return data.rows[0].out;
+    });
+  }
+
+  /**
+   * Individual portal username/password login. Not a registration route.
+   * Credentials are provisioned only after independent natural-person identity
+   * verification and ACTIVE legal tenant role. No self-signup or role grant.
+   */
+  @Get("portal/password/session")
+  async portalPasswordSession(@Query("surface") surface:string,
+    @Headers("authorization") auth?:string){
+    if(surface!=="cooperative"&&surface!=="shareholder")
+      throw new BadRequestException({code:"INVALID_PORTAL_SURFACE"});
+    if(process.env.TTO_PORTAL_PASSWORD_LOGIN_ENABLED!=="true"||
+       process.env.TTO_SECURE_REAL_DATA_STAGING_ENABLED!=="true"||
+       (process.env.VERCEL==="1"&&process.env.VERCEL_ENV!=="preview"))
+      throw new ServiceUnavailableException({code:"PORTAL_PASSWORD_STAGING_NOT_RELEASED"});
+    const verified=await this.db.portalPasswordSessionIdentity(auth,surface);
+    if(!verified)throw new UnauthorizedException({code:"PORTAL_PASSWORD_SESSION_REQUIRED"});
+    return {authenticated:true,surface,tenantId:verified.tenant_id,
+      workspaceSlug:verified.slug,legalPowerGranted:false};
+  }
+
+  @Post("portal/password/login")
+  @HttpCode(200)
+  async loginPortalPassword(@Body() input:Record<string,unknown>,@Req() req:{ip?:string}){
+    if(process.env.TTO_PORTAL_PASSWORD_LOGIN_ENABLED!=="true" ||
+       process.env.TTO_SECURE_REAL_DATA_STAGING_ENABLED!=="true" ||
+       (process.env.VERCEL==="1"&&process.env.VERCEL_ENV!=="preview"))
+      throw new ServiceUnavailableException({code:"PORTAL_PASSWORD_STAGING_NOT_RELEASED"});
+    const surface=input?.surface, username=input?.username, password=input?.password;
+    const slug=input?.workspaceSlug;
+    if((surface!=="cooperative"&&surface!=="shareholder")||
+       typeof username!=="string"||!/^[a-z][a-z0-9._-]{4,63}$/.test(username)||
+       typeof password!=="string"||password.length<1||password.length>128||
+       (slug!==undefined&&(typeof slug!=="string"||
+           !/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))))
+      throw new BadRequestException({code:"INVALID_PORTAL_CREDENTIAL_REQUEST"});
+    const secret=process.env.TTO_PORTAL_PASSWORD_ATTEMPT_SECRET;
+    const ip=req?.ip;
+    if(!secret||Buffer.byteLength(secret)<32||typeof ip!=="string"||ip.length<3||ip.length>64)
+      throw new ServiceUnavailableException({code:"PORTAL_PASSWORD_SECURE_CONFIG_REQUIRED"});
+    const fingerprint=(scope:string)=>createHmac("sha256",secret).update(scope).digest();
+    if(!await this.db.reservePortalPasswordAttempt(fingerprint("ip:"+ip+":"+surface))||
+       !await this.db.reservePortalPasswordAttempt(fingerprint("username:"+surface+":"+username)))
+      throw new ForbiddenException({code:"PORTAL_PASSWORD_RATE_LIMITED"});
+    const credential=await this.db.portalPasswordCredential(surface,username);
+    // Equal-cost scrypt check for unknown accounts; never reveal username existence.
+    const fakeSalt=Buffer.alloc(16,0x41);
+    const fakeEncoded="scrypt$v1$"+fakeSalt.toString("hex")+"$"+
+      scryptSync("TTO_FAKE_PASSWORD_NOT_AN_ACCOUNT",fakeSalt,64,
+       {N:16384,r:8,p:1,maxmem:64*1024*1024}).toString("hex");
+    const valid=verifyNationalPassword(password,credential?.password_scrypt??fakeEncoded);
+    if(!valid||!credential||credential.must_rotate)
+      throw new UnauthorizedException({code:"INVALID_PORTAL_CREDENTIALS"});
+    // Role-verified credential lookup runs as a SECURITY DEFINER on tenant RLS,
+    // so browser-facing login must not run an unscoped SELECT on tto.tenants.
+    const tenantSlug=credential.workspace_slug;
+    if(!tenantSlug|| (slug!==undefined&&slug!==tenantSlug))
+      throw new ForbiddenException({code:"PORTAL_TENANT_SCOPE_DENIED"});
+    const token=randomBytes(48).toString("base64url");
+    const issued=await this.db.issuePortalPasswordSession(surface,username,
+      credential.user_id,credential.tenant_id,
+      createHash("sha256").update(token).digest());
+    if(!issued)throw new ServiceUnavailableException({code:"PORTAL_LOGIN_RECHECK_REQUIRED"});
+    return {accessToken:token,tenantId:credential.tenant_id,workspaceSlug:tenantSlug,
+      surface,authenticated:true,legalPowerGranted:false,shareTransferEnabled:false};
+  }
+
+  /**
+   * National administrator registry: only public workspace routing metadata.
+   * Existing DB has reserved workspace addresses, while legally activated
+   * tenants require a separate formally approved national directory read model.
+   * Never infer legal registration or tenant activation from a reserved slug.
+   */
+  @Get("commerce/demo/team")
+  async demoTeam(@Headers("authorization") auth:string|undefined,@Query("slug") slug:string){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
+      throw new BadRequestException("INVALID_SLUG");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      const r=await c.query<{items:unknown}>("SELECT tto.commerce_demo_team_list($1) AS items",[slug]);
+      return {items:r.rows[0]?.items??[]};
+    });
+  }
+  @Post("commerce/demo/team")
+  @HttpCode(200)
+  async demoTeamCommand(@Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    if(!input||typeof input!=="object"||Array.isArray(input)||
+       Object.keys(input).some(k=>!["action","slug","username","displayName","password","permissions","id","state"].includes(k)))
+      throw new BadRequestException("INVALID_TEAM_BODY");
+    const slug=input.slug,permissions=input.permissions,action=input.action;
+    const validPerm=(v:unknown):v is string[]=>Array.isArray(v)&&v.length>0&&v.length<=11&&
+      v.every(x=>typeof x==="string"&&/^NAV-(0[1-9]|1[01])$/.test(x))&&
+      v.includes("NAV-01")&&new Set(v).size===v.length;
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||!validPerm(permissions))
+      throw new BadRequestException("INVALID_TEAM_PERMISSIONS");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      if(action==="create"){
+        if(typeof input.username!=="string"||!/^staff_[a-z][a-z0-9._-]{4,58}$/.test(input.username)||
+           typeof input.displayName!=="string"||input.displayName.trim().length<3||input.displayName.length>120||
+           typeof input.password!=="string"||input.password.length<14||input.password.length>128)
+          throw new BadRequestException("INVALID_TEAM_USER");
+        const salt=randomBytes(16);
+        const hash="scrypt$v1$"+salt.toString("hex")+"$"+
+          scryptSync(input.password,salt,64,{N:16384,r:8,p:1,maxmem:64*1024*1024}).toString("hex");
+        try{
+         const x=await c.query<{record:unknown}>(
+          "SELECT tto.commerce_demo_team_create($1,$2,$3,$4,$5::text[]) AS record",
+          [slug,input.username,input.displayName,hash,permissions]);
+         return {created:true,user:x.rows[0]?.record};
+        }catch(e){if((e as {code?:string}).code==="23505")throw new ConflictException("USERNAME_TAKEN");throw e}
+      }
+      if(action==="update"){
+        if(typeof input.id!=="string"||!/^[0-9a-f-]{36}$/i.test(input.id)||
+           !["ACTIVE","DISABLED"].includes(String(input.state)))
+          throw new BadRequestException("INVALID_TEAM_UPDATE");
+        const x=await c.query<{changed:boolean}>(
+         "SELECT tto.commerce_demo_team_update($1,$2::uuid,$3::text[],$4) AS changed",
+         [slug,input.id,permissions,input.state]);
+        if(!x.rows[0]?.changed)throw new ForbiddenException("WORKSPACE_OWNER_REQUIRED");
+        return {changed:true};
+      }
+      throw new BadRequestException("INVALID_TEAM_ACTION");
+    });
+  }
+
+  @Get("commerce/demo/workspaces")
+  async commerceDemoWorkspaces(@Headers("authorization") auth:string|undefined){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      const r=await c.query<{items:Record<string,unknown>[]}>("SELECT tto.my_commerce_demo_workspace_details() AS items");
+      return {items:r.rows[0]?.items??[]};
+    });
+  }
+  @Post("commerce/demo/credentials")
+  @HttpCode(200)
+  async setupCommerceDemoCredentials(@Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    const slug=input.slug,username=input.username,password=input.password;
+    if(typeof slug!=="string"||typeof username!=="string"||typeof password!=="string"||
+      !/^[a-z][a-z0-9._-]{4,63}$/.test(username)||password.length<14||password.length>128||
+      !/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))throw new BadRequestException("INVALID_CREDENTIALS");
+    const actor=await this.db.sessionActor(auth);
+    const salt=randomBytes(16);
+    const hash="scrypt$v1$"+salt.toString("hex")+"$"+
+      scryptSync(password,salt,64,{N:16384,r:8,p:1,maxmem:64*1024*1024}).toString("hex");
+    return this.db.withActor(actor,async c=>{
+      const r=await c.query<{data:Record<string,unknown>}>(
+        "SELECT tto.set_commerce_demo_credentials($1,$2,$3,$4) AS data",
+        [slug,username,hash,this.db.sessionDigest(auth)]);
+      return r.rows[0]?.data;
+    });
+  }
+  @Post("commerce/demo/password-login")
+  @HttpCode(200)
+  async loginCommerceDemo(@Body() input:Record<string,unknown>,@Req() req:{ip?:string}){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    const username=input.username,password=input.password,slug=input.slug;
+    if(typeof username!=="string"||typeof password!=="string"||
+       !/^[a-z][a-z0-9._-]{4,63}$/.test(username)||password.length>128||
+       (slug!==undefined&&(typeof slug!=="string"||!(/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)))))
+      throw new BadRequestException("INVALID_CREDENTIALS");
+    const secret=process.env.TTO_NATIONAL_ROOT_ATTEMPT_SECRET;
+    if(!secret||Buffer.byteLength(secret)<32)throw new ServiceUnavailableException("LOGIN_ABUSE_GUARD_UNAVAILABLE");
+    const key=(v:string)=>createHmac("sha256",secret).update("commerce:"+v).digest();
+    if(typeof req.ip!=="string"||req.ip.length<3||req.ip.length>64)throw new ServiceUnavailableException("LOGIN_IP_REQUIRED");
+    if(!await this.db.reserveCommerceDemoLoginAttempt(key("user:"+username))||
+       !await this.db.reserveCommerceDemoLoginAttempt(key("ip:"+req.ip)))
+       throw new ForbiddenException("TOO_MANY_LOGIN_ATTEMPTS");
+    const row=await this.db.commerceDemoPasswordLookup(username);
+    const fakeSalt=Buffer.alloc(16,0x42);
+    const fake="scrypt$v1$"+fakeSalt.toString("hex")+"$"+
+      scryptSync("TTO_FAKE_NO_ACCOUNT",fakeSalt,64,{N:16384,r:8,p:1,maxmem:64*1024*1024}).toString("hex");
+    const valid=verifyNationalPassword(password,row?.password_scrypt??fake);
+    if(!valid||!row||(slug&&row.slug!==slug))throw new UnauthorizedException("INVALID_CREDENTIALS");
+    const token=randomBytes(48).toString("base64url");
+    if(!await this.db.issueCommerceDemoPasswordSession(row.user_id,createHash("sha256").update(token).digest()))
+      throw new ServiceUnavailableException("SESSION_UNAVAILABLE");
+    return {accessToken:token,slug:row.slug,authenticated:true,commercialOnly:true};
+  }
+  @Post("commerce/demo/notify")
+  @HttpCode(200)
+  async notifyCommerceDemo(@Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    const orderId=input.orderId;
+    if(typeof orderId!=="string"||!(/^[0-9a-f-]{36}$/i.test(orderId)))
+      throw new BadRequestException("INVALID_ORDER");
+    const actor=await this.db.sessionActor(auth);
+    const info=await this.db.withActor(actor,async c=>{
+      const r=await c.query<{mobile:string;username:string;slug:string}>(
+        "SELECT * FROM tto.commerce_demo_sms_payload($1::uuid)",[orderId]);
+      return r.rows[0]??null;
+    });
+    if(!info)return {smsStatus:"NOT_QUEUED"};
+    if(process.env.TTO_ENABLE_REAL_SMSOTP_DELIVERY!=="true"||
+       process.env.TTO_ENABLE_COMMERCE_SMS!=="true"||
+       !process.env.APIIR_TOKEN)return {smsStatus:"QUEUED",smsSent:false};
+    const message="TTO: فضای اختصاصی شما آماده است. نام کاربری: "+info.username+
+      " | ورود: https://"+info.slug+".ttoir.ir/login | رمز را با پیامک یک‌بارمصرف تعیین کنید.";
+    let accepted=false;
+    try{
+      const r=await fetch("https://s.api.ir/api/sw1/SendSms",{
+       method:"POST",redirect:"error",headers:{"Content-Type":"application/json","Authorization":"Bearer "+process.env.APIIR_TOKEN},
+       body:JSON.stringify({message,mobiles:[info.mobile]}),signal:AbortSignal.timeout(8000)});
+      if(r.ok){const x=await r.json() as {success?:boolean};accepted=x.success===true;}
+    }catch{}
+    await this.db.withActor(actor,async c=>{await c.query("SELECT tto.commerce_demo_sms_result($1::uuid,$2)",[orderId,accepted]);});
+    return {smsStatus:accepted?"ACCEPTED":"FAILED",smsSent:accepted};
+  }
+
+  @Get("commerce/demo/plans")
+  async demoCommercePlans(){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    const plans=await this.db.demoCommercePlans();
+    return {plans,realPaymentEnabled:false};
+  }
+
+  @Post("commerce/demo/confirm")
+  @HttpCode(201)
+  async confirmDemoCommerce(@Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
+      throw new ServiceUnavailableException("DEMO_ONLY");
+    // Customer chooses cooperative name and optionally an unused vanity subdomain.
+    // No slug supplied means random server generation; verified OTP session is required.
+    if(!input||typeof input!=="object"||Array.isArray(input)||
+       Object.keys(input).some(key=>!["name","planCode","slug"].includes(key))||
+       typeof input.name!=="string"||typeof input.planCode!=="string"||
+       input.name.trim().length<5||input.name.length>180||
+       !/^demo-[a-z-]{2,30}$/.test(input.planCode))
+      throw new BadRequestException("INVALID_DEMO_ORDER");
+    const reserved=new Set(["www","api","admin","national","shareholder","mail","smtp","ftp","app","auth","login","support","help","docs","cdn","assets","static","dev","staging","preview","test","stage","portal","dashboard","billing","shop","checkout","order","payment","payments","tto","root","site","system","demo","manager","new"]);
+    if(input.slug!==undefined&&(typeof input.slug!=="string"||
+      !/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(input.slug)||reserved.has(input.slug)))
+      throw new BadRequestException("INVALID_WORKSPACE_SLUG");
+    const name=input.name.trim().replace(/\s+/g," ");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      // Never trust or request a mobile number from the browser: resolve
+      // ownership from the same server-attested actor as the OTP session.
+      // Session-hash proof only: the unprivileged API never SELECTs identity tables.
+      const proof=this.db.sessionDigest(auth);
+      const mobiles=await c.query<{mobile:string|null}>(
+        "SELECT tto.commerce_demo_verified_mobile_from_session($1) AS mobile",
+        [proof]
+      );
+      const mobile=mobiles.rows[0]?.mobile;
+      if(!mobile)throw new ForbiddenException("VERIFIED_MOBILE_REQUIRED");
+      const slug=typeof input.slug==="string"?input.slug:generateDemoWorkspaceSlug(name);
+      // submitted_amount_irr=1 is a nonfinancial schema placeholder ONLY.
+      // No client-supplied price or payment assertion is accepted.
+      const result=await c.query<{result:Record<string,unknown>}>(
+        "SELECT tto.confirm_commerce_demo_order($1,$2,$3,$4::bigint,$5) AS result",
+        [slug,name,input.planCode,1,mobile]
+      ).catch(e=>{if((e as {code?:string}).code==="23505")
+        throw new ConflictException(typeof input.slug==="string"?"WORKSPACE_ADDRESS_TAKEN":"RANDOM_SLUG_COLLISION_RETRY");
+        throw e});
+      return result.rows[0]?.result;
+    });
+  }
+
+  @Get("commerce/demo/my-subscriptions")
+  async myDemoSubscriptions(@Headers("authorization") auth:string|undefined){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      const r=await c.query<{items:Record<string,unknown>[]}>(
+        "SELECT tto.my_commerce_demo_subscriptions() AS items");
+      return {items:r.rows[0]?.items??[],realPaymentEnabled:false};
+    });
+  }
+
+  @Get("national/geo/provinces-counties")
+  async nationalGeography(@Headers("authorization") auth:string|undefined){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ISOLATED_DEMO_DATABASE_REQUIRED");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const permission=await client.query<{allowed:boolean}>("SELECT tto.has_national_root() AS allowed");
+      if(permission.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const provinces=await client.query<{code:string;name:string}>(
+        'SELECT province_code AS "code",name FROM tto.geo_provinces ORDER BY name');
+      const counties=await client.query<{id:string;provinceCode:string;name:string;provenance:string}>(
+        'SELECT county_id AS "id",province_code AS "provinceCode",name,provenance FROM tto.geo_counties ORDER BY name');
+      return {sourceYear:"1404",provinces:provinces.rows,counties:counties.rows};
+    });
+  }
+
+  @Post("national/geo/counties")
+  @HttpCode(201)
+  async addNationalCounty(@Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ISOLATED_DEMO_DATABASE_REQUIRED");
+    const provinceCode=input?.provinceCode;
+    const rawName=input?.name;
+    if(typeof provinceCode!=="string"||!/^[0-9]{2}$/.test(provinceCode)||
+       typeof rawName!=="string")throw new BadRequestException("INVALID_COUNTY");
+    const name=rawName.trim().replace(/ي/g,"ی").replace(/ك/g,"ک").replace(/\s+/g," ");
+    if(name.length<2||name.length>100||!/^[آ-ی\u200c\s-]+$/.test(name))
+      throw new BadRequestException("INVALID_COUNTY");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const permission=await client.query<{allowed:boolean}>("SELECT tto.has_national_root() AS allowed");
+      if(permission.rows[0]?.allowed!==true)throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const result=await client.query<{id:string;provinceCode:string;name:string;provenance:string}>(
+        'INSERT INTO tto.geo_counties(province_code,name,provenance,created_by) VALUES ($1,$2,\'NATIONAL_ADMIN_UNVERIFIED\',$3) RETURNING county_id AS "id",province_code AS "provinceCode",name,provenance',
+        [provinceCode,name,actor]
+      ).catch(e=>{if((e as {code?:string}).code==="23505")throw new ConflictException("COUNTY_EXISTS");throw e});
+      return result.rows[0];
+    });
+  }
+
+  @Get("national/cooperative-registry")
+  async nationalCooperativeRegistry(@Headers("authorization") auth:string|undefined){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")
+      throw new ServiceUnavailableException("ISOLATED_DEMO_DATABASE_REQUIRED");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async client=>{
+      const permission=await client.query<{allowed:boolean}>(
+        "SELECT tto.has_national_root() AS allowed"
+      );
+      if(permission.rows[0]?.allowed!==true)
+        throw new ForbiddenException("NATIONAL_ROOT_REQUIRED");
+      const result=await client.query<{
+        workspaceId:string;slug:string;state:string;createdAt:string
+      }>(
+        'SELECT workspace_id AS "workspaceId",slug,state,created_at AS "createdAt" '+
+        "FROM tto.cooperative_workspace_addresses WHERE state='RESERVED' "+
+        "ORDER BY created_at DESC,workspace_id DESC LIMIT 201"
+      );
+      return {items:result.rows.slice(0,200),truncated:result.rows.length>200,
+        source:"RESERVED_WORKSPACES",containsActivatedTenants:false};
     });
   }
 
@@ -979,6 +1362,9 @@ export class FoundationCommandsController {
       throw new ServiceUnavailableException("NATIONAL_LOGIN_UNAVAILABLE");
     const username=input?.username;
     const password=input?.password;
+    const rememberDevice=input?.rememberDevice===true;
+    if(input?.rememberDevice!==undefined && typeof input.rememberDevice!=="boolean")
+      throw new BadRequestException("INVALID_REMEMBER_DEVICE");
     if(typeof username!=="string" || username.length>64 ||
        typeof password!=="string" || password.length>128)
       throw new BadRequestException("INVALID_CREDENTIAL_REQUEST");
@@ -1007,10 +1393,12 @@ export class FoundationCommandsController {
       throw new UnauthorizedException("INVALID_CREDENTIALS");
     const token=randomBytes(48).toString("base64url");
     const tokenHash=createHash("sha256").update(token).digest();
-    const created=await this.db.issueNationalRootSession(tokenHash,state.credentials_version);
+    const persistent=rememberDevice && state.must_change_credentials===false &&
+      typeof state.password_scrypt==="string";
+    const created=await this.db.issueNationalRootSession(tokenHash,state.credentials_version,persistent);
     if(!created)throw new ServiceUnavailableException("NATIONAL_LOGIN_RETRY_REQUIRED");
     return {accessToken:token,tokenType:"Bearer",nationalRoot:true,
-      mustChangeCredentials:state.must_change_credentials};
+      mustChangeCredentials:state.must_change_credentials,sessionMaxAgeSeconds:persistent?604800:900};
   }
 
   @Get("national/root/session")
@@ -1099,14 +1487,16 @@ export class FoundationCommandsController {
     if(!allowed)return {requestId,status:"ACCEPTED"};
     const code=synthetic?"111222":String(randomInt(100000,1000000));
     const hash=createHmac("sha256",pepper).update(requestId+":"+code).digest();
+    const otpStartedAt=Date.now();
     const created=await this.db.beginMobileRegistration(mobile,requestId,hash);
     if(created){
       let sent=false;
       try{sent=await this.sms.send(mobile,code)}catch{sent=false}
       await this.db.attestSmsDelivery(requestId,sent);
     }
-    // Do not reveal whether this mobile already exists or is throttled.
-    return {requestId,status:"ACCEPTED"};
+    // Generic response prevents user enumeration. Count from issuance, not page reload.
+    return {requestId,status:"ACCEPTED",expiresInSeconds:created?
+       Math.max(0,Math.ceil((otpStartedAt+60000-Date.now())/1000)):60};
   }
 
   @Post("auth/registration/verify")
@@ -1169,6 +1559,7 @@ export class FoundationCommandsController {
     }
     const code=fake ? "111222" : String(randomInt(100000,1000000));
     const digest=createHmac("sha256",pepper).update(requestId+":"+code).digest();
+    const otpStartedAt=Date.now();
     const created=await this.db.prepareSmsLogin(mobile,requestId,digest);
     if(created){
       let accepted=false;
@@ -1177,7 +1568,8 @@ export class FoundationCommandsController {
       // Generic response, no account enumeration, no OTP or provider body leaks.
       if(!updated) throw new ServiceUnavailableException("Authentication delivery failed");
     }
-    return {requestId,status:"ACCEPTED"};
+    return {requestId,status:"ACCEPTED",expiresInSeconds:created?
+      Math.max(0,Math.ceil((otpStartedAt+60000-Date.now())/1000)):60};
   }
   @Post("auth/challenges/verify")
   @HttpCode(200)
@@ -1195,6 +1587,12 @@ export class FoundationCommandsController {
     const digest=createHash("sha256").update(token).digest();
     const accepted=await this.db.consumeChallenge(id,hashedCandidate,digest);
     if(!accepted)throw new UnauthorizedException("Challenge invalid or expired");
+    // A fresh, successfully consumed OTP is the only source of credential-setup proof.
+    // Do not expose an endpoint that lets an existing password session assert OTP.
+    const otpActor=await this.db.sessionActor("Bearer "+token);
+    await this.db.withActor(otpActor,async c=>{
+      await c.query("SELECT tto.mark_commerce_demo_otp_proof($1)",[digest]);
+    });
     return {accessToken:token,tokenType:"Bearer"};
   }
   @Post("auth/step-up/request")

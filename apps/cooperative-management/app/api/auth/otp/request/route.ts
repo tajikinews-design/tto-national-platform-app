@@ -18,8 +18,12 @@ export async function POST(request:NextRequest){
     body,cache:"no-store",redirect:"error",signal:AbortSignal.timeout(9500)
   });
   if(!response.ok)return NextResponse.json({error:"REQUEST_UNAVAILABLE"},{status:response.status>=500?503:400});
-  const data=await response.json() as {requestId?:unknown};
+  const data=await response.json() as {requestId?:unknown;expiresInSeconds?:unknown};
   if(typeof data.requestId!=="string")return NextResponse.json({error:"INVALID_RESPONSE"},{status:502});
-  return NextResponse.json({requestId:data.requestId,status:"ACCEPTED"},{headers:{"Cache-Control":"no-store"}});
+  const expiresInSeconds=Number.isInteger(data.expiresInSeconds)&&
+   Number(data.expiresInSeconds)>=0&&Number(data.expiresInSeconds)<=60?
+   Number(data.expiresInSeconds):60;
+  return NextResponse.json({requestId:data.requestId,status:"ACCEPTED",expiresInSeconds},
+    {headers:{"Cache-Control":"no-store"}});
  }catch{return NextResponse.json({error:"BACKEND_UNAVAILABLE"},{status:503});}
 }

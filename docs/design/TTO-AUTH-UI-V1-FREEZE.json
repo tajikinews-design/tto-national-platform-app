@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "freezeId": "TTO-AUTH-UI-V1",
+  "approvedBy": "product owner (user approval in ChatGPT, 2026-11-09)",
+  "approvedDate": "2026-11-09",
+  "approvedCommit": "51171ab034e29c31d52026fc39380fb4a636fad7",
+  "snapshotBranch": "freeze/tto-auth-ui-v1-approved-20261109",
+  "enforcement": "fail-closed Git blob SHA1 checks; owner-authorized OTP navigation amendment recorded; immutable visual baseline retained separately",
+  "scope": "visual login/register/commerce-order components for national, cooperative and shareholder preview only; excludes backend authorization, payment, DNS and production",
+  "files": {
+    "packages/ui/src/auth-frame.tsx": "09797f21541eb965debd94544614dbc02f4b7e1b",
+    "packages/ui/src/styles.css": "194e3f815011550d1d34fd8e7d938c8021650f50",
+    "packages/ui/src/portal-password-login.tsx": "bfc7cd03859a512ff0ff16b096781520e26c80ec",
+    "packages/ui/src/otp-login.tsx": "9a482c8e9c514fd735c44e32dca6c09f14507a27",
+    "apps/national-admin/app/national-root-login.tsx": "ea3e1d42c4a77db23e0fc12a96cdae3288ebe815",
+    "apps/national-admin/app/login/page.tsx": "a5e448a844350d3d427ca95e15c06c27948240be",
+    "apps/cooperative-management/app/login/page.tsx": "fa38ab48bd58aceaaf0d3c5d755ff1965089ac11",
+    "apps/shareholder/app/login/page.tsx": "f54288c9f52c2c1fc1d33f4ae692f59e67a41432",
+    "apps/cooperative-management/app/customer-register/page.tsx": "2f65d6c4d0c2fc69edf35251c9a2e8fd3c90ad5b",
+    "apps/cooperative-management/app/subscribe/page.tsx": "a03c4958ced685f56bf313b0b696c7a5771be793"
+  },
+  "previewDeployments": {
+    "national": "dpl_523hDfjvo8axRZM4VDKYbTwZ5gpL",
+    "cooperative": "dpl_Bh1HD8tgpTBsv85hLqtbGBe2VYTS",
+    "shareholder": "dpl_2QPgHX8TKZAxfq2AoLhNfWkFwhiH"
+  },
+  "ciVerifiedAtApproval": {
+    "preview": "42583354550",
+    "security": "42583354374"
+  },
+  "governance": {
+    "status": "UI_GREEN_APPROVED_FROZEN",
+    "releaseStatus": "PRODUCTION_HOLD",
+    "changePolicy": "no changes to pinned files absent explicit owner approval, a reviewed new freeze manifest revision, and fresh security/build CI",
+    "verification": "git blob SHA from exact approved source. file byte-for-byte comparison after every update."
+  },
+  "workflowAmendment": {
+    "id": "TTO-AUTH-UI-V1-WORKFLOW-01",
+    "date": "2026-11-09",
+    "authorizedBy": "product owner, explicit instruction to operationalize OTP -> first credential setup -> dashboard",
+    "baselineFingerprint": "18e9ecacc57f62138269ccd48d83e1d6016fe482",
+    "currentFingerprint": "9a482c8e9c514fd735c44e32dca6c09f14507a27",
+    "change": "OTP verified cooperative sign-in automatically navigates to a protected same-origin workspace entry; no change to rendered text, fields, styling or national/shareholder authorization",
+    "approvalScope": "behavioral navigation only; UI visual baseline remains original approved TTO-AUTH-UI-V1",
+    "ciRequirement": "full PH12 UI + adaptive security CI must pass; old approved snapshot remains immutable"
+  },
+  "checkoutAmendment": {
+    "id": "TTO-CHECKOUT-DEMO-V2",
+    "date": "2026-11-09",
+    "authorizedBy": "product owner explicitly requested fixing broken demo order and letting customer enter the name, not a preset slug",
+    "originalFingerprint": "ce959ff23bbf4c5bd8b9f3e87b3a20b2d756a54a",
+    "currentFingerprint": "37319cb62ee5c9ee941c64660a501f61238b5dd5",
+    "scope": "Only cooperative demo workspace creation form; same RTL AuthFrame, colors and compact layout. OTP, national and shareholder login frozen files unchanged.",
+    "rules": [
+      "Customer enters cooperative name and selects demo plan",
+      "No slug, mobile, or amount input",
+      "Backend derives verified mobile from session; creates DNS-safe random slug",
+      "No real payment or legal manager role",
+      "Re-run PH12 build, protected runtime and adaptive security CI"
+    ],
+    "deployment": "PREVIEW ONLY; main, Production, DNS unchanged"
+  },
+  "checkoutCustomAddressAmendment": {
+    "id": "TTO-CHECKOUT-DEMO-V3",
+    "date": "2026-11-09",
+    "authorizedBy": "product owner requested customer-selected subdomain field after OTP",
+    "previousCheckoutFingerprint": "37319cb62ee5c9ee941c64660a501f61238b5dd5",
+    "currentFingerprint": "9f9da0eb45fdbad878abfc573cbc13f7d2de6a8c",
+    "scope": "Preview-only cooperative checkout UI and BFF/backend contract; no other portal login design changes",
+    "rules": [
+      "Cooperative name and optional custom subdomain are independent",
+      "When blank, server generates a safe random slug",
+      "BFF and backend validate reserved names; database UNIQUE constraint arbitrates atomic claims",
+      "Existing slug returns HTTP 409 without silently changing chosen name",
+      "Verified mobile comes only from server-side OTP session",
+      "No real payment or manager role granted"
+    ],
+    "verificationStatus": "CI_PENDING",
+    "deployment": "PREVIEW_BRANCH_ONLY; production and main stay unchanged"
+  },
+  "checkoutDirectEntryAmendment": {
+    "id": "TTO-CHECKOUT-DIRECT-ENTRY-V4",
+    "date": "2026-11-09",
+    "authorizedBy": "Product owner requests direct management dashboard after workspace provision",
+    "scope": "cooperative preview only; login UI baseline retained",
+    "rules": [
+      "Successful checkout navigates on same origin to /c/{slug}; no result/owner detour",
+      "Owner sees approved management dashboard in isolated preview; no legal manager privileges",
+      "Initial credential setup inside same dashboard",
+      "Production, real shares and real payments remain HOLD"
+    ]
+  }
+}

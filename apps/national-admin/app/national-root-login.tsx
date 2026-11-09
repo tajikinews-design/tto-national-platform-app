@@ -1,11 +1,10 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
 type Phase="checking"|"login"|"change"|"ready"|"unavailable";
-const field={display:"block",padding:12,width:"100%",boxSizing:"border-box" as const,border:"1px solid #9bb6cb",borderRadius:8,fontSize:17};
-const button={marginTop:16,padding:"12px 25px",background:"#075b88",border:0,borderRadius:9,color:"#fff",fontWeight:700,cursor:"pointer"};
 export default function NationalRootLogin(){
  const [username,setUsername]=useState("");
  const [password,setPassword]=useState("");
+ const [rememberDevice,setRememberDevice]=useState(true);
  const [phase,setPhase]=useState<Phase>("checking");
  const [busy,setBusy]=useState(false);
  const [notice,setNotice]=useState("");
@@ -13,14 +12,17 @@ export default function NationalRootLogin(){
  const [nextUsername,setNextUsername]=useState("");
  const [nextPassword,setNextPassword]=useState("");
  const [confirmPassword,setConfirmPassword]=useState("");
- async function verifySession(){
+ async function verifySession(redirectOnSuccess=false){
   try{
    const response=await fetch("/api/auth/session",{credentials:"same-origin",cache:"no-store"});
    if(!response.ok)throw Error("UNAVAILABLE");
    const x=await response.json() as {authenticated?:unknown;nationalRoot?:unknown;mustChangeCredentials?:unknown};
    if(x.authenticated===true&&x.nationalRoot===true){
     if(x.mustChangeCredentials===true)setPhase("change");
-    else if(x.mustChangeCredentials===false)setPhase("ready");
+    else if(x.mustChangeCredentials===false){
+     if(redirectOnSuccess)window.location.replace("/");
+     else setPhase("ready");
+    }
     else setPhase("unavailable");
    }else setPhase("login");
   }catch{setPhase("unavailable")}
@@ -32,13 +34,13 @@ export default function NationalRootLogin(){
   try{
    const response=await fetch("/api/national-login",{
     method:"POST",credentials:"same-origin",cache:"no-store",
-    headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password})
+    headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password,rememberDevice})
    });
    if(response.status===429){setNotice("تعداد تلاش‌ها بیش از حد مجاز است؛ بعداً دوباره تلاش کنید.");return;}
    if(response.status===401){setNotice("نام کاربری یا رمز عبور معتبر نیست.");return;}
    if(response.status!==200){setNotice("سرویس ورود مدیر ملی در دسترس نیست.");return;}
    setPassword("");
-   await verifySession();
+   await verifySession(true);
   }catch{setNotice("ارتباط با سرویس ورود برقرار نشد.");}
   finally{setBusy(false);}
  }
@@ -80,45 +82,52 @@ export default function NationalRootLogin(){
   }catch{setNotice("خروج از حساب در سرور تأیید نشد.");}
   finally{setBusy(false);}
  }
- return <section dir="rtl" lang="fa" aria-label="ورود مدیر اصلی پلتفرم ملی"
-  style={{background:"#fff",borderRadius:14,border:"1px solid #c8d7e5",padding:24,maxWidth:570,margin:"22px auto",fontFamily:"Tahoma,Arial,sans-serif"}}>
-  <h2>ورود مدیر ملی</h2>
-  <p style={{lineHeight:2}}>ورود مدیر اصلی با نام کاربری و رمز عبور اختصاصی است؛ ورود مدیران تعاونی و سهامداران با پیامک انجام می‌شود.</p>
+ return <section className="tto-auth-controls" dir="rtl" lang="fa" aria-label="ورود مدیر اصلی پلتفرم ملی">
+  <div className="tto-auth-method-tabs" role="tablist" aria-label="روش‌های ورود مدیر ملی">
+   <button className="tto-auth-tab" type="button" role="tab" aria-selected="true">نام کاربری و رمز</button>
+   <button className="tto-auth-tab" type="button" role="tab" aria-selected="false" disabled title="OTP مدیر ملی هنوز به احراز هویت مستقل این نقش متصل نشده است">رمز یک‌بارمصرف</button>
+  </div>
+  <p className="tto-auth-muted-note">ورود مدیر ملی مستقل است. روش OTP فقط پس از تکمیل و تأیید کنترل‌های امنیتی این نقش فعال خواهد شد.</p>
   {phase==="checking"?<p role="status">در حال بررسی اعتبار نشست...</p>:
    phase==="unavailable"?<div><p role="alert">بررسی نشست ممکن نیست؛ هیچ عملیات مدیریتی فعال نیست.</p><button type="button" onClick={()=>void verifySession()}>تلاش مجدد</button></div>:
-   phase==="ready"?<div><p role="status">ورود مدیر ملی و تکمیل تعویض مشخصات تأیید شد.</p>
-    <a style={{display:"inline-block",padding:"12px 18px",color:"#fff",background:"#075b88",borderRadius:8,textDecoration:"none"}} href="/cooperatives/new">ایجاد نشانی اختصاصی تعاونی</a>
-    <a style={{display:"inline-block",padding:"12px 18px",color:"#075b88",background:"#e9f4fc",borderRadius:8,textDecoration:"none",margin:10,fontWeight:700}} href="/cooperatives/onboarding">تکمیل پرونده حقوقی نشانی‌های رزروشده</a>
-    <button type="button" onClick={()=>void logout()} disabled={busy} style={{margin:12,padding:10}}>خروج امن</button>
+   phase==="ready"?<div><p role="status">ورود مدیر ملی تأیید شده است. برای مشاهده ماژول‌ها وارد صفحه اصلی پلتفرم شوید.</p>
+    <a className="tto-auth-primary-link" href="/">ورود به صفحه اصلی پلتفرم</a>
+    <button type="button" onClick={()=>void logout()} disabled={busy} >خروج امن</button>
    </div>:
    phase==="change"?<div>
     <h3>تغییر اجباری اطلاعات ورود</h3>
     <p role="alert" style={{lineHeight:2,background:"#fff5dd",padding:12,borderRadius:9}}>این اولین ورود شماست. تا زمان تغییر هم‌زمان نام کاربری و رمز عبور، بخش‌های مدیریتی قفل هستند.</p>
     <form onSubmit={changeCredentials}>
-     <label htmlFor="national-current-password" style={{display:"block",margin:"14px 0 6px"}}>رمز عبور فعلی</label>
+     <label htmlFor="national-current-password" >رمز عبور فعلی</label>
      <input id="national-current-password" type="password" autoComplete="current-password" value={currentPassword}
-      onChange={e=>setCurrentPassword(e.target.value)} maxLength={128} required disabled={busy} style={field}/>
-     <label htmlFor="national-next-username" style={{display:"block",margin:"14px 0 6px"}}>نام کاربری جدید</label>
+      onChange={e=>setCurrentPassword(e.target.value)} maxLength={128} required disabled={busy} />
+     <label htmlFor="national-next-username" >نام کاربری جدید</label>
      <input id="national-next-username" dir="ltr" autoComplete="username" value={nextUsername}
-      onChange={e=>setNextUsername(e.target.value)} minLength={5} maxLength={64} required disabled={busy} style={field}/>
-     <label htmlFor="national-next-password" style={{display:"block",margin:"14px 0 6px"}}>رمز عبور جدید (حداقل ۱۴ کاراکتر)</label>
+      onChange={e=>setNextUsername(e.target.value)} minLength={5} maxLength={64} required disabled={busy} />
+     <label htmlFor="national-next-password" >رمز عبور جدید (حداقل ۱۴ کاراکتر)</label>
      <input id="national-next-password" type="password" autoComplete="new-password" value={nextPassword}
-      onChange={e=>setNextPassword(e.target.value)} minLength={14} maxLength={128} required disabled={busy} style={field}/>
-     <label htmlFor="national-confirm-password" style={{display:"block",margin:"14px 0 6px"}}>تکرار رمز عبور جدید</label>
+      onChange={e=>setNextPassword(e.target.value)} minLength={14} maxLength={128} required disabled={busy} />
+     <label htmlFor="national-confirm-password" >تکرار رمز عبور جدید</label>
      <input id="national-confirm-password" type="password" autoComplete="new-password" value={confirmPassword}
-      onChange={e=>setConfirmPassword(e.target.value)} minLength={14} maxLength={128} required disabled={busy} style={field}/>
-     <button type="submit" disabled={busy} style={button}>{busy?"در حال ثبت امن…":"ثبت نام کاربری و رمز جدید"}</button>
+      onChange={e=>setConfirmPassword(e.target.value)} minLength={14} maxLength={128} required disabled={busy} />
+     <button type="submit" disabled={busy} >{busy?"در حال ثبت امن…":"ثبت نام کاربری و رمز جدید"}</button>
     </form>
    </div>:
    <form onSubmit={login}>
-    <label htmlFor="national-username" style={{display:"block",margin:"14px 0 6px"}}>نام کاربری مدیر اصلی</label>
+    <label htmlFor="national-username" >نام کاربری مدیر اصلی</label>
     <input id="national-username" dir="ltr" autoComplete="username" type="text" value={username}
-     onChange={e=>setUsername(e.target.value)} minLength={2} maxLength={64} required disabled={busy} style={field}/>
-    <label htmlFor="national-password" style={{display:"block",margin:"16px 0 6px"}}>رمز عبور</label>
+     onChange={e=>setUsername(e.target.value)} minLength={2} maxLength={64} required disabled={busy} />
+    <label htmlFor="national-password" >رمز عبور</label>
     <input id="national-password" dir="ltr" type="password" autoComplete="current-password" value={password}
-     onChange={e=>setPassword(e.target.value)} minLength={1} maxLength={128} required disabled={busy} style={field}/>
-    <button type="submit" disabled={busy} style={button}>{busy?"در حال بررسی…":"ورود به پنل ملی"}</button>
+     onChange={e=>setPassword(e.target.value)} minLength={1} maxLength={128} required disabled={busy} />
+    <label className="tto-auth-remember">
+     <input type="checkbox" checked={rememberDevice} disabled={busy}
+      onChange={e=>setRememberDevice(e.target.checked)} aria-label="مرا در این مرورگر به خاطر بسپار"/>
+     مرا در این مرورگر به خاطر بسپار (تا ۷ روز)
+    </label>
+    <p className="tto-auth-muted-note">در دستگاه شخصی ورود تا ۷ روز حفظ می‌شود؛ خروج، تغییر رمز یا پایان اعتبار آن را باطل می‌کند.</p>
+    <button type="submit" disabled={busy} >{busy?"در حال بررسی…":"ورود به پنل ملی"}</button>
    </form>}
-  {notice?<p role="status" style={{lineHeight:2,color:"#7d341a"}}>{notice}</p>:null}
+  {notice?<p role="status" className="tto-login-error">{notice}</p>:null}
  </section>;
 }

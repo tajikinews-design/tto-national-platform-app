@@ -32,7 +32,9 @@ class ShareholderReviewOnlyContract(unittest.TestCase):
   self.assertIn('NAV_IDS = Array.from({ length: 11 }',NAV)
   self.assertIn('import {shareholderNavigation} from "./shareholder-navigation"',NAV)
   self.assertIn('export const shareholderNavigation = [',NAV_LABELS)
-  self.assertIn('href="/review"',HOME)
+  DESIGN=(APP/"design-review/page.tsx").read_text(encoding="utf-8")
+  self.assertIn('href="/review"',DESIGN)
+  self.assertIn('PortalSessionGate surface="shareholder"',HOME)
 
  def test_all_sections_contain_described_features_and_governance(self):
   self.assertEqual(UI.count('intro:"'),11)

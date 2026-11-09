@@ -15,17 +15,35 @@ export class ApiIrSmsOtpProvider {
     if(!token || token.length<12) throw new ServiceUnavailableException("SMS provider not configured");
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),8000);
+    const startedAt=Date.now();
+    let outcome:"ACCEPTED"|"PROVIDER_REJECTED"|"HTTP_4XX"|"HTTP_5XX"|
+      "HTTP_OTHER"|"TIMEOUT"|"TRANSPORT_OR_FORMAT_ERROR"="TRANSPORT_OR_FORMAT_ERROR";
     try {
       const response=await fetch("https://s.api.ir/api/sw1/SmsOTP",{
         method:"POST",redirect:"error",signal:controller.signal,
         headers:{"Content-Type":"application/json","Accept":"application/json","Authorization":"Bearer "+token},
         body:JSON.stringify({code,mobile,template:1})
       });
-      if(!response.ok) return false;
+      if(!response.ok){
+        outcome=response.status>=500?"HTTP_5XX":response.status>=400?"HTTP_4XX":"HTTP_OTHER";
+        return false;
+      }
       const json=await response.json() as {success?:boolean;data?:boolean};
-      // Provider accepted the request; this is NOT proof the SMS reached the handset.
-      return json?.success===true && json?.data===true;
-    }catch{return false;}
-    finally{clearTimeout(timer);}
+      // The provider response confirms acceptance only, not handset delivery.
+      const accepted=json?.success===true && json?.data===true;
+      outcome=accepted?"ACCEPTED":"PROVIDER_REJECTED";
+      return accepted;
+    }catch{
+      outcome=controller.signal.aborted?"TIMEOUT":"TRANSPORT_OR_FORMAT_ERROR";
+      return false;
+    }finally{
+      clearTimeout(timer);
+      // Privacy-safe, structured diagnostics: no mobile, OTP, token, request id,
+      // provider response body or user identity is ever written to runtime logs.
+      // Used to distinguish API.ir slowness/timeouts from the later SMS operator hop.
+      console.info("TTO_SMSOTP_PROVIDER_METRIC",JSON.stringify({
+        outcome,elapsedMs:Math.max(0,Date.now()-startedAt)
+      }));
+    }
   }
 }

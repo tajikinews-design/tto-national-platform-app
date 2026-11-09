@@ -13,7 +13,7 @@ class ThreePortalBoundary(unittest.TestCase):
         self.assertIn("NAV_IDS = Array.from({ length: 11 }",shell)
         self.assertIn('parsePortalModuleId',shell)
         self.assertIn('href="#main-content"',shell)
-        self.assertIn('aria-current={selection === i ? "page" : undefined}',shell)
+        self.assertIn('aria-current={i===selection?"page":undefined}',shell)
         for app,surface in SURFACES.items():
             mod=(APPS/app/"app/modules/[id]/page.tsx").read_text(encoding="utf-8")
             self.assertIn("parsePortalModuleId(id)",mod)
@@ -32,8 +32,10 @@ class ThreePortalBoundary(unittest.TestCase):
             if app == "national-admin":
                 # The national root uses a separately verified credential flow.
                 # Preserve independent server validation, forced rotation, and OTP deny.
-                self.assertIn("import NationalRootLogin",home)
-                self.assertIn("<NationalRootLogin/>",home)
+                self.assertIn('PortalSessionGate surface="national"',home)
+                national_login=(APPS/app/"app/login/page.tsx").read_text(encoding="utf-8")
+                self.assertIn("import NationalRootLogin",national_login)
+                self.assertIn("<NationalRootLogin/>",national_login)
                 self.assertNotIn('OtpLogin surface="national"',home)
                 # Module JIT reviews are session/tenant-gated, never SMS OTP.
                 modules=(APPS/app/"app/modules/[id]/page.tsx").read_text(encoding="utf-8")
@@ -56,7 +58,11 @@ class ThreePortalBoundary(unittest.TestCase):
                     self.assertIn('NATIONAL_ROOT_CREDENTIALS_ONLY',otp_bff)
                     self.assertIn("status:403",otp_bff)
             else:
-                self.assertIn('OtpLogin surface="'+surface+'"',home)
+                self.assertIn('PortalSessionGate surface="'+surface+'"',home)
+                login_page=(APPS/app/"app/login/page.tsx").read_text(encoding="utf-8")
+                self.assertIn('PortalPasswordLogin surface="'+surface+'"',login_page)
+                for endpoint in ("login","session"):
+                    self.assertTrue((APPS/app/f"app/api/auth/password/{endpoint}/route.ts").is_file())
             bff=(APPS/app/"app/api/auth/session/route.ts").read_text(encoding="utf-8")
             self.assertIn('request.cookies.get("tto_session")',bff)
             self.assertIn("httpOnly:true",bff)
@@ -76,20 +82,25 @@ class ThreePortalBoundary(unittest.TestCase):
         self.assertIn('current.evidenceStatus!=="JIT_DOCUMENT_REVIEW_ONLY"',picker)
         self.assertIn('محدوده بررسی شد؛ عملیات ماژول فعال نیست',picker)
         mod=(APPS/"cooperative-management"/"app/modules/[id]/page.tsx").read_text(encoding="utf-8")
-        self.assertIn('initialManagementModuleId={moduleId}',mod)
-        self.assertIn('OtpLogin',mod)
+        self.assertIn('PortalSessionGate surface="cooperative"',mod)
+        self.assertIn('<TenantScopePicker surface="cooperative" moduleId={moduleId}/>',mod)
+        self.assertNotIn('OtpLogin',mod)
         self.assertNotIn('PortalModulePreview',mod)
         national=(APPS/"national-admin"/"app/modules/[id]/page.tsx").read_text(encoding="utf-8")
         self.assertIn('<TenantScopePicker surface="national" moduleId={moduleId}/>',national)
         self.assertNotIn('OtpLogin',national)
         self.assertNotIn('PortalModulePreview',national)
+        shareholder=(APPS/"shareholder"/"app/modules/[id]/page.tsx").read_text(encoding="utf-8")
+        self.assertIn('PortalSessionGate surface="shareholder"',shareholder)
+        self.assertIn('ShareholderWorkspace',shareholder)
+        self.assertNotIn('OtpLogin',shareholder)
 
     def test_accessibility_keyboard_rtl_and_readable_action_controls(self):
         css=(UI/"styles.css").read_text(encoding="utf-8")
         shell=(UI/"index.tsx").read_text(encoding="utf-8")
         self.assertIn('className="skip-to-content"',shell)
         self.assertIn('id="main-content"',shell)
-        self.assertIn('aria-label={"منوی اصلی "+cfg.title}',shell)
+        self.assertIn('aria-label={"منوی "+cfg.title}',shell)
         for rule in (".skip-to-content:focus",".tenant-picker button:disabled",
                      ".tenant-picker :is(select,button):focus-visible","@media (max-width:780px)"):
             self.assertIn(rule,css)
@@ -105,7 +116,7 @@ class ThreePortalBoundary(unittest.TestCase):
             self.assertNotIn("fetch(",mod)
             self.assertNotIn("shareQuantity:",mod)
             self.assertNotIn("walletBalance",mod)
-            self.assertIn("فعال می‌شوند",mod)
+            self.assertIn("PortalSessionGate",mod)
         scope=(UI/"tenant-scope-picker.tsx").read_text(encoding="utf-8")
         self.assertIn('credentials:"same-origin",cache:"no-store"',scope)
 

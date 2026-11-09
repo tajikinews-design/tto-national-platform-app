@@ -85,7 +85,9 @@ class Phase10SourceAudit(unittest.TestCase):
     self.assertIn('TenantScopePicker surface="national"',page)
     self.assertNotIn("OtpLogin",page)
    else:
-    self.assertIn("OtpLogin",page)
+    self.assertIn('PortalSessionGate surface="cooperative"',page)
+    self.assertNotIn("OtpLogin",page)
+    self.assertIn("TenantScopePicker",page)
  def test_emit_inspectable_census(self):
   ARTIFACT.mkdir(exist_ok=True)
   entries=current_cases()

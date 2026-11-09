@@ -23,59 +23,115 @@ for (let idx=0;idx<slugs.length;idx++){
   if(!ready)throw Error(slug+" not ready");
   // Keep actual security assertions OUTSIDE the network retry catch:
   // a malformed login UI must fail CI, never be silently swallowed.
-  if(slug==="national-admin"){
-   if(!homeHtml.includes("ورود مدیر ملی")||
-      !homeHtml.includes("ورود صرفاً با نام کاربری و رمز عبور اختصاصی")||
-      homeHtml.includes("ورود با رمز یک‌بارمصرف"))
-    throw Error("national root homepage must use dedicated credential gate, never OTP");
-  }else if(!homeHtml.includes("ورود با رمز یک‌بارمصرف")||
-           !homeHtml.includes("در این نسخه پیش‌نمایش")){
-   throw Error(slug+" OTP unavailable home gate missing");
-  }
+  // Replaced old homepage-OTP assumptions with three dedicated password-based sign-in routes.
+  // Anonymous homepage and module URLs render only a fail-closed session-check state.
+  if(!homeHtml.includes("در حال بررسی دسترسی") ||
+     homeHtml.includes("تعداد سهام: ") || homeHtml.includes("عضویت فعال — منبع تأییدشده"))
+    throw Error(slug+" unverified homepage did not fail closed");
   checks++;
-  // All ten module pages per portal mount only fail-closed public SSR without
-  // backend/session; authenticated owner information never renders anonymously.
-  const moduleCases=Array.from({length:10},(_,i)=>{
-   const nav="NAV-"+String(i+2).padStart(2,"0");
-   return ["/modules/"+nav.toLowerCase(),nav];
-  });
-  for(const [path,title] of moduleCases){
-   const response=await fetch("http://127.0.0.1:"+port+path);
-   if(response.status!==200)throw Error(slug+" module route "+path+" returned "+response.status);
+  const loginRes=await fetch("http://127.0.0.1:"+port+"/login");
+  if(loginRes.status!==200)throw Error(slug+" independent login page unavailable");
+  const loginHtml=await loginRes.text();
+  const expected=slug==="national-admin"?"ورود مدیر ملی":
+    slug==="cooperative-management"?"ورود مدیر تعاونی":"ورود سهامدار";
+  // Next SSR must show the shared role-specific authentication shell.
+  // Password sign-in for cooperative/shareholder is a client-selectable tab.
+  // Their default OTP panel intentionally starts with fail-closed session checking,
+  // so password inputs and OTP mobile fields are not both present in initial SSR.
+  const titleVerified=slug==="national-admin"?
+    loginHtml.includes("ورود مدیر ملی"):
+    loginHtml.includes("ورود")&&
+      loginHtml.includes(slug==="shareholder"?"سهامدار":"مدیر تعاونی");
+  const sharedFrame=loginHtml.includes('class="tto-auth-page"')&&
+    loginHtml.includes('class="tto-auth-layout"');
+  const correctMethod=slug==="national-admin"?
+    loginHtml.includes("در حال بررسی اعتبار نشست")&&
+    loginHtml.includes("OTP مدیر ملی هنوز")&&
+    loginHtml.includes('role="tablist"'):
+    loginHtml.includes('role="tablist"')&&
+    loginHtml.includes("رمز یک‌بارمصرف")&&
+    loginHtml.includes("نام کاربری و رمز")&&
+    loginHtml.includes("در حال بررسی نشست");
+  if(!titleVerified||!sharedFrame||!correctMethod)
+    throw Error(slug+" unified role-specific login is missing"+
+      " title="+titleVerified+" frame="+sharedFrame+" method="+correctMethod);
+  checks++;
+  const review=await fetch("http://127.0.0.1:"+port+"/design-review");
+  if(review.status!==200)throw Error(slug+" approved layout review unavailable");
+  const reviewHtml=await review.text();
+  if(!reviewHtml.includes("بازبینی فقط") || !reviewHtml.includes('aria-current="page"') ||
+     !reviewHtml.includes("داشبورد") || !reviewHtml.includes("داده واقعی"))
+    throw Error(slug+" approved 11-slot non-data visual review missing");
+  checks++;
+  const moduleCases=Array.from({length:10},(_,i)=>"/modules/nav-"+String(i+2).padStart(2,"0"));
+  for(const modulePath of moduleCases){
+   const response=await fetch("http://127.0.0.1:"+port+modulePath);
+   if(response.status!==200)throw Error(slug+" module route "+modulePath+" returned "+response.status);
    const html=await response.text();
-   if(!html.includes(title)||!html.includes('aria-current="page"'))
-     throw Error(slug+" module view lost canonical/current navigation");
-   const protectedShareholder=slug==="shareholder" &&
-     ["/modules/nav-02","/modules/nav-03","/modules/nav-05",
-      "/modules/nav-04","/modules/nav-06","/modules/nav-07","/modules/nav-08",
-      "/modules/nav-09","/modules/nav-10","/modules/nav-11"].includes(path);
-   if(protectedShareholder){
-     if(!html.includes("ورود با رمز یک‌بارمصرف")||
-        !html.includes("در این نسخه پیش‌نمایش")||
-        html.includes("کارپوشه شخصی سهامدار")||
-        html.includes("عضویت فعال — منبع تأییدشده")||
-        html.includes("تعداد سهام: "))
-       throw Error(slug+" protected module leaked private data or lacked fail-closed OTP");
-   }else if(slug==="national-admin"){
-     // National OTP is prohibited. JIT module scope is listed exclusively
-     // after server authorization; without backend no private tenant option
-     // can ever be included in anonymous SSR.
-     if(html.includes("ورود با رمز یک‌بارمصرف")||
-        !html.includes("دسترسی موقت مدیریت ملی")||
-        !html.includes("دسترسی ماژول نیازمند تأیید مجوز است")||
-        html.includes("Synthetic approved-to-display minute")||
-        html.includes("کارپوشه شخصی سهامدار")||
-        html.includes("تعداد سهام: "))
-       throw Error(slug+" JIT module must fail closed without national OTP or private data");
-   }else{
-     if(!html.includes("ورود با رمز یک‌بارمصرف")||
-        !html.includes("در این نسخه پیش‌نمایش")||
-        !html.includes("دسترسی ماژول نیازمند تأیید مجوز است")||
-        html.includes("کارپوشه شخصی سهامدار")||
-        html.includes("تعداد سهام: "))
-       throw Error(slug+" management module bypassed safe OTP shell or leaked private data");
-   }
+   if(!html.includes("در حال بررسی دسترسی")||
+      html.includes("تعداد سهام: ")||
+      html.includes("عضویت فعال — منبع تأییدشده")||
+      html.includes("کارپوشه شخصی سهامدار"))
+     throw Error(slug+" authenticated module leaked data or bypassed session gate");
    checks++;
+  }
+  // PH12 owner onboarding: SSR must show only safe checking states without a session.
+  // This exercises the actual compiled Next routes, not just static source strings.
+  if(slug==="cooperative-management"){
+    const routes=[
+      ["/entry","در حال شناسایی فضای اختصاصی"],
+      ["/c/qa-tto-coop-1405","در حال بارگذاری صفحه مقصد"],
+      ["/c/qa-tto-coop-1405/modules/nav-02","در حال بارگذاری صفحه مقصد"]
+    ];
+    for(const [path,marker] of routes){
+      const resp=await fetch("http://127.0.0.1:"+port+path);
+      if(resp.status!==200)throw Error("PH12_ONBOARDING_ROUTE_BAD_STATUS "+path+" "+resp.status);
+      const html=await resp.text();
+      if(!html.includes(marker)||html.includes("مدیریت قانونی تعاونی: فعال نشده")||
+         html.includes("روزهای باقی‌مانده:")||
+         html.includes('class="shell tto-approved-shell"'))
+        throw Error("PH12_ONBOARDING_UNAUTHENTICATED_SSR_LEAK "+path);
+      if(path==="/entry"&&html.includes('class="tto-auth-layout"'))
+        throw Error("PH12_EXTRA_ENTRY_LOGIN_TEMPLATE_STILL_VISIBLE");
+      checks++;
+    }
+    // All old alternate templates must be redirects, never separate login forms.
+    for(const path of [
+      "/customer-login?slug=qa-tto-coop-1405",
+      "/first-login?slug=qa-tto-coop-1405",
+      "/setup/qa-tto-coop-1405",
+      "/owner/qa-tto-coop-1405"
+    ]){
+      const resp=await fetch("http://127.0.0.1:"+port+path,{redirect:"manual"});
+      const actual=resp.headers.get("location");
+      if(resp.status!==307||new URL(actual??"/", "http://127.0.0.1:"+port).pathname!=="/c/qa-tto-coop-1405")
+       throw Error("PH12_OLD_LOGIN_TEMPLATE_NOT_RETIRED "+path+" "+resp.status+" "+actual);
+      checks++;
+    }
+    const scoped=await fetch("http://127.0.0.1:"+port+"/login?workspace=qa-tto-coop-1405");
+    const scopedHtml=await scoped.text();
+    if(scoped.status!==200||!scopedHtml.includes("در حال بارگذاری صفحه مقصد")||
+       scopedHtml.includes('class="tto-login-card"')||
+       scopedHtml.includes('class="shell tto-approved-shell"'))
+      throw Error("PH12_SCOPED_TRANSITION_SSR_SAFE status="+scoped.status+
+        " checking="+scopedHtml.includes("در حال بارگذاری صفحه مقصد")+
+        " legacyCard="+scopedHtml.includes('class="tto-login-card"')+
+        " leakedShell="+scopedHtml.includes('class="shell tto-approved-shell"'));
+    checks++;
+    const ownerApis=[
+      ["/api/commerce/workspaces","GET",401],
+      ["/api/commerce/password-login","POST",403],
+      ["/api/commerce","POST",401]
+    ];
+    for(const [path,method,expected] of ownerApis){
+      const resp=await fetch("http://127.0.0.1:"+port+path,{
+        method,headers:method==="POST"?{"Content-Type":"application/json"}:{},
+        ...(method==="POST"?{body:"{}"}:{})
+      });
+      if(resp.status!==expected)throw Error("PH12_OWNER_API_NOT_FAIL_CLOSED "+path+" "+resp.status);
+      checks++;
+    }
+    console.log("PH12_OWNER_ONBOARDING_ANONYMOUS_RUNTIME_FAIL_CLOSED_PASS");
   }
   // Tenant context BFF must fail closed even in protected Preview, without a user session.
   const tid="44444444-4444-4444-8444-444444444444";
@@ -316,8 +372,8 @@ for (let idx=0;idx<slugs.length;idx++){
   }
  }finally{server.kill("SIGTERM");}
 }
-// API activation is read at server runtime rather than baked into static HTML.
-// The deliberately invalid HTTPS hostname is NEVER called: this probes SSR form availability only.
+// With any mock HTTPS upstream, pages remain protected by their own BFF credential provenance.
+// No magic environment flag may log in an unverified natural person.
 for(let idx=0;idx<slugs.length;idx++){
  const slug=slugs[idx],port=32200+idx,cwd=resolve(root,"apps",slug);
  const next=resolve(cwd,"node_modules/next/dist/bin/next");
@@ -328,22 +384,20 @@ for(let idx=0;idx<slugs.length;idx++){
   let ready=false;
   for(let n=0;n<80;n++){
    if(server.exitCode!==null)throw Error(slug+" dynamic SSR exited");
-   try {
-     const r=await fetch("http://127.0.0.1:"+port+"/");
-     if(r.ok){
-       const html=await r.text();
-       if(slug==="national-admin"){
-        if(!html.includes("ورود مدیر ملی")||!html.includes("در حال بررسی اعتبار نشست"))
-         throw Error("national root password/session restoration shell missing");
-       }else if(!html.includes("در حال بررسی نشست ورود")){
-        throw Error(slug+" runtime-enabled session restoration shell missing");
-       }
-       checks++;ready=true;break;
-     }
-   }catch {}
+   try{
+    const res=await fetch("http://127.0.0.1:"+port+"/");
+    if(res.ok){
+     const html=await res.text();
+     if(!html.includes("در حال بررسی دسترسی") || html.includes("تعداد سهام: "))
+       throw Error(slug+" page allowed unverified session with configured HTTPS upstream");
+     const login=await fetch("http://127.0.0.1:"+port+"/login");
+     if(login.status!==200)throw Error(slug+" independent login route blocked by HTTPS env");
+     checks+=2;ready=true;break;
+    }
+   }catch{}
    await new Promise(r=>setTimeout(r,200));
   }
-  if(!ready)throw Error(slug+" runtime-enabled form did not appear");
+  if(!ready)throw Error(slug+" runtime-enabled protected login not available");
  }finally{server.kill("SIGTERM");}
 }
-console.log("TTO_NEXT_VAZIRMATN_OTP_RUNTIME_ENV_SMOKE_PASS="+checks);
+console.log("TTO_NEXT_3PORTAL_PASSWORD_GATED_RUNTIME_SMOKE_PASS="+checks);

@@ -22,6 +22,8 @@ const statusLabels:Record<string,string>={
 };
 const fields:(keyof Model)[]=["legalName","nationalId","registrationNumber","province","county",
  "legalAddress","representativeName","candidateManagerName","candidateManagerMobile","evidenceReference"];
+type Province={code:string;name:string};
+type County={id:string;provinceCode:string;name:string;provenance:"REFERENCE_1404"|"NATIONAL_ADMIN_UNVERIFIED"};
 const style={padding:"11px 13px",border:"1px solid #a8bbce",borderRadius:9,width:"100%",font:"inherit",boxSizing:"border-box" as const};
 export default function CooperativeOnboardingPage(){
  const [items,setItems]=useState<Row[]>([]);
@@ -34,6 +36,42 @@ export default function CooperativeOnboardingPage(){
  const [drafts,setDrafts]=useState<Record<string,Draft>>({});
  const [draftVersions,setDraftVersions]=useState<Record<string,number>>({});
  const [evidenceFile,setEvidenceFile]=useState<File|null>(null);
+ const [provinces,setProvinces]=useState<Province[]>([]);
+ const [counties,setCounties]=useState<County[]>([]);
+ const [geoState,setGeoState]=useState<"loading"|"ready"|"error">("loading");
+ const [newCounty,setNewCounty]=useState("");
+ const [addingCounty,setAddingCounty]=useState(false);
+ const [geoMessage,setGeoMessage]=useState("");
+ async function loadGeo(){
+  try{
+   const r=await fetch("/api/national-geo",{credentials:"same-origin",cache:"no-store"});
+   if(!r.ok)throw Error("geo unavailable");
+   const d=await r.json() as {provinces:Province[];counties:County[]};
+   if(!Array.isArray(d.provinces)||!Array.isArray(d.counties))throw Error("invalid geo");
+   setProvinces(d.provinces);setCounties(d.counties);setGeoState("ready");
+  }catch{setGeoState("error")}
+ }
+ useEffect(()=>{void loadGeo()},[]);
+ const currentProvince=provinces.find(p=>p.name===form.province);
+ const visibleCounties=counties.filter(c=>c.provinceCode===currentProvince?.code).sort((a,b)=>a.name.localeCompare(b.name,"fa"));
+ async function addCounty(){
+  if(!currentProvince||!newCounty.trim()||addingCounty)return;
+  setAddingCounty(true);setGeoMessage("");
+  try{
+   const response=await fetch("/api/national-geo",{
+    method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({provinceCode:currentProvince.code,name:newCounty.trim()})
+   });
+   if(response.status===409){setGeoMessage("این شهرستان از قبل در فهرست وجود دارد.");return;}
+   if(!response.ok)throw Error("failed");
+   const item=await response.json() as County;
+   setCounties(previous=>[...previous,item]);
+   setForm(previous=>({...previous,county:item.name}));
+   setNewCounty("");setGeoMessage("شهرستان به فهرست افزوده شد؛ وضعیت آن تا تطبیق رسمی تأییدنشده است.");
+  }catch{setGeoMessage("افزودن شهرستان تأیید نشد. اطلاعات قبلی تغییری نکرد.")}
+  finally{setAddingCounty(false)}
+ }
+
  async function refresh(){
   setPhase("loading");
   try{
@@ -56,9 +94,13 @@ export default function CooperativeOnboardingPage(){
    setDraftVersions(Object.fromEntries(loaded.map(d=>[d.slug,d.version])));
    setItems(records);
    setForm(f=>{
-     const slug=records.some(x=>x.slug===f.slug&&!x.dossier_id)?f.slug:
+     // Only preselect a slug that is present in the authorized server response.
+     const requested=new URLSearchParams(window.location.search).get("slug");
+     const selected=requested&&records.some(x=>x.slug===requested)?requested:null;
+     const slug=selected??(records.some(x=>x.slug===f.slug)?f.slug:null)??
        records.find(x=>!x.dossier_id)?.slug??"";
-     return f.slug?{...f,slug}:{...blank,...(map[slug]?.payload??{}),slug};
+     if(f.slug===slug)return f;
+     return {...blank,...(map[slug]?.payload??{}),slug};
    });
    setPhase("ready");
   }catch{setPhase("error")}
@@ -210,6 +252,7 @@ export default function CooperativeOnboardingPage(){
    phase==="error"?<div><p role="alert">سرویس پرونده تعاونی در دسترس نیست.</p><button type="button" onClick={()=>void refresh()}>تلاش مجدد</button></div>:
    <>
    <h2>نشانی‌های رزروشده</h2>
+   <p style={{lineHeight:2}}>در فهرست زیر پرونده هر نشانی را ببینید. برای اطلاعات تکمیلی مورد انتخاب‌شده، فرم پایین صفحه را تکمیل کنید.</p>
    <div style={{display:"grid",gap:9}}>
    {items.map(i=><div key={i.slug} style={{padding:12,background:"#f4f8fb",borderRadius:9}}>
     <strong dir="ltr">{i.slug}</strong> — {i.dossier_id?(
@@ -250,16 +293,37 @@ export default function CooperativeOnboardingPage(){
     <select id="coop-slug" value={form.slug} onChange={e=>setForm({...blank,...(drafts[e.target.value]?.payload??{}),slug:e.target.value})} required style={style}>
      {items.filter(i=>!i.dossier_id).map(i=><option key={i.slug} value={i.slug}>{i.slug}</option>)}
     </select>
+    {geoState==="loading"?<p role="status">در حال دریافت فهرست استان‌ها و شهرستان‌ها…</p>:null}
+    {geoState==="error"?<p role="alert">فهرست جغرافیایی در دسترس نیست. <button type="button" onClick={()=>void loadGeo()}>تلاش مجدد</button></p>:null}
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:16,marginTop:10}}>
      {fields.map(field=><label key={field} style={{display:"block",lineHeight:2}}>
       {names[field]}
-      <input style={{...style,marginTop:5}} value={form[field]}
+      {field==="province"?<select style={{...style,marginTop:5}} value={form.province}
+       disabled={geoState!=="ready"} required onChange={e=>setForm(v=>({...v,province:e.target.value,county:""}))}>
+        <option value="">انتخاب استان</option>
+        {provinces.map(p=><option key={p.code} value={p.name}>{p.name}</option>)}
+       </select>:field==="county"?<div>
+        <select style={{...style,marginTop:5}} value={form.county} required disabled={!currentProvince||geoState!=="ready"}
+         onChange={e=>setForm(v=>({...v,county:e.target.value}))}>
+         <option value="">انتخاب شهرستان</option>
+         {visibleCounties.map(c=><option key={c.id} value={c.name}>{c.name}{c.provenance==="NATIONAL_ADMIN_UNVERIFIED"?" (افزوده‌شده؛ نیازمند تطبیق)":""}</option>)}
+        </select>
+        {currentProvince?<details style={{marginTop:10,padding:9,background:"#f5f8fc",borderRadius:8}}>
+         <summary style={{cursor:"pointer"}}>شهرستان در فهرست نیست؟ افزودن توسط مدیر ملی</summary>
+         <p style={{fontSize:13,lineHeight:1.8}}>افزوده‌های دستی تا تأیید مرجع رسمی، برچسب «نیازمند تطبیق» خواهند داشت.</p>
+         <input aria-label="نام شهرستان جدید" value={newCounty} onChange={e=>setNewCounty(e.target.value)}
+          placeholder="نام شهرستان" maxLength={100} style={style}/>
+         <button type="button" disabled={addingCounty||newCounty.trim().length<2} onClick={()=>void addCounty()}
+          style={{padding:"10px 14px",marginTop:8}}>{addingCounty?"در حال ذخیره":"افزودن شهرستان"}</button>
+         {geoMessage?<p role="status">{geoMessage}</p>:null}
+        </details>:null}
+       </div>:<input style={{...style,marginTop:5}} value={form[field]}
        dir={["nationalId","registrationNumber","candidateManagerMobile","evidenceReference"].includes(field)?"ltr":"rtl"}
        inputMode={["nationalId","registrationNumber","candidateManagerMobile"].includes(field)?"numeric":"text"}
        maxLength={field==="legalAddress"?300:field==="legalName"||field==="evidenceReference"?180:field==="nationalId"||field==="candidateManagerMobile"?11:field==="registrationNumber"?20:120}
        pattern={field==="nationalId"?"[0-9]{11}":field==="registrationNumber"?"[0-9]{1,20}":field==="candidateManagerMobile"?"09[0-9]{9}":undefined}
        required={field!=="evidenceReference"} autoComplete="off"
-       onChange={e=>setForm(f=>({...f,[field]:e.target.value}))}/>
+       onChange={e=>setForm(f=>({...f,[field]:e.target.value}))}/>}
      </label>)}
     </div>
     <div style={{marginTop:16,padding:12,border:"1px dashed #8098ac",borderRadius:9}}>

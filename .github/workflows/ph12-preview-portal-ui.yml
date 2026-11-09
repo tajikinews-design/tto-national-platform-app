@@ -1,9 +1,9 @@
 name: PH12 three-portal linked Preview UI build (NO DEPLOY)
 on:
   push:
-    branches: [feat/ph12-portal-preview-modules-api-navigation-20261108]
+    branches: [feat/ph12-portal-preview-modules-api-navigation-20261108, feat/ph12-approved-dashboards-separated-logins-20261108]
   pull_request:
-    branches: [feat/child06-coop-two-person-attestation-hold-20261108]
+    branches: [feat/child06-coop-two-person-attestation-hold-20261108, feat/ph12-portal-preview-modules-api-navigation-20261108]
 permissions:
   contents: read
 jobs:
@@ -24,6 +24,20 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
+      - name: Enforce owner-approved TTO-AUTH-UI-V1 freeze (NO UI DRIFT)
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/test_ph12_auth_ui_freeze.py -v
+          echo "TTO_AUTH_UI_V1_FROZEN_GREEN"
+      - name: Check customer-selected trial domain and complete onboarding source contracts
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/test_ph12_name_first_demo_workspace.py -v
+          python3 scripts/ci/test_ph12_cooperative_onboarding_flow.py -v
+          python3 scripts/ci/test_ph12_cooperative_settings_subpages.py -v
+          python3 scripts/ci/test_ph12_cooperative_fast_navigation.py -v
+          python3 scripts/ci/test_ph12_members_draft_forms.py -v
+          echo "TTO_CUSTOM_VANITY_DOMAIN_CONTRACT_PASS"
       - name: Install workspace and validate all preview portals
         run: |
           set -euo pipefail
@@ -37,3 +51,4 @@ jobs:
           set -euo pipefail
           node scripts/ci/ph12-preview-module-route-map.cjs
           echo "TTO_3PORTAL_PREVIEW_SAFE_ROUTE_CONTRACT_PASS"
+          node scripts/ci/ph12-approved-dashboard-roles-contract.cjs
