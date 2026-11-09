@@ -217,3 +217,85 @@ button,input,textarea,select{font-family:var(--tto-font),Vazirmatn,Tahoma,Arial,
 @media(max-width:420px){.tto-approved-kpis{grid-template-columns:1fr}.tto-hero-overlay{padding:20px}.tto-top-meta{gap:6px}.tto-top-search{width:42%}.tto-ad-slots,.tto-mini-grid{grid-template-columns:1fr}}
 
 .tto-approved-action-link{display:block;text-decoration:none;color:#113c80;font-size:12px;font-weight:750;line-height:1.8}.tto-approved-action-link:hover{text-decoration:underline;color:#0066ff}
+
+
+/* Shared TTO authentication design system — national, cooperative, shareholder and signup. */
+.tto-auth-page{--tto-auth-ink:#142a46;--tto-auth-muted:#62718a;--tto-auth-primary:#1169ca;min-height:100vh;background:radial-gradient(ellipse 40% 46% at 10% 95%,#cdeaf0 0%,transparent 95%),linear-gradient(135deg,#eaf2f9,#f6f9fc 65%,#eaf4f8);padding:clamp(14px,3vw,42px);font-family:var(--tto-font),Tahoma,Arial,sans-serif;color:var(--tto-auth-ink);display:grid;place-items:center;box-sizing:border-box;isolation:isolate}
+.tto-auth-page *{box-sizing:border-box}
+.tto-auth-layout{width:min(1080px,100%);display:grid;grid-template-columns:minmax(0,0.88fr) minmax(0,1fr);min-height:min(780px,calc(100vh - 80px));background:#fff;border-radius:28px;box-shadow:0 22px 85px rgba(26,54,82,.13),0 1px 4px rgba(26,54,82,.09);overflow:hidden;border:1px solid #e8eef5;direction:rtl}
+.tto-auth-brand{position:relative;overflow:hidden;display:flex;flex-direction:column;background:linear-gradient(145deg,#0e3155 0%,#0f4976 55%,#0d6b7a 100%);padding:clamp(25px,3vw,42px);color:#fff;isolation:isolate}
+.tto-auth-brand::before,.tto-auth-brand::after{content:"";position:absolute;border-radius:50%;pointer-events:none;z-index:-1}
+.tto-auth-brand::before{width:540px;height:540px;top:-310px;left:-240px;border:1px solid rgba(255,255,255,.19);box-shadow:0 0 0 55px rgba(255,255,255,.035),0 0 0 120px rgba(255,255,255,.025)}
+.tto-auth-brand::after{width:430px;height:430px;bottom:-270px;right:-260px;background:radial-gradient(circle,rgba(48,211,205,.35),rgba(48,211,205,0) 75%)}
+.tto-auth-brand-top{display:flex;gap:13px;align-items:center}
+.tto-auth-logo{height:54px;width:54px;border-radius:16px;flex-shrink:0;display:grid;place-items:center;position:relative;background:linear-gradient(145deg,#5bebe4,#d1fff6);color:#084565;box-shadow:0 6px 20px #061d3540;direction:ltr}
+.tto-auth-logo span{font-family:Arial,sans-serif;font-weight:900;font-size:17px;letter-spacing:-.9px}
+.tto-auth-logo i{position:absolute;top:1px;right:4px;font-size:12px;font-style:normal;color:#008b92}
+.tto-auth-brand-top strong,.tto-auth-brand-top small{display:block;line-height:1.9}
+.tto-auth-brand-top strong{font-size:15px;font-weight:850}
+.tto-auth-brand-top small{color:#b0d6e5;font-size:11px}
+.tto-auth-brand-content{padding-top:clamp(35px,5vh,70px)}
+.tto-auth-brand-badge{display:inline-flex;gap:8px;align-items:center;border:1px solid #6bcae580;border-radius:40px;background:#ffffff14;color:#c3f2f3;padding:7px 15px;font-size:12px;font-weight:700}
+.tto-auth-brand-content h2{font-size:clamp(28px,3.2vw,42px);line-height:1.58;letter-spacing:-.7px;margin:20px 0 8px;font-weight:900;color:#fff}
+.tto-auth-brand-content h2 span{color:#7af2e2}
+.tto-auth-brand-content>p{font-size:13px;line-height:2.1;color:#c8dfed;max-width:340px;margin:0}
+.tto-auth-orbit{height:220px;max-width:330px;position:relative;margin:10px auto -10px;display:grid;place-items:center}
+.tto-auth-orbit-ring{position:absolute;border:1px dashed rgba(156,238,230,.30);width:215px;height:215px;border-radius:50%}
+.tto-auth-orbit-two{width:140px;height:140px;border:1px solid rgba(156,238,230,.36)}
+.tto-auth-orbit-center{height:102px;width:102px;border-radius:28px;background:linear-gradient(145deg,#4bcad8,#d1fff5);display:flex;align-items:center;justify-content:center;flex-direction:column;box-shadow:0 15px 40px #07263990;transform:rotate(-6deg);color:#0b4d68}
+.tto-auth-orbit-center span{font-size:36px;line-height:1}
+.tto-auth-orbit-center small{font:900 14px Arial,sans-serif;letter-spacing:2px}
+.tto-auth-orbit-node{position:absolute;display:grid;place-items:center;border-radius:16px;width:43px;height:43px;box-shadow:0 7px 19px #092e4f77;font-weight:800}
+.tto-auth-orbit-node.node-a{right:26px;top:24px;background:#e7fff9;color:#058e83}
+.tto-auth-orbit-node.node-b{left:44px;top:72px;background:#1f7a9d;color:#d7fff7}
+.tto-auth-orbit-node.node-c{right:62px;bottom:7px;background:#ffe9bf;color:#a36813}
+.tto-auth-brand-bottom{margin-top:auto}
+.tto-auth-brand-highlights{display:grid;gap:10px;margin-bottom:21px}
+.tto-auth-brand-highlights>div{display:flex;align-items:center;gap:11px;font-size:12px;color:#e5f5fa}
+.tto-auth-brand-highlights>div span{width:22px;height:22px;display:grid;place-items:center;background:#a9f7e62e;border-radius:50%;color:#b0ffe8}
+.tto-auth-brand-bottom>p{border-top:1px solid #ffffff29;padding-top:18px;color:#a3c7dc;font-size:11px;line-height:1.8}
+.tto-auth-form-panel{display:flex;flex-direction:column;justify-content:space-between;padding:clamp(22px,4.1vw,56px);min-width:0}
+.tto-auth-form-inner{width:100%;max-width:414px;margin:auto}
+.tto-auth-mobile-brand{display:none}
+.tto-auth-form-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:20px}
+.tto-auth-form-tag,.tto-auth-role{display:inline-flex;align-items:center;gap:7px;border-radius:30px;padding:6px 12px;font-weight:700;font-size:11px}
+.tto-auth-form-tag{background:#e8f7f2;color:#137765}
+.tto-auth-form-tag span{font-size:8px}
+.tto-auth-role{background:#eff4fa;color:#456580}
+.tto-auth-form-inner>h1{font-size:clamp(22px,2.2vw,31px);font-weight:900;line-height:1.6;color:#122c49;margin:0 0 5px}
+.tto-auth-description{color:#77869a;font-size:13px;line-height:2;margin:0 0 24px}
+.tto-auth-controls{width:100%;margin:0;background:transparent;color:var(--tto-auth-ink)}
+.tto-auth-controls p,.tto-auth-controls small{line-height:1.95;color:#657892}
+.tto-auth-controls>p:first-child{margin-top:0}
+.tto-auth-controls form,.tto-auth-controls .otp-forms form{display:grid;gap:9px;margin:15px 0 0}
+.tto-auth-controls label{font-size:12px;font-weight:750;color:#294259;display:block;margin:5px 0 0}
+.tto-auth-controls input:not([type="checkbox"]),.tto-auth-controls select{width:100%;min-width:0;min-height:48px;padding:11px 14px;border:1px solid #d2dfea;background:#f9fbfe;border-radius:12px;color:#152d49;font:500 14px var(--tto-font),Tahoma,sans-serif;box-shadow:0 1px 1px #d8e6f53b;transition:border-color .2s,box-shadow .2s}
+.tto-auth-controls input:not([type="checkbox"]):hover{border-color:#aac8e2}
+.tto-auth-controls input:not([type="checkbox"]):focus{border-color:#2476c8;background:#fff;box-shadow:0 0 0 4px #daeafa}
+.tto-auth-controls input[type="checkbox"]{width:18px;height:18px;accent-color:#1268c7}
+.tto-auth-controls button:not(.tto-auth-tab),.tto-auth-controls .tto-auth-primary-link{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:linear-gradient(115deg,#1268c8,#0d5ba9);color:#fff;min-height:48px;width:100%;padding:12px 16px;border:0;border-radius:12px;font:800 13px var(--tto-font),Tahoma,sans-serif;text-align:center;cursor:pointer;text-decoration:none;box-shadow:0 8px 19px #1169ca22;transition:transform .15s,filter .15s}
+.tto-auth-controls button:not(.tto-auth-tab):not(:disabled):hover,.tto-auth-controls .tto-auth-primary-link:hover{transform:translateY(-1px);filter:brightness(1.08)}
+.tto-auth-controls button:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+.tto-auth-controls .tto-auth-method-tabs{display:grid;grid-template-columns:1fr 1fr;background:#f1f5fa;border-radius:13px;padding:5px;gap:5px;margin:0 0 24px}
+.tto-auth-controls .tto-auth-method-tabs .tto-auth-tab{background:transparent;box-shadow:none;color:#65758b;border:0;padding:10px 8px;border-radius:10px;font:750 11px var(--tto-font),Tahoma,sans-serif;cursor:pointer;min-height:43px;width:100%;margin:0}
+.tto-auth-controls .tto-auth-method-tabs .tto-auth-tab[aria-selected="true"]{color:#0d5598;background:white;box-shadow:0 2px 8px #1a477a13}
+.tto-auth-controls .tto-auth-method-tabs .tto-auth-tab:disabled{opacity:.5;cursor:not-allowed}
+.tto-auth-controls .otp-panel{background:none;border:0;box-shadow:none;padding:0;margin:0;width:100%}
+.tto-auth-controls .otp-panel h2{font-size:14px;color:#274361;margin:0}
+.tto-auth-controls .otp-panel>p,.tto-auth-controls .otp-panel .otp-forms p{font-size:12px;color:#75849a;margin:5px 0;line-height:1.9}
+.tto-auth-controls .otp-forms{display:grid;gap:8px}
+.tto-auth-controls .otp-forms input{direction:ltr;text-align:center;letter-spacing:2px;font-size:17px}
+.tto-auth-controls .otp-forms [role="timer"],.tto-auth-controls [role="timer"]{background:#e6f4fb;color:#126e9c!important;padding:8px 12px;border-radius:10px;text-align:center;font-weight:800;letter-spacing:.2px}
+.tto-auth-controls [role="alert"]{background:#fff2f0;color:#9f3829;padding:12px;border-radius:11px;font-size:12px;line-height:1.95}
+.tto-auth-controls [role="status"]{font-size:12px;line-height:2}
+.tto-auth-controls .tto-login-scope{background:#f0f8fc;border:1px solid #e4eef6;padding:13px;border-radius:12px}
+.tto-auth-controls a{color:#1268bc;font-weight:700;text-decoration:none}
+.tto-auth-controls a:hover{text-decoration:underline}
+.tto-auth-inline-links{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:17px;font-size:12px}
+.tto-auth-muted-note{font-size:11px;color:#73849a;line-height:1.9;margin:12px 0}
+.tto-auth-remember{display:flex!important;gap:9px!important;align-items:center;cursor:pointer;line-height:1.8;font-weight:500!important;color:#63778f!important}
+.tto-auth-footer{border-top:1px solid #ecf1f6;display:flex;gap:7px;align-items:center;justify-content:center;color:#8896a7;font-size:10px;line-height:1.8;padding-top:22px;text-align:center;margin-top:28px}
+.tto-auth-footer-brand{font:800 11px Arial,sans-serif;letter-spacing:1px;margin-right:auto;color:#338c9c}
+@media(max-width:840px){.tto-auth-layout{grid-template-columns:minmax(0,.75fr) minmax(0,1fr)}.tto-auth-brand{padding:24px}.tto-auth-brand-content{padding-top:34px}.tto-auth-orbit{height:190px}.tto-auth-form-panel{padding:30px}}
+@media(max-width:680px){.tto-auth-page{padding:12px;display:block}.tto-auth-layout{display:flex;flex-direction:column;min-height:calc(100vh - 24px);border-radius:21px}.tto-auth-brand{display:none}.tto-auth-mobile-brand{display:flex;align-items:center;gap:11px;margin-bottom:30px;font-size:12px;color:#15425e}.tto-auth-mobile-logo{font:900 14px Arial,sans-serif;display:grid;place-items:center;border-radius:11px;color:#054d5c;background:linear-gradient(135deg,#6bebdf,#c6fafa);height:41px;width:41px;letter-spacing:-1px}.tto-auth-form-panel{padding:26px 21px 20px;min-height:calc(100vh - 28px)}.tto-auth-form-inner{margin:0 auto;max-width:440px}.tto-auth-footer{margin-top:44px;padding-top:17px}.tto-auth-description{margin-bottom:20px}.tto-auth-controls .tto-auth-method-tabs .tto-auth-tab{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.tto-auth-page *, .tto-auth-page *::before,.tto-auth-page *::after{animation:none!important;transition:none!important}}
