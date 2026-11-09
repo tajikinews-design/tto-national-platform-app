@@ -34,6 +34,7 @@ jobs:
           set -euo pipefail
           python3 scripts/ci/test_ph12_name_first_demo_workspace.py -v
           python3 scripts/ci/test_ph12_cooperative_onboarding_flow.py -v
+          python3 scripts/ci/test_ph12_cooperative_settings_subpages.py -v
           echo "TTO_CUSTOM_VANITY_DOMAIN_CONTRACT_PASS"
       - name: Install workspace and validate all preview portals
         run: |
