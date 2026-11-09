@@ -53,9 +53,7 @@ export function proxy(request:NextRequest){
  // Strict tenant origin routing. Other routes (including unscoped modules,
  // public registration and order APIs) must NOT be exposed on wildcard hosts.
  if(path==="/"){
-  const destination=new URL("/login",request.url);
-  destination.searchParams.set("workspace",slug);
-  return NextResponse.redirect(destination,307);
+  return NextResponse.rewrite(new URL("/c/"+slug,request.url));
  }
  if(path==="/login"){
   if(request.nextUrl.searchParams.get("workspace")!==slug){
@@ -65,7 +63,8 @@ export function proxy(request:NextRequest){
   }
   return NextResponse.next();
  }
- if(path==="/c/"+slug)return NextResponse.next(); // owner setup or formal manager gate validates access
+ if(path==="/c/"+slug||path.startsWith("/c/"+slug+"/modules/")&&
+  /^\/c\/[a-z0-9-]+\/modules\/nav-(?:0[2-9]|1[01])$/.test(path))return NextResponse.next();
  if(path==="/setup/"+slug||path==="/owner/"+slug)return NextResponse.next();
  if(path==="/customer-login"||path==="/settings/subscription")return NextResponse.next();
  if(SAFE_LOGIN_APIS.has(path)||CONTEXT_API.test(path))return NextResponse.next();

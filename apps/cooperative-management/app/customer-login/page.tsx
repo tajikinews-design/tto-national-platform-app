@@ -17,7 +17,7 @@ export default function CommercialLogin(){
   // The authenticated owner enters the same scoped dashboard in both
   // wildcard-domain testing and isolated Vercel Preview. Never fall back
   // to an unscoped settings page after a successful scoped password login.
-  window.location.replace("/owner/"+encodeURIComponent(slug));
+  window.location.replace("/c/"+encodeURIComponent(slug));
  }catch{setStatus("اتصال برقرار نشد.")}finally{setBusy(false)}
  }
  return <main dir="rtl" lang="fa" style={{fontFamily:"Tahoma,Arial",padding:25,maxWidth:700,margin:"auto"}}>
