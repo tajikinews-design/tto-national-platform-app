@@ -1,7 +1,7 @@
 import type {ReactNode} from "react";
 
 export type AuthSurface="national"|"cooperative"|"shareholder";
-export type AuthMode="login"|"register";
+export type AuthMode="login"|"register"|"order";
 
 const variants={
  national:{
@@ -31,11 +31,11 @@ export function AuthFrame({
  surface,mode="login",title,description,children
 }:{surface:AuthSurface;mode?:AuthMode;title?:string;description?:string;children:ReactNode}){
  const v=variants[surface];
- const heading=title??(mode==="register"?"ایجاد حساب مشتری":v.heading);
+ const heading=title??(mode==="register"?"ایجاد حساب مشتری":mode==="order"?"ثبت سفارش پلتفرم تعاونی":v.heading);
  const subtitle=description??(mode==="register"
   ?"شماره همراه خود را تأیید کنید و سپس پلن مناسب را انتخاب کنید."
-  :v.tagline);
- return <main className="tto-auth-page" data-tto-auth-surface={surface} lang="fa" dir="rtl">
+  :mode==="order"?"پلن و شناسه اختصاصی تعاونی را انتخاب و سفارش آزمایشی خود را ثبت کنید.":v.tagline);
+ return <main className={"tto-auth-page"+(mode==="order"?" tto-auth-order-page":"")} data-tto-auth-surface={surface} lang="fa" dir="rtl">
   <div className="tto-auth-layout">
    <aside className="tto-auth-brand" aria-label="معرفی پلتفرم TTO">
     <div className="tto-auth-brand-top">
@@ -65,12 +65,12 @@ export function AuthFrame({
    <section className="tto-auth-form-panel" aria-label={heading}>
     <div className="tto-auth-mobile-brand"><span className="tto-auth-mobile-logo">TTO</span><strong>پلتفرم ملی توسعه و عمران</strong></div>
     <div className="tto-auth-form-inner">
-     <div className="tto-auth-form-top"><span className="tto-auth-form-tag"><span aria-hidden="true">●</span> {mode==="register"?"ثبت‌نام امن":"ورود امن"}</span><span className="tto-auth-role">{v.title}</span></div>
+     <div className="tto-auth-form-top"><span className="tto-auth-form-tag"><span aria-hidden="true">●</span> {mode==="register"?"ثبت‌نام امن":mode==="order"?"سفارش اشتراک":"ورود امن"}</span><span className="tto-auth-role">{v.title}</span></div>
      <h1>{heading}</h1>
      <p className="tto-auth-description">{subtitle}</p>
      {children}
     </div>
-    <footer className="tto-auth-footer"><span aria-hidden="true">♢</span> ارتباط امن · کد یک‌بارمصرف حداکثر ۶۰ ثانیه اعتبار دارد <span className="tto-auth-footer-brand">TTO</span></footer>
+    <footer className="tto-auth-footer"><span aria-hidden="true">♢</span> {mode==="order"?"پرداخت واقعی غیرفعال · تأیید مبلغ صرفاً آزمایشی است":"ارتباط امن · کد یک‌بارمصرف حداکثر ۶۰ ثانیه اعتبار دارد"} <span className="tto-auth-footer-brand">TTO</span></footer>
    </section>
   </div>
  </main>;
