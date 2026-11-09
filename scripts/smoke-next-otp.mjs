@@ -113,7 +113,10 @@ for (let idx=0;idx<slugs.length;idx++){
     if(scoped.status!==200||!scopedHtml.includes("در حال بازکردن مدیریت تعاونی")||
        scopedHtml.includes('class="tto-login-card"')||
        scopedHtml.includes('class="shell tto-approved-shell"'))
-      throw Error("PH12_SCOPED_LOGIN_NOT_FROZEN_FRAME");
+      throw Error("PH12_SCOPED_LOGIN_NOT_FROZEN_FRAME status="+scoped.status+
+        " checking="+scopedHtml.includes("در حال بازکردن مدیریت تعاونی")+
+        " legacyCard="+scopedHtml.includes('class="tto-login-card"')+
+        " leakedShell="+scopedHtml.includes('class="shell tto-approved-shell"'));
     checks++;
     const ownerApis=[
       ["/api/commerce/workspaces","GET",401],
