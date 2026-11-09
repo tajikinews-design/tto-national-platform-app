@@ -52,6 +52,10 @@ export class Database {
     }
   }
   async onModuleDestroy(): Promise<void> { await this.pool.end(); }
+  async reserveCommerceDemoLoginAttempt(fingerprint:Buffer){
+    const r=await this.pool.query<{allowed:boolean}>("SELECT tto.reserve_commerce_demo_login_attempt($1) AS allowed",[fingerprint]);
+    return r.rows[0]?.allowed===true;
+  }
   async commerceDemoPasswordLookup(username:string){
     const r=await this.pool.query<{user_id:string;slug:string;password_scrypt:string}>(
       "SELECT * FROM tto.commerce_demo_password_lookup($1)",[username]);
@@ -407,6 +411,12 @@ export class FoundationCommandsController {
        !/^[a-z][a-z0-9._-]{4,63}$/.test(username)||password.length>128||
        (slug!==undefined&&(typeof slug!=="string"||!(/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)))))
       throw new BadRequestException("INVALID_CREDENTIALS");
+    const secret=process.env.TTO_NATIONAL_ROOT_ATTEMPT_SECRET;
+    if(!secret||Buffer.byteLength(secret)<32)throw new ServiceUnavailableException("LOGIN_ABUSE_GUARD_UNAVAILABLE");
+    const key=(v:string)=>createHmac("sha256",secret).update("commerce:"+v).digest();
+    if(!await this.db.reserveCommerceDemoLoginAttempt(key("user:"+username))||
+       !await this.db.reserveCommerceDemoLoginAttempt(key("global")))
+       throw new ForbiddenException("TOO_MANY_LOGIN_ATTEMPTS");
     const row=await this.db.commerceDemoPasswordLookup(username);
     const fakeSalt=Buffer.alloc(16,0x42);
     const fake="scrypt$v1$"+fakeSalt.toString("hex")+"$"+
