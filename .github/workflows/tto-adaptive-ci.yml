@@ -53,6 +53,12 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ] && { [ "$GITHUB_HEAD_REF" = "integration/tto-pcs-005-full-validation-20261101" ] || [ "$GITHUB_HEAD_REF" = "integration/tto-pcs-015-wave0-candidate-20261101" ]; }; then
             mode="release"
           fi
+          # NAV-02 handles encrypted PII drafts. While PR #182 stays Draft,
+          # require the COMPLETE disposable, no-deploy release regression;
+          # never equate this technical suite with legal/production approval.
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] && [ "$GITHUB_HEAD_REF" = "feat/nav02-shareholder-intake-draft-20261109" ]; then
+            mode="release"
+          fi
           echo "suite=$mode" >> "$GITHUB_OUTPUT"
           echo "TTO_ADAPTIVE_SUITE=$mode"
       - name: Parse and verify Windows PowerShell local-CI script before execution
