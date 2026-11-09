@@ -73,7 +73,7 @@ export function proxy(request:NextRequest){
  if(path==="/c/"+slug||path.startsWith("/c/"+slug+"/modules/")&&
   /^\/c\/[a-z0-9-]+\/modules\/nav-(?:0[2-9]|1[01])$/.test(path)||
   path==="/c/"+slug+"/settings/credentials"||path==="/c/"+slug+"/settings/users"||
-  path==="/c/"+slug+"/members/new"||path==="/c/"+slug+"/members/shares")return NextResponse.next();
+  path==="/c/"+slug+"/members/add"||path==="/c/"+slug+"/members/new"||path==="/c/"+slug+"/members/shares")return NextResponse.next();
  if(path==="/settings/subscription")return NextResponse.next();
  if(SAFE_LOGIN_APIS.has(path)||CONTEXT_API.test(path))return NextResponse.next();
  return unavailable(request);
