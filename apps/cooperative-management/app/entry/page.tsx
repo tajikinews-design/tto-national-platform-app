@@ -1,6 +1,5 @@
 "use client";
 import {useEffect,useState} from "react";
-import {AuthFrame} from "@tto/ui";
 type Item={slug:string;name:string;tenantActive:boolean;credentialsReady:boolean};
 export default function WorkspaceEntry(){
  const [state,setState]=useState<"loading"|"choose"|"empty"|"denied"|"error">("loading");
@@ -43,17 +42,15 @@ export default function WorkspaceEntry(){
   }
   void begin();return()=>{alive=false}
  },[]);
- return <AuthFrame surface="cooperative" title="ورود به فضای تعاونی" description="هویت شما تأیید شده است. سامانه فضای مجاز را از پایگاه داده بررسی می‌کند.">
-  <section className="tto-auth-controls" aria-label="انتخاب فضای آزمایشی تأییدشده">
-   {state==="loading"?<p role="status">در حال شناسایی فضای اختصاصی و بررسی مجوزها…</p>:null}
-   {state==="choose"?<>
-    <p className="tto-auth-muted-note">بیش از یک فضای آزمایشی دارید. تعاونی موردنظر را انتخاب کنید:</p>
-    {items.map(w=><p key={w.slug}><a className="tto-auth-primary-link" href={"/c/"+encodeURIComponent(w.slug)}>{w.name} — {w.slug}.ttoir.ir ←</a></p>)}
-   </>:null}
-   {state==="empty"?<p role="status">حساب شما تأیید شده، اما فضای آزمایشی متعلق به این حساب پیدا نشد. ابتدا از صفحه آزمون، یک تعاونی نمونه ثبت کنید. این وضعیت مجوز مدیر قانونی ایجاد نمی‌کند.</p>:null}
-   {state==="denied"?<p role="alert">مجوز بررسی فضاهای آزمایشی برای این نشست وجود ندارد.</p>:null}
-   {state==="error"?<p role="alert">سرویس بررسی فضای اختصاصی در دسترس نیست؛ هیچ فضای ناشناخته‌ای باز نمی‌شود.</p>:null}
-   {state==="empty"?<a className="tto-auth-primary-link" href="/subscribe">ثبت فضای آزمایشی ←</a>:null}
-  </section>
- </AuthFrame>;
-}
+ return <AuthFrame surface="coopera // Pure routing resolver: never present another login design.
+ // Single scoped workspace automatically opens the approved dashboard.
+ return <main dir="rtl" lang="fa" className="tto-workspace-resolver" style={{padding:24,maxWidth:650,margin:"auto"}}>
+  {state==="loading"?<p role="status" aria-live="polite">در حال شناسایی فضای اختصاصی و انتقال به داشبورد…</p>:null}
+  {state==="choose"?<section aria-label="انتخاب فضای مجاز">
+    <h1>انتخاب تعاونی</h1><p>چند فضای مجاز برای این حساب وجود دارد. تعاونی موردنظر را انتخاب کنید:</p>
+    {items.map(w=><p key={w.slug}><a href={"/c/"+encodeURIComponent(w.slug)}>{w.name} — {w.slug}.ttoir.ir</a></p>)}
+  </section>:null}
+  {state==="empty"?<p role="status">فضای فعال متعلق به این حساب پیدا نشد. <a href="/subscribe">ثبت فضای آزمایشی</a></p>:null}
+  {state==="denied"?<p role="alert">دسترسی به فضای انتخابی مجاز نیست. <a href="/login">بازگشت به ورود</a></p>:null}
+  {state==="error"?<p role="alert">سرویس تشخیص فضای مجاز پاسخ نداد. <a href="/login">بازگشت به ورود</a></p>:null}
+ </main>;
