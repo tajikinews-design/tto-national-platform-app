@@ -5,13 +5,13 @@
   "approvedDate": "2026-11-09",
   "approvedCommit": "51171ab034e29c31d52026fc39380fb4a636fad7",
   "snapshotBranch": "freeze/tto-auth-ui-v1-approved-20261109",
-  "enforcement": "fail-closed Git blob SHA1 checks in Python CI; permissioned exception required for explicit rebaseline; no immutable repository ruleset on this feature branch",
+  "enforcement": "fail-closed Git blob SHA1 checks; owner-authorized OTP navigation amendment recorded; immutable visual baseline retained separately",
   "scope": "visual login/register/commerce-order components for national, cooperative and shareholder preview only; excludes backend authorization, payment, DNS and production",
   "files": {
     "packages/ui/src/auth-frame.tsx": "09797f21541eb965debd94544614dbc02f4b7e1b",
     "packages/ui/src/styles.css": "194e3f815011550d1d34fd8e7d938c8021650f50",
     "packages/ui/src/portal-password-login.tsx": "bfc7cd03859a512ff0ff16b096781520e26c80ec",
-    "packages/ui/src/otp-login.tsx": "18e9ecacc57f62138269ccd48d83e1d6016fe482",
+    "packages/ui/src/otp-login.tsx": "c8860c480bb6c4a3737548be3922d6d96e2d4346",
     "apps/national-admin/app/national-root-login.tsx": "ea3e1d42c4a77db23e0fc12a96cdae3288ebe815",
     "apps/national-admin/app/login/page.tsx": "a5e448a844350d3d427ca95e15c06c27948240be",
     "apps/cooperative-management/app/login/page.tsx": "fa38ab48bd58aceaaf0d3c5d755ff1965089ac11",
@@ -33,5 +33,15 @@
     "releaseStatus": "PRODUCTION_HOLD",
     "changePolicy": "no changes to pinned files absent explicit owner approval, a reviewed new freeze manifest revision, and fresh security/build CI",
     "verification": "git blob SHA from exact approved source. file byte-for-byte comparison after every update."
+  },
+  "workflowAmendment": {
+    "id": "TTO-AUTH-UI-V1-WORKFLOW-01",
+    "date": "2026-11-09",
+    "authorizedBy": "product owner, explicit instruction to operationalize OTP -> first credential setup -> dashboard",
+    "baselineFingerprint": "18e9ecacc57f62138269ccd48d83e1d6016fe482",
+    "currentFingerprint": "c8860c480bb6c4a3737548be3922d6d96e2d4346",
+    "change": "OTP verified cooperative sign-in automatically navigates to a protected same-origin workspace entry; no change to rendered text, fields, styling or national/shareholder authorization",
+    "approvalScope": "behavioral navigation only; UI visual baseline remains original approved TTO-AUTH-UI-V1",
+    "ciRequirement": "full PH12 UI + adaptive security CI must pass; old approved snapshot remains immutable"
   }
 }
