@@ -30,7 +30,7 @@ class SettingsSubpages(unittest.TestCase):
   for i in range(1,12):self.assertIn('"NAV-'+str(i).zfill(2)+'"',catalog)
   for check in ('"/api/commerce/workspaces"','x.staff!==true','"/api/commerce/team"',
                 'permissions.includes("NAV-01")','action:"update"','action:"create"',
-                'در حال','مجوز','حقوقی'):
+                'در حال','مجوز','قانونی'):
    self.assertIn(check,users)
   self.assertNotIn('window.localStorage',users)
  def test_credentials_require_fresh_otp_and_clear_old_session(self):
