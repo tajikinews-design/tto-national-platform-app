@@ -25,7 +25,7 @@ class ShareholderWorkspaceContractTests(unittest.TestCase):
         self.assertIn('surface==="shareholder"?<ShareholderWorkspace',self.login)
         self.assertIn('initialShareholderView',self.login)
         self.assertIn('surface="shareholder" suppressStaticKpis',self.home)
-        self.assertIn('<ApprovedDashboardHome surface={surface}>',self.shell)
+        self.assertIn('<ApprovedDashboardHome surface={surface} demoOnly={demoOnly}>',self.shell)
         self.assertIn('PortalSessionGate surface="shareholder"',self.home)
         self.assertIn('ShareholderWorkspace',self.module)
         self.assertNotIn('OtpLogin',self.module)

@@ -127,7 +127,7 @@ export function PortalShell({
            <strong>اطلاعات این بخش در انتظار اتصال معتبر است</strong>
            <span>برای اجرای واقعی باید نشست مجاز، دسترسی محدود به تعاونی و API تأیید شده وجود داشته باشد.</span>
           </div><p>{cfg.boundary}</p></>}
-         <a className="return-link" href="/">بازگشت به داشبورد</a>
+         <a className="return-link" href={basePath||"/"}>بازگشت به داشبورد</a>
        </section>
       </>}
       <footer>محیط آزمایش TTO · ثبت اطلاعات واقعی فقط با دسترسی مجاز و کنترل حفاظت داده · بدون ایجاد اثر حقوقی یا عملیات مالی</footer>
