@@ -45,8 +45,17 @@ export async function POST(req:NextRequest){
   if(r.status===400)return fail(400,"INVALID_ORDER");
   if(r.status!==201)return fail(503,"CONFIRMATION_UNAVAILABLE");
   const data=await r.json() as Record<string,unknown>;
-  if(data.realPayment!==false||data.tenantActivated!==false||data.managerRoleGranted!==false||
+  if(data.realPayment!==false||data.tenantActivated!==true||data.managerRoleGranted!==false||
    data.status!=="DEMO_AMOUNT_ATTESTED")return fail(502,"INVALID_CONFIRMATION");
+  if(typeof data.orderId==="string"){
+   try{
+    const notice=await fetch(new URL("/v1/commerce/demo/notify",base),{
+      method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token,...trustedBackendHeaders(req)},
+      body:JSON.stringify({orderId:data.orderId}),cache:"no-store",redirect:"error",signal:AbortSignal.timeout(8500)});
+    if(notice.ok){const delivery=await notice.json() as {smsStatus?:unknown;smsSent?:unknown};
+      data.smsStatus=delivery.smsStatus;data.smsSent=delivery.smsSent===true;}
+   }catch{data.smsStatus="QUEUED";data.smsSent=false}
+  }
   return NextResponse.json(data,{status:201,headers:H});
  }catch{return fail(503,"CONFIRMATION_UNAVAILABLE")}
 }
