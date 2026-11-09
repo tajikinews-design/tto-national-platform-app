@@ -1,4 +1,5 @@
 import type {ReactNode} from "react";
+import Link from "next/link";
 export const COOPERATIVE_MODULES=[
  ["NAV-01","داشبورد","نمای کلی و وضعیت عملیات","▦"],
  ["NAV-02","اعضا و سهام","فهرست اعضا و اطلاعات سهام","♙"],
@@ -26,8 +27,8 @@ export function SettingsPageFrame({slug,section,children}:{slug:string;section:S
    <span className="tto-settings-hero-icon" aria-hidden="true">{credentials?"♢":"♧"}</span>
   </header>
   <nav className="tto-settings-switcher" aria-label="صفحات تنظیمات">
-   <a href={"/c/"+slug+"/settings/credentials"} aria-current={credentials?"page":undefined}>◇ تغییر نام کاربری و رمز عبور</a>
-   <a href={"/c/"+slug+"/settings/users"} aria-current={!credentials?"page":undefined}>♧ کاربران و سطح دسترسی</a>
+   <Link prefetch={true} href={"/c/"+slug+"/settings/credentials"} aria-current={credentials?"page":undefined}>◇ تغییر نام کاربری و رمز عبور</Link>
+   <Link prefetch={true} href={"/c/"+slug+"/settings/users"} aria-current={!credentials?"page":undefined}>♧ کاربران و سطح دسترسی</Link>
   </nav>
   {children}
  </div>;
