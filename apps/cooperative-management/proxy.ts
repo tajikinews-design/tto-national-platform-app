@@ -71,7 +71,8 @@ export function proxy(request:NextRequest){
   return NextResponse.redirect(new URL("/c/"+slug,request.url),307);
 
  if(path==="/c/"+slug||path.startsWith("/c/"+slug+"/modules/")&&
-  /^\/c\/[a-z0-9-]+\/modules\/nav-(?:0[2-9]|1[01])$/.test(path))return NextResponse.next();
+  /^\/c\/[a-z0-9-]+\/modules\/nav-(?:0[2-9]|1[01])$/.test(path)||
+  path==="/c/"+slug+"/settings/credentials"||path==="/c/"+slug+"/settings/users")return NextResponse.next();
  if(path==="/settings/subscription")return NextResponse.next();
  if(SAFE_LOGIN_APIS.has(path)||CONTEXT_API.test(path))return NextResponse.next();
  return unavailable(request);
