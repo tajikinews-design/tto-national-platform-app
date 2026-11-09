@@ -52,6 +52,16 @@ export class Database {
     }
   }
   async onModuleDestroy(): Promise<void> { await this.pool.end(); }
+  async commerceDemoPasswordLookup(username:string){
+    const r=await this.pool.query<{user_id:string;slug:string;password_scrypt:string}>(
+      "SELECT * FROM tto.commerce_demo_password_lookup($1)",[username]);
+    return r.rows[0]??null;
+  }
+  async issueCommerceDemoPasswordSession(id:string,hash:Buffer){
+    const r=await this.pool.query<{ok:boolean}>(
+      "SELECT tto.issue_commerce_demo_password_session($1::uuid,$2) AS ok",[id,hash]);
+    return r.rows[0]?.ok===true;
+  }
   async demoCommercePlans(){
     const r=await this.pool.query('SELECT code,title,duration_days AS "durationDays",features FROM tto.commerce_demo_plans WHERE active AND preview_only ORDER BY duration_days');
     return r.rows;
@@ -360,6 +370,95 @@ export class FoundationCommandsController {
    * tenants require a separate formally approved national directory read model.
    * Never infer legal registration or tenant activation from a reserved slug.
    */
+  @Get("commerce/demo/workspaces")
+  async commerceDemoWorkspaces(@Headers("authorization") auth:string|undefined){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      const r=await c.query<{items:Record<string,unknown>[]}>("SELECT tto.my_commerce_demo_workspace_details() AS items");
+      return {items:r.rows[0]?.items??[]};
+    });
+  }
+  @Post("commerce/demo/otp-proof")
+  @HttpCode(200)
+  async proofCommerceDemoOtp(@Headers("authorization") auth:string|undefined){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      const r=await c.query<{ok:boolean}>("SELECT tto.mark_commerce_demo_otp_proof($1) AS ok",[this.db.sessionDigest(auth)]);
+      if(r.rows[0]?.ok!==true)throw new ForbiddenException("ACTIVE_ORDER_AND_OTP_REQUIRED");
+      return {verified:true,validForSeconds:600};
+    });
+  }
+  @Post("commerce/demo/credentials")
+  @HttpCode(200)
+  async setupCommerceDemoCredentials(@Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    const slug=input.slug,username=input.username,password=input.password;
+    if(typeof slug!=="string"||typeof username!=="string"||typeof password!=="string"||
+      !/^[a-z][a-z0-9._-]{4,63}$/.test(username)||password.length<14||password.length>128||
+      !/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))throw new BadRequestException("INVALID_CREDENTIALS");
+    const actor=await this.db.sessionActor(auth);
+    const salt=randomBytes(16);
+    const hash="scrypt$v1$"+salt.toString("hex")+"$"+
+      scryptSync(password,salt,64,{N:16384,r:8,p:1,maxmem:64*1024*1024}).toString("hex");
+    return this.db.withActor(actor,async c=>{
+      const r=await c.query<{data:Record<string,unknown>}>(
+        "SELECT tto.set_commerce_demo_credentials($1,$2,$3,$4) AS data",
+        [slug,username,hash,this.db.sessionDigest(auth)]);
+      return r.rows[0]?.data;
+    });
+  }
+  @Post("commerce/demo/password-login")
+  @HttpCode(200)
+  async loginCommerceDemo(@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    const username=input.username,password=input.password,slug=input.slug;
+    if(typeof username!=="string"||typeof password!=="string"||
+       !/^[a-z][a-z0-9._-]{4,63}$/.test(username)||password.length>128||
+       (slug!==undefined&&(typeof slug!=="string"||!(/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)))))
+      throw new BadRequestException("INVALID_CREDENTIALS");
+    const row=await this.db.commerceDemoPasswordLookup(username);
+    const fakeSalt=Buffer.alloc(16,0x42);
+    const fake="scrypt$v1$"+fakeSalt.toString("hex")+"$"+
+      scryptSync("TTO_FAKE_NO_ACCOUNT",fakeSalt,64,{N:16384,r:8,p:1,maxmem:64*1024*1024}).toString("hex");
+    const valid=verifyNationalPassword(password,row?.password_scrypt??fake);
+    if(!valid||!row||(slug&&row.slug!==slug))throw new UnauthorizedException("INVALID_CREDENTIALS");
+    const token=randomBytes(48).toString("base64url");
+    if(!await this.db.issueCommerceDemoPasswordSession(row.user_id,createHash("sha256").update(token).digest()))
+      throw new ServiceUnavailableException("SESSION_UNAVAILABLE");
+    return {accessToken:token,slug:row.slug,authenticated:true,commercialOnly:true};
+  }
+  @Post("commerce/demo/notify")
+  @HttpCode(200)
+  async notifyCommerceDemo(@Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
+    const orderId=input.orderId;
+    if(typeof orderId!=="string"||!(/^[0-9a-f-]{36}$/i.test(orderId)))
+      throw new BadRequestException("INVALID_ORDER");
+    const actor=await this.db.sessionActor(auth);
+    const info=await this.db.withActor(actor,async c=>{
+      const r=await c.query<{mobile:string;username:string;slug:string}>(
+        "SELECT * FROM tto.commerce_demo_sms_payload($1::uuid)",[orderId]);
+      return r.rows[0]??null;
+    });
+    if(!info)return {smsStatus:"NOT_QUEUED"};
+    if(process.env.TTO_ENABLE_REAL_SMSOTP_DELIVERY!=="true"||
+       process.env.TTO_ENABLE_COMMERCE_SMS!=="true"||
+       !process.env.APIIR_TOKEN)return {smsStatus:"QUEUED",smsSent:false};
+    const message="TTO: فضای اختصاصی شما آماده است. نام کاربری: "+info.username+
+      " | ورود: https://"+info.slug+".ttoir.ir/login | رمز را با پیامک یک‌بارمصرف تعیین کنید.";
+    let accepted=false;
+    try{
+      const r=await fetch("https://s.api.ir/api/sw1/SendSms",{
+       method:"POST",redirect:"error",headers:{"Content-Type":"application/json","Authorization":"Bearer "+process.env.APIIR_TOKEN},
+       body:JSON.stringify({message,mobiles:[info.mobile]}),signal:AbortSignal.timeout(8000)});
+      if(r.ok){const x=await r.json() as {success?:boolean};accepted=x.success===true;}
+    }catch{}
+    await this.db.withActor(actor,async c=>{await c.query("SELECT tto.commerce_demo_sms_result($1::uuid,$2)",[orderId,accepted]);});
+    return {smsStatus:accepted?"ACCEPTED":"FAILED",smsSent:accepted};
+  }
+
   @Get("commerce/demo/plans")
   async demoCommercePlans(){
     if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
