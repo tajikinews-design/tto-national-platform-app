@@ -10,7 +10,7 @@ export default async function WorkspaceModule({params}:
   !/^nav-(?:0[2-9]|1[01])$/.test(moduleId))notFound();
  const activeId=moduleId.toUpperCase();
  if(!NAV_IDS.includes(activeId))notFound();
- if(activeId==="NAV-02")redirect("/c/"+encodeURIComponent(slug)+"/members/new");
+ if(activeId==="NAV-02")redirect("/c/"+encodeURIComponent(slug)+"/members/add");
  if(activeId==="NAV-11")redirect("/c/"+encodeURIComponent(slug)+"/settings/credentials");
  return <CooperativeEntryGate slug={slug} moduleId={activeId}
   manager={<PortalSessionGate surface="cooperative" workspaceSlug={slug}>
