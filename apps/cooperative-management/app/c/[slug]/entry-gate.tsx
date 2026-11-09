@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useState,type FormEvent,type ReactNode} from "react";
 import {PortalShell,OtpLogin} from "@tto/ui";
-type Workspace={slug:string;name:string;username:string;credentialsReady:boolean;tenantActive:boolean};
+type Workspace={slug:string;name:string;username:string;credentialsReady:boolean;tenantActive:boolean;staff?:boolean;permissions?:string[]};
 const SLUG=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 
 // The commercial owner can view the approved shell, not assume legal manager powers.
@@ -109,6 +109,9 @@ export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettin
     if(!Array.isArray(data.items))throw Error("INVALID_RESPONSE");
     const found=data.items.find((x:Workspace)=>x&&x.slug===slug&&x.tenantActive===true) as Workspace|undefined;
     if(!found){if(alive)setPhase("denied");return}
+    if(found.staff===true&&(!Array.isArray(found.permissions)||!found.permissions.includes(moduleId))){
+      if(alive)setPhase("denied");return;
+    }
     if(alive){setWorkspace(found);setPhase("demo")}
    }catch{if(alive)setPhase("unavailable")}
   }
@@ -116,9 +119,9 @@ export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettin
  },[slug]);
  if(phase==="manager")return <>{manager}</>;
  if(phase==="demo"&&workspace)return <PortalShell surface="cooperative"
-  activeId={moduleId} basePath={"/c/"+slug} demoOnly>
-  {moduleId==="NAV-01"&&!workspace.credentialsReady?<InlineFirstCredentials workspace={workspace}/>:null}
-  {moduleId==="NAV-11"&&ownerSettings?ownerSettings:null}
+  activeId={moduleId} basePath={"/c/"+slug} demoOnly allowedModules={workspace.permissions}>
+  {moduleId==="NAV-01"&&workspace.staff!==true&&!workspace.credentialsReady?<InlineFirstCredentials workspace={workspace}/>:null}
+  {moduleId==="NAV-11"&&workspace.staff!==true&&ownerSettings?ownerSettings:null}
  </PortalShell>;
  if(phase==="login")return <WorkspaceSignIn slug={slug}/>;
  return <main className="tto-login-page" lang="fa" dir="rtl"><section className="tto-login-card" role="status">

@@ -95,8 +95,8 @@ function navHref(i: number, basePath = "") {
 }
 
 export function PortalShell({
-  surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false
-}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean}) {
+  surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, allowedModules
+}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[]}) {
  const cfg=surfaces[surface],selection=Math.max(NAV_IDS.indexOf(activeId),0);
  const home=selection===0,currentTitle=home?cfg.title:cfg.navigation[selection];
  return <div className="shell tto-approved-shell" lang="fa" dir="rtl" data-tto-demo-only={demoOnly?"true":undefined}>
@@ -104,11 +104,11 @@ export function PortalShell({
    <aside className="nav-area">
      <a className="logo" href={basePath||"/"} aria-label="پلتفرم ملی تعاونی توسعه و عمران"><span className="tto-brand-mark">❖</span><strong>پلتفرم ملی تعاونی توسعه و عمران</strong><span>شبکه هوشمند خدمات و راهبری تعاونی‌ها</span></a>
      <nav aria-label={"منوی "+cfg.title}>
-      {cfg.navigation.map((name,i)=><a href={navHref(i,basePath)} key={NAV_IDS[i]}
+      {cfg.navigation.map((name,i)=>!allowedModules||allowedModules.includes(NAV_IDS[i])?<a href={navHref(i,basePath)} key={NAV_IDS[i]}
         aria-current={i===selection?"page":undefined}
         className={i===selection?"nav-link current":"nav-link"}>
         <span aria-hidden="true" className="tto-nav-symbol">{["▦","♙","▥","♜","♧","⚙","▤","▥","♢","▥","⚙"][i]}</span>
-        <span>{name}</span></a>)}
+        <span>{name}</span></a>:null)}
      </nav>
      <a className="tto-logout-link" href={basePath||"/login"}>ورود / خروج از حساب ↗</a>
    </aside>
