@@ -1,4 +1,4 @@
-import {notFound} from "next/navigation";
+import {notFound,redirect} from "next/navigation";
 import {CooperativeNavLink} from "../../cooperative-nav-link";
 import {CooperativeEntryGate} from "../../entry-gate";
 import {PortalSessionGate,PortalShell} from "@tto/ui";
@@ -7,9 +7,10 @@ export const dynamic="force-dynamic";
 export default async function ShareholdersSection({params}:
  {params:Promise<{slug:string;section:string}>}){
  const {slug,section}=await params;
- if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
- (section!=="new"&&section!=="shares"))notFound();
- const sub=section==="new"?"new" as const:"shares" as const;
+ if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))notFound();
+ if(section==="new")redirect("/c/"+encodeURIComponent(slug)+"/members/add");
+ if(section!=="add"&&section!=="shares")notFound();
+ const sub=section==="add"?"add" as const:"shares" as const;
  return <CooperativeEntryGate slug={slug} moduleId="NAV-02"
   memberSection={sub} nav02Content={<MemberDraftForms slug={slug} section={sub}/>}
   manager={<PortalSessionGate surface="cooperative" workspaceSlug={slug}>
