@@ -130,11 +130,17 @@ export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettin
   {moduleId==="NAV-11"&&workspace.staff!==true&&ownerSettings?ownerSettings:null}
  </PortalShell>;
  if(phase==="login")return <WorkspaceSignIn slug={slug}/>;
- return <AuthFrame surface="cooperative">
-  <section className="tto-auth-controls" role="status" aria-live="polite">
-   <h2>{phase==="checking"?"در حال بازکردن مدیریت تعاونی…":
-    phase==="denied"?"حساب شما مجوز مشاهده این تعاونی را ندارد":"ارتباط با سرویس احراز دسترسی برقرار نشد"}</h2>
-   <p className="tto-auth-muted-note">نشست و مالکیت همان زیردامنه باید توسط سرور تأیید شوند.</p>
+ // Checking is transient navigation state, NOT an authentication challenge.
+ // Keep the login brand frame exclusively for an actual unauthenticated login.
+ if(phase==="checking")return <main className="tto-workspace-transition" dir="rtl" lang="fa"
+  role="status" aria-live="polite" aria-label="در حال بارگذاری صفحه مقصد">
+  <span className="tto-workspace-transition-spinner" aria-hidden="true"/>
+ </main>;
+ return <main className="tto-workspace-access-error" dir="rtl" lang="fa">
+  <section role={phase==="denied"?"alert":"status"}>
+   <h2>{phase==="denied"?"حساب شما مجوز مشاهده این بخش را ندارد":"بررسی دسترسی ممکن نشد"}</h2>
+   <p>محدوده تعاونی و مجوزهای حساب باید از سوی سرور تأیید شوند.</p>
+   {phase==="unavailable"?<button type="button" onClick={()=>window.location.reload()}>تلاش مجدد</button>:null}
   </section>
- </AuthFrame>;
+ </main>;
 }
