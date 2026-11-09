@@ -4,9 +4,9 @@ import {OtpLogin} from "./otp-login";
 type Surface="cooperative"|"shareholder";
 export function PortalPasswordLogin({surface,workspaceSlug}:{surface:Surface;workspaceSlug?:string}){
  const [username,setUsername]=useState(""),[password,setPassword]=useState("");
- const [phase,setPhase]=useState<"checking"|"login"|"ready"|"error">("login");
+ const [phase,setPhase]=useState<"checking"|"login"|"ready"|"error">("checking");
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
- const [method,setMethod]=useState<"password"|"otp">("password");
+ const [method,setMethod]=useState<"password"|"otp">("otp");
  const label=surface==="cooperative"?"مدیر تعاونی":"سهامدار";
  useEffect(()=>{
   let alive=true;
@@ -34,15 +34,12 @@ export function PortalPasswordLogin({surface,workspaceSlug}:{surface:Surface;wor
   }catch{setNotice("ارتباط با سرویس امن ورود برقرار نشد.")}
   finally{setBusy(false)}
  }
- return <section className="tto-login-card" data-tto-auth-surface={surface} aria-label={"ورود مستقل "+label} dir="rtl">
-   <span className="tto-login-mark">TTO</span>
-   <p className="tto-login-eyebrow">پلتفرم ملی تعاونی توسعه و عمران</p>
-   <h1>ورود {label}</h1>
-   <p>ورود مستقل با نام کاربری و رمز عبور؛ حساب باید قبلاً به هویت حقیقی و محدوده مجاز همین تعاونی متصل شده باشد.</p>
+ return <section className="tto-auth-controls" data-tto-auth-surface={surface} aria-label={"ورود مستقل "+label} dir="rtl">
+   <p className="tto-auth-muted-note">روش ورود دلخواه را انتخاب کنید. دسترسی پس از ورود تابع مجوزهای همان حساب است.</p>
    {workspaceSlug?<div className="tto-login-scope">تعاونی انتخاب‌شده: <b dir="ltr">{workspaceSlug}</b></div>:null}
-   <div style={{display:"flex",gap:10,margin:"14px 0"}} role="group" aria-label="روش ورود">
-     <button type="button" aria-pressed={method==="password"} onClick={()=>setMethod("password")}>نام کاربری و رمز عبور</button>
-     <button type="button" aria-pressed={method==="otp"} onClick={()=>setMethod("otp")}>رمز یک‌بارمصرف پیامکی</button>
+   <div className="tto-auth-method-tabs" role="tablist" aria-label="انتخاب روش ورود">
+     <button className="tto-auth-tab" type="button" role="tab" aria-selected={method==="otp"} onClick={()=>{setNotice("");setMethod("otp")}}>رمز یک‌بارمصرف</button>
+     <button className="tto-auth-tab" type="button" role="tab" aria-selected={method==="password"} onClick={()=>{setNotice("");setMethod("password")}}>نام کاربری و رمز</button>
    </div>
    {method==="otp"?<OtpLogin enabled={true} surface={surface}/>:
    phase==="checking"?<p role="status">در حال بررسی نشست…</p>:
@@ -58,7 +55,8 @@ export function PortalPasswordLogin({surface,workspaceSlug}:{surface:Surface;wor
       <button disabled={busy} type="submit">{busy?"در حال بررسی امن…":"ورود به پنل "+label}</button>
     </form>}
    {notice?<p role="alert" className="tto-login-error">{notice}</p>:null}
+   {surface==="cooperative"?<div className="tto-auth-inline-links"><a href="/customer-login">ورود صاحب اشتراک</a><a href="/first-login">بازیابی مشخصات با OTP</a></div>:null}
    {phase==="error"?<p role="alert">سرویس بررسی وضعیت نشست در دسترس نیست.</p>:null}
-   <small>آزمایش با اطلاعات واقعی: هیچ پرونده یا سهمی بدون نشست معتبر و احراز اختیار قابل مشاهده نیست.</small>
+   <p className="tto-auth-muted-note">ورود، به‌تنهایی مجوز دسترسی به سهام یا اطلاعات سایر تعاونی‌ها نیست.</p>
  </section>;
 }
