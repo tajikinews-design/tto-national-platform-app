@@ -474,7 +474,8 @@ export class FoundationCommandsController {
       throw new ServiceUnavailableException("DEMO_ONLY");
     // The registrant chooses the name, NOT a pre-reserved slug or a payment.
     // Only a freshly verified server session may create a demo workspace.
-    if(Object.keys(input).some(key=>!["name","planCode"].includes(key))||
+    if(!input||typeof input!=="object"||Array.isArray(input)||
+       Object.keys(input).some(key=>!["name","planCode"].includes(key))||
        typeof input.name!=="string"||typeof input.planCode!=="string"||
        input.name.trim().length<5||input.name.length>180||
        !/^demo-[a-z-]{2,30}$/.test(input.planCode))
