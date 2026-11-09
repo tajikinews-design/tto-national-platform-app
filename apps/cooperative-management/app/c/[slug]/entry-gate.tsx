@@ -85,8 +85,8 @@ function InlineFirstCredentials({workspace}:{workspace:Workspace}){
   </form>{notice?<p role="alert">{notice}</p>:null}
  </div>;
 }
-export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettings}:
- {slug:string;manager:ReactNode;moduleId?:string;ownerSettings?:ReactNode}){
+export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettings,settingsSection}:
+ {slug:string;manager:ReactNode;moduleId?:string;ownerSettings?:ReactNode;settingsSection?:"credentials"|"users"}){
  const [phase,setPhase]=useState<"checking"|"manager"|"demo"|"login"|"denied"|"unavailable">("checking");
  const [workspace,setWorkspace]=useState<Workspace|null>(null);
  useEffect(()=>{
@@ -113,17 +113,19 @@ export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettin
     if(!Array.isArray(data.items))throw Error("INVALID_RESPONSE");
     const found=data.items.find((x:Workspace)=>x&&x.slug===slug&&x.tenantActive===true) as Workspace|undefined;
     if(!found){if(alive)setPhase("denied");return}
-    if(found.staff===true&&(!Array.isArray(found.permissions)||!found.permissions.includes(moduleId))){
+    if(found.staff===true&&(settingsSection!==undefined||
+       !Array.isArray(found.permissions)||!found.permissions.includes(moduleId))){
       if(alive)setPhase("denied");return;
     }
     if(alive){setWorkspace(found);setPhase("demo")}
    }catch{if(alive)setPhase("unavailable")}
   }
   void run();return()=>{alive=false}
- },[slug]);
+ },[slug,moduleId,settingsSection]);
  if(phase==="manager")return <>{manager}</>;
  if(phase==="demo"&&workspace)return <PortalShell surface="cooperative"
-  activeId={moduleId} basePath={"/c/"+slug} demoOnly allowedModules={workspace.permissions}>
+  activeId={moduleId} basePath={"/c/"+slug} demoOnly allowedModules={workspace.permissions}
+  canManageSettings={workspace.staff!==true} settingsSection={settingsSection}>
   {moduleId==="NAV-01"&&workspace.staff!==true&&!workspace.credentialsReady?<InlineFirstCredentials workspace={workspace}/>:null}
   {moduleId==="NAV-11"&&workspace.staff!==true&&ownerSettings?ownerSettings:null}
  </PortalShell>;
