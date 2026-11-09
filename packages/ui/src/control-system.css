@@ -23,3 +23,13 @@
 .tto-approved-shell .tto-settings-sublink>span{font-size:16px;color:#07a9ac}
 @media(max-width:800px){.tto-approved-shell .tto-settings-tree{min-width:max-content}
  .tto-approved-shell .tto-settings-submenu{background:#fff;padding:6px;border:1px solid #deebf1;border-radius:12px;margin:0}}
+
+/* Tenant scoped route verification: a neutral, minimal loading state.
+   Authentication branding is reserved for an actual login, not every click. */
+.tto-workspace-transition{min-height:100svh;background:#f4f8fc;display:grid;place-items:center}
+.tto-workspace-transition-spinner{display:block;width:34px;height:34px;border-radius:50%;
+ border:3px solid #dcebf6;border-top-color:#06989e;animation:tto-spinner .6s linear infinite}
+@keyframes tto-spinner{to{transform:rotate(360deg)}}
+.tto-workspace-access-error{min-height:100svh;display:grid;place-items:center;background:#f4f8fc;padding:20px}
+.tto-workspace-access-error section{max-width:520px;padding:30px;background:#fff;border-radius:14px;border:1px solid #dbe8f1}
+@media(prefers-reduced-motion:reduce){.tto-workspace-transition-spinner{animation:none}}
