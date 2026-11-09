@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import {useEffect,useMemo,useState,type FormEvent} from "react";
-type Section="new"|"shares";
+type Section="add"|"shares";
 type RecordItem={id:string;name:string;title:string;group:string;identifierMask:string;
  state:string;initialShares?:number;subscribedShares?:number;nominalRial?:number;
  declaredPaidRial?:number;capitalState?:string};
@@ -63,7 +63,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
  }
  async function submit(e:FormEvent<HTMLFormElement>){
   e.preventDefault();if(busy)return;setError(false);setNotice("");
-  if(section==="new"){
+  if(section==="add"){
    const id=profile.nationalId.trim();
    if(!((profile.title==="آقا"||profile.title==="خانم")?/^\d{10}$/:/^\d{11}$/).test(id)){
     setError(true);setNotice("کد ملی شخص حقیقی باید ۱۰ رقم و شناسه ملی شخص حقوقی ۱۱ رقم باشد.");return;
@@ -79,7 +79,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   }
   setBusy(true);
   try{
-   const req=section==="new"?
+   const req=section==="add"?
     {slug,action:"profile",data:profile}:
     {slug,action:"capital",draftId,data:capital};
    const r=await fetch("/api/commerce/nav02",{method:"POST",credentials:"same-origin",cache:"no-store",
@@ -90,10 +90,10 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    const d=await r.json() as {saved?:boolean};
    if(d.saved!==true)throw Error("ثبت توسط سرور تأیید نشد.");
    await refresh();
-   setError(false);setNotice(section==="new"?
+   setError(false);setNotice(section==="add"?
     "پرونده اولیه ذخیره شد؛ این ثبت به‌معنای عضویت یا مالکیت رسمی سهام نیست.":
     "اطلاعات اظهارشده سهام ذخیره شد؛ دفتر رسمی سهام و مانده قانونی تغییر نکردند.");
-   if(section==="new")setProfile(initialProfile);
+   if(section==="add")setProfile(initialProfile);
    else{setCapital(initialCapital);setDraftId("")}
   }catch(e){setError(true);setNotice(e instanceof Error?e.message:"خطا در ثبت")}
   finally{setBusy(false)}
@@ -102,19 +102,19 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
  return <div className="tto-nav02-page">
   <header className="tto-nav02-hero">
    <span className="tto-settings-eyebrow">NAV-02 · دفتر ثبت اولیه</span>
-   <h1>{section==="new"?"افزودن سهامدار":"ثبت اطلاعات اولیه سهام"}</h1>
+   <h1>{section==="add"?"افزودن سهامدار":"ثبت اطلاعات اولیه سهام"}</h1>
    <p>ثبت پرونده آزمایشی و تأییدنشده؛ این اطلاعات تا تطبیق قانونی با دفتر رسمی سهام، حق مالکیت، عضویت یا رأی ایجاد نمی‌کنند.</p>
   </header>
   <nav aria-label="زیرمنوهای اعضا و سهام" className="tto-nav02-switch">
-   <Link href={base+"new"} aria-current={section==="new"?"page":undefined}>♙ افزودن سهامدار</Link>
+   <Link href={base+"add"} aria-current={section==="add"?"page":undefined}>♙ افزودن سهامدار</Link>
    <Link href={base+"shares"} aria-current={section==="shares"?"page":undefined}>▥ اطلاعات سهام</Link>
   </nav>
   <div className="tto-nav02-warning" role="status"><strong>محیط آزمایشی</strong> · فقط از داده‌های ساختگی استفاده کنید. شماره ملی، تماس یا تصویر واقعی افراد را تا تکمیل ارزیابی حفاظت داده وارد نکنید.</div>
   <div className="tto-nav02-layout">
-   <section className="tto-nav02-card" aria-label={section==="new"?"فرم ثبت مشخصات سهامدار":"فرم اظهار اطلاعات سهام"}>
-    <h2>{section==="new"?"مشخصات شناسایی سهامدار":"اطلاعات سرمایه و پرداخت اظهارشده"}</h2>
+   <section className="tto-nav02-card" aria-label={section==="add"?"فرم ثبت مشخصات سهامدار":"فرم اظهار اطلاعات سهام"}>
+    <h2>{section==="add"?"مشخصات شناسایی سهامدار":"اطلاعات سرمایه و پرداخت اظهارشده"}</h2>
     <form onSubmit={submit} className="tto-nav02-form">
-     {section==="new"?<>
+     {section==="add"?<>
       <Field title="عنوان *"><select value={profile.title} onChange={e=>change("title",e.target.value)}>
        {TITLES.map(t=><option key={t}>{t}</option>)}</select></Field>
       {fields.map(([key,label,max,required])=><Field key={key}
@@ -166,7 +166,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
       <p className="tto-nav02-summary">کل ارزش اسمی اظهارشده: <strong>{faNumber(Number(subtotal))} ریال</strong></p>
      </>}
      <div className="tto-nav02-actions"><button type="submit" disabled={busy||loading||Boolean(photo)}>
-      {busy?"در حال ثبت پرونده…":section==="new"?"ثبت پرونده اولیه":"ثبت اطلاعات اظهارشده سهام"}
+      {busy?"در حال ثبت پرونده…":section==="add"?"ثبت پرونده اولیه":"ثبت اطلاعات اظهارشده سهام"}
      </button><span>هیچ اثر مالی یا انتقال قانونی ثبت نمی‌شود.</span></div>
     </form>
     {notice?<div role={error?"alert":"status"} className={"tto-nav02-message"+(error?" error":"")}>{notice}</div>:null}
