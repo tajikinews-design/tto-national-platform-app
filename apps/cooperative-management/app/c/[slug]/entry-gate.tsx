@@ -130,9 +130,11 @@ export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettin
   {moduleId==="NAV-11"&&workspace.staff!==true&&ownerSettings?ownerSettings:null}
  </PortalShell>;
  if(phase==="login")return <WorkspaceSignIn slug={slug}/>;
- return <main className="tto-login-page" lang="fa" dir="rtl"><section className="tto-login-card" role="status">
-  <h1>{phase==="checking"?"در حال بازکردن مدیریت تعاونی…":
-   phase==="denied"?"حساب شما مجوز مشاهده این تعاونی را ندارد":"ارتباط با سرویس احراز دسترسی برقرار نشد"}</h1>
-  <p>نشست و مالکیت همان زیردامنه باید توسط سرور تأیید شوند.</p>
- </section></main>;
+ return <AuthFrame surface="cooperative">
+  <section className="tto-auth-controls" role="status" aria-live="polite">
+   <h2>{phase==="checking"?"در حال بازکردن مدیریت تعاونی…":
+    phase==="denied"?"حساب شما مجوز مشاهده این تعاونی را ندارد":"ارتباط با سرویس احراز دسترسی برقرار نشد"}</h2>
+   <p className="tto-auth-muted-note">نشست و مالکیت همان زیردامنه باید توسط سرور تأیید شوند.</p>
+  </section>
+ </AuthFrame>;
 }
