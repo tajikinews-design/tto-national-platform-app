@@ -98,7 +98,8 @@ export function PortalShell({
   surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, allowedModules, canManageSettings = false, settingsSection
 }: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users"}) {
  const cfg=surfaces[surface],selection=Math.max(NAV_IDS.indexOf(activeId),0);
- const home=selection===0,currentTitle=home?cfg.title:cfg.navigation[selection];
+ const home=selection===0,currentTitle=settingsSection==="credentials"?"تغییر نام کاربری و رمز عبور":
+  settingsSection==="users"?"کاربران و سطح دسترسی":home?cfg.title:cfg.navigation[selection];
  return <div className="shell tto-approved-shell" lang="fa" dir="rtl" data-tto-demo-only={demoOnly?"true":undefined}>
    <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
    <aside className="nav-area">
@@ -142,13 +143,13 @@ export function PortalShell({
       {!home&&<div className="breadcrumb"><a href={basePath||"/"}>داشبورد</a><span>‹</span><span>{currentTitle}</span></div>}
       {home?<ApprovedDashboardHome surface={surface} demoOnly={demoOnly}>{children}</ApprovedDashboardHome>:
       <>
-       <section className="hero"><h1>{currentTitle}</h1><p>{cfg.sectionDescriptions[selection]}</p></section>
-       <section className="panel tto-module-content">
+       {!settingsSection?<section className="hero"><h1>{currentTitle}</h1><p>{cfg.sectionDescriptions[selection]}</p></section>:null}
+       <section className={settingsSection?"panel tto-module-content tto-settings-module":"panel tto-module-content"}>
          {children??<><div className="module-status" role="status">
            <strong>اطلاعات این بخش در انتظار اتصال معتبر است</strong>
            <span>برای اجرای واقعی باید نشست مجاز، دسترسی محدود به تعاونی و API تأیید شده وجود داشته باشد.</span>
           </div><p>{cfg.boundary}</p></>}
-         <a className="return-link" href={basePath||"/"}>بازگشت به داشبورد</a>
+         {!settingsSection?<a className="return-link" href={basePath||"/"}>بازگشت به داشبورد</a>:null}
        </section>
       </>}
       <footer>محیط آزمایش TTO · ثبت اطلاعات واقعی فقط با دسترسی مجاز و کنترل حفاظت داده · بدون ایجاد اثر حقوقی یا عملیات مالی</footer>
