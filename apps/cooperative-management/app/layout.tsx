@@ -1,4 +1,6 @@
 import "@tto/ui/styles.css";
+import "@tto/ui/control-system.css";
+import "./management-settings.css";
 import type { ReactNode } from "react";
 import localFont from "next/font/local";
 // Pinned Vazirmatn v33.003, OFL-1.1; identical shared local asset across all 3 portals.
