@@ -81,7 +81,7 @@ class SyntheticSessionBrowserContract(unittest.TestCase):
             'loginHtml.includes(\'class="tto-auth-page"\')',
             'loginHtml.includes(\'role="tablist"\')',
             'loginHtml.includes("در حال بررسی نشست")',
-            'loginHtml.includes(\'id="national-username"\')',
+            'loginHtml.includes("در حال بررسی اعتبار نشست")',
             'html.includes("کارپوشه شخصی سهامدار")',
         ):
             with self.subTest(marker=marker):
