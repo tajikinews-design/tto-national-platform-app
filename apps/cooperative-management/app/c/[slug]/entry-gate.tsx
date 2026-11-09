@@ -52,7 +52,7 @@ export function CooperativeEntryGate({slug,manager}:{slug:string;manager:ReactNo
     phase==="denied"?"دسترسی به این تعاونی تأیید نشد":"ارتباط با کنترل دسترسی برقرار نشد"}</h1>
    <p>{phase==="checking"?"فضای اختصاصی فقط پس از تأیید هویت و تطبیق شناسه باز می‌شود.":
     "برای حفظ امنیت، بدون تأیید مالکیت یا نقش مدیریتی هیچ داده‌ای نمایش داده نمی‌شود."}</p>
-   {phase!=="checking"?<a href="/login?workspace="+encodeURIComponent(slug)>بازگشت به ورود</a>:null}
+   {phase!=="checking"?<a href={"/login?workspace="+encodeURIComponent(slug)}>بازگشت به ورود</a>:null}
   </section>
  </main>;
 }
