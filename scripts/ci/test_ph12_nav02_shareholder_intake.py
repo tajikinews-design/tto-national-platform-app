@@ -8,9 +8,9 @@ class Nav02IntakeContract(unittest.TestCase):
   page=src("apps/cooperative-management/app/c/[slug]/members/[section]/page.tsx")
   nav=src("packages/ui/src/index.tsx")
   route=src("apps/cooperative-management/app/c/[slug]/modules/[moduleId]/page.tsx")
-  for marker in ('"new"','"shares"','moduleId="NAV-02"','nav02Content={<MemberDraftForms'):
+  for marker in ('"add"','"shares"','moduleId="NAV-02"','nav02Content={<MemberDraftForms'):
    self.assertIn(marker,page)
-  for marker in ('href={basePath+"/members/new"}','href={basePath+"/members/shares"}',
+  for marker in ('href={basePath+"/members/add"}','href={basePath+"/members/shares"}',
                  'memberSection','surface==="cooperative"&&i===1'):
    self.assertIn(marker,nav)
   self.assertIn('if(activeId==="NAV-02")redirect(',route)
@@ -48,7 +48,7 @@ class Nav02IntakeContract(unittest.TestCase):
    self.assertIn(marker,bff)
   self.assertIn('"\u002fapi\u002fcommerce\u002fnav02"',proxy)
   self.assertIn('credentials:"same-origin"',src("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx"))
-  self.assertIn('path==="/c/"+slug+"/members/new"',proxy)
+  self.assertIn('path==="/c/"+slug+"/members/add"',proxy)
   self.assertIn('path==="/c/"+slug+"/members/shares"',proxy)
   gate=src("apps/cooperative-management/app/c/[slug]/entry-gate.tsx")
   self.assertIn('workspace.staff!==true&&nav02Content',gate)
