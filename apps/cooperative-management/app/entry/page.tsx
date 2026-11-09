@@ -42,8 +42,7 @@ export default function WorkspaceEntry(){
   }
   void begin();return()=>{alive=false}
  },[]);
- return <AuthFrame surface="coopera // Pure routing resolver: never present another login design.
- // Single scoped workspace automatically opens the approved dashboard.
+ // Pure routing resolver; no duplicate login template.
  return <main dir="rtl" lang="fa" className="tto-workspace-resolver" style={{padding:24,maxWidth:650,margin:"auto"}}>
   {state==="loading"?<p role="status" aria-live="polite">در حال شناسایی فضای اختصاصی و انتقال به داشبورد…</p>:null}
   {state==="choose"?<section aria-label="انتخاب فضای مجاز">
@@ -54,3 +53,4 @@ export default function WorkspaceEntry(){
   {state==="denied"?<p role="alert">دسترسی به فضای انتخابی مجاز نیست. <a href="/login">بازگشت به ورود</a></p>:null}
   {state==="error"?<p role="alert">سرویس تشخیص فضای مجاز پاسخ نداد. <a href="/login">بازگشت به ورود</a></p>:null}
  </main>;
+}
