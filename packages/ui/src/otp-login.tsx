@@ -4,7 +4,7 @@ import {TenantScopePicker} from "./tenant-scope-picker";
 import {ShareholderWorkspace,type ShareholderView} from "./shareholder-workspace";
 import type {ShareholderSectionId} from "./shareholder-section-config";
 /** OTP UI never holds API.ir credentials; form is unavailable until a protected backend is configured. */
-export function OtpLogin({enabled,surface,initialShareholderView="overview",initialShareholderSectionId,initialManagementModuleId}:{enabled:boolean;surface:"shareholder"|"cooperative"|"national";initialShareholderView?:ShareholderView;initialShareholderSectionId?:ShareholderSectionId;initialManagementModuleId?:string}){
+export function OtpLogin({enabled,surface,initialShareholderView="overview",initialShareholderSectionId,initialManagementModuleId,postLoginRedirect}:{enabled:boolean;surface:"shareholder"|"cooperative"|"national";initialShareholderView?:ShareholderView;initialShareholderSectionId?:ShareholderSectionId;initialManagementModuleId?:string;postLoginRedirect?:string}){
  const [mobile,setMobile]=useState("");
  const [code,setCode]=useState("");
  const [requestId,setRequestId]=useState("");
@@ -138,7 +138,11 @@ export function OtpLogin({enabled,surface,initialShareholderView="overview",init
   {!enabled?<p className="otp-unavailable">در این نسخه پیش‌نمایش، پایگاه داده و سرویس ورود متصل نیست. ارسال پیامک واقعی غیرفعال است.</p>:
   checking?<p role="status">در حال بررسی نشست ورود...</p>:
   checkFailed?<div><p role="alert">بررسی نشست ممکن نیست. برای حفظ امنیت، ورود جدید تا ارتباط با سرور غیرفعال است.</p><button type="button" onClick={()=>setCheckAttempt(n=>n+1)}>تلاش مجدد</button></div>:
-  verified?<div><p role="status">{message}</p>{surface==="shareholder"?<ShareholderWorkspace initialView={initialShareholderView} initialSectionId={initialShareholderSectionId} onSessionInvalidated={invalidateSession}/>:<TenantScopePicker surface={surface} moduleId={initialManagementModuleId}/>}<button type="button" disabled={busy} onClick={logout}>خروج از حساب</button></div>:
+  verified?<div><p role="status">{message}</p>{postLoginRedirect?
+    <a className="tto-auth-primary-link" href={postLoginRedirect}>ادامه به پنل ←</a>:
+    surface==="shareholder"?<ShareholderWorkspace initialView={initialShareholderView} initialSectionId={initialShareholderSectionId} onSessionInvalidated={invalidateSession}/>:
+    <TenantScopePicker surface={surface} moduleId={initialManagementModuleId}/>}
+    <button type="button" disabled={busy} onClick={logout}>خروج از حساب</button></div>:
    <div className="otp-forms">
     <form onSubmit={issue}>
      <label htmlFor="tto-mobile">شماره موبایل ثبت‌شده</label>
