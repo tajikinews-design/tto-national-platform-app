@@ -133,8 +133,8 @@ export function OtpLogin({enabled,surface,initialShareholderView="overview",init
   }finally{setBusy(false);}
  }
  return <section className="otp-panel" aria-label="ورود با پیامک">
-  <h2>ورود با رمز یک‌بارمصرف</h2>
-  <p>ارسال و تأیید کد از مسیر امن سمت سرور انجام می‌شود.</p>
+  <h2>تأیید شماره همراه</h2>
+  <p>شماره موبایل ثبت‌شده را وارد کنید؛ کد تأیید از مسیر امن سرور ارسال می‌شود.</p>
   {!enabled?<p className="otp-unavailable">در این نسخه پیش‌نمایش، پایگاه داده و سرویس ورود متصل نیست. ارسال پیامک واقعی غیرفعال است.</p>:
   checking?<p role="status">در حال بررسی نشست ورود...</p>:
   checkFailed?<div><p role="alert">بررسی نشست ممکن نیست. برای حفظ امنیت، ورود جدید تا ارتباط با سرور غیرفعال است.</p><button type="button" onClick={()=>setCheckAttempt(n=>n+1)}>تلاش مجدد</button></div>:
@@ -142,17 +142,17 @@ export function OtpLogin({enabled,surface,initialShareholderView="overview",init
    <div className="otp-forms">
     <form onSubmit={issue}>
      <label htmlFor="tto-mobile">شماره موبایل ثبت‌شده</label>
-     <input id="tto-mobile" dir="ltr" autoComplete="tel" inputMode="tel" maxLength={11}
+     <input id="tto-mobile" type="tel" dir="ltr" autoComplete="tel" inputMode="numeric" maxLength={11}
       placeholder="09xxxxxxxxx" value={mobile} onChange={e=>{setMobile(e.target.value);if(requestId){setRequestId("");setOtpDeadline(null);setCode("");}}}
       pattern="09[0-9]{9}" required disabled={busy}/>
      <button type="submit" disabled={busy||remainingSeconds>0}>{remainingSeconds>0?"در انتظار پایان اعتبار کد":requestId?"دریافت مجدد کد":"دریافت کد"}</button>
     </form>
-    {requestId?<form onSubmit={verify}>
+    {requestId?<form onSubmit={verify} className="tto-auth-code-form">
      {remainingSeconds>0?<p role="timer" aria-live="off">زمان باقی‌مانده: <strong style={{fontVariantNumeric:"tabular-nums"}}>{remainingSeconds.toLocaleString("fa-IR")} ثانیه</strong></p>:
       <p role="status">اعتبار کد پایان یافته است. برای دریافت کد جدید، «دریافت مجدد کد» را انتخاب کنید.</p>}
      <label htmlFor="tto-code">کد یک‌بارمصرف</label>
      <input id="tto-code" dir="ltr" inputMode="numeric" autoComplete="one-time-code"
-       minLength={6} maxLength={10} pattern="[0-9]{6,10}" value={code}
+       minLength={6} maxLength={6} pattern="[0-9]{6}" value={code}
        onChange={e=>setCode(e.target.value)} required disabled={busy||remainingSeconds<=0}/>
      <button type="submit" disabled={busy||remainingSeconds<=0}>تأیید کد</button>
     </form>:null}
