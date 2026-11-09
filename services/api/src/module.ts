@@ -473,11 +473,11 @@ export class FoundationCommandsController {
     if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
       typeof draftId!=="string"||!uuidPattern.test(draftId)||
       !["image/jpeg","image/png","image/webp"].includes(String(mime))||
-      typeof dataBase64!=="string"||dataBase64.length>1398104||
+      typeof dataBase64!=="string"||dataBase64.length>955736||
       dataBase64.length<88||!/^[A-Za-z0-9+/]+={0,2}$/.test(dataBase64))
       throw new BadRequestException("INVALID_PHOTO_INPUT");
     const raw=Buffer.from(dataBase64,"base64");
-    if(raw.length<68||raw.length>1048576||raw.toString("base64")!==dataBase64)
+    if(raw.length<68||raw.length>716800||raw.toString("base64")!==dataBase64)
       throw new BadRequestException("PHOTO_TOO_LARGE_OR_INVALID");
     const signature=(mime==="image/png"&&raw.subarray(0,8).equals(
        Buffer.from("89504e470d0a1a0a","hex"))&&raw.toString("ascii",12,16)==="IHDR")||
