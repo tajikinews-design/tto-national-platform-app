@@ -110,9 +110,9 @@ for (let idx=0;idx<slugs.length;idx++){
     }
     const scoped=await fetch("http://127.0.0.1:"+port+"/login?workspace=qa-tto-coop-1405");
     const scopedHtml=await scoped.text();
-    if(scoped.status!==200||!scopedHtml.includes('class="tto-auth-layout"')||
-       !scopedHtml.includes("در حال بازکردن مدیریت تعاونی")||
-       scopedHtml.includes('class="tto-login-card"'))
+    if(scoped.status!==200||!scopedHtml.includes("در حال بازکردن مدیریت تعاونی")||
+       scopedHtml.includes('class="tto-login-card"')||
+       scopedHtml.includes('class="shell tto-approved-shell"'))
       throw Error("PH12_SCOPED_LOGIN_NOT_FROZEN_FRAME");
     checks++;
     const ownerApis=[
