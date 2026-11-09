@@ -17,7 +17,7 @@
     "apps/cooperative-management/app/login/page.tsx": "fa38ab48bd58aceaaf0d3c5d755ff1965089ac11",
     "apps/shareholder/app/login/page.tsx": "f54288c9f52c2c1fc1d33f4ae692f59e67a41432",
     "apps/cooperative-management/app/customer-register/page.tsx": "2f65d6c4d0c2fc69edf35251c9a2e8fd3c90ad5b",
-    "apps/cooperative-management/app/subscribe/page.tsx": "eb30d27d72caa5a07c961faeafb72ce6a009ec84"
+    "apps/cooperative-management/app/subscribe/page.tsx": "9f9da0eb45fdbad878abfc573cbc13f7d2de6a8c"
   },
   "previewDeployments": {
     "national": "dpl_523hDfjvo8axRZM4VDKYbTwZ5gpL",
@@ -65,7 +65,7 @@
     "date": "2026-11-09",
     "authorizedBy": "product owner requested customer-selected subdomain field after OTP",
     "previousCheckoutFingerprint": "37319cb62ee5c9ee941c64660a501f61238b5dd5",
-    "currentFingerprint": "eb30d27d72caa5a07c961faeafb72ce6a009ec84",
+    "currentFingerprint": "9f9da0eb45fdbad878abfc573cbc13f7d2de6a8c",
     "scope": "Preview-only cooperative checkout UI and BFF/backend contract; no other portal login design changes",
     "rules": [
       "Cooperative name and optional custom subdomain are independent",

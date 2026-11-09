@@ -91,10 +91,13 @@ export default function CommercialCheckout(){
       placeholder="مثلاً تعاونی توسعه و عمران طرقبه" value={form.name}
       onChange={e=>setForm(p=>({...p,name:e.target.value}))}/>
      <label htmlFor="order-slug">نام زیردامنه اختصاصی (اختیاری)</label>
-     <input id="order-slug" name="slug" type="text" dir="ltr" inputMode="url"
-      autoCapitalize="none" autoCorrect="off" spellCheck={false} minLength={3} maxLength={40}
-      pattern="[a-z0-9][a-z0-9-]{1,38}[a-z0-9]" placeholder="torghabeh"
-      value={form.slug} onChange={e=>setForm(v=>({...v,slug:e.target.value.trim().toLowerCase()}))}/>
+     <div className="tto-checkout-domain" dir="ltr">
+      <input id="order-slug" name="slug" type="text" dir="ltr" inputMode="url"
+       autoCapitalize="none" autoCorrect="off" spellCheck={false} minLength={3} maxLength={40}
+       pattern="[a-z0-9][a-z0-9-]{1,38}[a-z0-9]" placeholder="torghabeh"
+       value={form.slug} onChange={e=>setForm(v=>({...v,slug:e.target.value.trim().toLowerCase()}))}/>
+      <span>.ttoir.ir</span>
+     </div>
      <p className="tto-auth-muted-note">فقط بخش پیش از ‎.ttoir.ir را وارد کنید؛ برای نمونه torghabeh. اگر خالی بماند، سامانه نشانی یکتا می‌سازد.</p>
      {form.slug?<p className="tto-checkout-plan" aria-live="polite">نشانی انتخابی:
        <strong dir="ltr">{form.slug}.ttoir.ir</strong> — {slugValid?"آزادبودن آن هنگام ثبت نهایی بررسی می‌شود.":"این نشانی مجاز نیست."}

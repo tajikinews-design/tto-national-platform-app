@@ -74,7 +74,8 @@ class SharedTtoAuthenticationUi(unittest.TestCase):
         for label in ("نام دلخواه تعاونی نمونه","پلن آزمایشی",
                       "ساخت خودکار و یکتا پس از تأیید","ایجاد فضای آزمایشی"):
             self.assertIn(label,order)
-        self.assertNotIn('id="order-slug"',order)
+        self.assertIn('id="order-slug"',order)
+        self.assertIn('className="tto-checkout-domain"',order)
         self.assertNotIn('id="order-mobile"',order)
         self.assertNotIn('id="order-amount"',order)
         for guard in ("/api/commerce","response.status===409",
