@@ -472,14 +472,18 @@ export class FoundationCommandsController {
   async confirmDemoCommerce(@Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
     if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
       throw new ServiceUnavailableException("DEMO_ONLY");
-    // The registrant chooses the name, NOT a pre-reserved slug or a payment.
-    // Only a freshly verified server session may create a demo workspace.
+    // Customer chooses cooperative name and optionally an unused vanity subdomain.
+    // No slug supplied means random server generation; verified OTP session is required.
     if(!input||typeof input!=="object"||Array.isArray(input)||
-       Object.keys(input).some(key=>!["name","planCode"].includes(key))||
+       Object.keys(input).some(key=>!["name","planCode","slug"].includes(key))||
        typeof input.name!=="string"||typeof input.planCode!=="string"||
        input.name.trim().length<5||input.name.length>180||
        !/^demo-[a-z-]{2,30}$/.test(input.planCode))
       throw new BadRequestException("INVALID_DEMO_ORDER");
+    const reserved=new Set(["www","api","admin","national","shareholder","mail","smtp","ftp","app","auth","login","support","help","docs","cdn","assets","static","dev","staging","preview","test","stage","portal","dashboard","billing","shop","checkout","order","payment","payments","tto","root","site","system","demo","manager","new"]);
+    if(input.slug!==undefined&&(typeof input.slug!=="string"||
+      !/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(input.slug)||reserved.has(input.slug)))
+      throw new BadRequestException("INVALID_WORKSPACE_SLUG");
     const name=input.name.trim().replace(/\s+/g," ");
     const actor=await this.db.sessionActor(auth);
     return this.db.withActor(actor,async c=>{
@@ -491,14 +495,14 @@ export class FoundationCommandsController {
       );
       const mobile=mobiles.rows[0]?.mobile;
       if(!mobile)throw new ForbiddenException("VERIFIED_MOBILE_REQUIRED");
-      const slug=generateDemoWorkspaceSlug(name);
+      const slug=typeof input.slug==="string"?input.slug:generateDemoWorkspaceSlug(name);
       // submitted_amount_irr=1 is a nonfinancial schema placeholder ONLY.
       // No client-supplied price or payment assertion is accepted.
       const result=await c.query<{result:Record<string,unknown>}>(
         "SELECT tto.confirm_commerce_demo_order($1,$2,$3,$4::bigint,$5) AS result",
         [slug,name,input.planCode,1,mobile]
       ).catch(e=>{if((e as {code?:string}).code==="23505")
-        throw new ConflictException("RANDOM_SLUG_COLLISION_RETRY");
+        throw new ConflictException(typeof input.slug==="string"?"WORKSPACE_ADDRESS_TAKEN":"RANDOM_SLUG_COLLISION_RETRY");
         throw e});
       return result.rows[0]?.result;
     });

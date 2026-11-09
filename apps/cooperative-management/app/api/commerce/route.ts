@@ -3,6 +3,8 @@ import {trustedBackendHeaders} from "../../../lib/trusted-backend";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 const H={"Cache-Control":"private, no-store","Vary":"Cookie"};
+const slugFormat=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+const reservedSlugs=new Set(["www","api","admin","national","shareholder","mail","smtp","ftp","app","auth","login","support","help","docs","cdn","assets","static","dev","staging","preview","test","stage","portal","dashboard","billing","shop","checkout","order","payment","payments","tto","root","site","system","demo","manager","new"]);
 const fail=(status:number,code:string)=>NextResponse.json({code},{status,headers:H});
 function api(){
  const v=process.env.TTO_API_BASE_URL;
@@ -28,14 +30,15 @@ export async function POST(req:NextRequest){
  if(req.headers.get("content-type")?.split(";")[0]!=="application/json")return fail(415,"JSON_REQUIRED");
  const raw=await req.text();if(raw.length>1100)return fail(413,"BODY_TOO_LARGE");
  let o:Record<string,unknown>;try{const v:unknown=JSON.parse(raw);if(!v||typeof v!=="object"||Array.isArray(v))throw Error("invalid");o=v as Record<string,unknown>;}catch{return fail(400,"INVALID_BODY")}
- if(Object.keys(o).some(key=>!["name","planCode"].includes(key))||
+ if(Object.keys(o).some(key=>!["name","planCode","slug"].includes(key))||
   typeof o.name!=="string"||o.name.trim().length<5||o.name.length>180||
-  typeof o.planCode!=="string"||!/^demo-[a-z-]{2,30}$/.test(o.planCode))return fail(400,"INVALID_ORDER");
+  typeof o.planCode!=="string"||!/^demo-[a-z-]{2,30}$/.test(o.planCode)||
+  (o.slug!==undefined&&(typeof o.slug!=="string"||!slugFormat.test(o.slug)||reservedSlugs.has(o.slug))))return fail(400,"INVALID_ORDER");
  const base=api();if(!base)return fail(503,"SERVICE_UNAVAILABLE");
  try{
   const r=await fetch(new URL("/v1/commerce/demo/confirm",base),{
    method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token,...trustedBackendHeaders(req)},
-   body:JSON.stringify({name:o.name,planCode:o.planCode}),
+   body:JSON.stringify({name:o.name,planCode:o.planCode,...(typeof o.slug==="string"?{slug:o.slug}:{})}),
    cache:"no-store",redirect:"error",signal:AbortSignal.timeout(9500)});
   if(r.status===401)return fail(401,"VERIFIED_LOGIN_REQUIRED");
   if(r.status===403)return fail(403,"MOBILE_NOT_VERIFIED");

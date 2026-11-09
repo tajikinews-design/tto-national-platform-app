@@ -13,7 +13,8 @@ class CooperativeOnboardingFlow(unittest.TestCase):
   self.assertIn('mode="order"',order)
   self.assertIn('نام دلخواه تعاونی نمونه',order)
   self.assertIn('ساخت خودکار و یکتا پس از تأیید',order)
-  self.assertNotIn('id="order-slug"',order)
+  self.assertIn('id="order-slug"',order)
+  self.assertIn('form.slug?form.slug+".ttoir.ir"',order)
   self.assertNotIn('id="order-amount"',order)
   self.assertIn('"/v1/commerce/demo/confirm"',confirm)
   self.assertIn('data.realPayment!==false',confirm)
@@ -72,6 +73,7 @@ class CooperativeOnboardingFlow(unittest.TestCase):
  def test_frozen_ui_amendment_is_recorded(self):
   m=src("docs/design/TTO-AUTH-UI-V1-FREEZE.json")
   self.assertIn('"TTO-AUTH-UI-V1-WORKFLOW-01"',m)
+  self.assertIn('"TTO-CHECKOUT-DEMO-V3"',m)
   self.assertIn('"currentFingerprint": "9a482c8e9c514fd735c44e32dca6c09f14507a27"',m)
   self.assertIn('"releaseStatus": "PRODUCTION_HOLD"',m)
 
