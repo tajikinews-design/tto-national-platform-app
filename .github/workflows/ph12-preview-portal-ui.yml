@@ -36,6 +36,7 @@ jobs:
           python3 scripts/ci/test_ph12_cooperative_onboarding_flow.py -v
           python3 scripts/ci/test_ph12_cooperative_settings_subpages.py -v
           python3 scripts/ci/test_ph12_nav02_shareholder_intake.py -v
+          python3 scripts/ci/test_ph12_nav02_photo_quarantine.py -v
           python3 scripts/ci/test_ph12_members_draft_forms.py -v
           python3 scripts/ci/test_ph12_cooperative_fast_navigation.py -v
           echo "TTO_CUSTOM_VANITY_DOMAIN_CONTRACT_PASS"
