@@ -1,12 +1,22 @@
 "use client";
-import {useState,type FormEvent} from "react";
+import {useEffect,useState,type FormEvent} from "react";
 export default function CommercialLogin(){
  const [slug,setSlug]=useState(""),[username,setUsername]=useState(""),[password,setPassword]=useState(""),[status,setStatus]=useState(""),[busy,setBusy]=useState(false);
+ useEffect(()=>{
+  const hostname=window.location.hostname.toLowerCase();
+  const hostSlug=hostname.endsWith(".ttoir.ir")?hostname.slice(0,-".ttoir.ir".length):"";
+  const queried=new URLSearchParams(window.location.search).get("slug")??"";
+  const requested=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(hostSlug)?hostSlug:queried;
+  if(/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(requested))setSlug(requested);
+ },[]);
  async function submit(e:FormEvent){e.preventDefault();if(busy)return;setBusy(true);setStatus("");
  try{
   const r=await fetch("/api/commerce/password-login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({slug,username,password})});
   if(!r.ok){setStatus(r.status===401?"نام کاربری یا رمز اشتباه است.":"ورود در دسترس نیست.");return;}
-  setPassword("");window.location.assign("/settings/subscription");
+  setPassword("");
+  const host=window.location.hostname.toLowerCase();
+  const hostSlug=host.endsWith(".ttoir.ir")?host.slice(0,-".ttoir.ir".length):"";
+  window.location.replace(hostSlug===slug?"/owner/"+encodeURIComponent(slug):"/settings/subscription");
  }catch{setStatus("اتصال برقرار نشد.")}finally{setBusy(false)}
  }
  return <main dir="rtl" lang="fa" style={{fontFamily:"Tahoma,Arial",padding:25,maxWidth:700,margin:"auto"}}>
