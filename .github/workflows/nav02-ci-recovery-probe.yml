@@ -1,0 +1,45 @@
+# Dedicated lightweight probe for the NAV-02 branch when Actions concludes
+# with zero jobs before any test step. No secrets, external DB, release, or deploy.
+# Diagnostic success is NOT equivalent to full adaptive CI acceptance.
+name: NAV02 runner recovery probe (NO DEPLOY)
+on:
+  push:
+    branches:
+      - feat/nav02-shareholder-intake-draft-20261109
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  nav02-runner-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: "true"
+      APIIR_TOKEN: ""
+      DATABASE_URL: ""
+      TTO_API_BASE_URL: ""
+      TTO_NAV02_REAL_PII_ENABLED: "false"
+      VERCEL: ""
+    steps:
+      - name: Checkout exact branch commit without persisted token
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Show exact revision and identify CI runner
+        run: |
+          set -euo pipefail
+          echo "NAV02_RUNNER_STARTED=YES"
+          git rev-parse HEAD
+          python3 --version
+      - name: Validate owner-scoped draft forms and encrypted schema source
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/test_ph12_nav02_shareholder_intake.py -v
+          python3 scripts/ci/test_ph12_nav02_sensitive_envelopes.py -v
+          python3 scripts/ci/test_ph12_nav02_photo_quarantine.py -v
+          python3 scripts/ci/test_ph12_members_draft_forms.py -v
+          echo "NAV02_SOURCE_CONTRACTS=PASS"
+      - name: Preserve full regression gate
+        run: |
+          echo "NAV02_PROBE_ONLY=TRUE"
+          echo "Full TTO adaptive CI and authenticated owner/browser UAT remain required."
