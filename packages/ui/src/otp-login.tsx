@@ -26,6 +26,16 @@ export function OtpLogin({enabled,surface,initialShareholderView="overview",init
  const [checking,setChecking]=useState(enabled);
  const [checkFailed,setCheckFailed]=useState(false);
  const [checkAttempt,setCheckAttempt]=useState(0);
+ // Owner-approved workflow amendment: preserve the frozen visual design but
+ // immediately continue after verified OTP, without a second "continue" click.
+ // The target remains on the same origin and is role-checked by its own gate.
+ // For an unscoped cooperative login, discover owned workspaces via /entry.
+ useEffect(()=>{
+  if(!enabled||!verified||surface!=="cooperative"||!postLoginRedirect)return;
+  const target=postLoginRedirect==="/"?"/entry":postLoginRedirect;
+  if(target!=="/entry"&&!/^\\/c\\/[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(target))return;
+  window.location.replace(target);
+ },[enabled,verified,surface,postLoginRedirect]);
  // A 401 from a private BFF read invalidates the authenticated UI on every portal.
  // Unmounting the workspace discards scoped authorization/read-model state from React.
  const invalidateSession=useCallback(()=>{
