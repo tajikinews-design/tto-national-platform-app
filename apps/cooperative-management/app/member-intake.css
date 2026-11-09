@@ -1,0 +1,51 @@
+/* NAV02 preview only; uses the already approved management theme and 44px controls. */
+.tto-nav02-page{display:grid;gap:19px;color:#163c5e;max-width:1350px;margin:0 auto}
+.tto-nav02-page *{box-sizing:border-box}
+.tto-nav02-hero{border-radius:20px;padding:25px 30px;background:linear-gradient(115deg,#123d67,#0a6585 62%,#079e9f);color:#fff}
+.tto-nav02-hero h1{font-size:25px;font-weight:850;color:#fff;margin:12px 0 5px}
+.tto-nav02-hero p{max-width:900px;color:#ecfbff;line-height:2;font-size:12px}
+.tto-nav02-switch{display:flex;flex-wrap:wrap;gap:9px}
+.tto-nav02-switch a{border:1px solid #d2e5f0;border-radius:11px;padding:11px 18px;
+ background:#fff;color:#315f80;text-decoration:none;font-weight:800;font-size:12px}
+.tto-nav02-switch a[aria-current="page"]{background:#e1f6f4;border-color:#67c5bf;color:#096777}
+.tto-nav02-warning{background:#fff7e8;border:1px solid #f3dfb1;color:#805e27;
+ padding:12px 17px;border-radius:12px;font-size:12px;line-height:2}
+.tto-nav02-layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(250px,.7fr);gap:18px;align-items:start}
+.tto-nav02-card{background:#fff;border:1px solid #dce7ef;border-radius:18px;
+ padding:24px;min-width:0;box-shadow:0 8px 32px #16446b09}
+.tto-nav02-card h2{color:#174466;font-size:17px;font-weight:850;margin:0 0 20px}
+.tto-nav02-card p{font-size:12px;line-height:2}
+.tto-nav02-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px}
+.tto-nav02-field{display:grid;gap:7px;font-size:12px;font-weight:750;color:#3c5974;min-width:0}
+.tto-nav02-field.wide,.tto-nav02-photo,.tto-nav02-actions,.tto-nav02-summary,.tto-nav02-selected{grid-column:1/-1}
+.tto-nav02-field :is(input,select,textarea){display:block;width:100%;font:550 12px var(--tto-font),Tahoma,Arial;
+ background:#f9fcff;border:1px solid #d4e3ec;color:#143c5d;border-radius:11px;padding:0 13px}
+.tto-nav02-field :is(input,select){height:44px;min-height:44px}
+.tto-nav02-field textarea{padding-top:12px;resize:vertical;min-height:84px}
+.tto-nav02-field :is(input,select,textarea):focus-visible{outline:3px solid #86bff8}
+.tto-nav02-field small{font-size:10px;color:#687d8b;font-weight:400;line-height:1.8}
+.tto-nav02-photo{border:1px dashed #a7c8d9;border-radius:12px;padding:14px;display:grid;gap:12px;font-size:12px}
+.tto-nav02-photo input[type=file]{max-width:100%;height:auto;padding:8px}
+.tto-nav02-photo img{object-fit:cover;border-radius:10px}
+.tto-nav02-photo button{width:max-content;background:#eaf7f5;border:none;border-radius:8px;padding:8px 12px}
+.tto-nav02-actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding-top:7px}
+.tto-nav02-actions button{border:0;border-radius:11px;padding:11px 22px;background:linear-gradient(120deg,#126ab0,#0a9d9a);
+ color:#fff;font:800 12px var(--tto-font),Tahoma;cursor:pointer}
+.tto-nav02-actions button:disabled{opacity:.5;cursor:not-allowed}
+.tto-nav02-actions span{color:#7a8b9b;font-size:10px}
+.tto-nav02-message{grid-column:1/-1;border-radius:12px;background:#ebf8f1;border:1px solid #bbe8d1;
+ color:#237358;padding:13px;margin-top:14px;font-size:12px;line-height:2}
+.tto-nav02-message.error{background:#fff1f3;color:#99445b;border-color:#f3cdd6}
+.tto-nav02-summary{background:#edf8fb;padding:15px;border-radius:10px;color:#27637c;font-size:12px}
+.tto-nav02-summary strong{color:#086d8a;font-size:15px}
+.tto-nav02-records{display:grid;gap:11px}
+.tto-nav02-records article{border:1px solid #e2ebf0;border-radius:12px;padding:12px;display:grid;gap:6px}
+.tto-nav02-records strong{font-size:13px;color:#1a4d6d}
+.tto-nav02-records small{font-size:11px;color:#687e92}
+.tto-nav02-records span{color:#2f7a82;font-size:10px}
+.tto-nav02-records button{justify-self:start;padding:6px 12px;border-radius:8px;color:#09658d;background:#e8f6fa;border:0;cursor:pointer}
+.tto-nav02-boundary{border-top:1px solid #e3edf4;padding-top:14px;color:#8b6d36}
+@media(max-width:1050px){.tto-nav02-layout{grid-template-columns:1fr}}
+@media(max-width:650px){.tto-nav02-form{grid-template-columns:1fr}
+.tto-nav02-card{padding:16px}.tto-nav02-hero{padding:20px}
+.tto-nav02-switch a{flex:1;text-align:center}}
