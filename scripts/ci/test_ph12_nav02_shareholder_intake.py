@@ -39,9 +39,9 @@ class Nav02IntakeContract(unittest.TestCase):
   bff=src("apps/cooperative-management/app/api/commerce/nav02/route.ts")
   proxy=src("apps/cooperative-management/proxy.ts")
   for marker in ('"commerce/demo/nav02"','TTO_ISOLATED_DEMO_DB',
-   '"SELECT tto.commerce_demo_nav02_list($1) AS items"',
-   '"SELECT tto.commerce_demo_nav02_add($1,$2::jsonb) AS record"',
-   '"SELECT tto.commerce_demo_nav02_capital($1,$2::uuid,$3::jsonb) AS record"'):
+   '"SELECT tto.commerce_demo_nav02_list_secure($1) AS items"',
+   '"SELECT tto.commerce_demo_nav02_add_secure($1,$2,$3,$4,$5,$6) AS record"',
+   '"SELECT tto.commerce_demo_nav02_capital_secure($1,$2::uuid,$3::jsonb,$4,$5,$6) AS record"'):
    self.assertIn(marker,api)
   for marker in ('ORIGIN_DENIED','PREVIEW_ONLY',
     '/v1/commerce/demo/nav02','Cache-Control','BODY_TOO_LARGE','DUPLICATE_DRAFT'):
