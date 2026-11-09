@@ -7,7 +7,7 @@ export default function CommercialRegister(){
    if(!r.ok)throw Error("ارسال کد فعلاً در دسترس نیست؛ تنظیمات پیامک و ثبت‌نام باید فعال شوند.");
    const d=await r.json() as {requestId?:string};
    if(!d.requestId)throw Error("پاسخ ثبت‌نام معتبر نیست.");
-   setChallenge(d.requestId);setNotice("اگر شماره شما واجد شرایط ثبت‌نام باشد، کد ارسال می‌شود.");
+   setChallenge(d.requestId);setNotice("درخواست ارسال کد تأیید ثبت شد. لطفاً پیامک خود را بررسی کنید. اگر کد را دریافت نکردید، دوباره تلاش کنید.");
   }catch(e){setNotice(e instanceof Error?e.message:"ثبت‌نام در دسترس نیست.")}finally{setBusy(false)}
  }
  async function verify(e:FormEvent){e.preventDefault();if(busy)return;setBusy(true);setNotice("");
