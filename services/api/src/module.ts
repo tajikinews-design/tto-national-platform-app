@@ -404,7 +404,7 @@ export class FoundationCommandsController {
   }
   @Post("commerce/demo/password-login")
   @HttpCode(200)
-  async loginCommerceDemo(@Body() input:Record<string,unknown>){
+  async loginCommerceDemo(@Body() input:Record<string,unknown>,@Req() req:{ip?:string}){
     if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
     const username=input.username,password=input.password,slug=input.slug;
     if(typeof username!=="string"||typeof password!=="string"||
@@ -414,8 +414,9 @@ export class FoundationCommandsController {
     const secret=process.env.TTO_NATIONAL_ROOT_ATTEMPT_SECRET;
     if(!secret||Buffer.byteLength(secret)<32)throw new ServiceUnavailableException("LOGIN_ABUSE_GUARD_UNAVAILABLE");
     const key=(v:string)=>createHmac("sha256",secret).update("commerce:"+v).digest();
+    if(typeof req.ip!=="string"||req.ip.length<3||req.ip.length>64)throw new ServiceUnavailableException("LOGIN_IP_REQUIRED");
     if(!await this.db.reserveCommerceDemoLoginAttempt(key("user:"+username))||
-       !await this.db.reserveCommerceDemoLoginAttempt(key("global")))
+       !await this.db.reserveCommerceDemoLoginAttempt(key("ip:"+req.ip)))
        throw new ForbiddenException("TOO_MANY_LOGIN_ATTEMPTS");
     const row=await this.db.commerceDemoPasswordLookup(username);
     const fakeSalt=Buffer.alloc(16,0x42);
