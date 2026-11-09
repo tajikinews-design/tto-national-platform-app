@@ -89,8 +89,8 @@ function InlineFirstCredentials({workspace}:{workspace:Workspace}){
   </form>{notice?<p role="alert">{notice}</p>:null}
  </div>;
 }
-export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettings,settingsSection}:
- {slug:string;manager:ReactNode;moduleId?:string;ownerSettings?:ReactNode;settingsSection?:"credentials"|"users"}){
+export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettings,settingsSection,ownerMembers,membersSection}:
+ {slug:string;manager:ReactNode;moduleId?:string;ownerSettings?:ReactNode;settingsSection?:"credentials"|"users";ownerMembers?:ReactNode;membersSection?:"add"|"shares"}){
  const [phase,setPhase]=useState<"checking"|"manager"|"demo"|"login"|"denied"|"unavailable">(
   ()=>verifiedWorkspaceBySlug.get(slug)?.kind??"checking");
  const [workspace,setWorkspace]=useState<Workspace|null>(
@@ -136,10 +136,12 @@ export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettin
  if(phase==="manager")return <>{manager}</>;
  if(phase==="demo"&&workspace)return <PortalShell surface="cooperative"
   activeId={moduleId} basePath={"/c/"+slug} demoOnly allowedModules={workspace.permissions}
-  canManageSettings={workspace.staff!==true} settingsSection={settingsSection}
+  canManageSettings={workspace.staff!==true} settingsSection={settingsSection} membersSection={membersSection}
   NavigationLink={CooperativeNavLink}>
   {moduleId==="NAV-01"&&workspace.staff!==true&&!workspace.credentialsReady?<InlineFirstCredentials workspace={workspace}/>:null}
   {moduleId==="NAV-11"&&workspace.staff!==true&&ownerSettings?ownerSettings:null}
+  {moduleId==="NAV-02"&&membersSection?(workspace.staff!==true?ownerMembers:
+   <section className="tto-settings-card" role="status"><h2>دسترسی فقط برای مشاهده</h2><p>مجوز NAV-02 شما فقط نمایش ماژول است و مجوز ثبت پرونده هویتی یا اطلاعات سهام ایجاد نمی‌کند.</p></section>):null}
  </PortalShell>;
  if(phase==="login")return <WorkspaceSignIn slug={slug}/>;
  // Checking is transient navigation state, NOT an authentication challenge.
