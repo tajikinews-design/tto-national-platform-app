@@ -80,8 +80,8 @@ for (let idx=0;idx<slugs.length;idx++){
   if(slug==="cooperative-management"){
     const routes=[
       ["/entry","در حال شناسایی فضای اختصاصی"],
-      ["/c/qa-tto-coop-1405","در حال بازکردن مدیریت تعاونی"],
-      ["/c/qa-tto-coop-1405/modules/nav-02","در حال بازکردن مدیریت تعاونی"]
+      ["/c/qa-tto-coop-1405","در حال بارگذاری صفحه مقصد"],
+      ["/c/qa-tto-coop-1405/modules/nav-02","در حال بارگذاری صفحه مقصد"]
     ];
     for(const [path,marker] of routes){
       const resp=await fetch("http://127.0.0.1:"+port+path);
@@ -110,11 +110,11 @@ for (let idx=0;idx<slugs.length;idx++){
     }
     const scoped=await fetch("http://127.0.0.1:"+port+"/login?workspace=qa-tto-coop-1405");
     const scopedHtml=await scoped.text();
-    if(scoped.status!==200||!scopedHtml.includes("در حال بازکردن مدیریت تعاونی")||
+    if(scoped.status!==200||!scopedHtml.includes("در حال بارگذاری صفحه مقصد")||
        scopedHtml.includes('class="tto-login-card"')||
        scopedHtml.includes('class="shell tto-approved-shell"'))
-      throw Error("PH12_SCOPED_LOGIN_NOT_FROZEN_FRAME status="+scoped.status+
-        " checking="+scopedHtml.includes("در حال بازکردن مدیریت تعاونی")+
+      throw Error("PH12_SCOPED_TRANSITION_SSR_SAFE status="+scoped.status+
+        " checking="+scopedHtml.includes("در حال بارگذاری صفحه مقصد")+
         " legacyCard="+scopedHtml.includes('class="tto-login-card"')+
         " leakedShell="+scopedHtml.includes('class="shell tto-approved-shell"'));
     checks++;
