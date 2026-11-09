@@ -12,6 +12,10 @@ const rights:[Right,string][]=[["view","مشاهده"],["create","ثبت"],["edi
 export function CooperativeSecuritySettings({slug}:{slug:string}){
  const [current,setCurrent]=useState(""),[username,setUsername]=useState(""),[password,setPassword]=useState(""),[again,setAgain]=useState("");
  const [scopeReady,setScopeReady]=useState(false),[otpSession,setOtpSession]=useState(false);
+ const [mobile,setMobile]=useState(""),[code,setCode]=useState(""),[challenge,setChallenge]=useState("");
+ const [deadline,setDeadline]=useState(0),[timeNow,setTimeNow]=useState(()=>Date.now());
+ const remaining=Math.max(0,Math.ceil((deadline-timeNow)/1000));
+ useEffect(()=>{if(!deadline)return;const id=window.setInterval(()=>setTimeNow(Date.now()),400);return()=>clearInterval(id)},[deadline]);
  const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
 
  const [rightsMap,setRightsMap]=useState<Record<string,Right[]>>({"NAV-01":["view"]});
@@ -65,10 +69,35 @@ export function CooperativeSecuritySettings({slug}:{slug:string}){
     const data=await r.json() as {items?:{slug:string;username:string;tenantActive:boolean}[]};
     const owner=data.items?.find(x=>x.slug===slug&&x.tenantActive===true);
     if(!owner)throw Error("NO_SCOPE");
-    if(mounted){setScopeReady(true);setOtpSession(a.authenticated===true);setCurrent(owner.username);setUsername(owner.username)}
+    if(mounted){setScopeReady(true);setOtpSession(false);setCurrent(owner.username);setUsername(owner.username)}
    }).catch(()=>{if(mounted)setMessage("برای تنظیم امنیت، نشست معتبر و مالکیت تعاونی باید دوباره تأیید شوند.")});
   return()=>{mounted=false};
  },[slug]);
+ async function requestOtp(e:FormEvent<HTMLFormElement>){
+  e.preventDefault();if(busy||remaining>0)return;setBusy(true);setMessage("");
+  try{
+   const r=await fetch("/api/auth/otp/request",{method:"POST",credentials:"same-origin",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify({mobile})});
+   const d=r.ok?await r.json() as {requestId?:string;expiresInSeconds?:number}:null;
+   if(!r.ok||!d?.requestId)throw Error("دریافت کد تأیید ممکن نشد.");
+   setChallenge(d.requestId);setCode("");
+   setDeadline(Date.now()+Math.min(d.expiresInSeconds??60,60)*1000);
+   setMessage("کد پیامکی ارسال شد؛ آن را در همین صفحه وارد کنید.");
+  }catch(e){setMessage(e instanceof Error?e.message:"دریافت کد انجام نشد.")}
+  finally{setBusy(false)}
+ }
+ async function verifyOtp(e:FormEvent<HTMLFormElement>){
+  e.preventDefault();if(busy||remaining<=0)return;setBusy(true);setMessage("");
+  try{
+   const r=await fetch("/api/auth/otp/verify",{method:"POST",credentials:"same-origin",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify({challengeId:challenge,otp:code})});
+   const d=r.ok?await r.json() as {verified?:boolean}:null;
+   if(!r.ok||d?.verified!==true)throw Error("کد معتبر نیست یا منقضی شده است.");
+   setOtpSession(true);setChallenge("");setCode("");setDeadline(0);
+   setMessage("هویت با OTP تازه تأیید شد؛ اکنون نام کاربری و رمز را ذخیره کنید.");
+  }catch(e){setMessage(e instanceof Error?e.message:"تأیید انجام نشد.")}
+  finally{setBusy(false)}
+ }
  async function saveCredentials(e:FormEvent<HTMLFormElement>){
   e.preventDefault();if(busy||!scopeReady||!otpSession)return;
   if(password.length<14||password!==again){setMessage("رمز عبور حداقل ۱۴ نویسه داشته باشد و با تکرار آن برابر باشد.");return}
@@ -91,6 +120,20 @@ export function CooperativeSecuritySettings({slug}:{slug:string}){
   <section aria-label="تغییر نام کاربری و رمز مدیر" style={{padding:20,border:"1px solid #d4e0ed",borderRadius:14}}>
    <h2>تغییر نام کاربری و رمز عبور مدیر</h2>
    <p>برای ثبت تغییر، تأیید تازه شماره همراه با OTP الزامی است. پس از ذخیره، نشست‌های قدیمی باطل می‌شوند.</p>
+   {scopeReady&&!otpSession?<div style={{display:"grid",gap:12,maxWidth:460}}>
+    <form onSubmit={requestOtp} style={{display:"grid",gap:8}}>
+     <label htmlFor="credential-otp-mobile">شماره همراه تأییدشده مدیر</label>
+     <input id="credential-otp-mobile" dir="ltr" inputMode="numeric" pattern="09[0-9]{9}"
+      maxLength={11} required value={mobile} onChange={e=>setMobile(e.target.value)}/>
+     <button disabled={busy||remaining>0}>{remaining>0?"اعتبار کد: "+remaining.toLocaleString("fa-IR")+" ثانیه":"دریافت کد تأیید تازه"}</button>
+    </form>
+    {challenge?<form onSubmit={verifyOtp} style={{display:"grid",gap:8}}>
+     <label htmlFor="credential-otp-code">کد شش‌رقمی</label>
+     <input id="credential-otp-code" dir="ltr" inputMode="numeric" pattern="[0-9]{6}" minLength={6} maxLength={6}
+      required value={code} onChange={e=>setCode(e.target.value)}/>
+     <button disabled={busy||remaining<=0}>تأیید OTP</button>
+    </form>:null}
+   </div>:null}
    {scopeReady?<form onSubmit={saveCredentials} style={{display:"grid",gap:12,maxWidth:460}}>
     <label>نام کاربری فعلی <strong dir="ltr">{current}</strong></label>
     <label htmlFor="settings-username">نام کاربری جدید</label>
