@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState,type FormEvent,type ReactNode} from "react";
-import Link from "next/link";
+import {CooperativeNavLink} from "./cooperative-nav-link";
 import {PortalShell,OtpLogin,AuthFrame} from "@tto/ui";
 type Workspace={slug:string;name:string;username:string;credentialsReady:boolean;tenantActive:boolean;staff?:boolean;permissions?:string[]};
 const SLUG=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
@@ -8,13 +8,6 @@ type WorkspaceAccess={kind:"manager"|"demo";workspace?:Workspace};
 const verifiedWorkspaceBySlug=new Map<string,WorkspaceAccess>();
 // Browser tab memory provides presentation continuity only. No bearer token,
 // authority grant, personal data or cookie is written to storage.
-function CooperativeNavigationLink({href,children,className,...rest}:{
- href:string;children:ReactNode;className?:string;"aria-current"?:"page";"aria-label"?:string
-}){
- return <Link href={href} prefetch={true} className={className} {...rest}>{children}</Link>;
-}
-
-
 // The commercial owner can view the approved shell, not assume legal manager powers.
 function WorkspaceSignIn({slug}:{slug:string}){
  const [mode,setMode]=useState<"otp"|"password">("otp");
@@ -144,7 +137,7 @@ export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettin
  if(phase==="demo"&&workspace)return <PortalShell surface="cooperative"
   activeId={moduleId} basePath={"/c/"+slug} demoOnly allowedModules={workspace.permissions}
   canManageSettings={workspace.staff!==true} settingsSection={settingsSection}
-  NavigationLink={CooperativeNavigationLink}>
+  NavigationLink={CooperativeNavLink}>
   {moduleId==="NAV-01"&&workspace.staff!==true&&!workspace.credentialsReady?<InlineFirstCredentials workspace={workspace}/>:null}
   {moduleId==="NAV-11"&&workspace.staff!==true&&ownerSettings?ownerSettings:null}
  </PortalShell>;
