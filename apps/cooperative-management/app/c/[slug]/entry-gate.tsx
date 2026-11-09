@@ -1,8 +1,19 @@
 "use client";
 import {useEffect,useState,type FormEvent,type ReactNode} from "react";
+import Link from "next/link";
 import {PortalShell,OtpLogin,AuthFrame} from "@tto/ui";
 type Workspace={slug:string;name:string;username:string;credentialsReady:boolean;tenantActive:boolean;staff?:boolean;permissions?:string[]};
 const SLUG=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+type WorkspaceAccess={kind:"manager"|"demo";workspace?:Workspace};
+const verifiedWorkspaceBySlug=new Map<string,WorkspaceAccess>();
+// Browser tab memory provides presentation continuity only. No bearer token,
+// authority grant, personal data or cookie is written to storage.
+function CooperativeNavigationLink({href,children,className,...rest}:{
+ href:string;children:ReactNode;className?:string;"aria-current"?:"page";"aria-label"?:string
+}){
+ return <Link href={href} prefetch={true} className={className} {...rest}>{children}</Link>;
+}
+
 
 // The commercial owner can view the approved shell, not assume legal manager powers.
 function WorkspaceSignIn({slug}:{slug:string}){
@@ -87,45 +98,53 @@ function InlineFirstCredentials({workspace}:{workspace:Workspace}){
 }
 export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettings,settingsSection}:
  {slug:string;manager:ReactNode;moduleId?:string;ownerSettings?:ReactNode;settingsSection?:"credentials"|"users"}){
- const [phase,setPhase]=useState<"checking"|"manager"|"demo"|"login"|"denied"|"unavailable">("checking");
- const [workspace,setWorkspace]=useState<Workspace|null>(null);
+ const [phase,setPhase]=useState<"checking"|"manager"|"demo"|"login"|"denied"|"unavailable">(
+  ()=>verifiedWorkspaceBySlug.get(slug)?.kind??"checking");
+ const [workspace,setWorkspace]=useState<Workspace|null>(
+  ()=>verifiedWorkspaceBySlug.get(slug)?.workspace??null);
  useEffect(()=>{
   let alive=true;
   async function run(){
-   if(!SLUG.test(slug)){if(alive)setPhase("denied");return}
+   if(!SLUG.test(slug)){verifiedWorkspaceBySlug.delete(slug);if(alive)setPhase("denied");return}
    try{
     const r=await fetch("/api/auth/password/session",{credentials:"same-origin",cache:"no-store"});
     if(r.ok){
      const managerSession=await r.json() as {authenticated?:unknown;workspaceSlug?:unknown};
      if(managerSession.authenticated===true){
-      if(alive)setPhase(managerSession.workspaceSlug===slug?"manager":"denied");
+      if(managerSession.workspaceSlug===slug){
+       verifiedWorkspaceBySlug.set(slug,{kind:"manager"});
+       if(alive){setWorkspace(null);setPhase("manager")}
+      }else{verifiedWorkspaceBySlug.delete(slug);if(alive)setPhase("denied")}
       return;
      }
     }
     const s=await fetch("/api/auth/session",{credentials:"same-origin",cache:"no-store"});
     if(!s.ok)throw Error("SESSION_UNAVAILABLE");
     const identity=await s.json() as {authenticated?:unknown};
-    if(identity.authenticated!==true){if(alive)setPhase("login");return}
+    if(identity.authenticated!==true){verifiedWorkspaceBySlug.delete(slug);if(alive)setPhase("login");return}
     const result=await fetch("/api/commerce/workspaces",{credentials:"same-origin",cache:"no-store"});
-    if(result.status===401){if(alive)setPhase("login");return}
+    if(result.status===401){verifiedWorkspaceBySlug.delete(slug);if(alive)setPhase("login");return}
     if(!result.ok)throw Error("WORKSPACES_UNAVAILABLE");
     const data=await result.json() as {items?:unknown};
     if(!Array.isArray(data.items))throw Error("INVALID_RESPONSE");
     const found=data.items.find((x:Workspace)=>x&&x.slug===slug&&x.tenantActive===true) as Workspace|undefined;
-    if(!found){if(alive)setPhase("denied");return}
+    if(!found){verifiedWorkspaceBySlug.delete(slug);if(alive)setPhase("denied");return}
     if(found.staff===true&&(settingsSection!==undefined||
        !Array.isArray(found.permissions)||!found.permissions.includes(moduleId))){
+      verifiedWorkspaceBySlug.delete(slug);
       if(alive)setPhase("denied");return;
     }
+    verifiedWorkspaceBySlug.set(slug,{kind:"demo",workspace:found});
     if(alive){setWorkspace(found);setPhase("demo")}
-   }catch{if(alive)setPhase("unavailable")}
+   }catch{verifiedWorkspaceBySlug.delete(slug);if(alive)setPhase("unavailable")}
   }
   void run();return()=>{alive=false}
  },[slug,moduleId,settingsSection]);
  if(phase==="manager")return <>{manager}</>;
  if(phase==="demo"&&workspace)return <PortalShell surface="cooperative"
   activeId={moduleId} basePath={"/c/"+slug} demoOnly allowedModules={workspace.permissions}
-  canManageSettings={workspace.staff!==true} settingsSection={settingsSection}>
+  canManageSettings={workspace.staff!==true} settingsSection={settingsSection}
+  NavigationLink={CooperativeNavigationLink}>
   {moduleId==="NAV-01"&&workspace.staff!==true&&!workspace.credentialsReady?<InlineFirstCredentials workspace={workspace}/>:null}
   {moduleId==="NAV-11"&&workspace.staff!==true&&ownerSettings?ownerSettings:null}
  </PortalShell>;
