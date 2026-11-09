@@ -1479,6 +1479,7 @@ export class FoundationCommandsController {
     }
     const code=fake ? "111222" : String(randomInt(100000,1000000));
     const digest=createHmac("sha256",pepper).update(requestId+":"+code).digest();
+    const otpStartedAt=Date.now();
     const created=await this.db.prepareSmsLogin(mobile,requestId,digest);
     if(created){
       let accepted=false;
@@ -1487,7 +1488,8 @@ export class FoundationCommandsController {
       // Generic response, no account enumeration, no OTP or provider body leaks.
       if(!updated) throw new ServiceUnavailableException("Authentication delivery failed");
     }
-    return {requestId,status:"ACCEPTED"};
+    return {requestId,status:"ACCEPTED",expiresInSeconds:created?
+      Math.max(0,Math.ceil((otpStartedAt+60000-Date.now())/1000)):60};
   }
   @Post("auth/challenges/verify")
   @HttpCode(200)
