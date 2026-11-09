@@ -71,12 +71,14 @@ class SharedTtoAuthenticationUi(unittest.TestCase):
         self.assertIn('mode="order"',order)
         self.assertIn('AuthFrame',order)
         self.assertIn('type Step="details"|"confirm"|"done"',order)
-        for label in ("نام پیشنهادی تعاونی","شناسه اختصاصی زیردامنه",
-                      "شماره همراه خریدار","پلن اشتراک",
-                      "مبلغ اعلامی آزمایشی","ثبت و تأیید مبلغ آزمایشی"):
+        for label in ("نام دلخواه تعاونی نمونه","پلن آزمایشی",
+                      "ساخت خودکار و یکتا پس از تأیید","ایجاد فضای آزمایشی"):
             self.assertIn(label,order)
-        for guard in ("Number.isSafeInteger","/api/commerce","response.status===409",
-                      'response.status===401||response.status===403',
+        self.assertNotIn('id="order-slug"',order)
+        self.assertNotIn('id="order-mobile"',order)
+        self.assertNotIn('id="order-amount"',order)
+        for guard in ("/api/commerce","response.status===409",
+                      'response.status===401','response.status===403',
                       'data.tenantActivated!==true'):
             self.assertIn(guard,order)
         for boundary in ("پرداخت واقعی غیرفعال","وجهی دریافت نمی‌شود",
