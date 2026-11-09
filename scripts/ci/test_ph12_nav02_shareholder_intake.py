@@ -59,6 +59,6 @@ class Nav02IntakeContract(unittest.TestCase):
   self.assertIn('testOnlyConfirmed',form)
   self.assertIn('photoRetryId',form)
   self.assertIn('"/api/commerce/nav02/photo"',form)
-  self.assertIn("فقط از داده‌های ساختگی استفاده کنید",form)
+  self.assertIn("فقط داده ساختگی مجاز است",form)
   self.assertNotIn('FormData(',form)
 if __name__=="__main__":unittest.main()
