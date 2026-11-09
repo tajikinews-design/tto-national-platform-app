@@ -64,7 +64,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   setProfile(old=>({...old,[k]:value}));setNotice("");
  }
  async function quarantinePhoto(file:File,id:string){
-  if(file.size<68||file.size>1048576)throw Error("حجم عکس ساختگی باید حداکثر یک مگابایت باشد.");
+  if(file.size<68||file.size>716800)throw Error("حجم عکس ساختگی باید حداکثر ۷۰۰ کیلوبایت باشد.");
   const bytes=new Uint8Array(await file.arrayBuffer());
   let bin="";
   for(let i=0;i<bytes.length;i+=8192)bin+=String.fromCharCode(...bytes.subarray(i,i+8192));
@@ -176,8 +176,8 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        <label htmlFor="nav02-photo">عکس پرسنلی ساختگی (آپلود رمزنگاری‌شده فقط به قرنطینه خصوصی)</label>
        <input id="nav02-photo" type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{
         const file=e.currentTarget.files?.[0]??null;
-        if(file&&(!["image/png","image/jpeg","image/webp"].includes(file.type)||file.size>1048576)){
-         setError(true);setNotice("فقط تصویر PNG، JPEG یا WebP تا حجم یک مگابایت پذیرفته می‌شود.");setPhoto(null);return;
+        if(file&&(!["image/png","image/jpeg","image/webp"].includes(file.type)||file.size>716800)){
+         setError(true);setNotice("فقط تصویر PNG، JPEG یا WebP تا حجم ۷۰۰ کیلوبایت پذیرفته می‌شود.");setPhoto(null);return;
         }
         setPhoto(file);
        }}/>
