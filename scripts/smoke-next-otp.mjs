@@ -80,7 +80,8 @@ for (let idx=0;idx<slugs.length;idx++){
   if(slug==="cooperative-management"){
     const routes=[
       ["/entry","در حال شناسایی فضای اختصاصی"],
-      ["/c/qa-tto-coop-1405","در حال بررسی دسترسی و آماده‌سازی ورود"],
+      ["/c/qa-tto-coop-1405","در حال بازکردن مدیریت تعاونی"],
+      ["/c/qa-tto-coop-1405/modules/nav-02","در حال بازکردن مدیریت تعاونی"],
       ["/setup/qa-tto-coop-1405","در حال بررسی مالکیت فضای تعاونی"],
       ["/owner/qa-tto-coop-1405","در حال بررسی دسترسی به فضای اختصاصی"]
     ];
@@ -89,7 +90,8 @@ for (let idx=0;idx<slugs.length;idx++){
       if(resp.status!==200)throw Error("PH12_ONBOARDING_ROUTE_BAD_STATUS "+path+" "+resp.status);
       const html=await resp.text();
       if(!html.includes(marker)||html.includes("مدیریت قانونی تعاونی: فعال نشده")||
-         html.includes("روزهای باقی‌مانده:"))
+         html.includes("روزهای باقی‌مانده:")||
+         html.includes('class="shell tto-approved-shell"'))
         throw Error("PH12_ONBOARDING_UNAUTHENTICATED_SSR_LEAK "+path);
       checks++;
     }
