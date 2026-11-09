@@ -15,6 +15,16 @@ export function PortalSessionGate({surface,children,workspaceSlug}:{surface:Surf
        if(alive)window.location.replace("/login");return;
     }
     if(surface!=="national"){
+      // A scoped workspace must match the server-attested password-session tenant.
+      // Never accept URL slug alone as authority.
+      if(workspaceSlug){
+        const attested=status as typeof status & {workspaceSlug?:unknown;tenantId?:unknown};
+        if(attested.workspaceSlug!==workspaceSlug||
+           typeof attested.tenantId!=="string"||
+           !/^[a-f0-9-]{36}$/i.test(attested.tenantId)){
+          if(alive)setState("no_access");return;
+        }
+      }
       const scoped=await fetch("/api/me/tenant-options",{credentials:"same-origin",cache:"no-store"});
       if(scoped.status===401){if(alive)window.location.replace("/login");return;}
       if(!scoped.ok)throw new Error("TENANT_ROLES_UNAVAILABLE");
@@ -22,18 +32,19 @@ export function PortalSessionGate({surface,children,workspaceSlug}:{surface:Surf
       if(!Array.isArray(options.items)){throw new Error("INVALID_SCOPE")}
       if(options.items.length===0){if(alive)setState("no_access");return;}
       if(workspaceSlug){
-        const authorized=await Promise.all(options.items.slice(0,50).map(async raw=>{
-          const item=raw as {tenantId?:unknown};
-          if(typeof item.tenantId!=="string"||!/^[a-f0-9-]{36}$/i.test(item.tenantId))return false;
-          try{
-           const scopedContext=await fetch("/api/tenants/"+encodeURIComponent(item.tenantId)+"/context",
-              {credentials:"same-origin",cache:"no-store"});
-           if(!scopedContext.ok)return false;
-           const context=await scopedContext.json() as {slug?:unknown};
-           return context.slug===workspaceSlug;
-          }catch{return false}
-        }));
-        if(!authorized.some(Boolean)){if(alive)setState("no_access");return;}
+        const attested=status as typeof status & {workspaceSlug:string;tenantId:string};
+        const matching=options.items.some(raw=>{
+          const item=raw as {tenantId?:unknown;evidenceStatus?:unknown};
+          return item.tenantId===attested.tenantId&&item.evidenceStatus==="ROLE_AUTHORITY_EVIDENCE";
+        });
+        if(!matching){if(alive)setState("no_access");return;}
+        const scopedContext=await fetch("/api/tenants/"+encodeURIComponent(attested.tenantId)+"/context",
+          {credentials:"same-origin",cache:"no-store"});
+        if(!scopedContext.ok){if(alive)setState("no_access");return;}
+        const context=await scopedContext.json() as {tenantContextVerified?:unknown;tenantId?:unknown};
+        if(context.tenantContextVerified!==true||context.tenantId!==attested.tenantId){
+          if(alive)setState("no_access");return;
+        }
       }
     }
     if(alive)setState("ready");
