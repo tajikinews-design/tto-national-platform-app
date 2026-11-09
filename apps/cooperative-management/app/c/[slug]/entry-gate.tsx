@@ -14,13 +14,15 @@ function WorkspaceSignIn({slug}:{slug:string}){
   try{
    const r=await fetch("/api/commerce/password-login",{method:"POST",credentials:"same-origin",
     headers:{"Content-Type":"application/json"},body:JSON.stringify({slug,username,password})});
-   const data=r.ok?await r.json() as {authenticated?:unknown;slug?:unknown}:null;
-   if(!r.ok||data?.authenticated!==true||data.slug!==slug){
+   const d=r.ok?await r.json() as {authenticated?:unknown;slug?:unknown}:null;
+   if(!r.ok||d?.authenticated!==true||d.slug!==slug){
     setError(r.status===401?"نام کاربری یا رمز عبور نامعتبر است.":"سرویس ورود در دسترس نیست.");return;
    }
    setPassword("");window.location.replace("/c/"+encodeURIComponent(slug));
   }catch{setError("ارتباط با سرویس ورود برقرار نشد.")}
-  finally{setBusy(f return <AuthFrame surface="cooperative">
+  finally{setBusy(false)}
+ }
+ return <AuthFrame surface="cooperative">
   <section className="tto-auth-controls" data-tto-auth-surface="cooperative" aria-label="ورود مدیر تعاونی">
    <p className="tto-auth-muted-note">روش ورود دلخواه را انتخاب کنید. دسترسی به فضای همین تعاونی محدود است.</p>
    <p className="tto-login-scope">تعاونی انتخاب‌شده: <b dir="ltr">{slug}.ttoir.ir</b></p>
@@ -42,7 +44,7 @@ function WorkspaceSignIn({slug}:{slug:string}){
    {error?<p role="alert" className="tto-login-error">{error}</p>:null}
    <p className="tto-auth-muted-note">ورود به‌تنهایی اختیار قانونی یا مجوز عملیات سهام ایجاد نمی‌کند.</p>
   </section>
- </AuthFrame>;n></main>;
+ </AuthFrame>;
 }
 function InlineFirstCredentials({workspace}:{workspace:Workspace}){
  const [username,setUsername]=useState(workspace.username);
