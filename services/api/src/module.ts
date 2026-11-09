@@ -2,6 +2,7 @@ import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injecta
 import { Pool, PoolClient } from "pg";
 import { createCipheriv, createDecipheriv, createHash, createHmac, createPublicKey, verify as cryptoVerify, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
+import { generateDemoWorkspaceSlug } from "./commerce-demo-slug";
 import { reconstructGovernanceSnapshot } from "./governance-temporal";
 import { scanQuarantineBytes } from "./clamd-evidence";
 import {encryptGovernancePdf,unlockAnyGovernancePdf,encryptKmsGovernancePdf,SourcePacket} from "./governance-pdf-envelope";
@@ -471,16 +472,33 @@ export class FoundationCommandsController {
   async confirmDemoCommerce(@Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
     if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
       throw new ServiceUnavailableException("DEMO_ONLY");
-    const slug=input?.slug,name=input?.name,planCode=input?.planCode,mobile=input?.mobile,amount=input?.amountIrr;
-    if(typeof slug!=="string"||typeof name!=="string"||typeof planCode!=="string"||
-      typeof mobile!=="string"||!Number.isSafeInteger(amount)||Number(amount)<1)
+    // The registrant chooses the name, NOT a pre-reserved slug or a payment.
+    // Only a freshly verified server session may create a demo workspace.
+    if(Object.keys(input).some(key=>!["name","planCode"].includes(key))||
+       typeof input.name!=="string"||typeof input.planCode!=="string"||
+       input.name.trim().length<5||input.name.length>180||
+       !/^demo-[a-z-]{2,30}$/.test(input.planCode))
       throw new BadRequestException("INVALID_DEMO_ORDER");
+    const name=input.name.trim().replace(/\s+/g," ");
     const actor=await this.db.sessionActor(auth);
     return this.db.withActor(actor,async c=>{
+      // Never trust or request a mobile number from the browser: resolve
+      // ownership from the same server-attested actor as the OTP session.
+      const mobiles=await c.query<{mobile:string}>(
+        "SELECT mobile FROM tto.verified_mobile_identifiers WHERE user_id=$1 AND revoked_at IS NULL ORDER BY verified_at DESC LIMIT 1",
+        [actor]
+      );
+      const mobile=mobiles.rows[0]?.mobile;
+      if(!mobile)throw new ForbiddenException("VERIFIED_MOBILE_REQUIRED");
+      const slug=generateDemoWorkspaceSlug(name);
+      // submitted_amount_irr=1 is a nonfinancial schema placeholder ONLY.
+      // No client-supplied price or payment assertion is accepted.
       const result=await c.query<{result:Record<string,unknown>}>(
         "SELECT tto.confirm_commerce_demo_order($1,$2,$3,$4::bigint,$5) AS result",
-        [slug,name,planCode,amount,mobile]
-      ).catch(e=>{if((e as {code?:string}).code==="23505")throw new ConflictException("WORKSPACE_ADDRESS_TAKEN");throw e});
+        [slug,name,input.planCode,1,mobile]
+      ).catch(e=>{if((e as {code?:string}).code==="23505")
+        throw new ConflictException("RANDOM_SLUG_COLLISION_RETRY");
+        throw e});
       return result.rows[0]?.result;
     });
   }
