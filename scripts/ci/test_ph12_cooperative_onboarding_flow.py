@@ -51,7 +51,11 @@ class CooperativeOnboardingFlow(unittest.TestCase):
    self.assertIn(x,setup)
   self.assertIn('out.cookies.set("tto_session",""',src("apps/cooperative-management/app/api/commerce/workspaces/route.ts"))
   password_login=src("apps/cooperative-management/app/customer-login/page.tsx")
-  self.assertIn('window.location.replace("/c/"+encodeURIComponent(slug))',password_login)
+  old_first=src("apps/cooperative-management/app/first-login/page.tsx")
+  self.assertIn('redirect("/entry")',old_first)
+  self.assertNotIn('type="password"',password_login)
+  self.assertNotIn('type="password"',old_first)
+  self.assertIn('redirect("/c/"+encodeURIComponent(slug))',password_login)
   self.assertNotIn('"/settings/subscription");',password_login)
   owner=src("apps/cooperative-management/app/owner/[slug]/owner-client.tsx")
   self.assertIn('x.slug===slug&&x.tenantActive===true',owner)
@@ -67,7 +71,7 @@ class CooperativeOnboardingFlow(unittest.TestCase):
   proxy=src("apps/cooperative-management/proxy.ts")
   for x in [
    'return NextResponse.rewrite(new URL("/c/"+slug,request.url))',
-   'if(path==="/customer-login"||path==="/settings/subscription")',
+   'if(path==="/customer-login"||path==="/first-login"||path==="/entry"||',
    '"/api/commerce/workspaces", "/api/commerce/password-login", "/api/commerce/subscriptions"',
    'return unavailable(request)', 'RESERVED.has(slug)'
   ]:self.assertIn(x,proxy)
