@@ -45,9 +45,9 @@ for (let idx=0;idx<slugs.length;idx++){
   const sharedFrame=loginHtml.includes('class="tto-auth-page"')&&
     loginHtml.includes('class="tto-auth-layout"');
   const correctMethod=slug==="national-admin"?
-    loginHtml.includes('id="national-username"')&&
-    loginHtml.includes('id="national-password"')&&
-    loginHtml.includes("OTP مدیر ملی هنوز"):
+    loginHtml.includes("در حال بررسی اعتبار نشست")&&
+    loginHtml.includes("OTP مدیر ملی هنوز")&&
+    loginHtml.includes('role="tablist"'):
     loginHtml.includes('role="tablist"')&&
     loginHtml.includes("رمز یک‌بارمصرف")&&
     loginHtml.includes("نام کاربری و رمز")&&
