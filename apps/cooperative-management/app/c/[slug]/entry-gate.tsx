@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState,type FormEvent,type ReactNode} from "react";
-import {PortalShell,OtpLogin} from "@tto/ui";
+import {PortalShell,OtpLogin,AuthFrame} from "@tto/ui";
 type Workspace={slug:string;name:string;username:string;credentialsReady:boolean;tenantActive:boolean;staff?:boolean;permissions?:string[]};
 const SLUG=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 
@@ -20,27 +20,29 @@ function WorkspaceSignIn({slug}:{slug:string}){
    }
    setPassword("");window.location.replace("/c/"+encodeURIComponent(slug));
   }catch{setError("ارتباط با سرویس ورود برقرار نشد.")}
-  finally{setBusy(false)}
- }
- return <main className="tto-login-page" lang="fa" dir="rtl"><section className="tto-login-card">
-  <h1>ورود به مدیریت تعاونی</h1><p>نشانی: <b dir="ltr">{slug}.ttoir.ir</b></p>
-  <div className="tto-auth-method-tabs">
-   <button type="button" className="tto-auth-tab" aria-selected={mode==="otp"} onClick={()=>setMode("otp")}>ورود با پیامک</button>
-   <button type="button" className="tto-auth-tab" aria-selected={mode==="password"} onClick={()=>setMode("password")}>نام کاربری و رمز</button>
-  </div>
-  {mode==="otp"?<OtpLogin enabled={true} surface="cooperative" postLoginRedirect={"/c/"+slug}/>:
-   <form onSubmit={login} className="tto-auth-controls">
-    <label htmlFor="workspace-username">نام کاربری</label>
-    <input id="workspace-username" required dir="ltr" autoComplete="username"
-     pattern="[a-z][a-z0-9._-]{4,63}" value={username}
-     onChange={e=>setUsername(e.target.value.toLowerCase().trim())}/>
-    <label htmlFor="workspace-password">رمز عبور</label>
-    <input id="workspace-password" required type="password" autoComplete="current-password"
-     value={password} onChange={e=>setPassword(e.target.value)}/>
-    <button type="submit" disabled={busy}>{busy?"در حال ورود…":"ورود به داشبورد"}</button>
-   </form>}
-  {error?<p role="alert">{error}</p>:null}
- </section></main>;
+  finally{setBusy(f return <AuthFrame surface="cooperative">
+  <section className="tto-auth-controls" data-tto-auth-surface="cooperative" aria-label="ورود مدیر تعاونی">
+   <p className="tto-auth-muted-note">روش ورود دلخواه را انتخاب کنید. دسترسی به فضای همین تعاونی محدود است.</p>
+   <p className="tto-login-scope">تعاونی انتخاب‌شده: <b dir="ltr">{slug}.ttoir.ir</b></p>
+   <div className="tto-auth-method-tabs" role="tablist" aria-label="انتخاب روش ورود">
+    <button className="tto-auth-tab" type="button" role="tab" aria-selected={mode==="otp"} onClick={()=>setMode("otp")}>رمز یک‌بارمصرف</button>
+    <button className="tto-auth-tab" type="button" role="tab" aria-selected={mode==="password"} onClick={()=>setMode("password")}>نام کاربری و رمز</button>
+   </div>
+   {mode==="otp"?<OtpLogin enabled={true} surface="cooperative" postLoginRedirect={"/c/"+slug}/>:
+    <form onSubmit={login} autoComplete="on">
+     <label htmlFor="workspace-username">نام کاربری مدیر تعاونی</label>
+     <input id="workspace-username" required dir="ltr" autoComplete="username" minLength={5} maxLength={64}
+      pattern="[a-z][a-z0-9._-]{4,63}" value={username}
+      onChange={e=>setUsername(e.target.value.toLowerCase().trim())}/>
+     <label htmlFor="workspace-password">رمز عبور</label>
+     <input id="workspace-password" required type="password" autoComplete="current-password"
+      value={password} onChange={e=>setPassword(e.target.value)}/>
+     <button type="submit" disabled={busy}>{busy?"در حال بررسی امن…":"ورود به پنل مدیر تعاونی"}</button>
+    </form>}
+   {error?<p role="alert" className="tto-login-error">{error}</p>:null}
+   <p className="tto-auth-muted-note">ورود به‌تنهایی اختیار قانونی یا مجوز عملیات سهام ایجاد نمی‌کند.</p>
+  </section>
+ </AuthFrame>;n></main>;
 }
 function InlineFirstCredentials({workspace}:{workspace:Workspace}){
  const [username,setUsername]=useState(workspace.username);
