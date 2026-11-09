@@ -43,6 +43,9 @@ class CooperativeOnboardingFlow(unittest.TestCase):
     '"/customer-login?slug="','credentialsReady===true']:
    self.assertIn(x,setup)
   self.assertIn('out.cookies.set("tto_session",""',src("apps/cooperative-management/app/api/commerce/workspaces/route.ts"))
+  password_login=src("apps/cooperative-management/app/customer-login/page.tsx")
+  self.assertIn('window.location.replace("/owner/"+encodeURIComponent(slug))',password_login)
+  self.assertNotIn('"/settings/subscription");',password_login)
   owner=src("apps/cooperative-management/app/owner/[slug]/owner-client.tsx")
   self.assertIn('x.slug===slug&&x.tenantActive===true',owner)
   self.assertIn('item.credentialsReady!==true',owner)
