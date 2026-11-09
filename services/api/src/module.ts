@@ -379,17 +379,6 @@ export class FoundationCommandsController {
       return {items:r.rows[0]?.items??[]};
     });
   }
-  @Post("commerce/demo/otp-proof")
-  @HttpCode(200)
-  async proofCommerceDemoOtp(@Headers("authorization") auth:string|undefined){
-    if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
-    const actor=await this.db.sessionActor(auth);
-    return this.db.withActor(actor,async c=>{
-      const r=await c.query<{ok:boolean}>("SELECT tto.mark_commerce_demo_otp_proof($1) AS ok",[this.db.sessionDigest(auth)]);
-      if(r.rows[0]?.ok!==true)throw new ForbiddenException("ACTIVE_ORDER_AND_OTP_REQUIRED");
-      return {verified:true,validForSeconds:600};
-    });
-  }
   @Post("commerce/demo/credentials")
   @HttpCode(200)
   async setupCommerceDemoCredentials(@Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
@@ -1503,6 +1492,12 @@ export class FoundationCommandsController {
     const digest=createHash("sha256").update(token).digest();
     const accepted=await this.db.consumeChallenge(id,hashedCandidate,digest);
     if(!accepted)throw new UnauthorizedException("Challenge invalid or expired");
+    // A fresh, successfully consumed OTP is the only source of credential-setup proof.
+    // Do not expose an endpoint that lets an existing password session assert OTP.
+    const otpActor=await this.db.sessionActor("Bearer "+token);
+    await this.db.withActor(otpActor,async c=>{
+      await c.query("SELECT tto.mark_commerce_demo_otp_proof($1)",[digest]);
+    });
     return {accessToken:token,tokenType:"Bearer"};
   }
   @Post("auth/step-up/request")
