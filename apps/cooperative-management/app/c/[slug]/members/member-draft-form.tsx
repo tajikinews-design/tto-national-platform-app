@@ -34,7 +34,6 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [notice,setNotice]=useState(""),[error,setError]=useState(false);
  const base="/c/"+encodeURIComponent(slug)+"/members/";
- const syntheticOnly=true;
  useEffect(()=>{
   if(!photo){setPhotoUrl("");return}
   const url=URL.createObjectURL(photo);setPhotoUrl(url);
@@ -87,6 +86,9 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    if(!testOnlyConfirmed){setError(true);setNotice("تأیید ساختگی‌بودن کامل داده‌ها لازم است.");return}
    if(photoRetryId){setError(true);setNotice("آپلود عکس پرونده قبلی را تکمیل یا لغو کنید.");return}
    const id=profile.nationalId.trim();
+   if(!/^([0-9])\1+$/.test(id)||!/(ساختگی|آزمایش|TEST|SYNTHETIC)/i.test(profile.fullName)){
+    setError(true);setNotice("برای حفاظت از اطلاعات، در این پیش‌نمایش فقط شناسه ۱۰ یا ۱۱ رقمی تکراری و نام دارای واژه «ساختگی» یا «آزمایش» مجاز است.");return;
+   }
    if(!((profile.title==="آقا"||profile.title==="خانم")?/^\d{10}$/:/^\d{11}$/).test(id)){
     setError(true);setNotice("کد ملی شخص حقیقی باید ۱۰ رقم و شناسه ملی شخص حقوقی ۱۱ رقم باشد.");return;
    }
@@ -150,7 +152,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    <Link href={base+"add"} aria-current={section==="add"?"page":undefined}>♙ افزودن سهامدار</Link>
    <Link href={base+"shares"} aria-current={section==="shares"?"page":undefined}>▥ اطلاعات سهام</Link>
   </nav>
-  <div className="tto-nav02-warning" role="status"><strong>محیط آزمایشی</strong> · فقط از داده‌های ساختگی استفاده کنید. شماره ملی، تماس یا تصویر واقعی افراد را تا تکمیل ارزیابی حفاظت داده وارد نکنید.</div>
+  <div className="tto-nav02-warning" role="status"><strong>محیط آزمایشی</strong> · فقط داده ساختگی مجاز است: شناسه باید ۱۰ یا ۱۱ رقم یکسان باشد و نام شامل «ساختگی» یا «آزمایش» باشد. تمام فیلدهای هویتی و شماره پیگیری در پایگاه به‌صورت رمزنگاری‌شده ذخیره می‌شوند. عکس انتخابی فقط به قرنطینه خصوصی فرستاده می‌شود و تا پایان اسکن نمایش داده نخواهد شد.</div>
   <div className="tto-nav02-layout">
    <section className="tto-nav02-card" aria-label={section==="add"?"فرم ثبت مشخصات سهامدار":"فرم اظهار اطلاعات سهام"}>
     <h2>{section==="add"?"مشخصات شناسایی سهامدار":"اطلاعات سرمایه و پرداخت اظهارشده"}</h2>
