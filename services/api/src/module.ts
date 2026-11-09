@@ -375,6 +375,86 @@ export class FoundationCommandsController {
    * tenants require a separate formally approved national directory read model.
    * Never infer legal registration or tenant activation from a reserved slug.
    */
+  // NAV-02 commercial-preview intake only. These are DRAFTS; no membership,
+  // official shareholder registration, voting, ledger balance or share transfer.
+  @Get("commerce/demo/nav02")
+  async nav02IntakeList(@Headers("authorization") auth:string|undefined,@Query("slug") slug:string){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
+      throw new ServiceUnavailableException("PREVIEW_ONLY");
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
+      throw new BadRequestException("INVALID_SLUG");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      const r=await c.query<{items:unknown}>(
+       "SELECT tto.commerce_demo_nav02_list($1) AS items",[slug]);
+      return {items:r.rows[0]?.items??[]};
+    });
+  }
+  @Post("commerce/demo/nav02")
+  @HttpCode(200)
+  async nav02IntakeCommand(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
+      throw new ServiceUnavailableException("PREVIEW_ONLY");
+    if(!input||typeof input!=="object"||Array.isArray(input)||
+       Object.keys(input).some(k=>!["action","slug","draftId","data"].includes(k)))
+      throw new BadRequestException("INVALID_INTAKE_BODY");
+    const {action,slug,data}=input;
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       !data||typeof data!=="object"||Array.isArray(data))
+      throw new BadRequestException("INVALID_INTAKE");
+    const fields=data as Record<string,unknown>;
+    const allStrings=Object.values(fields).every(v=>typeof v==="string");
+    if(!allStrings)throw new BadRequestException("INVALID_FIELD_TYPE");
+    if(action==="profile"){
+      const allowed=["title","fullName","group","nationalId","fatherName","birthCertificate",
+        "birthDate","birthPlace","telephone","mobile","postalCode","address"];
+      if(Object.keys(fields).some(k=>!allowed.includes(k))||
+         !["آقا","خانم","شرکت","سازمان","اداره"].includes(String(fields.title))||
+         typeof fields.fullName!=="string"||fields.fullName.trim().length<3||
+         fields.fullName.length>180||
+         typeof fields.group!=="string"||fields.group.trim().length<2||fields.group.length>90||
+         typeof fields.nationalId!=="string"||
+         !(fields.title==="آقا"||fields.title==="خانم"?/^\d{10}$/:/^\d{11}$/).test(fields.nationalId)||
+         JSON.stringify(fields).length>2400)
+        throw new BadRequestException("INVALID_PROFILE_FIELDS");
+    }else if(action==="capital"){
+      const allowed=["initialShares","subscribedShares","nominalRial","paidRial",
+        "paymentDate","receiptRef"];
+      if(typeof input.draftId!=="string"||!uuidPattern.test(input.draftId)||
+         Object.keys(fields).some(k=>!allowed.includes(k))||
+         !["initialShares","subscribedShares","nominalRial","paidRial"].every(k=>
+           typeof fields[k]==="string"&&/^\d{1,17}$/.test(fields[k] as string))||
+         typeof fields.receiptRef!=="string"||fields.receiptRef.trim().length<3||
+         fields.receiptRef.length>100||
+         typeof fields.paymentDate!=="string"||
+         !/^(|\d{4}-\d{2}-\d{2})$/.test(fields.paymentDate))
+        throw new BadRequestException("INVALID_CAPITAL_FIELDS");
+    }else throw new BadRequestException("INVALID_INTAKE_ACTION");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      try{
+        if(action==="profile"){
+          const r=await c.query<{record:unknown}>(
+            "SELECT tto.commerce_demo_nav02_add($1,$2::jsonb) AS record",
+            [slug,JSON.stringify(fields)]);
+          return {saved:true,record:r.rows[0]?.record};
+        }
+        const r=await c.query<{record:unknown}>(
+         "SELECT tto.commerce_demo_nav02_capital($1,$2::uuid,$3::jsonb) AS record",
+          [slug,input.draftId,JSON.stringify(fields)]);
+        return {saved:true,record:r.rows[0]?.record};
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="23505")throw new ConflictException("DUPLICATE_UNVERIFIED_DRAFT");
+        if(code==="42501")throw new ForbiddenException("PREVIEW_OWNER_REQUIRED");
+        if(code==="22023"||code==="23502"||code==="23514")
+          throw new BadRequestException("INVALID_INTAKE_VALUES");
+        throw e;
+      }
+    });
+  }
+
   @Get("commerce/demo/team")
   async demoTeam(@Headers("authorization") auth:string|undefined,@Query("slug") slug:string){
     if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
