@@ -10,8 +10,22 @@ ALTER TABLE tto.commerce_demo_shareholder_drafts
  ALTER COLUMN full_name DROP NOT NULL,
  ALTER COLUMN shareholder_group DROP NOT NULL,
  ALTER COLUMN national_identifier DROP NOT NULL;
-ALTER TABLE tto.commerce_demo_shareholder_drafts
- DROP CONSTRAINT commerce_demo_shareholder_draf_order_id_national_identifier_key;
+-- PostgreSQL truncates generated constraint names to NAMEDATALEN-1 (63 bytes).
+-- Resolve the expected (order_id,national_identifier) unique constraint from
+-- the actual catalog. Fail closed if missing; never drop a different constraint.
+DO $unique_migration$
+DECLARE v_name text;
+BEGIN
+ SELECT c.conname INTO v_name
+ FROM pg_constraint c
+ WHERE c.conrelid='tto.commerce_demo_shareholder_drafts'::regclass
+   AND c.contype='u'
+   AND pg_get_constraintdef(c.oid)='UNIQUE (order_id, national_identifier)';
+ IF v_name IS NULL THEN
+  RAISE EXCEPTION 'NAV02_LEGACY_UNIQUE_CONSTRAINT_MISSING';
+ END IF;
+ EXECUTE format('ALTER TABLE tto.commerce_demo_shareholder_drafts DROP CONSTRAINT %I',v_name);
+END $unique_migration$;
 ALTER TABLE tto.commerce_demo_shareholder_drafts
  ADD CONSTRAINT nav02_plain_identity_always_empty CHECK(
  full_name IS NULL AND shareholder_group IS NULL AND national_identifier IS NULL
