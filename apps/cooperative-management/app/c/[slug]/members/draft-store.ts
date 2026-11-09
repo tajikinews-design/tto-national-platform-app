@@ -1,4 +1,4 @@
-/* Browser-tab memory only. NO persistent storage, API, cookies, localStorage or network.
+/* Browser-tab memory only. NO browser persistence, API, cookies or network communication.
    Holds fictional preview form entries; lost on hard reload / tab close.
    This is NOT Member Master or official share ownership. */
 export type InvestorTitle="آقا"|"خانم"|"شرکت"|"سازمان"|"اداره";
