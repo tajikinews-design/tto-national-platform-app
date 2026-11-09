@@ -15,9 +15,9 @@ export async function POST(req:NextRequest){
  try{if(new URL(origin).origin!==new URL(req.url).origin)return fail(403,"ORIGIN_DENIED")}
  catch{return fail(403,"ORIGIN_DENIED")}
  if(req.headers.get("content-type")?.split(";")[0]!=="application/json")return fail(415,"JSON_REQUIRED");
- if(Number(req.headers.get("content-length")||0)>1450000)return fail(413,"BODY_TOO_LARGE");
+ if(Number(req.headers.get("content-length")||0)>1040000)return fail(413,"BODY_TOO_LARGE");
  const raw=await req.text();
- if(raw.length>1450000)return fail(413,"BODY_TOO_LARGE");
+ if(raw.length>1040000)return fail(413,"BODY_TOO_LARGE");
  let data:Record<string,unknown>;
  try{const obj:unknown=JSON.parse(raw);if(!obj||typeof obj!=="object"||Array.isArray(obj))throw Error();
   data=obj as Record<string,unknown>}catch{return fail(400,"INVALID_BODY")}
@@ -26,7 +26,7 @@ export async function POST(req:NextRequest){
   typeof data.draftId!=="string"||!UUID.test(data.draftId)||
   !["image/png","image/jpeg","image/webp"].includes(String(data.mime))||
   typeof data.dataBase64!=="string"||data.dataBase64.length<88||
-  data.dataBase64.length>1398104||
+  data.dataBase64.length>955736||
   !/^[A-Za-z0-9+/]+={0,2}$/.test(data.dataBase64))
   return fail(400,"INVALID_PHOTO_INPUT");
  const backend=process.env.TTO_API_BASE_URL;
