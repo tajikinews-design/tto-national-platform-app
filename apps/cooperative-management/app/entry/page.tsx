@@ -9,6 +9,19 @@ export default function WorkspaceEntry(){
   let alive=true;
   async function begin(){
    try{
+    // An already authorized manager must enter the real cooperative dashboard
+    // rather than being incorrectly treated as a commercial/demo subscriber.
+    const manager=await fetch("/api/auth/password/session",{credentials:"same-origin",cache:"no-store"});
+    if(manager.ok){
+     const evidence=await manager.json() as {authenticated?:unknown;workspaceSlug?:unknown};
+     if(evidence.authenticated===true){
+      if(typeof evidence.workspaceSlug==="string"&&
+         /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(evidence.workspaceSlug)){
+       if(alive)window.location.replace("/c/"+encodeURIComponent(evidence.workspaceSlug));
+      }else if(alive)setState("denied");
+      return;
+     }
+    }
     const response=await fetch("/api/auth/session",{credentials:"same-origin",cache:"no-store"});
     if(!response.ok)throw Error("SESSION_ERROR");
     const session=await response.json() as {authenticated?:unknown};
