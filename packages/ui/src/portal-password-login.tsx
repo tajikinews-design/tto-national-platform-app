@@ -26,18 +26,7 @@ export function PortalPasswordLogin({surface,workspaceSlug}:{surface:Surface;wor
    });
    if(response.status===401){setNotice("نام کاربری یا رمز عبور معتبر نیست یا نیاز به فعال‌سازی مجدد دارد.");return}
    if(response.status===403){setNotice("اختیار دسترسی به این تعاونی تأیید نشد یا دفعات ورود بیش از حد است.");return}
-   if(response.status!==200){
-    const info=await response.json().catch(()=>null) as {code?:unknown}|null;
-    const code=typeof info?.code==="string"?info.code:"";
-    const message=code==="PORTAL_STAGING_NOT_ENABLED"?
-      "ورود با رمز در محیط آزمایش هنوز توسط مسئول امنیت فعال نشده است. ابتدا API هم‌نسخه و مجوز انتشار احراز هویت باید آماده شوند.":
-      code==="PORTAL_SECURITY_CONFIG_MISSING"?
-      "پیکربندی امنیتی ورود در API آزمایشی ناقص است؛ کلید کنترل تلاش‌های ورود و مجوزهای هویتی باید در محیط امن تنظیم شوند.":
-      code==="SECURE_API_UNAVAILABLE"||code==="PASSWORD_LOGIN_STAGING_NOT_READY"?
-      "API تأیید هویت آزمایشی آماده یا هم‌نسخه نیست؛ وضعیت اتصال پنل به API بررسی شود.":
-      "ورود امن برقرار نشد؛ وضعیت سرویس احراز هویت را بررسی کنید.";
-    setNotice(message);return;
-   }
+   if(response.status!==200){setNotice("ورود امن در محیط آزمایش هنوز فعال نشده است؛ ثبت هویت و تنظیمات امنیتی لازم است.");return}
    const d=await response.json() as {authenticated?:boolean;workspaceSlug?:string};
    if(d.authenticated!==true||(workspaceSlug&&d.workspaceSlug!==workspaceSlug)){setNotice("تعاونی انتخابی با مجوز کاربر مطابقت ندارد.");return}
    setPassword("");setPhase("ready");
