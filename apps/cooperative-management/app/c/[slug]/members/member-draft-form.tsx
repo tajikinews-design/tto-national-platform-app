@@ -168,7 +168,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    if(editId&&editVersion===null){setError(true);setNotice("تا دریافت امن پرونده، ویرایش امکان ثبت ندارد.");return}
    if(editId&&photo){setError(true);setNotice("تغییر عکس پرونده به ثبت نسخه جدید و اسکن امن عکس نیاز دارد؛ عکس انتخابی را از پنل کناری حذف کنید.");return;}
    if(attachment){setError(true);setNotice("ضمیمه انتخاب شده اما سرویس قرنطینه مدارک هنوز متصل نیست؛ برای جلوگیری از ثبت ناقص، فایل را حذف کنید یا منتظر فعال‌سازی امن ضمائم بمانید.");return}
-   if(!/^09[0-9]{9}$/.test(profile.mobile)){
+   if(profile.personType==="NATURAL"&&!/^09[0-9]{9}$/.test(profile.mobile)){
     setError(true);setNotice("شماره همراه معتبر نیست؛ شماره ۱۱ رقمی متعلق به صاحب کد ملی را وارد کنید.");return;
    }
    if(profile.personType==="LEGAL"){
