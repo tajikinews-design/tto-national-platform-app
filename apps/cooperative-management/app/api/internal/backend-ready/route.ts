@@ -13,7 +13,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ready:false},{status:404,headers});
   }
   const base=process.env.TTO_API_BASE_URL;
-  if (base !== "https://tto-api-preview-6l9c3huqs-tajikinews-6739.vercel.app") {
+  // Exact isolated Preview deployments only; never trust a caller-supplied host.
+  // The legacy infrastructure probe is retained while the NAV02 cooperative
+  // Preview uses the newer, verified READY backend revision.
+  const trustedPreviewApis=new Set([
+    "https://tto-api-preview-6l9c3huqs-tajikinews-6739.vercel.app",
+    "https://tto-api-preview-feb8p8a9p-tajikinews-6739.vercel.app"
+  ]);
+  if (!base || !trustedPreviewApis.has(base)) {
     return NextResponse.json({ready:false},{status:503,headers});
   }
   try {
