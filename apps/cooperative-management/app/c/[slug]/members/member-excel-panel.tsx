@@ -12,6 +12,32 @@ export function MemberExcelPanel({slug,onImported}:{slug:string;onImported:()=>P
  const [busy,setBusy]=useState(false);
  const [confirmed,setConfirmed]=useState(false);
  const url="/api/commerce/nav02/workbook?slug="+encodeURIComponent(slug);
+ async function download(mode:"sample"|"export"){
+  if(busy)return;
+  if(mode==="export"&&!window.confirm("فایل خروجی شامل اطلاعات هویتی محرمانه اعضای این تعاونی است. فقط در محل امن نگهداری شود. دریافت فایل را تأیید می‌کنید؟"))return;
+  setBusy(true);setError("");setNotice("");
+  try{
+   const r=await fetch(url+"&mode="+mode,{credentials:"same-origin",cache:"no-store"});
+   if(!r.ok)throw Error(r.status===401?"برای دریافت اکسل دوباره وارد شوید.":
+    r.status===403?"مجوز دریافت اطلاعات این تعاونی را ندارید.":
+    r.status===422?"تعداد پرونده‌ها بیش از حد مجاز خروجی است.":
+    "سرویس اکسل آماده نیست؛ هیچ فایل ناقصی دانلود نشد.");
+   const mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+   if(!r.headers.get("content-type")?.startsWith(mime))throw Error("پاسخ دریافتی فایل معتبر اکسل نیست.");
+   const bytes=await r.arrayBuffer();
+   const signature=new Uint8Array(bytes);
+   if(signature.length<50||signature[0]!==0x50||signature[1]!==0x4b)
+    throw Error("ساختار فایل اکسل معتبر نیست؛ دریافت لغو شد.");
+   const blob=new Blob([bytes],{type:mime});
+   const address=URL.createObjectURL(blob);
+   const a=document.createElement("a");a.href=address;
+   a.download=mode==="sample"?"TTO_Members_Sample.xlsx":"TTO_Members_Export_Private.xlsx";
+   document.body.appendChild(a);a.click();a.remove();
+   window.setTimeout(()=>URL.revokeObjectURL(address),3000);
+   setNotice(mode==="sample"?"فایل نمونه کامل دریافت شد.":"فایل محرمانه اعضا دریافت شد؛ از انتشار یا اشتراک‌گذاری آن خودداری کنید.");
+  }catch(e){setError(e instanceof Error?e.message:"خطای دریافت اکسل");}
+  finally{setBusy(false);}
+ }
  async function preview(file:File){
   setError("");setNotice("");setRows([]);setConfirmed(false);
   if(!file.name.toLowerCase().endsWith(".xlsx")||file.size>2097152){
@@ -68,16 +94,18 @@ export function MemberExcelPanel({slug,onImported}:{slug:string;onImported:()=>P
    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V3m0 0L7 8m5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>
   </button>
-  <a className="tto-excel-icon" title="خروجی کامل اکسل اعضا؛ حاوی اطلاعات محرمانه"
-   aria-label="خروجی کامل اکسل اعضای مجاز" href={url+"&mode=export"} download="TTO_Members_Export_Private.xlsx">
+  <button type="button" className="tto-excel-icon" disabled={busy}
+   title="خروجی کامل اکسل اعضا؛ حاوی اطلاعات محرمانه"
+   aria-label="خروجی کامل اکسل اعضای مجاز" onClick={()=>void download("export")}>
    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v13m0 0-5-5m5 5 5-5M4 18v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg>
-  </a>
-  <a className="tto-excel-icon tto-excel-template" title="دریافت نمونه تکمیل‌شده اکسل"
-   aria-label="دریافت فایل نمونه تکمیل‌شده اکسل" href={url+"&mode=sample"} download="TTO_Members_Sample.xlsx">
+  </button>
+  <button type="button" disabled={busy} className="tto-excel-icon tto-excel-template"
+   title="دریافت نمونه تکمیل‌شده اکسل" aria-label="دریافت فایل نمونه تکمیل‌شده اکسل"
+   onClick={()=>void download("sample")}>
    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round"><path d="M7 3h8l4 4v13a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM15 3v5h5M8 12h8M8 16h8M11 11v6"/></svg>
-  </a>
+  </button>
   <input ref={filePicker} type="file" className="tto-excel-file" aria-label="انتخاب فایل اکسل اعضا"
    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
    disabled={busy} onChange={e=>{const file=e.currentTarget.files?.[0];if(file)void preview(file);e.currentTarget.value="";}}/>
