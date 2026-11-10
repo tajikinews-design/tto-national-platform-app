@@ -23,6 +23,7 @@ class MemberFormLegal(unittest.TestCase):
   self.assertIn('economicCode',form)
   self.assertIn('representativeNationalId',form)
   self.assertIn('NON_MEMBER_REPORTED',form)
+  self.assertIn('profile.personType==="NATURAL"&&!/^09[0-9]{9}$/.test(profile.mobile)',form)
   self.assertIn('HOLDER_REPORTED',form)
   directory=read("apps/cooperative-management/app/c/[slug]/members/shareholders-table.tsx")
   self.assertIn('membershipStatus!=="APPLICANT_UNVERIFIED"',directory)
