@@ -27,9 +27,10 @@ export async function GET(req:NextRequest){
   if(r.status===401)return fail(401,"LOGIN_REQUIRED");
   if(r.status===403)return fail(403,"OWNER_REQUIRED");
   if(!r.ok)return fail(503,"NUMBER_REGISTRY_HOLD");
-  const data=await r.json() as {policy?:{nextSerial?:unknown;prefix?:unknown;suffix?:unknown}};
+  const data=await r.json() as {policy?:{nextSerial?:unknown;prefix?:unknown;suffix?:unknown;issuedCount?:unknown}};
   if(typeof data.policy?.nextSerial!=="string"||
-   typeof data.policy?.prefix!=="string"||typeof data.policy?.suffix!=="string")
+   typeof data.policy?.prefix!=="string"||typeof data.policy?.suffix!=="string"||
+   !Number.isSafeInteger(data.policy?.issuedCount))
    return fail(502,"INVALID_NUMBER_POLICY");
   return NextResponse.json(data,{headers:H});
  }catch{return fail(503,"NUMBER_REGISTRY_HOLD")}
