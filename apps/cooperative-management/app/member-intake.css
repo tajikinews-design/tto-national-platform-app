@@ -278,3 +278,15 @@
 @media(max-width:520px){.tto-member-collection-grid{grid-template-columns:1fr}
  .tto-member-case-detail-columns dl{grid-template-columns:100px minmax(0,1fr)}
  .tto-member-policy-fields{grid-template-columns:1fr}}
+
+
+/* Member catalog administration and permanent numbering policy controls. */
+.tto-member-catalog-create{display:flex;align-items:end;gap:10px;flex-wrap:wrap;
+ padding:12px;background:#f0f8fb;border:1px solid #d5e5ed;border-radius:11px}
+.tto-member-catalog-create label{display:grid;gap:7px;min-width:225px;flex:1;font-weight:700;
+ font-size:11px;color:#37627b}
+.tto-member-catalog-create input{font:inherit;border:1px solid #c7ddea;border-radius:8px;
+ padding:9px 11px;color:#23465e;min-height:38px}
+.tto-member-catalog-create button,.tto-member-policy-actions button{cursor:pointer;background:#167a9b;
+ color:white;border:0;border-radius:9px;padding:11px 18px;font-size:11px;font-weight:750}
+.tto-member-policy-actions{display:flex;justify-content:flex-start;padding:8px 0 2px}

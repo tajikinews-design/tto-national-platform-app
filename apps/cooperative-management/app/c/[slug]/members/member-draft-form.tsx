@@ -316,7 +316,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
     </form>
     {notice?<div role={error?"alert":"status"} className={"tto-nav02-message"+(error?" error":"")}>{notice}</div>:null}
    </section>
-   {section==="add"?<MemberSidebar photo={photo} photoUrl={photoUrl}
+   {section==="add"?<MemberSidebar slug={slug} photo={photo} photoUrl={photoUrl}
     onPhoto={setPhoto} collection={profile.collectionName}
     onCollection={v=>change("collectionName",v)}
     collections={items.map(x=>(x as RecordItem & {collectionName?:string}).collectionName??"").filter(Boolean)}

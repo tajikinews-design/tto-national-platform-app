@@ -49,7 +49,7 @@ export async function POST(req:NextRequest){
   Object.keys(d).some(k=>!["title","fullName","group","nationalId","fatherName",
   "birthCertificate","birthDate","birthPlace","telephone","mobile","postalCode","address",
   "bornInCounty","residentInCounty","employedInCounty","informationConfirmed","membershipStatus",
-  "personType","shareholdingStatus"].includes(k))||
+  "personType","shareholdingStatus","collectionName","occupation"].includes(k))||
   !["آقا","خانم","شرکت","سازمان","اداره"].includes(String(d.title))||
   typeof d.fullName!=="string"||d.fullName.trim().length<3||
   typeof d.group!=="string"||d.group.trim().length<2||
@@ -62,6 +62,8 @@ export async function POST(req:NextRequest){
     ![d.bornInCounty,d.residentInCounty,d.employedInCounty].includes("yes")||
     d.informationConfirmed!=="yes"||d.membershipStatus!=="APPLICANT_UNVERIFIED"||
     d.personType!=="NATURAL"||d.shareholdingStatus!=="NONE_UNVERIFIED"||
+    typeof d.collectionName!=="string"||d.collectionName.length>100||
+    typeof d.occupation!=="string"||d.occupation.length>120||
     typeof d.mobile!=="string"||!/^09[0-9]{9}$/.test(d.mobile)||
     (d.birthDate!==""&&!/^1[2-5][0-9]{2}\/(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])$/.test(String(d.birthDate)))))))||
  (data.action==="capital"&&(

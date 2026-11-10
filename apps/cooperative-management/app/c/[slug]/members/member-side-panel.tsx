@@ -1,7 +1,8 @@
 "use client";
-import {useId,useState} from "react";
+import {useEffect,useId,useState} from "react";
 
 export type MemberSidebarInput={
+ slug:string;
  photo:File|null;
  photoUrl:string;
  onPhoto:(file:File|null)=>void;
@@ -18,10 +19,21 @@ export type MemberSidebarInput={
 };
 export function MemberSidebar(p:MemberSidebarInput){
  const [newCollection,setNewCollection]=useState("");
+ const [serverCollections,setServerCollections]=useState<string[]>([]);
+ const [collectionBusy,setCollectionBusy]=useState(false);
+ useEffect(()=>{
+  let alive=true;
+  fetch("/api/commerce/nav02/collections?slug="+encodeURIComponent(p.slug),
+   {credentials:"same-origin",cache:"no-store"})
+   .then(async r=>r.ok?r.json() as Promise<{items?:{name:string}[]}>:{items:[]})
+   .then(d=>{if(alive)setServerCollections((d.items??[]).map(x=>x.name).filter(Boolean))})
+   .catch(()=>{});
+  return()=>{alive=false};
+ },[p.slug]);
  const [createOpen,setCreateOpen]=useState(false);
  const [collectionNotice,setCollectionNotice]=useState("");
  const photoId=useId(),attachmentId=useId();
- const all=[...new Set([...p.collections,p.collection].filter(Boolean))];
+ const all=[...new Set([...p.collections,...serverCollections,p.collection].filter(Boolean))];
  return <aside className="tto-member-sidebar" aria-label="تصویر، مجموعه، شغل و ضمائم عضو">
   <section className="tto-member-side-section tto-member-side-portrait">
    <h2>تصویر عضو</h2>
@@ -66,12 +78,25 @@ export function MemberSidebar(p:MemberSidebarInput){
     <label htmlFor="tto-new-collection">نام مجموعه</label>
     <input id="tto-new-collection" placeholder="مانند: شهرداری طرقبه" maxLength={100}
      value={newCollection} onChange={e=>setNewCollection(e.target.value)}/>
-    <button type="button" onClick={()=>{
+    <button type="button" disabled={collectionBusy} onClick={async()=>{
      const trimmed=newCollection.trim();
      if(trimmed.length<3){setCollectionNotice("نام مجموعه حداقل سه حرف باشد.");return;}
-     p.onCollection(trimmed);setNewCollection("");setCreateOpen(false);
-     setCollectionNotice("مجموعه برای این فرم انتخاب شد؛ ثبت در دفتر مجموعه‌ها نیازمند اتصال امن سرویس است.");
-    }}>انتخاب مجموعه جدید</button>
+     setCollectionBusy(true);setCollectionNotice("");
+     try{
+      const r=await fetch("/api/commerce/nav02/collections",{
+       method:"POST",credentials:"same-origin",cache:"no-store",
+       headers:{"Content-Type":"application/json"},
+       body:JSON.stringify({slug:p.slug,name:trimmed})
+      });
+      if(!r.ok)throw Error(r.status===403?"مجوز افزودن مجموعه در این تعاونی ندارید.":
+       "دفتر مجموعه‌ها هنوز در محیط آزمایشی فعال نیست؛ مجموعه ذخیره نشد.");
+      const d=await r.json() as {saved?:boolean;record?:{name?:string}};
+      if(d.saved!==true||d.record?.name!==trimmed)throw Error("سرور ثبت مجموعه را تأیید نکرد.");
+      setServerCollections(x=>[...new Set([...x,trimmed])]);p.onCollection(trimmed);
+      setNewCollection("");setCreateOpen(false);setCollectionNotice("مجموعه در سرور ثبت شد.");
+     }catch(e){setCollectionNotice(e instanceof Error?e.message:"ثبت مجموعه ناموفق بود.")}
+     finally{setCollectionBusy(false)}
+    }}>ثبت مجموعه</button>
    </div>:null}
    {collectionNotice?<small role="status">{collectionNotice}</small>:null}
   </section>

@@ -26,6 +26,10 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
  const [memberNumberStart,setMemberNumberStart]=useState("1");
  const [numberPrefix,setNumberPrefix]=useState(""),[numberSuffix,setNumberSuffix]=useState("");
  const [numberPreview,setNumberPreview]=useState("");
+ const [policyMessage,setPolicyMessage]=useState("");
+ const [catalog,setCatalog]=useState<string[]>([]);
+ const [newCatalog,setNewCatalog]=useState("");
+ const [catalogMessage,setCatalogMessage]=useState("");
  const base="/c/"+encodeURIComponent(slug)+"/members/";
  async function load(){
   const response=await fetch("/api/commerce/nav02?slug="+encodeURIComponent(slug),
@@ -53,10 +57,28 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
  }),[baseRows,search,filter]);
  const groups=useMemo(()=>{
   const o=new Map<string,MemberRow[]>();
+  for(const name of catalog)if(name)o.set(name,[]);
   for(const x of rows){const name=x.collectionName?.trim();if(!name)continue;
    o.set(name,[...(o.get(name)??[]),x]);}
   return [...o].sort(([a],[b])=>a.localeCompare(b,"fa"));
- },[rows]);
+ },[rows,catalog]);
+ useEffect(()=>{
+  let live=true;
+  fetch("/api/commerce/nav02/collections?slug="+encodeURIComponent(slug),
+   {credentials:"same-origin",cache:"no-store"})
+   .then(async r=>r.ok?r.json() as Promise<{items?:{name?:string}[]}>:{items:[]})
+   .then(d=>{if(live)setCatalog((d.items??[]).map(x=>x.name??"").filter(Boolean))})
+   .catch(()=>{});
+  fetch("/api/commerce/nav02/member-number-policy?slug="+encodeURIComponent(slug),
+   {credentials:"same-origin",cache:"no-store"})
+   .then(async r=>r.ok?r.json() as Promise<{policy?:{nextSerial:string;prefix:string;suffix:string}}>:null)
+   .then(d=>{
+    if(!live||!d?.policy)return;
+    setMemberNumberStart(d.policy.nextSerial);
+    setNumberPrefix(d.policy.prefix);setNumberSuffix(d.policy.suffix);
+   }).catch(()=>{});
+  return()=>{live=false};
+ },[slug]);
  const [selectedGroup,setSelectedGroup]=useState("");
  const chosen=groups.find(([name])=>name===selectedGroup);
  async function run(row:MemberRow,action:string){
@@ -94,6 +116,28 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
   {view==="collections"?<div className="tto-nav02-card">
    <h2>مجموعه‌ها و افراد وابسته</h2>
    <p>برای مشاهده افراد هر مجموعه، آن را انتخاب کنید. فقط مجموعه‌های دارای عضو ثبت‌شده در اطلاعات مجاز نمایش داده می‌شوند.</p>
+   <form className="tto-member-catalog-create" onSubmit={async e=>{
+    e.preventDefault();
+    const name=newCatalog.trim();
+    if(name.length<3){setCatalogMessage("نام مجموعه باید حداقل سه حرف باشد.");return;}
+    try{
+     const r=await fetch("/api/commerce/nav02/collections",{
+      method:"POST",credentials:"same-origin",cache:"no-store",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({slug,name})});
+     if(!r.ok)throw Error(r.status===403?"مجوز افزودن مجموعه ندارید.":
+       "سرویس ثبت مجموعه هنوز فعال نشده است؛ هیچ مجموعه‌ای ذخیره نشد.");
+     const d=await r.json() as {saved?:boolean;record?:{name?:string}};
+     if(d.saved!==true||d.record?.name!==name)throw Error("تأیید ثبت مجموعه دریافت نشد.");
+     setCatalog(old=>[...new Set([...old,name])]);setSelectedGroup(name);
+     setNewCatalog("");setCatalogMessage("مجموعه در سرور ثبت شد.");
+    }catch(err){setCatalogMessage(err instanceof Error?err.message:"ثبت ناموفق بود.")}
+   }}>
+    <label>نام مجموعه جدید<input maxLength={100} value={newCatalog}
+     onChange={e=>setNewCatalog(e.target.value)} placeholder="مثلاً شهرداری طرقبه" required/></label>
+    <button type="submit">ثبت مجموعه</button>
+   </form>
+   {catalogMessage?<p role="status">{catalogMessage}</p>:null}
    <div className="tto-member-collection-grid">
     <aside className="tto-member-collection-list" aria-label="فهرست مجموعه‌ها">
      {groups.length?groups.map(([name,members])=><button key={name} type="button"
@@ -184,7 +228,29 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
     }}>پیش‌نمایش شماره</button>
    </div>
    {numberPreview?<p role="status">پیش‌نمایش قالب (ذخیره نشده): <b dir="ltr">{numberPreview}</b></p>:null}
-   <small>ذخیره دائمی تنظیمات فقط پس از راه‌اندازی رجیستری یکتای سروری و آزمون هم‌زمانی فعال می‌شود. هیچ شماره‌ای در مرورگر رزرو نمی‌شود.</small>
+   <div className="tto-member-policy-actions">
+    <button type="button" onClick={async()=>{
+     if(!/^[1-9][0-9]{0,11}$/.test(memberNumberStart)||
+       !/^[A-Z0-9-]{0,12}$/.test(numberPrefix)||!/^[A-Z0-9-]{0,12}$/.test(numberSuffix)){
+      setPolicyMessage("ساختار شماره نامعتبر است.");return;
+     }
+     setPolicyMessage("");
+     try{
+      const r=await fetch("/api/commerce/nav02/member-number-policy",{
+       method:"POST",credentials:"same-origin",cache:"no-store",
+       headers:{"Content-Type":"application/json"},
+       body:JSON.stringify({slug,nextSerial:memberNumberStart,prefix:numberPrefix,suffix:numberSuffix})
+      });
+      if(!r.ok)throw Error(r.status===400?"شماره شروع نباید از شماره تخصیص‌نیافته فعلی کمتر باشد.":
+       "دفتر شماره عضویت هنوز به سرور متصل نشده است؛ تنظیمات ذخیره نشد.");
+      const d=await r.json() as {saved?:boolean};
+      if(d.saved!==true)throw Error("تأیید ثبت تنظیمات دریافت نشد.");
+      setPolicyMessage("تنظیمات صدور شماره برای اعضای آینده در سرور ثبت شد.");
+     }catch(err){setPolicyMessage(err instanceof Error?err.message:"ذخیره ناموفق بود.")}
+    }}>ذخیره تنظیمات شماره عضویت</button>
+   </div>
+   {policyMessage?<p role="status">{policyMessage}</p>:null}
+   <small>شماره‌های قبلی دائمی هستند و پس از حذف عضو نیز در رجیستری محفوظ می‌مانند. رزرو شماره توسط مرورگر انجام نمی‌شود.</small>
   </section>:null}
  </div>;
 }

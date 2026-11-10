@@ -477,6 +477,10 @@ export class FoundationCommandsController {
           throw Error("INVALID_PROFILE");
         return {id:p.id,title:p.title,name:person.fullName,group:person.group,
          identifierMask:"***"+person.nationalId.slice(-4),state:p.state,
+         mobileMask:typeof person.mobile==="string"&&person.mobile.length>=4?
+          "***"+person.mobile.slice(-4):null,
+         collectionName:typeof person.collectionName==="string"?person.collectionName:"",
+         occupation:typeof person.occupation==="string"?person.occupation:"",
          initialShares:p.initialShares,subscribedShares:p.subscribedShares,
          nominalRial:p.nominalRial,declaredPaidRial:p.declaredPaidRial,
          paymentDate:p.paymentDate,capitalState:p.capitalState,
@@ -487,7 +491,98 @@ export class FoundationCommandsController {
          shareholdingStatus:person.shareholdingStatus==="NONE_UNVERIFIED"?"NONE_UNVERIFIED":null};
       }catch{throw new ServiceUnavailableException("PRIVATE_IDENTITY_UNAVAILABLE")}
     });
+    if(process.env.TTO_NAV02_NUMBER_LEDGER_ENABLED==="true"){
+      const list=await this.db.withActor(actor,async c=>{
+        const result=await c.query<{data:unknown}>(
+         "SELECT tto.nav02_member_numbers_for_owner($1) AS data",[slug]);
+        return result.rows[0]?.data;
+      });
+      if(!Array.isArray(list))throw new ServiceUnavailableException("NUMBER_LEDGER_UNAVAILABLE");
+      const lookup=new Map<string,string>(list.filter((r:unknown):r is {draftId:string;membershipNumber:string}=>{
+        const a=r as Record<string,unknown>;
+        return !!a&&typeof a.draftId==="string"&&typeof a.membershipNumber==="string";
+      }).map(x=>[x.draftId,x.membershipNumber]));
+      return {items:items.map(x=>({...x,membershipNumber:lookup.get(String(x.id))??null}))};
+    }
     return {items};
+  }
+
+  /** Owner-gated preview catalog; NOT a legal employer registry or membership grant. */
+  private nav02CatalogGate(flag:"TTO_NAV02_COLLECTIONS_ENABLED"|"TTO_NAV02_NUMBER_LEDGER_ENABLED"){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||
+       process.env.VERCEL_ENV==="production"||process.env[flag]!=="true")
+      throw new ServiceUnavailableException("NAV02_CATALOG_NOT_RELEASED");
+  }
+  @Get("commerce/demo/nav02/collections")
+  async nav02Collections(@Headers("authorization") auth:string|undefined,
+    @Query("slug") slug:string){
+    this.nav02CatalogGate("TTO_NAV02_COLLECTIONS_ENABLED");
+    const actor=await this.db.sessionActor(auth);
+    const items=await this.db.withActor(actor,async c=>{
+      const r=await c.query<{data:unknown}>(
+       "SELECT tto.nav02_member_collections_list($1) AS data",[slug]);
+      return r.rows[0]?.data;
+    });
+    if(!Array.isArray(items))throw new ServiceUnavailableException("COLLECTION_LIST_INVALID");
+    return {items};
+  }
+  @Post("commerce/demo/nav02/collections")
+  @HttpCode(200)
+  async nav02CollectionCreate(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    this.nav02CatalogGate("TTO_NAV02_COLLECTIONS_ENABLED");
+    if(!input||typeof input!=="object"||Array.isArray(input)||
+       Object.keys(input).some(k=>!["slug","name"].includes(k))||
+       typeof input.slug!=="string"||
+       !/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(input.slug)||
+       typeof input.name!=="string"||input.name.trim().length<3||input.name.length>100)
+      throw new BadRequestException("INVALID_COLLECTION_REQUEST");
+    const actor=await this.db.sessionActor(auth);
+    const record=await this.db.withActor(actor,async c=>{
+      const r=await c.query<{data:unknown}>(
+       "SELECT tto.nav02_member_collection_create($1,$2) AS data",
+       [input.slug,(input.name as string).trim()]);
+      return r.rows[0]?.data;
+    });
+    if(!record||typeof record!=="object")throw new ServiceUnavailableException("COLLECTION_CREATE_INVALID");
+    return {saved:true,record};
+  }
+  @Get("commerce/demo/nav02/member-number-policy")
+  async nav02NumberPolicy(@Headers("authorization") auth:string|undefined,
+    @Query("slug") slug:string){
+    this.nav02CatalogGate("TTO_NAV02_NUMBER_LEDGER_ENABLED");
+    const actor=await this.db.sessionActor(auth);
+    const policy=await this.db.withActor(actor,async c=>{
+      const r=await c.query<{data:unknown}>(
+       "SELECT tto.nav02_member_number_policy_get($1) AS data",[slug]);
+      return r.rows[0]?.data;
+    });
+    if(!policy||typeof policy!=="object")throw new ServiceUnavailableException("POLICY_READ_INVALID");
+    return {policy};
+  }
+  @Post("commerce/demo/nav02/member-number-policy")
+  @HttpCode(200)
+  async nav02NumberPolicySet(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    this.nav02CatalogGate("TTO_NAV02_NUMBER_LEDGER_ENABLED");
+    if(!input||typeof input!=="object"||Array.isArray(input)||
+       Object.keys(input).some(k=>!["slug","nextSerial","prefix","suffix"].includes(k))||
+       typeof input.slug!=="string"||
+       !/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(input.slug)||
+       typeof input.nextSerial!=="string"||
+       !/^[1-9][0-9]{0,11}$/.test(input.nextSerial)||
+       typeof input.prefix!=="string"||!/^[A-Z0-9-]{0,12}$/.test(input.prefix)||
+       typeof input.suffix!=="string"||!/^[A-Z0-9-]{0,12}$/.test(input.suffix))
+      throw new BadRequestException("INVALID_NUMBER_POLICY");
+    const actor=await this.db.sessionActor(auth);
+    const policy=await this.db.withActor(actor,async c=>{
+      const r=await c.query<{data:unknown}>(
+       "SELECT tto.nav02_member_number_policy_set($1,$2::bigint,$3,$4) AS data",
+       [input.slug,input.nextSerial,input.prefix,input.suffix]);
+      return r.rows[0]?.data;
+    });
+    if(!policy||typeof policy!=="object")throw new ServiceUnavailableException("POLICY_WRITE_INVALID");
+    return {saved:true,policy};
   }
   @Post("commerce/demo/nav02")
   @HttpCode(200)
@@ -511,12 +606,12 @@ export class FoundationCommandsController {
       const allowed=["title","fullName","group","nationalId","fatherName","birthCertificate",
        "birthDate","birthPlace","telephone","mobile","postalCode","address",
        "bornInCounty","residentInCounty","employedInCounty","informationConfirmed","membershipStatus",
-       "personType","shareholdingStatus"];
+       "personType","shareholdingStatus","collectionName","occupation"];
       const lengths:Record<string,number>={title:12,fullName:180,group:90,nationalId:11,
        fatherName:120,birthCertificate:45,birthDate:10,birthPlace:120,telephone:25,
        mobile:20,postalCode:12,address:600,bornInCounty:3,residentInCounty:3,
        employedInCounty:3,informationConfirmed:3,membershipStatus:25,
-       personType:10,shareholdingStatus:25};
+       personType:10,shareholdingStatus:25,collectionName:100,occupation:120};
       if(Object.keys(fields).some(k=>!allowed.includes(k)||String(fields[k]).length>lengths[k])||
          !["آقا","خانم","شرکت","سازمان","اداره"].includes(String(fields.title))||
          typeof fields.fullName!=="string"||fields.fullName.trim().length<3||
@@ -547,7 +642,9 @@ export class FoundationCommandsController {
         // Real-identity collection remains explicitly disabled absent independent
         // controller/privacy/retention approval. No membership/ledger role is granted.
         if(process.env.TTO_NAV02_MEMBER_INTAKE_ENABLED!=="true"||
-           process.env.TTO_NAV02_REAL_PII_ENABLED!=="true")
+           process.env.TTO_NAV02_REAL_PII_ENABLED!=="true"||
+           process.env.TTO_NAV02_NUMBER_LEDGER_ENABLED!=="true"||
+           process.env.TTO_NAV02_COLLECTIONS_ENABLED!=="true")
           throw new ServiceUnavailableException("REAL_MEMBER_INTAKE_NOT_APPROVED");
       }
       // The legacy shareholder profile endpoint remains synthetic-only.
@@ -570,8 +667,31 @@ export class FoundationCommandsController {
           // The database owner/tenant/duplicate check must succeed first.
           // On nonmatch or provider failure, withActor rolls the transaction
           // back; no unverified member record is committed.
-          if(action==="memberProfile")
+          if(action==="memberProfile"){
+            const chosen=String(fields.collectionName??"").trim();
+            if(chosen){
+              const groupResult=await c.query<{data:unknown}>(
+               "SELECT tto.nav02_member_collections_list($1) AS data",[slug]);
+              if(!Array.isArray(groupResult.rows[0]?.data)||
+                 !(groupResult.rows[0].data as unknown[]).some(v=>{
+                   const o=v as {name?:unknown};
+                   return o&&o.name===chosen;
+                 }))
+                throw new BadRequestException("COLLECTION_NOT_REGISTERED");
+            }
             await this.checkNav02Shahkar(String(fields.nationalId),String(fields.mobile));
+            const record=r.rows[0]?.record;
+            if(!record||typeof record!=="object"||Array.isArray(record)||
+               typeof (record as {id?:unknown}).id!=="string")
+              throw new ServiceUnavailableException("INVALID_MEMBER_ID");
+            const issued=await c.query<{member_number:string}>(
+              "SELECT tto.nav02_member_number_issue($1,$2::uuid) AS member_number",
+              [slug,(record as {id:string}).id]);
+            const number=issued.rows[0]?.member_number;
+            if(!number||typeof number!=="string")
+              throw new ServiceUnavailableException("NUMBER_ISSUE_UNCONFIRMED");
+            return {saved:true,record:{...record,membershipNumber:number}};
+          }
           return {saved:true,record:r.rows[0]?.record};
         }catch(e){
           const code=(e as {code?:string}).code;
