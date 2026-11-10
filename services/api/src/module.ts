@@ -849,8 +849,6 @@ export class FoundationCommandsController {
   @Get("commerce/demo/nav02/manage")
   async nav02Audit(@Headers("authorization") auth:string|undefined,
     @Query("slug") slug:string,@Query("draftId") draftId:string){
-    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
-      throw new ServiceUnavailableException("PREVIEW_ONLY");
     if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
        typeof draftId!=="string"||!uuidPattern.test(draftId))
       throw new BadRequestException("INVALID_NAV02_AUDIT_QUERY");
@@ -866,8 +864,6 @@ export class FoundationCommandsController {
   @HttpCode(200)
   async nav02Manage(@Headers("authorization") auth:string|undefined,
     @Body() input:Record<string,unknown>){
-    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
-      throw new ServiceUnavailableException("PREVIEW_ONLY");
     if(!input||typeof input!=="object"||Array.isArray(input)||
        Object.keys(input).some(k=>!["slug","draftId","version","action","data","confirmation"].includes(k)))
       throw new BadRequestException("INVALID_NAV02_MANAGEMENT_BODY");

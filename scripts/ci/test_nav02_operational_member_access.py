@@ -45,6 +45,18 @@ class OperationalMemberAccess(unittest.TestCase):
    'STALE_MEMBER_RECORD','Authorization:"Bearer "+tk'):
    self.assertIn(s,bff)
   self.assertIn('"/api/commerce/nav02/member-profile"',proxy)
+ def test_real_operational_management_routes_require_identity_not_mock_env(self):
+  api=src("services/api/src/module.ts")
+  begin=api.index('@Get("commerce/demo/nav02/manage")')
+  end=api.index('@Get("commerce/demo/team")',begin)
+  block=api[begin:end]
+  self.assertIn("this.db.sessionActor(auth)",block)
+  self.assertIn("this.db.withActor(actor,async c=>",block)
+  self.assertNotIn("PREVIEW_ONLY",block)
+  self.assertNotIn("TTO_ISOLATED_DEMO_DB",block)
+  self.assertIn("commerce_demo_nav02_audit",block)
+  self.assertIn("commerce_demo_nav02_change_state",block)
+  self.assertIn("commerce_demo_nav02_delete_unverified",block)
  def test_legal_membership_and_share_ledger_remain_distinct(self):
   api=src("services/api/src/module.ts")
   self.assertIn('APPLICANT_UNVERIFIED',api)

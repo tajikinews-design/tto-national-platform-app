@@ -75,3 +75,22 @@ be attached to this PR. This source change is **not** proof that the older
 deployed API has received the new code or that existing historical member
 records are legally admitted. No real data or Production schema has been
 modified as part of the initial source patch.
+
+
+## 2026-11-10 verified installation addendum
+- Three reviewed migrations W, X and Y were applied successfully to the
+  currently connected Supabase **Preview** database via the authenticated
+  migration tool. New tables: `tto.commerce_demo_nav02_management_audit`,
+  `tto.nav02_member_collections`, `tto.nav02_member_number_registry`.
+- Read-only counts verified after migrations: one preexisting member-intake
+  record, one encrypted private profile, one quarantined photo, **zero**
+  permanent membership numbers. No record rewritten or deleted.
+- PII and photo AES-256-GCM keys were securely copied only to the intended
+  new API Preview branch (not into repository or browser). Existing
+  ciphertexts remain decryptable. Sensitive API.ir token and login-abuse
+  secret were re-scoped to the new API Preview branch without exposure.
+- Server SMS delivery and mobile registration were configured on that branch;
+  this does not prove a successful SMS or Shahkar call. Real call remains
+  subject to lawful owner-authenticated request and consent.
+- GitHub head and protected API/UI deployment must be verified independently;
+  do not equate a successful schema migration with a complete end-to-end UAT.
