@@ -37,6 +37,22 @@ export async function POST(req:NextRequest){
   if(response.status===401)return deny(401,"INVALID_CREDENTIALS");
   if(response.status===403)return deny(403,"RATE_LIMITED_OR_TENANT_DENIED");
   if(response.status===400)return deny(400,"INVALID_CREDENTIALS");
+  if(response.status===503){
+    // Only distinguish published non-secret readiness categories from Nest.
+    // Never return provider payloads, configuration values or account existence.
+    const upstream=await response.json().catch(()=>null) as {
+      code?:unknown;message?:unknown
+    }|null;
+    const detail=typeof upstream?.code==="string"?upstream.code:
+      upstream?.message&&typeof upstream.message==="object"&&
+      "code" in upstream.message?
+      (upstream.message as {code?:unknown}).code:null;
+    if(detail==="PORTAL_PASSWORD_STAGING_NOT_RELEASED")
+      return deny(503,"PORTAL_STAGING_NOT_ENABLED");
+    if(detail==="PORTAL_PASSWORD_SECURE_CONFIG_REQUIRED")
+      return deny(503,"PORTAL_SECURITY_CONFIG_MISSING");
+    return deny(503,"PASSWORD_LOGIN_STAGING_NOT_READY");
+  }
   if(response.status!==200)return deny(503,"PASSWORD_LOGIN_STAGING_NOT_READY");
   const data=await response.json() as {accessToken?:unknown;surface?:unknown;workspaceSlug?:unknown;tenantId?:unknown;authenticated?:unknown;legalPowerGranted?:unknown;shareTransferEnabled?:unknown};
   if(data.surface!=="cooperative"||data.authenticated!==true||
