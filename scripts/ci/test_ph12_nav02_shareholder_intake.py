@@ -4,13 +4,16 @@ from pathlib import Path
 R=Path(__file__).resolve().parents[2]
 def src(p):return (R/p).read_text(encoding="utf-8")
 class Nav02IntakeContract(unittest.TestCase):
- def test_ui_preserves_two_distinct_submenus(self):
+ def test_ui_preserves_three_distinct_submenus(self):
   page=src("apps/cooperative-management/app/c/[slug]/members/[section]/page.tsx")
   nav=src("packages/ui/src/index.tsx")
   route=src("apps/cooperative-management/app/c/[slug]/modules/[moduleId]/page.tsx")
-  for marker in ('"add"','"shares"','moduleId="NAV-02"','nav02Content={<MemberDraftForms'):
+  for marker in ('"add"','"shares"','"shareholders"','moduleId="NAV-02"',
+                 'nav02Content={sub==="shareholders"?<ShareholdersTable',
+                 '<MemberDraftForms slug={slug} section={sub}/>' ):
    self.assertIn(marker,page)
   for marker in ('href={basePath+"/members/add"}','href={basePath+"/members/shares"}',
+                 'href={basePath+"/members/shareholders"}',
                  'memberSection','surface==="cooperative"&&i===1'):
    self.assertIn(marker,nav)
   self.assertIn('if(activeId==="NAV-02")redirect(',route)
