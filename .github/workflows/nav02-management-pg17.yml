@@ -1,0 +1,58 @@
+name: NAV02 owner management PostgreSQL17 safety (NO DEPLOY)
+on:
+  push:
+    branches:
+      - feat/nav02-shareholder-intake-draft-20261109
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  nav02-management-database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: tto
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tto"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      CI: "true"
+      APIIR_TOKEN: ""
+      TTO_NAV02_REAL_PII_ENABLED: "false"
+    steps:
+      - name: Checkout reviewed commit, no persistent credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Run reviewed NAV02 source and safety contracts
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/test_ph12_nav02_management_contract.py -v
+          python3 scripts/ci/test_ph12_nav02_sensitive_envelopes.py -v
+      - name: Apply isolated migrations only to disposable PostgreSQL 17
+        run: |
+          set -euo pipefail
+          psql_ci(){ docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$1"; }
+          for f in database/migrations/000{1,2,3,4,5,6,7,8,9}_*.sql database/migrations/0010_*.sql; do
+            test -f "$f"
+            psql_ci "$f"
+          done
+          psql_ci database/migrations/9992_ph10_workspace_addresses.sql
+          for f in database/migrations/9999{n,o,p,q,r,s,t,u,v,w}_*.sql; do
+            test -f "$f"
+            psql_ci "$f"
+          done
+          echo NAV02_ISOLATED_PG17_SCHEMA_APPLIED
+      - name: Test tenant isolation, audit, suspension and cascading synthetic deletion with rollback
+        run: |
+          set -euo pipefail
+          docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/nav02-shareholder-draft-management-fence.sql
+          count=$(docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -Atc 'SELECT count(*) FROM tto.commerce_demo_shareholder_drafts')
+          test "$count" = "0"
+          echo NAV02_PG17_SYNTHETIC_MANAGEMENT_ROLLBACK_PASS
