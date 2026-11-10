@@ -90,8 +90,7 @@ export function MemberCase({slug,memberId}:{slug:string;memberId:string}){
         <span aria-label={member.photoState==="QUARANTINED"?"تصویر در انتظار اسکن":"عکس موجود نیست"}>♙</span>}</div>
       <div><h1>{member.title} {member.name}</h1>
        <p>شماره عضویت: <strong dir="ltr">{member.membershipNumber||"در انتظار صدور رسمی"}</strong></p>
-       <p><span className="tto-nav02-state pending">{({APPLICANT_UNVERIFIED:"متقاضی",ACTIVE_REPORTED:"عضو فعال (اظهاری)",FORMER_REPORTED:"عضو سابق (اظهاری)",NON_MEMBER_REPORTED:"غیرعضو"} as Record<string,string>)[member.membershipStatus??""]??"وضعیت نامشخص"}</span>
-        {member.managementState==="SUSPENDED_DRAFT"?<span className="tto-nav02-state suspended">معلق</span>:null}</p>
+       {member.managementState==="SUSPENDED_DRAFT"?<p><span className="tto-nav02-state suspended">پرونده معلق</span></p>:null}
       </div>
      </div>
      <div className="tto-member-case-head-actions">
