@@ -61,9 +61,15 @@ class ThreePortalBoundary(unittest.TestCase):
                 self.assertIn('PortalSessionGate surface="'+surface+'"',home)
                 login_page=(APPS/app/"app/login/page.tsx").read_text(encoding="utf-8")
                 if surface=="cooperative":
-                    # Tenant selection is only routing; authority stays server-attested.
-                    self.assertIn('if(SLUG.test(input))redirect("/c/"',login_page)
+                    # Both approved entry patterns are tenant-scoped, never authority grants.
                     self.assertIn('<AuthFrame surface="cooperative">',login_page)
+                    if 'PortalPasswordLogin surface="cooperative"' in login_page:
+                        shared=(UI/"portal-password-login.tsx").read_text(encoding="utf-8")
+                        self.assertIn('fetch("/api/auth/password/login"',shared)
+                        self.assertIn('workspaceSlug',shared)
+                        self.assertIn('response.status===403',shared)
+                    else:
+                        self.assertIn('if(SLUG.test(input))redirect("/c/"',login_page)
                     gate=(APPS/app/'app/c/[slug]/entry-gate.tsx').read_text(encoding="utf-8")
                     self.assertIn('fetch("/api/auth/password/session"',gate)
                     self.assertIn('managerSession.workspaceSlug===slug',gate)
