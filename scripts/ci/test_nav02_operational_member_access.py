@@ -28,9 +28,9 @@ class OperationalMemberAccess(unittest.TestCase):
   api=src("services/api/src/module.ts")
   block=api[api.index('@Get("commerce/demo/nav02/member-profile")'):api.index('@Get("commerce/demo/nav02")')]
   for term in ("this.db.sessionActor(auth)","this.db.withActor(actor,async c=>",
-   "commerce_demo_nav02_profile_for_edit","commerce_demo_nav02_edit_profile_secure",
-   "IMMUTABLE_IDENTITY_REQUIRES_REVERIFICATION","STALE_MEMBER_VERSION",
-   "this.checkNav02Shahkar","createCipheriv","createDecipheriv",
+   "commerce_demo_nav02_profile_for_edit","nav02_member_edit_all_fields",
+   "identityVerification=identityChanged?\"UNVERIFIED\"","STALE_MEMBER_VERSION",
+   "nationalId","createCipheriv","createDecipheriv",
    "membershipStatus", "shareholdingStatus"):
    self.assertIn(term,block)
   self.assertNotIn("console.log",block)
