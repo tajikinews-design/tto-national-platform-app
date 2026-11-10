@@ -52,6 +52,8 @@ export async function GET(req:NextRequest){
   if(!Array.isArray(obj.items))return fail(502,"INVALID_OWNER_LIST");
   if(mode==="sample")return excelFile([headings,fake],"TTO_Members_Sample");
   if(obj.items.length>249)return fail(422,"EXPORT_BATCH_LIMIT_249");
+  // Preserve type-safe narrowed authorization context in concurrent workers.
+  const authorizedBase=base,authorizedSlug=slug,authorizedToken=token;
   // Every row is fetched from the existing encrypted owner-only edit endpoint,
   // NOT from the deliberately sparse/masked listing. Any failed row aborts
   // the entire export: no partially empty spreadsheet or tenant leakage.
@@ -63,11 +65,11 @@ export async function GET(req:NextRequest){
     const i=cursor++,o=owners[i];
     if(!o||typeof o.id!=="string"||!/^[0-9a-f-]{36}$/i.test(o.id))
      throw Error("INVALID_DRAFT_ID");
-    const url=new URL("/v1/commerce/demo/nav02/member-profile",base);
-    url.searchParams.set("slug",slug);url.searchParams.set("draftId",o.id);
+    const url=new URL("/v1/commerce/demo/nav02/member-profile",authorizedBase);
+    url.searchParams.set("slug",authorizedSlug);url.searchParams.set("draftId",o.id);
     const detail=await fetch(url,{cache:"no-store",redirect:"error",
      signal:AbortSignal.timeout(10000),
-     headers:{Authorization:"Bearer "+token,...trustedBackendHeaders(req)}});
+     headers:{Authorization:"Bearer "+authorizedToken,...trustedBackendHeaders(req)}});
     if(detail.status!==200)throw Error("MEMBER_DETAIL_NOT_AVAILABLE");
     const data=await detail.json() as {profile?:Record<string,unknown>};
     const p=data.profile;
