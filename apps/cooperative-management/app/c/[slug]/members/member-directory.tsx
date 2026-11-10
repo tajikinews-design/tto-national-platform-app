@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import {MemberExcelPanel} from "./member-excel-panel";
 import {useEffect,useMemo,useState} from "react";
 export type MemberRow={
  id:string;name:string;title:string;group:string;identifierMask:string;
@@ -176,6 +177,7 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
    <Link href={base+"collections"} aria-current={view==="collections"?"page":undefined}>▥ مجموعه‌ها</Link>
    <Link href={base+"archive"} aria-current={view==="archive"?"page":undefined}>▣ بایگانی</Link>
   </nav>
+  {view==="list"?<MemberExcelPanel slug={slug} onImported={load}/>:null}
   {view==="member-number"?null:view==="collections"?<div className="tto-nav02-card">
    <h2>مجموعه‌ها و افراد وابسته</h2>
    <p>برای مشاهده افراد هر مجموعه، آن را انتخاب کنید. فقط مجموعه‌های دارای عضو ثبت‌شده در اطلاعات مجاز نمایش داده می‌شوند.</p>
