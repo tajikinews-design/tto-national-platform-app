@@ -5,9 +5,14 @@ export const runtime="nodejs";export const dynamic="force-dynamic";
 const H={"Cache-Control":"private, no-store","Vary":"Cookie","X-Robots-Tag":"noindex"};
 const fail=(status:number,code:string)=>NextResponse.json({code},{status,headers:H});
 const SLUG=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+// One canonical, fully populated interchange schema for all editable member
+// profile fields. Legal identity is still represented in the confidential
+// owner-only export; importing new legal persons remains a separate workflow.
 const headings=["عنوان","نام و نام خانوادگی","گروه عضویت","کد ملی","شماره همراه",
  "نام پدر","شماره شناسنامه","تاریخ تولد (شمسی)","محل تولد","تلفن",
- "کدپستی","نشانی","شغل","متولد شهرستان","ساکن شهرستان","شاغل شهرستان"];
+ "کدپستی","نشانی","شغل","متولد شهرستان","ساکن شهرستان","شاغل شهرستان",
+ "مجموعه","نوع شخصیت","وضعیت سهام","شماره ثبت","کد اقتصادی",
+ "نام نماینده","کد ملی نماینده","موبایل نماینده","شماره عضویت"];
 function validNationalCode(v:string){
  if(!/^[0-9]{10}$/.test(v)||/^([0-9])\1{9}$/.test(v))return false;
  let total=0;for(let i=0;i<9;i++)total+=Number(v[i])*(10-i);
@@ -24,9 +29,10 @@ function excelFile(rows:string[][],name:string){
   "Content-Disposition":'attachment; filename="'+name+'.xlsx"',
   "X-Content-Type-Options":"nosniff"}});
 }
-const fake=["خانم","شخص کاملاً ساختگی","عضو اولیه","0000000000","09000000000",
- "نام آزمایشی","00000","1370/01/01","نمونه","","0000000000",
- "نشانی نمونه و غیرواقعی","آزمایشی","بله","خیر","خیر"];
+const fake=["خانم","نمونه کاملاً ساختگی - ثبت نشود","گروه نمونه","1234567891","09000000000",
+ "نام پدر نمونه","00001","1370/01/01","شهرستان نمونه","05100000000","0000000000",
+ "نشانی کاملاً نمونه برای راهنمای تکمیل فایل","شغل نمونه","بله","خیر","خیر",
+ "مجموعه نمونه","حقیقی","فاقد سهام","نامربوط","نامربوط","نامربوط","نامربوط","نامربوط","هنوز صادر نشده"];
 export async function GET(req:NextRequest){
  const token=session(req),slug=req.nextUrl.searchParams.get("slug");
  if(!token)return fail(401,"LOGIN_REQUIRED");
@@ -46,17 +52,45 @@ export async function GET(req:NextRequest){
   if(!Array.isArray(obj.items))return fail(502,"INVALID_OWNER_LIST");
   if(mode==="sample")return excelFile([headings,fake],"TTO_Members_Sample");
   if(obj.items.length>249)return fail(422,"EXPORT_BATCH_LIMIT_249");
-  const rows=obj.items.map((v:unknown)=>{
-   const p=v as Record<string,unknown>;
-   if(!p||typeof p!=="object")throw Error("INVALID_MEMBER");
-   // Export only approved list view fields. Never export decrypted national ID,
-   // mobile, or photos; masks are clearly marked in the header.
-   return [p.title,p.name,p.group,p.identifierMask,p.mobileMask,
-    "","","","", "", "", "",p.occupation,
-    "", "", ""].map(x=>String(x??""));
-  });
-  const exportHeads=headings.map(h=>["کد ملی","شماره همراه"].includes(h)?h+" (پوشیده)":h);
-  return excelFile([exportHeads,...rows],"TTO_Members_Export_Masked");
+  // Every row is fetched from the existing encrypted owner-only edit endpoint,
+  // NOT from the deliberately sparse/masked listing. Any failed row aborts
+  // the entire export: no partially empty spreadsheet or tenant leakage.
+  const owners=obj.items as Array<Record<string,unknown>>;
+  const rows:string[][]=new Array(owners.length);
+  let cursor=0;
+  async function worker(){
+   while(cursor<owners.length){
+    const i=cursor++,o=owners[i];
+    if(!o||typeof o.id!=="string"||!/^[0-9a-f-]{36}$/i.test(o.id))
+     throw Error("INVALID_DRAFT_ID");
+    const url=new URL("/v1/commerce/demo/nav02/member-profile",base);
+    url.searchParams.set("slug",slug);url.searchParams.set("draftId",o.id);
+    const detail=await fetch(url,{cache:"no-store",redirect:"error",
+     signal:AbortSignal.timeout(10000),
+     headers:{Authorization:"Bearer "+token,...trustedBackendHeaders(req)}});
+    if(detail.status!==200)throw Error("MEMBER_DETAIL_NOT_AVAILABLE");
+    const data=await detail.json() as {profile?:Record<string,unknown>};
+    const p=data.profile;
+    if(!p||typeof p!=="object"||typeof p.fullName!=="string"||
+       !["NATURAL","LEGAL"].includes(String(p.personType)))
+      throw Error("INVALID_MEMBER_DETAIL");
+    const yes=(v:unknown)=>v==="yes"?"بله":v==="no"?"خیر":"";
+    rows[i]=[p.title,p.fullName,p.group,p.nationalId,p.mobile,p.fatherName,
+      p.birthCertificate,p.birthDate,p.birthPlace,p.telephone,p.postalCode,
+      p.address,p.occupation,yes(p.bornInCounty),yes(p.residentInCounty),
+      yes(p.employedInCounty),p.collectionName,
+      p.personType==="LEGAL"?"حقوقی":"حقیقی",
+      p.shareholdingStatus==="HOLDER_REPORTED"?"سهامدار (اظهاری)":
+       p.shareholdingStatus==="TRANSFER_PENDING_REPORTED"?"انتقال در جریان (اظهاری)":"فاقد سهام",
+      p.registrationNumber,p.economicCode,p.representativeName,
+      p.representativeNationalId,p.representativeMobile,o.membershipNumber]
+      .map(v=>String(v??""));
+   }
+  }
+  await Promise.all(Array.from({length:Math.min(4,owners.length)},()=>worker()));
+  // Sensitive owner-requested download only. Never cache, log, or expose it
+  // through public previews, unscoped list endpoints or mock fixtures.
+  return excelFile([headings,...rows],"TTO_Members_Export_Private");
  }catch{return fail(503,"WORKBOOK_EXPORT_UNAVAILABLE")}
 }
 export async function POST(req:NextRequest){
@@ -93,7 +127,8 @@ export async function POST(req:NextRequest){
     if(r.length>headings.length)throw Error("UNSUPPORTED_COLUMNS");
     const fields=headings.map((_,j)=>String(r[j]??"").trim());
     const [title,fullName,group,nationalId,mobile,fatherName,birthCertificate,
-      birthDate,birthPlace,telephone,postalCode,address,occupation,born,resident,employed]=fields;
+      birthDate,birthPlace,telephone,postalCode,address,occupation,born,resident,employed,
+      collectionName,personType]=fields;
     const errors:string[]=[];
     if(!["آقا","خانم"].includes(title))errors.push("عنوان");
     if(fullName.length<3||fullName.length>180)errors.push("نام");
@@ -101,6 +136,7 @@ export async function POST(req:NextRequest){
     if(!validNationalCode(nationalId))errors.push("کد ملی");
     if(!/^09[0-9]{9}$/.test(mobile))errors.push("شماره همراه");
     if(![born,resident,employed].includes("بله"))errors.push("شرایط شهرستان");
+    if(personType!=="حقیقی")errors.push("فایل ثبت گروهی فقط برای اشخاص حقیقی است؛ شخصیت حقوقی باید در فرم ثبت عضو وارد شود");
     if(![born,resident,employed].every(v=>["بله","خیر"].includes(v)))errors.push("پرچم شهرستان");
     if(birthDate&&!/^1[2-5][0-9]{2}\/(0[1-9]|1[0-2])\/\d{2}$/.test(birthDate))errors.push("تاریخ تولد");
     if(seen.has(nationalId))errors.push("کد ملی تکراری در فایل");
@@ -111,7 +147,7 @@ export async function POST(req:NextRequest){
      bornInCounty:born==="بله"?"yes":"no",residentInCounty:resident==="بله"?"yes":"no",
      employedInCounty:employed==="بله"?"yes":"no",
      informationConfirmed:"yes",membershipStatus:"APPLICANT_UNVERIFIED",
-     personType:"NATURAL",shareholdingStatus:"NONE_UNVERIFIED",collectionName:"",
+     personType:"NATURAL",shareholdingStatus:"NONE_UNVERIFIED",collectionName,
      registrationNumber:"",economicCode:"",representativeName:"",
      representativeNationalId:"",representativeMobile:""
     }};
