@@ -63,7 +63,7 @@ export async function POST(req:NextRequest){
     d.informationConfirmed!=="yes"||d.membershipStatus!=="APPLICANT_UNVERIFIED"||
     d.personType!=="NATURAL"||d.shareholdingStatus!=="NONE_UNVERIFIED"||
     typeof d.mobile!=="string"||!/^09[0-9]{9}$/.test(d.mobile)||
-    (d.birthDate!==""&&!/^1[2-5][0-9]{2}\\/(0[1-9]|1[0-2])\\/(0[1-9]|[12][0-9]|3[01])$/.test(String(d.birthDate)))))))||
+    (d.birthDate!==""&&!/^1[2-5][0-9]{2}\/(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])$/.test(String(d.birthDate)))))))||
  (data.action==="capital"&&(
   typeof data.draftId!=="string"||!/^[a-f0-9-]{36}$/i.test(data.draftId)||
   Object.keys(d).some(k=>!["initialShares","subscribedShares","nominalRial","paidRial",

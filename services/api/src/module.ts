@@ -408,7 +408,7 @@ export class FoundationCommandsController {
     }
   }
   private validJalaliBirthDate(value:string):boolean{
-    const p=/^(1[2-5][0-9]{2})\\/(0[1-9]|1[0-2])\\/(0[1-9]|[12][0-9]|3[01])$/.exec(value);
+    const p=/^(1[2-5][0-9]{2})\/(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])$/.exec(value);
     if(!p)return false;
     const y=Number(p[1]),m=Number(p[2]),d=Number(p[3]);
     const formatter=new Intl.DateTimeFormat("en-US-u-ca-persian",
