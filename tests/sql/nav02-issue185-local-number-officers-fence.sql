@@ -47,6 +47,19 @@ BEGIN
   'Joint signatures subject to official resolution','2026-01-01','2028-01-01',
   'Synthetic Gazette','2026-02-01','55','NA-77');
  IF ra IS NULL THEN RAISE EXCEPTION 'BOARD_DRAFT_FAILED';END IF;
+ IF tto.nav02_office_holder_draft_edit('ci-nav02a',ra,1,
+  'dddddddd-dddd-4ddd-8ddd-ddddddddddda',null,'MEMBER','BOARD_CHAIR',true,
+  'Both signatures required under unverified draft','2026-01-01','2028-01-01',
+  'Synthetic Gazette','2026-02-01','55','NA-77')<>2
+ THEN RAISE EXCEPTION 'OFFICE_EDIT_VERSION_FAILED';END IF;
+ IF jsonb_array_length(tto.nav02_office_holder_draft_history('ci-nav02a',ra))<>1
+ THEN RAISE EXCEPTION 'OFFICE_HISTORY_MISSING';END IF;
+ BEGIN
+  PERFORM tto.nav02_office_holder_draft_edit('ci-nav02a',ra,1,
+   'dddddddd-dddd-4ddd-8ddd-ddddddddddda',null,'MEMBER','BOARD_CHAIR',false,
+   'Illegal stale write','2026-01-01','2028-01-01','',null,'','');
+  RAISE EXCEPTION 'STALE_OFFICE_VERSION_ACCEPTED';
+ EXCEPTION WHEN serialization_failure THEN NULL;END;
  ra:=tto.nav02_office_holder_draft_create('ci-nav02a',
   null,'Synthetic External CEO','EXTERNAL','CEO',false,
   'No registered authority','2026-01-01','2027-01-01',
