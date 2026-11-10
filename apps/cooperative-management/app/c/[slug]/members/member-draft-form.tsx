@@ -52,6 +52,13 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    .finally(()=>{if(live)setLoading(false)});
   return()=>{live=false};
  },[slug]);
+ useEffect(()=>{
+  if(section!=="shares"||items.length===0)return;
+  const requested=new URLSearchParams(window.location.search).get("draft");
+  if(requested&&items.some(x=>x.id===requested&&
+      (x as RecordItem & {managementState?:string}).managementState!=="SUSPENDED_DRAFT"))
+    setDraftId(requested);
+ },[section,items]);
  const selected=items.find(x=>x.id===draftId);
  const filtered=items.filter(x=>(x as RecordItem & {managementState?:string}).managementState!=="SUSPENDED_DRAFT").filter(x=>(x.name+" "+x.identifierMask+" "+x.group).toLocaleLowerCase("fa")
   .includes(search.toLocaleLowerCase("fa")));
