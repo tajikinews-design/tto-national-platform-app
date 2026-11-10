@@ -48,7 +48,8 @@ export async function POST(req:NextRequest){
  ((data.action==="profile"||data.action==="memberProfile")&&(
   Object.keys(d).some(k=>!["title","fullName","group","nationalId","fatherName",
   "birthCertificate","birthDate","birthPlace","telephone","mobile","postalCode","address",
-  "bornInCounty","residentInCounty","employedInCounty","informationConfirmed","membershipStatus"].includes(k))||
+  "bornInCounty","residentInCounty","employedInCounty","informationConfirmed","membershipStatus",
+  "personType","shareholdingStatus"].includes(k))||
   !["آقا","خانم","شرکت","سازمان","اداره"].includes(String(d.title))||
   typeof d.fullName!=="string"||d.fullName.trim().length<3||
   typeof d.group!=="string"||d.group.trim().length<2||
@@ -59,7 +60,8 @@ export async function POST(req:NextRequest){
     !["yes","no"].includes(String(d.residentInCounty))||
     !["yes","no"].includes(String(d.employedInCounty))||
     ![d.bornInCounty,d.residentInCounty,d.employedInCounty].includes("yes")||
-    d.informationConfirmed!=="yes"||d.membershipStatus!=="APPLICANT_UNVERIFIED"))))||
+    d.informationConfirmed!=="yes"||d.membershipStatus!=="APPLICANT_UNVERIFIED"||
+    d.personType!=="NATURAL"||d.shareholdingStatus!=="NONE_UNVERIFIED"))))||
  (data.action==="capital"&&(
   typeof data.draftId!=="string"||!/^[a-f0-9-]{36}$/i.test(data.draftId)||
   Object.keys(d).some(k=>!["initialShares","subscribedShares","nominalRial","paidRial",

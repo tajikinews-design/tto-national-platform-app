@@ -427,7 +427,10 @@ export class FoundationCommandsController {
          nominalRial:p.nominalRial,declaredPaidRial:p.declaredPaidRial,
          paymentDate:p.paymentDate,capitalState:p.capitalState,
          managementState:p.managementState??"ACTIVE_DRAFT",
-         version:p.version??1,photoState:p.photoState??"NONE"};
+         version:p.version??1,photoState:p.photoState??"NONE",
+         personType:person.personType==="NATURAL"?"NATURAL":null,
+         membershipStatus:person.membershipStatus==="APPLICANT_UNVERIFIED"?"APPLICANT_UNVERIFIED":null,
+         shareholdingStatus:person.shareholdingStatus==="NONE_UNVERIFIED"?"NONE_UNVERIFIED":null};
       }catch{throw new ServiceUnavailableException("PRIVATE_IDENTITY_UNAVAILABLE")}
     });
     return {items};
@@ -453,11 +456,13 @@ export class FoundationCommandsController {
     if(action==="profile"||action==="memberProfile"){
       const allowed=["title","fullName","group","nationalId","fatherName","birthCertificate",
        "birthDate","birthPlace","telephone","mobile","postalCode","address",
-       "bornInCounty","residentInCounty","employedInCounty","informationConfirmed","membershipStatus"];
+       "bornInCounty","residentInCounty","employedInCounty","informationConfirmed","membershipStatus",
+       "personType","shareholdingStatus"];
       const lengths:Record<string,number>={title:12,fullName:180,group:90,nationalId:11,
        fatherName:120,birthCertificate:45,birthDate:10,birthPlace:120,telephone:25,
        mobile:20,postalCode:12,address:600,bornInCounty:3,residentInCounty:3,
-       employedInCounty:3,informationConfirmed:3,membershipStatus:25};
+       employedInCounty:3,informationConfirmed:3,membershipStatus:25,
+       personType:10,shareholdingStatus:25};
       if(Object.keys(fields).some(k=>!allowed.includes(k)||String(fields[k]).length>lengths[k])||
          !["آقا","خانم","شرکت","سازمان","اداره"].includes(String(fields.title))||
          typeof fields.fullName!=="string"||fields.fullName.trim().length<3||
@@ -478,7 +483,9 @@ export class FoundationCommandsController {
            !["yes","no"].includes(String(fields.employedInCounty))||
            ![fields.bornInCounty,fields.residentInCounty,fields.employedInCounty].includes("yes")||
            fields.informationConfirmed!=="yes"||
-           fields.membershipStatus!=="APPLICANT_UNVERIFIED")
+           fields.membershipStatus!=="APPLICANT_UNVERIFIED"||
+           fields.personType!=="NATURAL"||
+           fields.shareholdingStatus!=="NONE_UNVERIFIED")
           throw new BadRequestException("INVALID_MEMBER_APPLICATION");
         // Real-identity collection remains explicitly disabled absent independent
         // controller/privacy/retention approval. No membership/ledger role is granted.

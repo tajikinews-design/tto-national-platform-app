@@ -2,14 +2,15 @@
 import Link from "next/link";
 import {useEffect,useMemo,useState,type FormEvent} from "react";
 type Section="add"|"shares";
-type RecordItem={id:string;name:string;title:string;group:string;identifierMask:string;
+type RecordItem={id:string;name:string;title:string;group:string;identifierMask:string;membershipStatus?:string|null;
  state:string;initialShares?:number;subscribedShares?:number;nominalRial?:number;
  declaredPaidRial?:number;capitalState?:string};
 const TITLES=["آقا","خانم"] as const;
 const initialProfile={title:"آقا",fullName:"",group:"متقاضی عضویت",nationalId:"",fatherName:"",
  birthCertificate:"",birthDate:"",birthPlace:"",telephone:"",mobile:"",postalCode:"",address:"",
  bornInCounty:"no",residentInCounty:"no",employedInCounty:"no",
- informationConfirmed:"no",membershipStatus:"APPLICANT_UNVERIFIED"};
+ informationConfirmed:"no",membershipStatus:"APPLICANT_UNVERIFIED",
+ personType:"NATURAL",shareholdingStatus:"NONE_UNVERIFIED"};
 const initialCapital={initialShares:"0",subscribedShares:"0",nominalRial:"",paidRial:"0",
  paymentDate:"",receiptRef:""};
 type Profile=typeof initialProfile;type Capital=typeof initialCapital;
@@ -73,7 +74,8 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
     setDraftId(requested);
  },[section,items]);
  const selected=items.find(x=>x.id===draftId);
- const filtered=items.filter(x=>(x as RecordItem & {managementState?:string}).managementState!=="SUSPENDED_DRAFT").filter(x=>(x.name+" "+x.identifierMask+" "+x.group).toLocaleLowerCase("fa")
+ const visibleItems=items.filter(x=>section==="add"?x.membershipStatus==="APPLICANT_UNVERIFIED":x.membershipStatus!=="APPLICANT_UNVERIFIED");
+ const filtered=visibleItems.filter(x=>(x as RecordItem & {managementState?:string}).managementState!=="SUSPENDED_DRAFT").filter(x=>(x.name+" "+x.identifierMask+" "+x.group).toLocaleLowerCase("fa")
   .includes(search.toLocaleLowerCase("fa")));
  const subtotal=useMemo(()=>{
   try{return (BigInt(capital.initialShares||0)+BigInt(capital.subscribedShares||0))*
@@ -232,11 +234,11 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
       <fieldset className="tto-nav02-eligibility">
        <legend>شرایط ارتباط با شهرستان طبق ماده ۲ قانون تأسیس (حداقل یکی)</legend>
        <label><input type="checkbox" checked={profile.bornInCounty==="yes"}
-        onChange={e=>change("bornInCounty",e.target.checked?"yes":"no")}/> متولد شهرستان هستم</label>
+        onChange={e=>change("bornInCounty",e.target.checked?"yes":"no")}/> متولد شهرستان است</label>
        <label><input type="checkbox" checked={profile.residentInCounty==="yes"}
-        onChange={e=>change("residentInCounty",e.target.checked?"yes":"no")}/> ساکن شهرستان هستم</label>
+        onChange={e=>change("residentInCounty",e.target.checked?"yes":"no")}/> ساکن شهرستان است</label>
        <label><input type="checkbox" checked={profile.employedInCounty==="yes"}
-        onChange={e=>change("employedInCounty",e.target.checked?"yes":"no")}/> شاغل در شهرستان هستم</label>
+        onChange={e=>change("employedInCounty",e.target.checked?"yes":"no")}/> شاغل در شهرستان است</label>
        {!countyCondition?<small>یکی از سه شرط الزامی است؛ اثبات شرایط در مرحله بررسی انجام می‌شود.</small>:null}
       </fieldset>
       <label className="tto-nav02-confirm">
@@ -293,8 +295,8 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    <aside className="tto-nav02-card" aria-label="فهرست پرونده‌های اولیه">
     <h2>پرونده‌های ثبت اولیه</h2>
     {loading?<p role="status">در حال دریافت پرونده‌های مجاز…</p>:
-     items.length===0?<p>هنوز پرونده اولیه‌ای برای این تعاونی ثبت نشده است.</p>:
-     <div className="tto-nav02-records">{items.map(x=><article key={x.id}>
+     visibleItems.length===0?<p>هنوز پرونده اولیه‌ای در این بخش ثبت نشده است.</p>:
+     <div className="tto-nav02-records">{visibleItems.map(x=><article key={x.id}>
       <strong>{x.name}</strong><small>{x.title} · {x.group} · {x.identifierMask}</small>
       <span>{x.capitalState?"اطلاعات اولیه سهام ثبت‌شده":"فاقد اطلاعات اظهارشده سهام"}</span>
       {section==="shares"&&!x.capitalState?<button type="button" onClick={()=>setDraftId(x.id)}>انتخاب</button>:null}

@@ -3,7 +3,7 @@ import Link from "next/link";
 import {useEffect,useMemo,useRef,useState,type FormEvent} from "react";
 
 type Draft={
- id:string;title:string;name:string;group:string;identifierMask:string;
+ id:string;title:string;name:string;group:string;identifierMask:string;membershipStatus?:string|null;
  state:string;managementState?:"ACTIVE_DRAFT"|"SUSPENDED_DRAFT";
  version?:number;photoState?:"NONE"|"QUARANTINED";
  initialShares?:string|null;subscribedShares?:string|null;
@@ -78,7 +78,8 @@ export function ShareholdersTable({slug}:{slug:string}){
    "دریافت فهرست سهامداران آزمایشی ناموفق بود.");
   const body=await response.json() as {items?:Draft[]};
   if(!Array.isArray(body.items))throw Error("پاسخ سرور معتبر نیست.");
-  setRows(body.items);return body.items;
+  const shareholderDrafts=body.items.filter(item=>item.membershipStatus!=="APPLICANT_UNVERIFIED");
+  setRows(shareholderDrafts);return shareholderDrafts;
  }
  useEffect(()=>{
   let alive=true;void reload().catch(e=>{
