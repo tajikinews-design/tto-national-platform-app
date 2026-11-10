@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import {trustedBackendHeaders} from "../../../../../lib/trusted-backend";
 import {workbookXlsx,parseMemberXlsx} from "../../../../../lib/nav02-xlsx";
+import {displayMemberNumber} from "../../../../../lib/nav02-member-number";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 const H={"Cache-Control":"private, no-store","Vary":"Cookie","X-Robots-Tag":"noindex"};
 const fail=(status:number,code:string)=>NextResponse.json({code},{status,headers:H});
@@ -87,7 +88,7 @@ export async function GET(req:NextRequest){
       p.shareholdingStatus==="HOLDER_REPORTED"?"سهامدار (اظهاری)":
        p.shareholdingStatus==="TRANSFER_PENDING_REPORTED"?"انتقال در جریان (اظهاری)":"فاقد سهام",
       p.registrationNumber,p.economicCode,p.representativeName,
-      p.representativeNationalId,p.representativeMobile,o.membershipNumber]
+      p.representativeNationalId,p.representativeMobile,displayMemberNumber(scopedSlug,o.membershipNumber)]
       .map(v=>String(v??""));
    }
   }
