@@ -8,12 +8,15 @@ type RecordItem={id:string;name:string;title:string;group:string;identifierMask:
  state:string;initialShares?:number;subscribedShares?:number;nominalRial?:number;
  declaredPaidRial?:number;capitalState?:string};
 const TITLES=["آقا","خانم"] as const;
+const MEMBER_STATES=[["APPLICANT_UNVERIFIED","متقاضی"],["ACTIVE_REPORTED","عضو فعال (اظهاری)"],["FORMER_REPORTED","عضو سابق (اظهاری)"],["NON_MEMBER_REPORTED","غیرعضو"]] as const;
+const SHARE_STATES=[["NONE_UNVERIFIED","فاقد سهام"],["HOLDER_REPORTED","سهامدار (اظهاری)"],["TRANSFER_PENDING_REPORTED","انتقال در جریان (اظهاری)"]] as const;
 const initialProfile={title:"آقا",fullName:"",group:"متقاضی عضویت",nationalId:"",fatherName:"",
  birthCertificate:"",birthDate:"",birthPlace:"",telephone:"",mobile:"",postalCode:"",address:"",
  collectionName:"",occupation:"",
  bornInCounty:"no",residentInCounty:"no",employedInCounty:"no",
  informationConfirmed:"no",membershipStatus:"APPLICANT_UNVERIFIED",
- personType:"NATURAL",shareholdingStatus:"NONE_UNVERIFIED"};
+ personType:"NATURAL",shareholdingStatus:"NONE_UNVERIFIED",registrationNumber:"",economicCode:"",
+ representativeName:"",representativeNationalId:"",representativeMobile:""};
 const initialCapital={initialShares:"0",subscribedShares:"0",nominalRial:"",paidRial:"0",
  paymentDate:"",receiptRef:""};
 type Profile=typeof initialProfile;type Capital=typeof initialCapital;
@@ -85,10 +88,8 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    for(const k of Object.keys(initialProfile)){
     const v=result.profile[k];if(typeof v==="string"&&v.length<=700)clean[k]=v;
    }
-   if(clean.personType!=="NATURAL"||
-    clean.membershipStatus!=="APPLICANT_UNVERIFIED"||
-    clean.shareholdingStatus!=="NONE_UNVERIFIED")
-    throw Error("مدیریت عضویت رسمی به مسیر مستقل قانونی نیاز دارد.");
+   if(!["NATURAL","LEGAL"].includes(clean.personType))
+    throw Error("نوع شخصیت پرونده معتبر نیست.");
    setProfile(clean as unknown as Profile);setEditVersion(Number(result.version));
    setPersonalDataConfirmed(false);
   }).catch(err=>{if(active){setError(true);
@@ -122,7 +123,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
     setDraftId(requested);
  },[section,items]);
  const selected=items.find(x=>x.id===draftId);
- const visibleItems=items.filter(x=>section==="add"?x.membershipStatus==="APPLICANT_UNVERIFIED":x.membershipStatus!=="APPLICANT_UNVERIFIED");
+ const visibleItems=items;
  const filtered=visibleItems.filter(x=>(x as RecordItem & {managementState?:string}).managementState!=="SUSPENDED_DRAFT").filter(x=>(x.name+" "+x.identifierMask+" "+x.group).toLocaleLowerCase("fa")
   .includes(search.toLocaleLowerCase("fa")));
  const subtotal=useMemo(()=>{
@@ -130,12 +131,14 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
     BigInt(capital.nominalRial||0)}catch{return 0n}
  },[capital]);
  function change(k:keyof Profile,value:string){
-  setProfile(old=>({...old,[k]:["nationalId","mobile"].includes(k)?toLatinDigits(value):value}));setNotice("");
+  setProfile(old=>({...old,[k]:["nationalId","mobile","registrationNumber","economicCode","representativeNationalId","representativeMobile"].includes(k)?toLatinDigits(value):value}));setNotice("");
  }
  const mobileError=profile.mobile.length===0?"":!/^09[0-9]{9}$/.test(profile.mobile) ?
   "شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود.":"";
- const nationalIdError=profile.nationalId.length===0?"":!/^[0-9]{0,10}$/.test(profile.nationalId)?
-  "کد ملی باید فقط ۱۰ رقم باشد.":profile.nationalId.length===10&&!validIranianNationalId(profile.nationalId)?
+ const nationalIdError=profile.nationalId.length===0?"":profile.personType==="LEGAL"?
+  (!/^\\d{0,11}$/.test(profile.nationalId)||profile.nationalId.length===11&&!/^\\d{11}$/.test(profile.nationalId)?"شناسه ملی شخص حقوقی باید ۱۱ رقم باشد.":""):
+  !/^[0-9]{0,10}$/.test(profile.nationalId)?"کد ملی باید فقط ۱۰ رقم باشد.":
+  profile.nationalId.length===10&&!validIranianNationalId(profile.nationalId)?
   "کد ملی معتبر نیست؛ رقم کنترل را بررسی کنید.":"";
  const countyCondition=profile.bornInCounty==="yes"||profile.residentInCounty==="yes"||
   profile.employedInCounty==="yes";
@@ -168,14 +171,21 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    if(!/^09[0-9]{9}$/.test(profile.mobile)){
     setError(true);setNotice("شماره همراه معتبر نیست؛ شماره ۱۱ رقمی متعلق به صاحب کد ملی را وارد کنید.");return;
    }
-   if(!validIranianNationalId(profile.nationalId)){
+   if(profile.personType==="LEGAL"){
+    if(!/^\\d{11}$/.test(profile.nationalId)||!/^[0-9]{1,30}$/.test(profile.registrationNumber)||
+       !/^\\d{12,14}$/.test(profile.economicCode)||!profile.representativeName.trim()||
+       !validIranianNationalId(profile.representativeNationalId)||
+       !/^09[0-9]{9}$/.test(profile.representativeMobile)||profile.membershipStatus!=="NON_MEMBER_REPORTED"){
+      setError(true);setNotice("شناسه ملی، شماره ثبت، شماره اقتصادی و مشخصات نماینده قانونی را تکمیل کنید. شخصیت حقوقی فقط به‌عنوان سهامدار غیرعضو ثبت می‌شود.");return;
+    }
+   }else if(!validIranianNationalId(profile.nationalId)){
     setError(true);setNotice("کد ملی نامعتبر است؛ شماره باید ۱۰ رقم و دارای رقم کنترل صحیح باشد.");return;
    }
-   if(!countyCondition){
+   if(profile.personType==="NATURAL"&&profile.membershipStatus!=="NON_MEMBER_REPORTED"&&!countyCondition){
     setError(true);setNotice("طبق قانون، تولد یا سکونت یا اشتغال در شهرستان کافی است؛ حداقل یک گزینه را انتخاب کنید.");return;
    }
-   if(!["آقا","خانم"].includes(profile.title)){
-    setError(true);setNotice("در این بخش فقط درخواست عضویت اشخاص حقیقی ثبت می‌شود.");return;
+   if(profile.personType==="NATURAL"&&!["آقا","خانم"].includes(profile.title)){
+    setError(true);setNotice("عنوان شخص حقیقی نامعتبر است.");return;
    }
   }else{
    if(!draftId){setError(true);setNotice("ابتدا سهامدار را از فهرست انتخاب کنید.");return}
@@ -190,7 +200,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    const req=section==="add"?
     editId?
      {slug,draftId:editId,version:editVersion,data:{...profile,informationConfirmed:"yes"}}:
-     {slug,action:"memberProfile",data:{...profile,informationConfirmed:"yes"}}:
+     {slug,action:profile.personType==="LEGAL"?"legalProfile":"memberProfile",data:{...profile,informationConfirmed:"yes"}}:
     {slug,action:"capital",draftId,data:capital};
    const r=await fetch(editId?"/api/commerce/nav02/member-profile":"/api/commerce/nav02",{method:"POST",credentials:"same-origin",cache:"no-store",
     headers:{"Content-Type":"application/json"},body:JSON.stringify(req)});
@@ -243,7 +253,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    }
    await refresh();
    setError(false);setNotice(section==="add"?
-    "درخواست عضویت ثبت اولیه شد و تا بررسی هیئت مؤسس یا هیئت‌مدیره در وضعیت متقاضی باقی می‌ماند.":
+    "پرونده با وضعیت اظهاری ثبت شد؛ احراز و آثار قانونی عضویت و سهام نیازمند شواهد مستقل است.":
     "اطلاعات اظهارشده سهام ذخیره شد؛ دفتر رسمی سهام و مانده قانونی تغییر نکردند.");
    if(section==="add"){setProfile(initialProfile);setPersonalDataConfirmed(false);}
    else{setCapital(initialCapital);setDraftId("")}
@@ -255,7 +265,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    <span className="tto-settings-eyebrow">NAV-02 · پرونده عضویت</span>
    <h1>{section==="add"?"ثبت عضو":"ثبت سهام"}</h1>
    <p>{section==="add"?
-    "ثبت اطلاعات شخص حقیقی و شرایط درخواست عضویت؛ تأیید عضویت با مرجع مجاز تعاونی است.":
+    "ثبت پرونده اشخاص حقیقی و حقوقی و وضعیت اظهاری عضویت و سهامداری، بدون اعطای حق رأی یا مالکیت.":
     "ثبت اطلاعات اولیه سهام با رعایت تفکیک قانونی عضو و سهامدار غیرعضو."}</p>
   </header>
   <nav aria-label="زیرمنوهای اعضا و سهام" className="tto-nav02-switch">
@@ -282,15 +292,53 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
       <div className="tto-member-number-notice">
        <strong>شماره عضویت:</strong>
        <span>پس از ثبت و تخصیص قطعی در دفتر شماره‌های یکتا صادر می‌شود</span>
-       <Link href={base+"list"}>تنظیم قالب شماره عضویت</Link>
+       <Link href={"/c/"+encodeURIComponent(slug)+"/settings/member-number"}>تنظیم قالب شماره عضویت</Link>
       </div>
       <div className="tto-nav02-name-row">
-       <Field title="عنوان *"><select value={profile.title} onChange={e=>change("title",e.target.value)}>
-        {TITLES.map(t=><option key={t}>{t}</option>)}</select></Field>
-       <Field title="نام و نام خانوادگی *"><input required maxLength={180} autoComplete="name"
-        value={profile.fullName} onChange={e=>change("fullName",e.target.value)}/></Field>
+       <Field title="نوع شخصیت *"><select value={profile.personType} disabled={Boolean(editId)} onChange={e=>{
+        const legal=e.target.value==="LEGAL";
+        setProfile({...initialProfile,personType:legal?"LEGAL":"NATURAL",
+         title:legal?"شرکت":"آقا",group:legal?"سهامدار غیرعضو":"متقاضی عضویت",
+         membershipStatus:legal?"NON_MEMBER_REPORTED":"APPLICANT_UNVERIFIED"});
+       }}><option value="NATURAL">حقیقی</option><option value="LEGAL">حقوقی</option></select></Field>
+       {profile.personType==="NATURAL"?<Field title="عنوان *"><select value={profile.title} onChange={e=>change("title",e.target.value)}>
+        {TITLES.map(t=><option key={t}>{t}</option>)}</select></Field>:null}
+       <Field title={profile.personType==="LEGAL"?"نام شرکت یا شخصیت حقوقی *":"نام و نام خانوادگی *"}>
+        <input required maxLength={180} autoComplete={profile.personType==="NATURAL"?"name":"organization"}
+         value={profile.fullName} onChange={e=>change("fullName",e.target.value)}/></Field>
       </div>
-      {fields.map(([key,label,max,required])=>key==="birthDate"?
+      <div className="tto-nav02-name-row">
+       <Field title="وضعیت عضویت *"><select value={profile.membershipStatus}
+         disabled={profile.personType==="LEGAL"} onChange={e=>change("membershipStatus",e.target.value)}>
+        {MEMBER_STATES.filter(([key])=>profile.personType!=="LEGAL"||key==="NON_MEMBER_REPORTED")
+          .map(([key,label])=><option key={key} value={key}>{label}</option>)}
+       </select></Field>
+       <Field title="وضعیت سهامداری *"><select value={profile.shareholdingStatus}
+        onChange={e=>change("shareholdingStatus",e.target.value)}>
+        {SHARE_STATES.map(([key,label])=><option key={key} value={key}>{label}</option>)}
+       </select></Field>
+      </div>
+      {profile.personType==="LEGAL"?<>
+       <Field title="شناسه ملی شخصیت حقوقی *"><input required dir="ltr" inputMode="numeric" minLength={11} maxLength={11}
+        readOnly={Boolean(editId)} value={profile.nationalId} onChange={e=>change("nationalId",e.target.value)}/></Field>
+       <Field title="شماره ثبت *"><input required maxLength={30} inputMode="numeric"
+        value={profile.registrationNumber} onChange={e=>change("registrationNumber",e.target.value)}/></Field>
+       <Field title="شماره اقتصادی *"><input required maxLength={14} inputMode="numeric"
+        value={profile.economicCode} onChange={e=>change("economicCode",e.target.value)}/></Field>
+       <Field title="نام نماینده معرفی‌شده *"><input required maxLength={180}
+        value={profile.representativeName} onChange={e=>change("representativeName",e.target.value)}/></Field>
+       <Field title="کد ملی نماینده *"><input required maxLength={10} inputMode="numeric" dir="ltr"
+        value={profile.representativeNationalId} onChange={e=>change("representativeNationalId",e.target.value)}/></Field>
+       <Field title="تلفن همراه نماینده *"><input required maxLength={11} inputMode="numeric" dir="ltr"
+        value={profile.representativeMobile} onChange={e=>change("representativeMobile",e.target.value)}/></Field>
+       <Field title="شماره تماس شرکت"><input maxLength={25}
+        value={profile.telephone} onChange={e=>change("telephone",e.target.value)}/></Field>
+       <Field title="کدپستی"><input maxLength={12} value={profile.postalCode}
+        onChange={e=>change("postalCode",e.target.value)}/></Field>
+       <Field title="نشانی ثبت‌شده" wide><textarea maxLength={600} rows={3}
+        value={profile.address} onChange={e=>change("address",e.target.value)}/></Field>
+       <p className="tto-nav02-membership-note">شخص حقوقی در این فرم فقط به‌عنوان غیرعضو ثبت می‌شود؛ شماره ثبت، شماره اقتصادی و سمت و اختیار نماینده باید با مدارک رسمی تطبیق یابد. وضعیت سهامداری انتخابی اظهاری است.</p>
+      </>:fields.map(([key,label,max,required])=>key==="birthDate"?
        <div key="jalali-birth-row" className="tto-nav02-birth-row">
         <div className="tto-nav02-field"><span>تاریخ تولد (شمسی)</span>
          <JalaliBirthDatePicker value={profile.birthDate} onChange={v=>change("birthDate",v)}/>
@@ -317,7 +365,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        </>:null}
        {key==="mobile"&&mobileError?<small role="alert" className="tto-nav02-field-error">{mobileError}</small>:null}
       </Field>)}
-      <fieldset className="tto-nav02-eligibility">
+      {profile.personType==="NATURAL"&&profile.membershipStatus!=="NON_MEMBER_REPORTED"?<fieldset className="tto-nav02-eligibility">
        <legend>شرایط ارتباط با شهرستان طبق ماده ۲ قانون تأسیس (حداقل یکی)</legend>
        <label><input type="checkbox" checked={profile.bornInCounty==="yes"}
         onChange={e=>change("bornInCounty",e.target.checked?"yes":"no")}/> متولد شهرستان است</label>
@@ -326,16 +374,15 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        <label><input type="checkbox" checked={profile.employedInCounty==="yes"}
         onChange={e=>change("employedInCounty",e.target.checked?"yes":"no")}/> شاغل در شهرستان است</label>
        {!countyCondition?<small>یکی از سه شرط الزامی است؛ اثبات شرایط در مرحله بررسی انجام می‌شود.</small>:null}
-      </fieldset>
+      </fieldset>:null}
       <label className="tto-nav02-confirm">
        <input type="checkbox" checked={personalDataConfirmed}
         onChange={e=>setPersonalDataConfirmed(e.target.checked)}/>
        تأیید می‌کنم اطلاعات ثبت‌شده صحیح است و مجوز لازم برای ثبت و پردازش اطلاعات این شخص را دارم.
       </label>
       <p className="tto-nav02-membership-note">
-       عضویت تنها برای شخص حقیقی واجد شرایط است. ثبت این فرم، درخواست را در وضعیت
-       «متقاضی / در انتظار احراز» نگه می‌دارد. سهامدار حقیقی یا حقوقی غیرعضو
-       باید در گردش‌کار مستقل ثبت شود و حق عضویت یا رأی خودکار ندارد.
+       عضویت قانونی، سهامداری و حق رأی سه وضعیت جدا هستند. مقادیر فعلی صرفاً اظهار اداری‌اند؛
+       تغییر دفتر رسمی اعضا و دفتر سهام تنها پس از مدارک و تصویب مرجع صالح انجام می‌شود.
       </p>
       {photoRetryId?<div className="tto-nav02-message error" style={{gridColumn:"1/-1"}}>
        پرونده سهامدار قبلاً ذخیره شده است؛ برای آن دوباره فرم را ثبت نکنید.
@@ -375,7 +422,9 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        onChange={e=>setCapital(p=>({...p,receiptRef:e.target.value}))}/></Field>
       <p className="tto-nav02-summary">کل ارزش اسمی اظهارشده: <strong>{faNumber(Number(subtotal))} ریال</strong></p>
      </>}
-     <div className="tto-nav02-actions"><button type="submit" disabled={busy||loading||editLoading||Boolean(photoRetryId)||(Boolean(editId)&&editVersion===null)||(section==="add"&&(!personalDataConfirmed||!countyCondition||Boolean(nationalIdError)||Boolean(mobileError)||!profile.mobile))}>
+     <div className="tto-nav02-actions"><button type="submit" disabled={busy||loading||editLoading||Boolean(photoRetryId)||(Boolean(editId)&&editVersion===null)||(section==="add"&&(!personalDataConfirmed||Boolean(nationalIdError)||
+     (profile.personType==="NATURAL"&&((profile.membershipStatus!=="NON_MEMBER_REPORTED"&&!countyCondition)||Boolean(mobileError)||!profile.mobile))||
+     (profile.personType==="LEGAL"&&(!profile.registrationNumber||!profile.economicCode||!profile.representativeName||!profile.representativeNationalId||!profile.representativeMobile))))}>
       {busy?"در حال ثبت پرونده…":section==="add"?(editId?"ذخیره ویرایش پرونده":"ثبت درخواست عضویت"):"ثبت اطلاعات اظهارشده سهام"}
      </button><span>هیچ اثر مالی یا انتقال قانونی ثبت نمی‌شود.</span></div>
     </form>
