@@ -73,7 +73,10 @@ export function MemberCase({slug,memberId}:{slug:string;memberId:string}){
     <h2>پرونده اشخاص</h2>
     {items.map(item=><Link href={base+"profile/"+encodeURIComponent(item.id)} key={item.id}
      aria-current={memberId===item.id?"page":undefined}>
-     <span className="tto-member-small-avatar" aria-hidden="true">♙</span>
+     {item.photoState==="READY_PRIVATE"?
+      <img className="tto-member-small-avatar" loading="lazy" width={38} height={42} alt=""
+       src={"/api/commerce/nav02/photo/view?slug="+encodeURIComponent(slug)+"&draftId="+encodeURIComponent(item.id)}/>:
+      <span className="tto-member-small-avatar" aria-hidden="true">♙</span>}
      <span><strong>{item.title} {item.name}</strong><small>{item.membershipNumber||"شماره صادر نشده"}</small></span>
     </Link>)}
    </aside>
