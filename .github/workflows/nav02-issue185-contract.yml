@@ -1,0 +1,20 @@
+name: NAV02 Issue185 preflight contract
+on:
+  pull_request:
+    paths:
+      - 'apps/cooperative-management/app/c/**/members/member-draft-form.tsx'
+      - 'apps/cooperative-management/app/api/commerce/nav02/shahkar-preflight/route.ts'
+      - 'services/api/src/module.ts'
+      - 'scripts/ci/test_nav02_issue185_preflight_contract.py'
+      - '.github/workflows/nav02-issue185-contract.yml'
+  push:
+    branches: ['feat/nav02-issue185-member-ux-20261110']
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run issue185 contract
+        run: python3 scripts/ci/test_nav02_issue185_preflight_contract.py
