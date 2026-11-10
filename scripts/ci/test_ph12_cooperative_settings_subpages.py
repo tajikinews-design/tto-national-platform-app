@@ -21,9 +21,14 @@ class SettingsSubpages(unittest.TestCase):
   self.assertNotIn('CooperativeSecuritySettings',old)
  def test_expanded_submenu_is_only_for_scoped_owner(self):
   shell=src("packages/ui/src/index.tsx")
-  for item in ('canManageSettings','tto-settings-tree','href={basePath+"/settings/credentials"}',
-               'href={basePath+"/settings/users"}','surface==="cooperative"','settingsSection'):
+  animated=src("packages/ui/src/animated-sidebar-group.tsx")
+  for item in ('canManageSettings','href={basePath+"/settings/credentials"}',
+               'href={basePath+"/settings/users"}','surface==="cooperative"','settingsSection',
+               'AnimatedSidebarGroup'):
    self.assertIn(item,shell)
+  self.assertIn('tto-settings-tree',animated)
+  self.assertIn('aria-expanded={expanded}',animated)
+  self.assertIn('inert={!expanded}',animated)
   gate=src("apps/cooperative-management/app/c/[slug]/entry-gate.tsx")
   self.assertIn('settingsSection!==undefined',gate)
   self.assertIn('canManageSettings={workspace.staff!==true}',gate)
