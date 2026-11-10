@@ -44,12 +44,12 @@ export async function POST(req:NextRequest){
  if(Object.keys(d).some(k=>!["slug","draftId","version","action","data","confirmation"].includes(k))||
   typeof d.slug!=="string"||!SLUG.test(d.slug)||typeof d.draftId!=="string"||!UUID.test(d.draftId)||
   !Number.isSafeInteger(d.version)||Number(d.version)<1||
-  !["profileEdit","capitalEdit","suspend","resume","delete"].includes(String(d.action))||
+  !["profileEdit","capitalEdit","suspend","resume","archive","restore","delete"].includes(String(d.action))||
   (d.action==="delete"&&d.confirmation!=="DELETE_SYNTHETIC_DRAFT")||
   (d.action!=="delete"&&d.confirmation!==undefined)||
   ((d.action==="profileEdit"||d.action==="capitalEdit")&&(!d.data||typeof d.data!=="object"||Array.isArray(d.data)||
     Object.values(d.data as Record<string,unknown>).some(x=>typeof x!=="string")))||
-  (["suspend","resume","delete"].includes(String(d.action))&&d.data!==undefined))
+  (["suspend","resume","archive","restore","delete"].includes(String(d.action))&&d.data!==undefined))
   return fail(400,"INVALID_FIELDS");
  const base=backend();if(!base)return fail(503,"BACKEND_UNAVAILABLE");
  try{

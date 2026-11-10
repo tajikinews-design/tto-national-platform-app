@@ -13,6 +13,7 @@ const actions=[
  {key:"suspend",glyph:"⏸",label:"تعلیق",hint:"تعلیق پرونده اولیه"},
  {key:"resume",glyph:"▶",label:"رفع تعلیق",hint:"رفع تعلیق پرونده اولیه"},
  {key:"archive",glyph:"▣",label:"بایگانی",hint:"انتقال به فهرست بایگانی"},
+ {key:"restore",glyph:"↶",label:"بازگردانی از بایگانی",hint:"بازگردانی پرونده اولیه"},
  {key:"delete",glyph:"⌫",label:"حذف دائم",hint:"حذف شخصی فقط با ضوابط قانونی"},
  {key:"audit",glyph:"◷",label:"سوابق و تاریخچه",hint:"بازکردن سوابق ممیزی"}
 ] as const;
@@ -85,8 +86,7 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
   if(action==="edit"){window.location.assign(base+"add?edit="+encodeURIComponent(row.id));return}
   if(action==="audit"){window.location.assign(base+"profile/"+encodeURIComponent(row.id)+"?tab=system");return}
   if(action==="delete"){setConfirm(row);return}
-  if(action==="archive"){setMessage("انتقال امن به بایگانی باید پس از کنترل سهام، وضعیت حقوقی و سوابق رسمی در سرور فعال شود.");return}
-  if(action!=="suspend"&&action!=="resume")return;
+  if(!["suspend","resume","archive","restore"].includes(action))return;
   if(!Number.isSafeInteger(row.version)||!row.version){setMessage("نسخه پرونده برای تغییر وضعیت تأیید نشده است.");return}
   setBusy(true);setMessage("");
   try{
@@ -182,6 +182,8 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
       <td dir="ltr">{row.mobileMask||"پوشیده"}</td>
       <td><div className="tto-member-actions">
        {actions.map(a=>{
+        if(view==="archive"&&a.key!=="restore"&&a.key!=="audit"&&a.key!=="edit")return null;
+        if(view!=="archive"&&a.key==="restore")return null;
         if(a.key==="suspend"&&row.managementState==="SUSPENDED_DRAFT")return null;
         if(a.key==="resume"&&row.managementState!=="SUSPENDED_DRAFT")return null;
         return <button type="button" key={a.key} disabled={busy} title={a.label}

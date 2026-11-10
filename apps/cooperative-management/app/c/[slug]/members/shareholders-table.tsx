@@ -78,7 +78,7 @@ export function ShareholdersTable({slug}:{slug:string}){
    "دریافت فهرست سهامداران آزمایشی ناموفق بود.");
   const body=await response.json() as {items?:Draft[]};
   if(!Array.isArray(body.items))throw Error("پاسخ سرور معتبر نیست.");
-  const shareholderDrafts=body.items.filter(item=>item.membershipStatus!=="APPLICANT_UNVERIFIED");
+  const shareholderDrafts=body.items.filter(item=>item.membershipStatus!=="APPLICANT_UNVERIFIED"&&item.managementState!=="ARCHIVED_DRAFT");
   setRows(shareholderDrafts);return shareholderDrafts;
  }
  useEffect(()=>{

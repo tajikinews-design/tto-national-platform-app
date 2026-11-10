@@ -770,13 +770,13 @@ export class FoundationCommandsController {
     if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
        typeof draftId!=="string"||!uuidPattern.test(draftId)||
        !Number.isSafeInteger(version)||Number(version)<1||
-       !["profileEdit","capitalEdit","suspend","resume","delete"].includes(String(action)))
+       !["profileEdit","capitalEdit","suspend","resume","archive","restore","delete"].includes(String(action)))
       throw new BadRequestException("INVALID_NAV02_MANAGEMENT_REQUEST");
     const actor=await this.db.sessionActor(auth);
     const v=Number(version);
     const key=this.nav02DataKey();
     try{
-      if(action==="suspend"||action==="resume"){
+      if(action==="suspend"||action==="resume"||action==="archive"||action==="restore"){
         if(data!==undefined||confirmation!==undefined)
           throw new BadRequestException("UNEXPECTED_MANAGEMENT_FIELDS");
         return await this.db.withActor(actor,async c=>{
