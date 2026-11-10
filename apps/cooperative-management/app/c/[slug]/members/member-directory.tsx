@@ -176,7 +176,6 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
    <Link href={base+"collections"} aria-current={view==="collections"?"page":undefined}>▥ مجموعه‌ها</Link>
    <Link href={base+"archive"} aria-current={view==="archive"?"page":undefined}>▣ بایگانی</Link>
   </nav>
-  {view==="list"?<MemberExcelPanel slug={slug} onImported={load}/>:null}
   {view==="member-number"?null:view==="collections"?<div className="tto-nav02-card">
    <h2>مجموعه‌ها و افراد وابسته</h2>
    <p>برای مشاهده افراد هر مجموعه، آن را انتخاب کنید. فقط مجموعه‌های دارای عضو ثبت‌شده در اطلاعات مجاز نمایش داده می‌شوند.</p>
@@ -234,6 +233,7 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
      <option value="all">همه وضعیت‌ها</option><option value="active">فعال / متقاضی</option>
      <option value="suspended">معلق</option></select></label>
     <span className="tto-nav02-directory-count">تعداد: {entries.length.toLocaleString("fa-IR")}</span>
+    {view==="list"?<MemberExcelPanel slug={slug} onImported={load}/>:null}
    </div>
    <div className="tto-nav02-table-scroll">
     <table className="tto-nav02-table tto-member-directory-table">
