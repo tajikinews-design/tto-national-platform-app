@@ -623,12 +623,18 @@ export class FoundationCommandsController {
         const a=r as Record<string,unknown>;
         return !!a&&typeof a.draftId==="string"&&typeof a.membershipNumber==="string";
       }).map(x=>[x.draftId,x.membershipNumber]));
-      const photoReady=await this.db.withActor(actor,async c=>{
-        const r=await c.query<{ids:unknown}>(
-          "SELECT tto.nav02_photo_ready_for_owner($1) AS ids",[slug]);
-        return r.rows[0]?.ids;
-      });
-      if(!Array.isArray(photoReady))throw new ServiceUnavailableException("PRIVATE_PHOTO_STATUS_UNAVAILABLE");
+      // Photo release must remain disabled until the independent scanner,
+      // SQL migration and disclosure review have been approved for this environment.
+      let photoReady:unknown=[];
+      if(process.env.TTO_NAV02_PRIVATE_PHOTO_RELEASE_ENABLED==="true"){
+        photoReady=await this.db.withActor(actor,async c=>{
+          const r=await c.query<{ids:unknown}>(
+            "SELECT tto.nav02_photo_ready_for_owner($1) AS ids",[slug]);
+          return r.rows[0]?.ids;
+        });
+        if(!Array.isArray(photoReady))
+          throw new ServiceUnavailableException("PRIVATE_PHOTO_STATUS_UNAVAILABLE");
+      }
       const safePhotos=new Set(photoReady.filter((x:unknown):x is string=>typeof x==="string"));
       return {items:items.map(x=>({...x,membershipNumber:lookup.get(String(x.id))??null,
        photoState:safePhotos.has(String(x.id))?"READY_PRIVATE":x.photoState}))};
@@ -1123,6 +1129,8 @@ export class FoundationCommandsController {
     if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
        typeof draftId!=="string"||!uuidPattern.test(draftId))
       throw new BadRequestException("INVALID_PRIVATE_PHOTO_REQUEST");
+    if(process.env.TTO_NAV02_PRIVATE_PHOTO_RELEASE_ENABLED!=="true")
+      throw new ServiceUnavailableException("PRIVATE_PHOTO_RELEASE_DISABLED");
     const actor=await this.db.sessionActor(auth);
     const result=await this.db.withActor(actor,async c=>{
       const r=await c.query<{payload:Record<string,unknown>|null}>(
