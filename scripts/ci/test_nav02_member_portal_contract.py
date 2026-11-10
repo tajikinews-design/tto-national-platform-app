@@ -14,7 +14,7 @@ class MemberPortalContracts(unittest.TestCase):
      "nav02_member_number_policy_set","nav02_member_numbers_for_owner"):
    self.assertIn(marker,sql)
   api=read("services/api/src/module.ts")
-  self.assertIn('TTO_NAV02_NUMBER_LEDGER_ENABLED',api)
+  self.assertIn('nav02_member_numbers_for_owner',api)
   self.assertIn("await this.checkNav02Shahkar",api)
   self.assertIn("nav02_member_number_issue",api)
   self.assertIn("NUM",api)
@@ -24,7 +24,7 @@ class MemberPortalContracts(unittest.TestCase):
   self.assertIn("nav02_member_owner_order",sql)
   self.assertIn("w.user_id=tto.context_actor_id()",sql)
   api=read("services/api/src/module.ts")
-  self.assertIn('TTO_NAV02_COLLECTIONS_ENABLED',api)
+  self.assertIn('nav02CatalogGate()',api)
   self.assertIn("nav02_member_collection_create",api)
   self.assertIn('"/v1/commerce/demo/nav02/collections"',read("apps/cooperative-management/app/api/commerce/nav02/collections/route.ts"))
  def test_design_and_privacy(self):

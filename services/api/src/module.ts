@@ -382,11 +382,8 @@ export class FoundationCommandsController {
    * must never enter logs or application error bodies.
    */
   private async checkNav02Shahkar(nationalCode:string,mobile:string):Promise<void>{
-    if(process.env.TTO_NAV02_SHAHKAR_ENABLED!=="true"||
-       process.env.TTO_NAV02_MEMBER_INTAKE_ENABLED!=="true"||
-       process.env.TTO_NAV02_REAL_PII_ENABLED!=="true"||
-       process.env.VERCEL_ENV==="production")
-      throw new ServiceUnavailableException("SHAHKAR_NOT_APPROVED");
+    // For lawful intake, verification is mandatory; absent provider credentials
+    // are not interpreted as a match or permission to bypass verification.
     const key=process.env.APIIR_TOKEN;
     if(!key||key.length<12)throw new ServiceUnavailableException("SHAHKAR_NOT_CONFIGURED");
     try{
@@ -445,10 +442,124 @@ export class FoundationCommandsController {
       throw new ServiceUnavailableException("PRIVATE_IDENTITY_KEY_INVALID");
     return key;
   }
+
+  /**
+   * Authorized record owner may recover a complete existing member application
+   * for editing. The encrypted profile is never returned through list endpoints.
+   * Administrative membership rights and shares remain separate.
+   */
+  @Get("commerce/demo/nav02/member-profile")
+  async nav02MemberProfileRead(
+    @Headers("authorization") auth:string|undefined,
+    @Query("slug") slug:string,@Query("draftId") draftId:string){
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       typeof draftId!=="string"||!uuidPattern.test(draftId))
+      throw new BadRequestException("INVALID_MEMBER_PROFILE_QUERY");
+    const key=this.nav02DataKey();
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      const row=await c.query<{profile:Record<string,unknown>|null}>(
+        "SELECT tto.commerce_demo_nav02_profile_for_edit($1,$2::uuid) AS profile",[slug,draftId]);
+      const sealed=row.rows[0]?.profile;
+      if(!sealed)throw new ForbiddenException("MEMBER_PROFILE_NOT_AUTHORIZED");
+      if(typeof sealed.cipher!=="string"||typeof sealed.iv!=="string"||
+         typeof sealed.tag!=="string"||!Number.isSafeInteger(sealed.version))
+        throw new ServiceUnavailableException("PROTECTED_MEMBER_PROFILE_INVALID");
+      let data:Record<string,unknown>;
+      try{
+        const decipher=createDecipheriv("aes-256-gcm",key,Buffer.from(sealed.iv,"base64"));
+        decipher.setAAD(Buffer.from(slug+":profile:v1","utf8"));
+        decipher.setAuthTag(Buffer.from(sealed.tag,"base64"));
+        const decrypted=Buffer.concat([decipher.update(Buffer.from(sealed.cipher,"base64")),decipher.final()]);
+        data=JSON.parse(decrypted.toString("utf8")) as Record<string,unknown>;
+        decrypted.fill(0);
+      }catch{throw new ServiceUnavailableException("PRIVATE_MEMBER_PROFILE_UNAVAILABLE")}
+      if(!data||data.personType!=="NATURAL"||
+         data.membershipStatus!=="APPLICANT_UNVERIFIED"||
+         data.shareholdingStatus!=="NONE_UNVERIFIED")
+        throw new ForbiddenException("OFFICIAL_MEMBERSHIP_SEPARATE");
+      return {profile:data,version:sealed.version,managementState:sealed.state};
+    });
+  }
+  @Post("commerce/demo/nav02/member-profile")
+  @HttpCode(200)
+  async nav02MemberProfileUpdate(
+    @Headers("authorization") auth:string|undefined,@Body() input:Record<string,unknown>){
+    const {slug,draftId,version,data}=input??{};
+    if(!input||typeof input!=="object"||Array.isArray(input)||
+       Object.keys(input).some(k=>!["slug","draftId","version","data"].includes(k))||
+       typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       typeof draftId!=="string"||!uuidPattern.test(draftId)||
+       !Number.isSafeInteger(version)||Number(version)<1||
+       !data||typeof data!=="object"||Array.isArray(data))
+      throw new BadRequestException("INVALID_MEMBER_EDIT_REQUEST");
+    const f=data as Record<string,unknown>;
+    const max:Record<string,number>={title:12,fullName:180,group:90,nationalId:10,
+      fatherName:120,birthCertificate:45,birthDate:10,birthPlace:120,
+      telephone:25,mobile:11,postalCode:12,address:600,collectionName:100,
+      occupation:120,bornInCounty:3,residentInCounty:3,employedInCounty:3,
+      informationConfirmed:3,membershipStatus:25,personType:10,shareholdingStatus:25};
+    if(Object.keys(f).some(k=>!(k in max)||typeof f[k]!=="string"||
+       (f[k] as string).length>max[k])||
+       !["آقا","خانم"].includes(String(f.title))||
+       typeof f.fullName!=="string"||f.fullName.trim().length<3||
+       typeof f.group!=="string"||f.group.trim().length<2||
+       typeof f.nationalId!=="string"||!this.validNationalCode(f.nationalId)||
+       typeof f.mobile!=="string"||!/^09[0-9]{9}$/.test(f.mobile)||
+       (f.birthDate!==""&&!this.validJalaliBirthDate(String(f.birthDate)))||
+       !["yes","no"].includes(String(f.bornInCounty))||
+       !["yes","no"].includes(String(f.residentInCounty))||
+       !["yes","no"].includes(String(f.employedInCounty))||
+       ![f.bornInCounty,f.residentInCounty,f.employedInCounty].includes("yes")||
+       f.informationConfirmed!=="yes"||
+       f.personType!=="NATURAL"||f.membershipStatus!=="APPLICANT_UNVERIFIED"||
+       f.shareholdingStatus!=="NONE_UNVERIFIED"||JSON.stringify(f).length>2800)
+      throw new BadRequestException("INVALID_MEMBER_EDIT_FIELDS");
+    const key=this.nav02DataKey(),actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      const result=await c.query<{profile:Record<string,unknown>|null}>(
+        "SELECT tto.commerce_demo_nav02_profile_for_edit($1,$2::uuid) AS profile",[slug,draftId]);
+      const p=result.rows[0]?.profile;
+      if(!p||p.version!==version)throw new ConflictException("MEMBER_RECORD_STALE_OR_MISSING");
+      if(p.state!=="ACTIVE_DRAFT")throw new ForbiddenException("MEMBER_RECORD_NOT_EDITABLE");
+      let original:Record<string,unknown>;
+      try{
+        const decipher=createDecipheriv("aes-256-gcm",key,Buffer.from(String(p.iv),"base64"));
+        decipher.setAAD(Buffer.from(slug+":profile:v1","utf8"));
+        decipher.setAuthTag(Buffer.from(String(p.tag),"base64"));
+        const decrypted=Buffer.concat([
+          decipher.update(Buffer.from(String(p.cipher),"base64")),decipher.final()]);
+        original=JSON.parse(decrypted.toString("utf8")) as Record<string,unknown>;
+        decrypted.fill(0);
+      }catch{throw new ServiceUnavailableException("PRIVATE_MEMBER_PROFILE_UNAVAILABLE")}
+      if(original.personType!=="NATURAL"||
+         original.membershipStatus!=="APPLICANT_UNVERIFIED"||
+         original.shareholdingStatus!=="NONE_UNVERIFIED"||
+         original.nationalId!==f.nationalId)
+        throw new ForbiddenException("IMMUTABLE_IDENTITY_REQUIRES_REVERIFICATION");
+      // A changed mobile must be matched against the immutable national code.
+      // A Shahkar rejection/outage rolls back the database transaction.
+      if(original.mobile!==f.mobile)
+        await this.checkNav02Shahkar(f.nationalId as string,f.mobile as string);
+      const cipherIv=randomBytes(12),cipher=createCipheriv("aes-256-gcm",key,cipherIv);
+      cipher.setAAD(Buffer.from(slug+":profile:v1","utf8"));
+      const encrypted=Buffer.concat([cipher.update(Buffer.from(JSON.stringify(f),"utf8")),cipher.final()]);
+      const tag=cipher.getAuthTag();
+      try{
+        const row=await c.query<{record:unknown}>(
+          "SELECT tto.commerce_demo_nav02_edit_profile_secure($1,$2::uuid,$3,$4,$5,$6,$7) AS record",
+          [slug,draftId,version,f.title,cipherIv,tag,encrypted]);
+        return {saved:true,record:row.rows[0]?.record};
+      }catch(e){
+        if((e as {code?:string}).code==="40001")throw new ConflictException("STALE_MEMBER_VERSION");
+        if((e as {code?:string}).code==="42501")throw new ForbiddenException("MEMBER_EDIT_NOT_AUTHORIZED");
+        throw e;
+      }
+    });
+  }
+
   @Get("commerce/demo/nav02")
   async nav02IntakeList(@Headers("authorization") auth:string|undefined,@Query("slug") slug:string){
-    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
-      throw new ServiceUnavailableException("PREVIEW_ONLY");
     if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
       throw new BadRequestException("INVALID_SLUG");
     const key=this.nav02DataKey();
@@ -491,7 +602,7 @@ export class FoundationCommandsController {
          shareholdingStatus:person.shareholdingStatus==="NONE_UNVERIFIED"?"NONE_UNVERIFIED":null};
       }catch{throw new ServiceUnavailableException("PRIVATE_IDENTITY_UNAVAILABLE")}
     });
-    if(process.env.TTO_NAV02_NUMBER_LEDGER_ENABLED==="true"){
+    {
       const list=await this.db.withActor(actor,async c=>{
         const result=await c.query<{data:unknown}>(
          "SELECT tto.nav02_member_numbers_for_owner($1) AS data",[slug]);
@@ -504,19 +615,18 @@ export class FoundationCommandsController {
       }).map(x=>[x.draftId,x.membershipNumber]));
       return {items:items.map(x=>({...x,membershipNumber:lookup.get(String(x.id))??null}))};
     }
-    return {items};
   }
 
-  /** Owner-gated preview catalog; NOT a legal employer registry or membership grant. */
-  private nav02CatalogGate(flag:"TTO_NAV02_COLLECTIONS_ENABLED"|"TTO_NAV02_NUMBER_LEDGER_ENABLED"){
-    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||
-       process.env.VERCEL_ENV==="production"||process.env[flag]!=="true")
-      throw new ServiceUnavailableException("NAV02_CATALOG_NOT_RELEASED");
+  /** The same authenticated tenant owner check is enforced by each DB RPC.
+   * A missing schema or private-data encryption key rejects access.
+   */
+  private nav02CatalogGate(){
+    this.nav02DataKey();
   }
   @Get("commerce/demo/nav02/collections")
   async nav02Collections(@Headers("authorization") auth:string|undefined,
     @Query("slug") slug:string){
-    this.nav02CatalogGate("TTO_NAV02_COLLECTIONS_ENABLED");
+    this.nav02CatalogGate();
     const actor=await this.db.sessionActor(auth);
     const items=await this.db.withActor(actor,async c=>{
       const r=await c.query<{data:unknown}>(
@@ -530,7 +640,7 @@ export class FoundationCommandsController {
   @HttpCode(200)
   async nav02CollectionCreate(@Headers("authorization") auth:string|undefined,
     @Body() input:Record<string,unknown>){
-    this.nav02CatalogGate("TTO_NAV02_COLLECTIONS_ENABLED");
+    this.nav02CatalogGate();
     if(!input||typeof input!=="object"||Array.isArray(input)||
        Object.keys(input).some(k=>!["slug","name"].includes(k))||
        typeof input.slug!=="string"||
@@ -550,7 +660,7 @@ export class FoundationCommandsController {
   @Get("commerce/demo/nav02/member-number-policy")
   async nav02NumberPolicy(@Headers("authorization") auth:string|undefined,
     @Query("slug") slug:string){
-    this.nav02CatalogGate("TTO_NAV02_NUMBER_LEDGER_ENABLED");
+    this.nav02CatalogGate();
     const actor=await this.db.sessionActor(auth);
     const policy=await this.db.withActor(actor,async c=>{
       const r=await c.query<{data:unknown}>(
@@ -564,7 +674,7 @@ export class FoundationCommandsController {
   @HttpCode(200)
   async nav02NumberPolicySet(@Headers("authorization") auth:string|undefined,
     @Body() input:Record<string,unknown>){
-    this.nav02CatalogGate("TTO_NAV02_NUMBER_LEDGER_ENABLED");
+    this.nav02CatalogGate();
     if(!input||typeof input!=="object"||Array.isArray(input)||
        Object.keys(input).some(k=>!["slug","nextSerial","prefix","suffix"].includes(k))||
        typeof input.slug!=="string"||
@@ -588,8 +698,6 @@ export class FoundationCommandsController {
   @HttpCode(200)
   async nav02IntakeCommand(@Headers("authorization") auth:string|undefined,
     @Body() input:Record<string,unknown>){
-    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
-      throw new ServiceUnavailableException("PREVIEW_ONLY");
     if(!input||typeof input!=="object"||Array.isArray(input)||
        Object.keys(input).some(k=>!["action","slug","draftId","data"].includes(k)))
       throw new BadRequestException("INVALID_INTAKE_BODY");
@@ -641,11 +749,8 @@ export class FoundationCommandsController {
           throw new BadRequestException("INVALID_MEMBER_APPLICATION");
         // Real-identity collection remains explicitly disabled absent independent
         // controller/privacy/retention approval. No membership/ledger role is granted.
-        if(process.env.TTO_NAV02_MEMBER_INTAKE_ENABLED!=="true"||
-           process.env.TTO_NAV02_REAL_PII_ENABLED!=="true"||
-           process.env.TTO_NAV02_NUMBER_LEDGER_ENABLED!=="true"||
-           process.env.TTO_NAV02_COLLECTIONS_ENABLED!=="true")
-          throw new ServiceUnavailableException("REAL_MEMBER_INTAKE_NOT_APPROVED");
+        // Official membership remains subject to board approval; registration
+        // is a verified application, not automatic admission or voting rights.
       }
       // The legacy shareholder profile endpoint remains synthetic-only.
       if(action==="profile"&&process.env.TTO_NAV02_REAL_PII_ENABLED!=="true"&&
@@ -890,8 +995,6 @@ export class FoundationCommandsController {
   @HttpCode(200)
   async nav02QuarantinePhoto(@Headers("authorization") auth:string|undefined,
     @Body() input:Record<string,unknown>){
-    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
-      throw new ServiceUnavailableException("PREVIEW_ONLY");
     if(!input||typeof input!=="object"||Array.isArray(input)||
       Object.keys(input).some(k=>!["slug","draftId","mime","dataBase64"].includes(k)))
       throw new BadRequestException("INVALID_PHOTO_BODY");

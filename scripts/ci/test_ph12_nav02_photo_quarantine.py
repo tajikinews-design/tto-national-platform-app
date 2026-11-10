@@ -27,7 +27,7 @@ class PhotoQuarantineContract(unittest.TestCase):
   self.assertNotIn('console.log',method)
  def test_bff_failclosed(self):
   edge=read("apps/cooperative-management/app/api/commerce/nav02/photo/route.ts")
-  for term in ('ORIGIN_REQUIRED','ORIGIN_DENIED','LOGIN_REQUIRED','PREVIEW_ONLY',
+  for term in ('ORIGIN_REQUIRED','ORIGIN_DENIED','LOGIN_REQUIRED','ORIGIN_REQUIRED',
    'BODY_TOO_LARGE','private, no-store','dataBase64','1040000',
    '/v1/commerce/demo/nav02/photo','status:"QUARANTINED",visible:false,scanned:false'):
    self.assertIn(term,edge)

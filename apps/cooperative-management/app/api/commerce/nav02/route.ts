@@ -8,9 +8,7 @@ const TOKEN=/^[A-Za-z0-9_-]{32,256}$/;
 function backend(){const b=process.env.TTO_API_BASE_URL;if(!b?.startsWith("https://"))return null;
  try{const u=new URL(b);return u.username||u.password?null:u}catch{return null}}
 function token(req:NextRequest){const v=req.cookies.get("tto_session")?.value;return v&&TOKEN.test(v)?v:null}
-function allowed(){return process.env.VERCEL_ENV!=="production"}
 export async function GET(req:NextRequest){
- if(!allowed())return fail(503,"PREVIEW_ONLY");
  const tk=token(req),slug=req.nextUrl.searchParams.get("slug");
  if(!tk)return fail(401,"LOGIN_REQUIRED");
  if(!slug||!SLUG.test(slug))return fail(400,"INVALID_SLUG");
@@ -28,7 +26,6 @@ export async function GET(req:NextRequest){
  }catch{return fail(503,"INTAKE_UNAVAILABLE")}
 }
 export async function POST(req:NextRequest){
- if(!allowed())return fail(503,"PREVIEW_ONLY");
  const tk=token(req);if(!tk)return fail(401,"LOGIN_REQUIRED");
  const origin=req.headers.get("origin");if(!origin)return fail(403,"ORIGIN_REQUIRED");
  try{if(new URL(origin).origin!==new URL(req.url).origin)return fail(403,"ORIGIN_DENIED")}

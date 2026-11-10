@@ -39,8 +39,8 @@ class MemberFormLegal(unittest.TestCase):
    for text in (form,api,bff):self.assertIn(term,text)
   self.assertIn('includes("yes")',bff)
   self.assertIn('includes("yes")',api)
-  self.assertIn('TTO_NAV02_MEMBER_INTAKE_ENABLED',api)
-  self.assertIn('TTO_NAV02_REAL_PII_ENABLED',api)
+  self.assertIn('nav02_member_number_issue',api)
+  self.assertIn('checkNav02Shahkar',api)
   self.assertIn('createCipheriv("aes-256-gcm",key,iv)',api)
   self.assertIn('memberSection!=="add"',read("packages/ui/src/index.tsx"))
  def test_photo_immediate_local_but_private_server(self):

@@ -39,7 +39,8 @@ class Nav02SensitiveEncryption(unittest.TestCase):
   for term in ("bornInCounty","residentInCounty","employedInCounty","validIranianNationalId"):
    self.assertIn(term,ui)
   api=source("services/api/src/module.ts")
-  for term in ("TTO_NAV02_MEMBER_INTAKE_ENABLED","REAL_MEMBER_INTAKE_NOT_APPROVED",
-               "TTO_NAV02_REAL_PII_ENABLED","SYNTHETIC_ONLY",'process.env.VERCEL_ENV==="production"'):
+  for term in ("APIIR_TOKEN","SHAHKAR_NOT_CONFIGURED",
+               "SHAHKAR_UNAVAILABLE","SYNTHETIC_ONLY","nav02_member_number_issue",
+               "IMMUTABLE_IDENTITY_REQUIRES_REVERIFICATION"):
    self.assertIn(term,api)
 if __name__=="__main__":unittest.main()

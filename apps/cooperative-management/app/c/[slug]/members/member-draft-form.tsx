@@ -50,6 +50,8 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
  const [attachment,setAttachment]=useState<File|null>(null);
  const [attachmentSubject,setAttachmentSubject]=useState("");
  const [editId,setEditId]=useState("");
+ const [editVersion,setEditVersion]=useState<number|null>(null);
+ const [editLoading,setEditLoading]=useState(false);
  const [personalDataConfirmed,setPersonalDataConfirmed]=useState(false);
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [notice,setNotice]=useState(""),[error,setError]=useState(false);
@@ -60,6 +62,35 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   if(id&&/^[0-9a-f-]{36}$/i.test(id))setEditId(id);
  },[section]);
  useEffect(()=>{
+  if(!editId||section!=="add")return;
+  let active=true;
+  setEditLoading(true);setEditVersion(null);setError(false);setNotice("");
+  const url="/api/commerce/nav02/member-profile?slug="+encodeURIComponent(slug)+
+    "&draftId="+encodeURIComponent(editId);
+  void fetch(url,{credentials:"same-origin",cache:"no-store"}).then(async r=>{
+   if(!r.ok)throw Error(r.status===401?"نشست ورود منقضی شده است.":
+    r.status===403?"دسترسی ویرایش پرونده را ندارید.":"دریافت امن پرونده انجام نشد.");
+   return r.json() as Promise<{profile?:Record<string,unknown>;version?:number;managementState?:string}>;
+  }).then(result=>{
+   if(!active)return;
+   if(!result.profile||!Number.isSafeInteger(result.version)||
+    result.managementState!=="ACTIVE_DRAFT")throw Error("پرونده در وضعیت قابل ویرایش نیست.");
+   const clean:Record<string,string>={...initialProfile};
+   for(const k of Object.keys(initialProfile)){
+    const v=result.profile[k];if(typeof v==="string"&&v.length<=700)clean[k]=v;
+   }
+   if(clean.personType!=="NATURAL"||
+    clean.membershipStatus!=="APPLICANT_UNVERIFIED"||
+    clean.shareholdingStatus!=="NONE_UNVERIFIED")
+    throw Error("مدیریت عضویت رسمی به مسیر مستقل قانونی نیاز دارد.");
+   setProfile(clean as unknown as Profile);setEditVersion(Number(result.version));
+   setPersonalDataConfirmed(false);
+  }).catch(err=>{if(active){setError(true);
+   setNotice(err instanceof Error?err.message:"دریافت پرونده ناموفق بود.")}})
+   .finally(()=>{if(active)setEditLoading(false)});
+  return()=>{active=false};
+ },[slug,editId,section]);
+ useEffect(()=>{
   if(!photo){setPhotoUrl("");return}
   const url=URL.createObjectURL(photo);setPhotoUrl(url);
   return()=>URL.revokeObjectURL(url);
@@ -67,8 +98,8 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
  async function refresh(){
   const r=await fetch("/api/commerce/nav02?slug="+encodeURIComponent(slug),
    {credentials:"same-origin",cache:"no-store"});
-  if(!r.ok)throw Error(r.status===403?"فقط مالک فضای آزمایشی امکان مشاهده پرونده‌ها را دارد.":
-   r.status===401?"نشست منقضی شده است؛ دوباره وارد شوید.":"سرویس پرونده‌های آزمایشی در دسترس نیست.");
+  if(!r.ok)throw Error(r.status===403?"دسترسی مدیریت پرونده‌های این تعاونی برای حساب شما تأیید نشده است.":
+   r.status===401?"نشست منقضی شده است؛ دوباره وارد شوید.":"سرویس پرونده‌های اعضا در دسترس نیست.");
   const d=await r.json() as {items?:RecordItem[]};
   if(!Array.isArray(d.items))throw Error("پاسخ سامانه معتبر نیست.");
   setItems(d.items);return d.items;
@@ -125,7 +156,8 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   if(section==="add"){
    if(!personalDataConfirmed){setError(true);setNotice("تأیید صحت اطلاعات و مجوز ثبت آن لازم است.");return}
    if(photoRetryId){setError(true);setNotice("آپلود عکس پرونده قبلی را تکمیل یا لغو کنید.");return}
-   if(editId){setError(true);setNotice("ویرایش کامل به دریافت امن داده پرونده و API ویرایش تأییدشده نیاز دارد؛ ثبت پرونده جدید از این صفحه انجام نمی‌شود.");return}
+   if(editId&&editVersion===null){setError(true);setNotice("تا دریافت امن پرونده، ویرایش امکان ثبت ندارد.");return}
+   if(editId&&photo){setError(true);setNotice("تغییر عکس پرونده به ثبت نسخه جدید و اسکن امن عکس نیاز دارد؛ عکس انتخابی را از پنل کناری حذف کنید.");return;}
    if(attachment){setError(true);setNotice("ضمیمه انتخاب شده اما سرویس قرنطینه مدارک هنوز متصل نیست؛ برای جلوگیری از ثبت ناقص، فایل را حذف کنید یا منتظر فعال‌سازی امن ضمائم بمانید.");return}
    if(!/^09[0-9]{9}$/.test(profile.mobile)){
     setError(true);setNotice("شماره همراه معتبر نیست؛ شماره ۱۱ رقمی متعلق به صاحب کد ملی را وارد کنید.");return;
@@ -150,18 +182,27 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   setBusy(true);
   try{
    const req=section==="add"?
-    {slug,action:"memberProfile",data:{...profile,informationConfirmed:"yes"}}:
+    editId?
+     {slug,draftId:editId,version:editVersion,data:{...profile,informationConfirmed:"yes"}}:
+     {slug,action:"memberProfile",data:{...profile,informationConfirmed:"yes"}}:
     {slug,action:"capital",draftId,data:capital};
-   const r=await fetch("/api/commerce/nav02",{method:"POST",credentials:"same-origin",cache:"no-store",
+   const r=await fetch(editId?"/api/commerce/nav02/member-profile":"/api/commerce/nav02",{method:"POST",credentials:"same-origin",cache:"no-store",
     headers:{"Content-Type":"application/json"},body:JSON.stringify(req)});
    if(!r.ok)throw Error(r.status===409?"این پرونده یا اطلاعات اولیه سهام قبلاً ثبت شده است.":
     r.status===403?"مجوز ورود اطلاعات برای این تعاونی وجود ندارد.":
     r.status===422?"شماره همراه با کد ملی واردشده مطابقت ندارد؛ شماره‌ای متعلق به صاحب کد ملی وارد کنید.":
     r.status===400?"کد ملی، تاریخ تولد یا شرایط عضویت معتبر نیست.":
-    r.status===503&&section==="add"?"استعلام هویتی در دسترس نیست یا مجوز داده واقعی فعال نشده است؛ ثبت انجام نشد.":
+    r.status===503&&section==="add"?"اتصال به سرویس هویت یا دفتر اعضا برقرار نیست؛ ثبت انجام نشد.":
     "ذخیره اطلاعات انجام نشد.");
    const d=await r.json() as {saved?:boolean;record?:{id?:unknown}};
    if(d.saved!==true)throw Error("ثبت توسط سرور تأیید نشد.");
+   if(editId){
+    await refresh();
+    const ver=(d.record as {version?:unknown}|undefined)?.version;
+    if(typeof ver==="number"&&Number.isSafeInteger(ver))setEditVersion(ver);
+    setError(false);setNotice("ویرایش پرونده عضو با ثبت تاریخچه و کنترل نسخه ذخیره شد.");
+    return;
+   }
    // The profile commit is separate. Never retry the profile on a photo error.
    if(section==="add"&&photo){
     const id=d.record?.id;
@@ -211,9 +252,11 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    <section className="tto-nav02-card" aria-label={section==="add"?"فرم افزودن اعضا":"فرم اظهار اطلاعات سهام"}>
     <h2>{section==="add"?"مشخصات متقاضی عضویت":"اطلاعات سرمایه و پرداخت اظهارشده"}</h2>
     {editId&&section==="add"?<div className="tto-nav02-warning" role="status">
-     نمای ویرایش پرونده انتخاب‌شده است. تا تکمیل API امن بازیابی و ثبت ویرایش،
-     ذخیره پرونده جدید در این حالت عمداً متوقف می‌ماند.
-     <p><Link href={base+"profile/"+encodeURIComponent(editId)}>مشاهده پرونده انتخابی</Link></p>
+     {editLoading?"در حال دریافت امن پرونده…":
+      editVersion===null?"امکان ویرایش تا دریافت معتبر پرونده وجود ندارد.":
+      "ویرایش پرونده با ثبت تاریخچه و کنترل نسخه انجام می‌شود."}
+     <p><Link href={base+"profile/"+encodeURIComponent(editId)}>مشاهده پرونده عضو</Link>
+      {" · "}<Link href={base+"add"}>ثبت عضو جدید</Link></p>
     </div>:null}
     <form onSubmit={submit} className="tto-nav02-form">
      {section==="add"?<>
@@ -242,7 +285,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
         key==="group"?<select value={profile.group} onChange={e=>change("group",e.target.value)}>
          {["متقاضی عضویت","عضو مؤسس","عضو جدید","عضو سابق"].map(g=><option key={g} value={g}>{g}</option>)}
         </select>:
-        <input value={profile[key]} maxLength={max} required={required}
+        <input value={profile[key]} maxLength={max} required={required} readOnly={Boolean(editId)&&key==="nationalId"}
          aria-invalid={key==="nationalId"?Boolean(nationalIdError):key==="mobile"?Boolean(mobileError):undefined}
          inputMode={key==="nationalId"||key==="postalCode"||key==="mobile"||key==="telephone"?"numeric":"text"}
          dir={key==="nationalId"?"ltr":undefined}
@@ -313,8 +356,8 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        onChange={e=>setCapital(p=>({...p,receiptRef:e.target.value}))}/></Field>
       <p className="tto-nav02-summary">کل ارزش اسمی اظهارشده: <strong>{faNumber(Number(subtotal))} ریال</strong></p>
      </>}
-     <div className="tto-nav02-actions"><button type="submit" disabled={busy||loading||Boolean(photoRetryId)||Boolean(editId)||(section==="add"&&(!personalDataConfirmed||!countyCondition||Boolean(nationalIdError)||Boolean(mobileError)||!profile.mobile))}>
-      {busy?"در حال ثبت پرونده…":section==="add"?"ثبت درخواست عضویت":"ثبت اطلاعات اظهارشده سهام"}
+     <div className="tto-nav02-actions"><button type="submit" disabled={busy||loading||editLoading||Boolean(photoRetryId)||(Boolean(editId)&&editVersion===null)||(section==="add"&&(!personalDataConfirmed||!countyCondition||Boolean(nationalIdError)||Boolean(mobileError)||!profile.mobile))}>
+      {busy?"در حال ثبت پرونده…":section==="add"?(editId?"ذخیره ویرایش پرونده":"ثبت درخواست عضویت"):"ثبت اطلاعات اظهارشده سهام"}
      </button><span>هیچ اثر مالی یا انتقال قانونی ثبت نمی‌شود.</span></div>
     </form>
     {notice?<div role={error?"alert":"status"} className={"tto-nav02-message"+(error?" error":"")}>{notice}</div>:null}

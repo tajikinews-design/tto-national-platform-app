@@ -46,7 +46,7 @@ class Nav02IntakeContract(unittest.TestCase):
    '"SELECT tto.commerce_demo_nav02_add_secure($1,$2,$3,$4,$5,$6) AS record"',
    '"SELECT tto.commerce_demo_nav02_capital_secure($1,$2::uuid,$3::jsonb,$4,$5,$6) AS record"'):
    self.assertIn(marker,api)
-  for marker in ('ORIGIN_DENIED','PREVIEW_ONLY',
+  for marker in ('ORIGIN_DENIED','LOGIN_REQUIRED',
     '/v1/commerce/demo/nav02','Cache-Control','BODY_TOO_LARGE','DUPLICATE_DRAFT'):
    self.assertIn(marker,bff)
   self.assertIn('"\u002fapi\u002fcommerce\u002fnav02"',proxy)

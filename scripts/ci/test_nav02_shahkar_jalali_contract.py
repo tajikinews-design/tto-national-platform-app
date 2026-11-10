@@ -10,8 +10,8 @@ class ShahkarJalali(unittest.TestCase):
   bff=read("apps/cooperative-management/app/api/commerce/nav02/route.ts")
   self.assertNotIn("APIIR_TOKEN",ui)
   self.assertNotIn("s.api.ir",ui)
-  for term in ("SHAHKAR_NOT_APPROVED","SHAHKAR_NOT_CONFIGURED","SHAHKAR_UNAVAILABLE",
-               'TTO_NAV02_SHAHKAR_ENABLED','TTO_NAV02_REAL_PII_ENABLED',
+  for term in ("SHAHKAR_NOT_CONFIGURED","SHAHKAR_UNAVAILABLE",
+               'APIIR_TOKEN',
                '"https://s.api.ir/api/sw1/Shahkar"','isCompany:false','result.success===true&&result.data===false',
                'UnprocessableEntityException("SHAHKAR_MISMATCH")'):
    self.assertIn(term,api)

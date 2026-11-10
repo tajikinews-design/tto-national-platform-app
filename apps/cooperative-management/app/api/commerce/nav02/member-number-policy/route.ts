@@ -15,7 +15,6 @@ function auth(req:NextRequest){
  return token&&TOKEN.test(token)?token:null;
 }
 export async function GET(req:NextRequest){
- if(process.env.VERCEL_ENV==="production")return fail(503,"PREVIEW_ONLY");
  const token=auth(req),slug=req.nextUrl.searchParams.get("slug");
  if(!token)return fail(401,"LOGIN_REQUIRED");
  if(!slug||!SLUG.test(slug))return fail(400,"INVALID_SLUG");
@@ -36,7 +35,6 @@ export async function GET(req:NextRequest){
  }catch{return fail(503,"NUMBER_REGISTRY_HOLD")}
 }
 export async function POST(req:NextRequest){
- if(process.env.VERCEL_ENV==="production")return fail(503,"PREVIEW_ONLY");
  const token=auth(req);if(!token)return fail(401,"LOGIN_REQUIRED");
  const origin=req.headers.get("origin");
  if(!origin)return fail(403,"ORIGIN_REQUIRED");
