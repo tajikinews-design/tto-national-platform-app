@@ -623,7 +623,15 @@ export class FoundationCommandsController {
         const a=r as Record<string,unknown>;
         return !!a&&typeof a.draftId==="string"&&typeof a.membershipNumber==="string";
       }).map(x=>[x.draftId,x.membershipNumber]));
-      return {items:items.map(x=>({...x,membershipNumber:lookup.get(String(x.id))??null}))};
+      const photoReady=await this.db.withActor(actor,async c=>{
+        const r=await c.query<{ids:unknown}>(
+          "SELECT tto.nav02_photo_ready_for_owner($1) AS ids",[slug]);
+        return r.rows[0]?.ids;
+      });
+      if(!Array.isArray(photoReady))throw new ServiceUnavailableException("PRIVATE_PHOTO_STATUS_UNAVAILABLE");
+      const safePhotos=new Set(photoReady.filter((x:unknown):x is string=>typeof x==="string"));
+      return {items:items.map(x=>({...x,membershipNumber:lookup.get(String(x.id))??null,
+       photoState:safePhotos.has(String(x.id))?"READY_PRIVATE":x.photoState}))};
     }
   }
 
@@ -1090,6 +1098,41 @@ export class FoundationCommandsController {
    * seven-day quarantine. NEVER return bytes or grant scan/release status.
    * Synthetic image testing only; real PII needs separate security clearance.
    */
+  @Get("commerce/demo/nav02/photo/view")
+  async nav02PhotoView(@Headers("authorization") auth:string|undefined,
+    @Query("slug") slug:string,@Query("draftId") draftId:string){
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       typeof draftId!=="string"||!uuidPattern.test(draftId))
+      throw new BadRequestException("INVALID_PRIVATE_PHOTO_REQUEST");
+    const actor=await this.db.sessionActor(auth);
+    const result=await this.db.withActor(actor,async c=>{
+      const r=await c.query<{payload:Record<string,unknown>|null}>(
+       "SELECT tto.nav02_photo_payload_for_owner($1,$2::uuid) AS payload",[slug,draftId]);
+      return r.rows[0]?.payload;
+    });
+    if(!result)throw new ForbiddenException("PHOTO_NOT_SCANNED_OR_OWNER_DENIED");
+    if(!["image/png","image/jpeg","image/webp"].includes(String(result.mime))||
+       typeof result.cipher!=="string"||typeof result.iv!=="string"||
+       typeof result.tag!=="string"||typeof result.sha!=="string"||
+       typeof result.size!=="number"||result.size>716800)
+      throw new ServiceUnavailableException("PHOTO_ENVELOPE_INVALID");
+    const encodedKey=process.env.TTO_NAV02_PHOTO_KEY;
+    const key=Buffer.from(encodedKey??"","base64");
+    if(key.length!==32)throw new ServiceUnavailableException("PHOTO_KEY_UNAVAILABLE");
+    let raw:Buffer;
+    try{
+      const decipher=createDecipheriv("aes-256-gcm",key,Buffer.from(result.iv,"base64"));
+      decipher.setAAD(Buffer.from(slug+":"+draftId+":"+result.mime+":"+result.sha,"utf8"));
+      decipher.setAuthTag(Buffer.from(result.tag,"base64"));
+      raw=Buffer.concat([decipher.update(Buffer.from(result.cipher,"base64")),decipher.final()]);
+    }catch{throw new ServiceUnavailableException("PHOTO_DECRYPTION_FAILED")}
+    if(raw.length!==result.size||createHash("sha256").update(raw).digest("hex")!==result.sha){
+      raw.fill(0);throw new ServiceUnavailableException("PHOTO_INTEGRITY_FAILED");
+    }
+    const base64=raw.toString("base64");raw.fill(0);
+    return {mime:result.mime,base64};
+  }
+
   @Post("commerce/demo/nav02/photo")
   @HttpCode(200)
   async nav02QuarantinePhoto(@Headers("authorization") auth:string|undefined,
