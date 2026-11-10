@@ -236,7 +236,10 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
       <th>گروه</th><th>شناسه ملی</th><th>شماره همراه</th><th>عملیات حاکمیتی</th>
      </tr></thead>
      <tbody>{entries.map(row=><tr key={row.id}>
-      <td><span className="tto-member-photo-thumb" role="img" aria-label={row.photoState==="QUARANTINED"?"عکس در قرنطینه و غیرقابل نمایش است":"عکس تأییدشده موجود نیست"}>♙</span></td>
+      <td>{row.photoState==="READY_PRIVATE"?<img className="tto-member-photo-thumb"
+ src={"/api/commerce/nav02/photo/view?slug="+encodeURIComponent(slug)+"&draftId="+encodeURIComponent(row.id)}
+ loading="lazy" width={36} height={42} alt={"عکس پرسنلی "+row.name}/>:
+ <span className="tto-member-photo-thumb" role="img" aria-label={row.photoState==="QUARANTINED"?"عکس در قرنطینه و غیرقابل نمایش است":"عکس تأییدشده موجود نیست"}>♙</span>}</td>
       <td className="tto-nav02-num">{row.membershipNumber||"در انتظار صدور"}</td>
       <td><Link className="tto-member-person-link" href={base+"profile/"+encodeURIComponent(row.id)}>
        {row.title} {row.name}</Link><small className="tto-nav02-row-mask">مشاهده پرونده عضویت</small></td>
