@@ -1,8 +1,8 @@
 import {NextRequest,NextResponse} from "next/server";
 
 /**
- * PREVIEW-ONLY host-based technical testing for TTO.
- * Main domain: development test-control homepage (NOT a commercial storefront).
+ * Tenant-scoped cooperative operations with authenticated authorization.
+ * Main domain and wildcard tenant hosts remain separately routed.
  * Each wildcard host: selected cooperative login and its role-guarded workspace.
  * Never grant authority, legal standing or membership from a hostname.
  */
@@ -19,7 +19,9 @@ const SAFE_LOGIN_APIS=new Set([
  "/api/auth/otp/request","/api/auth/otp/verify","/api/auth/logout",
  "/api/me/tenant-options",
  "/api/commerce/workspaces", "/api/commerce/password-login", "/api/commerce/subscriptions", "/api/commerce/team", "/api/commerce/nav02",
- "/api/commerce/nav02/photo", "/api/commerce/nav02/manage"
+ "/api/commerce/nav02/photo", "/api/commerce/nav02/manage",
+ "/api/commerce/nav02/collections", "/api/commerce/nav02/member-number-policy",
+ "/api/commerce/nav02/member-profile"
 ]);
 const CONTEXT_API=/^\/api\/tenants\/[0-9a-f-]{36}\/context$/i;
 
@@ -42,7 +44,6 @@ export function proxy(request:NextRequest){
   if(path==="/"){
    const response=NextResponse.rewrite(new URL("/site",request.url));
    response.headers.set("X-Robots-Tag","noindex, nofollow");
-   response.headers.set("X-TTO-Entry","development-test-only");
    return response;
   }
   return NextResponse.next();
@@ -74,7 +75,7 @@ export function proxy(request:NextRequest){
  if(path==="/c/"+slug||path.startsWith("/c/"+slug+"/modules/")&&
   /^\/c\/[a-z0-9-]+\/modules\/nav-(?:0[2-9]|1[01])$/.test(path)||
   path==="/c/"+slug+"/settings/credentials"||path==="/c/"+slug+"/settings/users"||
-  path==="/c/"+slug+"/members/add"||path==="/c/"+slug+"/members/new"||path==="/c/"+slug+"/members/shares"||path==="/c/"+slug+"/members/shareholders")return NextResponse.next();
+  path==="/c/"+slug+"/members/add"||path==="/c/"+slug+"/members/new"||path==="/c/"+slug+"/members/shares"||path==="/c/"+slug+"/members/shareholders"||path==="/c/"+slug+"/members/list"||path==="/c/"+slug+"/members/archive"||path==="/c/"+slug+"/members/collections"||/^\/c\/[a-z0-9-]+\/members\/profile\/[a-f0-9-]{36}$/i.test(path))return NextResponse.next();
  if(path==="/settings/subscription")return NextResponse.next();
  if(SAFE_LOGIN_APIS.has(path)||CONTEXT_API.test(path))return NextResponse.next();
  return unavailable(request);

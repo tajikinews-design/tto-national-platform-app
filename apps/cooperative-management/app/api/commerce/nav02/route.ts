@@ -8,9 +8,7 @@ const TOKEN=/^[A-Za-z0-9_-]{32,256}$/;
 function backend(){const b=process.env.TTO_API_BASE_URL;if(!b?.startsWith("https://"))return null;
  try{const u=new URL(b);return u.username||u.password?null:u}catch{return null}}
 function token(req:NextRequest){const v=req.cookies.get("tto_session")?.value;return v&&TOKEN.test(v)?v:null}
-function allowed(){return process.env.VERCEL_ENV!=="production"}
 export async function GET(req:NextRequest){
- if(!allowed())return fail(503,"PREVIEW_ONLY");
  const tk=token(req),slug=req.nextUrl.searchParams.get("slug");
  if(!tk)return fail(401,"LOGIN_REQUIRED");
  if(!slug||!SLUG.test(slug))return fail(400,"INVALID_SLUG");
@@ -28,7 +26,6 @@ export async function GET(req:NextRequest){
  }catch{return fail(503,"INTAKE_UNAVAILABLE")}
 }
 export async function POST(req:NextRequest){
- if(!allowed())return fail(503,"PREVIEW_ONLY");
  const tk=token(req);if(!tk)return fail(401,"LOGIN_REQUIRED");
  const origin=req.headers.get("origin");if(!origin)return fail(403,"ORIGIN_REQUIRED");
  try{if(new URL(origin).origin!==new URL(req.url).origin)return fail(403,"ORIGIN_DENIED")}
@@ -40,19 +37,32 @@ export async function POST(req:NextRequest){
   data=v as Record<string,unknown>;}catch{return fail(400,"INVALID_BODY")}
  if(Object.keys(data).some(k=>!["slug","action","draftId","data"].includes(k))||
    typeof data.slug!=="string"||!SLUG.test(data.slug)||
-   !["profile","capital"].includes(String(data.action))||
+   !["profile","memberProfile","capital"].includes(String(data.action))||
    !data.data||typeof data.data!=="object"||Array.isArray(data.data))
   return fail(400,"INVALID_BODY");
  const d=data.data as Record<string,unknown>;
  if(Object.values(d).some(v=>typeof v!=="string")||
- (data.action==="profile"&&(
+ ((data.action==="profile"||data.action==="memberProfile")&&(
   Object.keys(d).some(k=>!["title","fullName","group","nationalId","fatherName",
-  "birthCertificate","birthDate","birthPlace","telephone","mobile","postalCode","address"].includes(k))||
+  "birthCertificate","birthDate","birthPlace","telephone","mobile","postalCode","address",
+  "bornInCounty","residentInCounty","employedInCounty","informationConfirmed","membershipStatus",
+  "personType","shareholdingStatus","collectionName","occupation"].includes(k))||
   !["آقا","خانم","شرکت","سازمان","اداره"].includes(String(d.title))||
   typeof d.fullName!=="string"||d.fullName.trim().length<3||
   typeof d.group!=="string"||d.group.trim().length<2||
   typeof d.nationalId!=="string"||
-  !(d.title==="آقا"||d.title==="خانم"?/^\d{10}$/:/^\d{11}$/).test(d.nationalId)))||
+  !(d.title==="آقا"||d.title==="خانم"?/^\d{10}$/:/^\d{11}$/).test(d.nationalId)||
+  (data.action==="memberProfile"&&(!["آقا","خانم"].includes(String(d.title))||
+    !["yes","no"].includes(String(d.bornInCounty))||
+    !["yes","no"].includes(String(d.residentInCounty))||
+    !["yes","no"].includes(String(d.employedInCounty))||
+    ![d.bornInCounty,d.residentInCounty,d.employedInCounty].includes("yes")||
+    d.informationConfirmed!=="yes"||d.membershipStatus!=="APPLICANT_UNVERIFIED"||
+    d.personType!=="NATURAL"||d.shareholdingStatus!=="NONE_UNVERIFIED"||
+    typeof d.collectionName!=="string"||d.collectionName.length>100||
+    typeof d.occupation!=="string"||d.occupation.length>120||
+    typeof d.mobile!=="string"||!/^09[0-9]{9}$/.test(d.mobile)||
+    (d.birthDate!==""&&!/^1[2-5][0-9]{2}\/(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])$/.test(String(d.birthDate)))))))||
  (data.action==="capital"&&(
   typeof data.draftId!=="string"||!/^[a-f0-9-]{36}$/i.test(data.draftId)||
   Object.keys(d).some(k=>!["initialShares","subscribedShares","nominalRial","paidRial",
@@ -68,8 +78,20 @@ export async function POST(req:NextRequest){
   if(r.status===401)return fail(401,"LOGIN_REQUIRED");
   if(r.status===403)return fail(403,"OWNER_REQUIRED");
   if(r.status===409)return fail(409,"DUPLICATE_DRAFT");
+  if(r.status===422&&data.action==="memberProfile")return fail(422,"SHAHKAR_MISMATCH");
   if(r.status===400)return fail(400,"INVALID_VALUES");
-  if(!r.ok)return fail(503,"INTAKE_UNAVAILABLE");
+  if(!r.ok){
+   // Only expose non-sensitive operational fault categories; never provider payloads.
+   if(r.status===503){
+    const payload=await r.json().catch(()=>null) as {message?:unknown}|null;
+    const message=typeof payload?.message==="string"?payload.message:"";
+    if(message==="SHAHKAR_NOT_CONFIGURED")return fail(503,"IDENTITY_PROVIDER_NOT_CONFIGURED");
+    if(message==="SHAHKAR_UNAVAILABLE")return fail(503,"IDENTITY_PROVIDER_UNAVAILABLE");
+    if(["PRIVATE_IDENTITY_KEY_UNAVAILABLE","PRIVATE_IDENTITY_KEY_INVALID"].includes(message))
+     return fail(503,"IDENTITY_ENCRYPTION_UNAVAILABLE");
+   }
+   return fail(503,"INTAKE_UNAVAILABLE");
+  }
   const result=await r.json() as {saved?:unknown;record?:unknown};
   if(result.saved!==true)return fail(502,"INVALID_RESULT");
   return NextResponse.json(result,{headers:H});

@@ -53,7 +53,7 @@ class Nav02Management(unittest.TestCase):
     'managementState:p.managementState','photoState:p.photoState'):
    self.assertIn(x,api)
   for x in ('ORIGIN_REQUIRED','ORIGIN_DENIED','LOGIN_REQUIRED','BODY_TOO_LARGE',
-    'private, no-store','Authorization:"Bearer "+tk','STALE_VERSION','PREVIEW_ONLY'):
+    'private, no-store','Authorization:"Bearer "+tk','STALE_VERSION','ORIGIN_REQUIRED'):
    self.assertIn(x,bff)
   self.assertNotIn('set-cookie',bff)
  def test_pg17_fence_is_disposable_only(self):

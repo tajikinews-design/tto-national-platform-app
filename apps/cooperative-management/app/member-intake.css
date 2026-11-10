@@ -111,3 +111,182 @@
 .tto-nav02-audit li{display:flex;justify-content:space-between;gap:10px;font-size:11px;padding:9px;background:#f3f8fb;border-radius:8px}
 .tto-nav02-audit li span{color:#6e8396}
 @media(max-width:650px){.tto-nav02-directory{padding:10px}.tto-nav02-directory-tools label{min-width:145px}.tto-nav02-modal{padding:14px}}
+
+/* NAV-02 member-only form: top photo, narrow title + surname, county OR eligibility. */
+.tto-nav02-name-row{grid-column:1/-1;display:grid;grid-template-columns:minmax(108px,130px) minmax(0,1fr);gap:14px}
+.tto-nav02-name-row>.tto-nav02-field{min-width:0}
+.tto-nav02-photo{grid-column:1/-1;grid-template-columns:1fr auto;align-items:center;gap:9px}
+.tto-nav02-photo label,.tto-nav02-photo input[type=file]{grid-column:1}
+.tto-nav02-photo img{grid-column:2;grid-row:1/4;border:1px solid #cadeeb;max-width:110px;max-height:130px;object-fit:cover}
+.tto-nav02-photo button{grid-column:1}
+.tto-nav02-field-error{color:#a62b44!important;font-weight:700!important}
+.tto-nav02-checksum-ok{color:#216d50!important}
+.tto-nav02-eligibility{grid-column:1/-1;border:1px solid #c8dfec;border-radius:12px;padding:13px 16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.tto-nav02-eligibility legend{padding:0 7px;color:#1e5475;font-weight:800;font-size:12px}
+.tto-nav02-eligibility label{display:flex;align-items:center;gap:7px;font-size:12px}
+.tto-nav02-eligibility input,.tto-nav02-confirm input{width:17px;height:17px;accent-color:#0b7e89}
+.tto-nav02-eligibility small{grid-column:1/-1;font-size:10px;color:#9b6540}
+.tto-nav02-confirm{grid-column:1/-1;display:flex;align-items:center;gap:10px;font-size:12px}
+.tto-nav02-membership-note{grid-column:1/-1;background:#f4f9fc;color:#4d7087;border-radius:9px;padding:10px;font-size:11px}
+@media(max-width:650px){.tto-nav02-name-row{grid-template-columns:105px minmax(0,1fr)}.tto-nav02-eligibility{grid-template-columns:1fr}.tto-nav02-photo{grid-template-columns:minmax(0,1fr) 110px}}
+
+/* NAV02 fixed two-column alignment; the birth date occupies exactly one column. */
+.tto-nav02-birth-row{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ column-gap:16px;align-items:start;min-width:0}
+.tto-nav02-birth-row>.tto-nav02-field{min-width:0;align-self:start}
+.tto-nav02-jalali{position:relative;min-width:0}
+.tto-nav02-calendar-trigger{width:100%;height:44px;min-height:44px;background:#f9fcff;color:#143c5d;
+ border:1px solid #d4e3ec;border-radius:11px;padding:0 13px;display:flex;
+ align-items:center;justify-content:space-between;text-align:right;cursor:pointer;
+ font:550 12px var(--tto-font),Tahoma,Arial}
+.tto-nav02-calendar-trigger:focus-visible,.tto-nav02-calendar-pop button:focus-visible,
+.tto-nav02-calendar-pop select:focus-visible{outline:3px solid #86bff8;outline-offset:1px}
+.tto-nav02-calendar-pop{position:absolute;top:calc(100% + 7px);right:0;width:min(312px,90vw);
+ z-index:25;background:white;border:1px solid #cadde9;border-radius:12px;
+ box-shadow:0 18px 38px #173c6440;padding:12px;direction:rtl}
+.tto-nav02-calendar-controls{display:grid;grid-template-columns:31px minmax(0,1fr) 78px 31px;gap:5px}
+.tto-nav02-calendar-controls select{min-width:0;padding:0 3px!important;height:34px!important;font-size:11px!important}
+.tto-nav02-calendar-pop button{border:1px solid #dceaf1;background:#f2f8fb;border-radius:7px;
+ font:inherit;color:#244f6b;cursor:pointer}
+.tto-nav02-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));
+ grid-auto-rows:35px;gap:3px;margin:10px 0;text-align:center;align-items:stretch}
+.tto-nav02-calendar-grid button{background:#fff;padding:0}
+.tto-nav02-calendar-grid button:hover{background:#e1f5f3}
+.tto-nav02-calendar-grid button[aria-pressed=true]{background:#0e8194;color:#fff;font-weight:800}
+.tto-nav02-calendar-grid button:disabled{opacity:.25;cursor:not-allowed}
+.tto-nav02-weekday{display:grid;place-items:center;color:#597b91;font-weight:800;font-size:11px}
+.tto-nav02-calendar-footer{display:flex;justify-content:space-between;gap:8px}
+.tto-nav02-calendar-footer button{padding:8px;font-size:10px}
+@media(max-width:650px){.tto-nav02-birth-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .tto-nav02-calendar-pop{right:0}}
+
+
+/* NAV02 member-centric, protected UI: photo and groups on left; detail card on right. */
+.tto-nav02-layout.tto-nav02-member-layout{grid-template-columns:minmax(0,1.85fr) minmax(265px,.72fr);align-items:start}
+.tto-nav02-layout.tto-nav02-member-layout>.tto-nav02-card{min-width:0}
+.tto-member-sidebar{display:flex;flex-direction:column;gap:0;border-radius:16px;border:1px solid #d8e6ee;
+ overflow:visible;background:#fff;box-shadow:0 6px 24px #16446b10;min-width:0}
+.tto-member-side-section{padding:17px 16px 19px;border-bottom:1px solid #e2eaf1;display:grid;gap:11px}
+.tto-member-side-section:last-child{border-bottom:0}
+.tto-member-side-section h2{margin:0;font-size:13px;font-weight:850;color:#295679}
+.tto-member-side-section>small{font-size:10px;line-height:1.9;color:#6f8594}
+.tto-member-side-section :is(input,select){min-width:0;max-width:100%;width:100%;background:#fbfdff;
+ border:1px solid #cbdde9;border-radius:9px;padding:9px 10px;color:#143c5d;font:inherit;font-size:12px}
+.tto-member-side-section input[type=file]{font-size:10px;line-height:1.8}
+.tto-member-side-section :is(button,.tto-member-upload-link){cursor:pointer;border:1px solid #bfdae8;background:#eaf5fb;
+ color:#1774a0;border-radius:9px;font-size:11px;font-weight:750;padding:8px 10px}
+.tto-member-side-section button:disabled{opacity:.45;cursor:not-allowed}
+.tto-member-small-label{font-size:11px;color:#42627b;font-weight:700}
+.tto-member-side-portrait{text-align:center}
+.tto-member-avatar-frame{height:136px;min-height:136px;display:grid;place-items:center;
+ border-radius:12px;background:linear-gradient(135deg,#edf6f9,#fafcff);border:1px solid #dce9f1}
+.tto-member-avatar-frame img{width:105px;height:124px;object-fit:cover;border-radius:10px}
+.tto-member-avatar-placeholder{font-size:55px;color:#9fb7c5}
+.tto-member-inline-links{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;align-items:center}
+.tto-member-inline-links button{color:#9a5162;background:#fff4f5;border-color:#f2d9dd}
+.tto-member-hidden-file{position:absolute!important;width:1px!important;height:1px!important;
+ padding:0!important;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.tto-member-number-output{font-variant-numeric:tabular-nums;display:block;text-align:center;
+ background:#eef7f8;border:1px solid #c6e4e8;border-radius:10px;padding:12px 10px;
+ color:#12657a;font-size:13px;direction:ltr}
+.tto-member-link-button{justify-self:start}
+.tto-member-side-add{display:grid;gap:7px;padding:12px;background:#f2f8fb;border-radius:10px;text-align:right;font-size:11px}
+.tto-member-number-notice{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+ border:1px solid #c9e2e9;border-radius:11px;padding:11px 13px;background:#f1f9fb;color:#234e68;font-size:12px}
+.tto-member-number-notice span{flex:1;color:#597b90;font-size:11px}
+.tto-member-number-notice a{color:#1277a4;text-decoration:underline;font-size:10px}
+.tto-member-person-link{color:#176e9a;font-size:12px;font-weight:800;text-decoration:none}
+.tto-member-person-link:hover{text-decoration:underline}
+.tto-member-directory-table{min-width:1250px}
+.tto-member-actions{display:flex;gap:5px;flex-wrap:nowrap}
+.tto-member-actions button{min-width:29px;height:30px;border:1px solid #d1e2ea;background:#f9fcfd;
+ border-radius:7px;cursor:pointer;color:#366d83;font-size:15px}
+.tto-member-actions button:hover{background:#e3f5f6;border-color:#7dc1cd}
+.tto-member-actions button.danger{color:#ad4b55;background:#fff8f8}
+.tto-member-actions button:disabled{opacity:.45;cursor:not-allowed}
+.tto-member-collection-grid{display:grid;grid-template-columns:minmax(220px,.55fr) minmax(0,1fr);gap:16px;margin-top:15px}
+.tto-member-collection-list{display:grid;gap:9px;align-content:start;padding:10px;background:#f3f8fa;border-radius:12px}
+.tto-member-collection-list button{display:flex;justify-content:space-between;align-items:center;gap:6px;
+ padding:11px;border:1px solid #d5e5eb;background:#fff;border-radius:10px;color:#245d77;cursor:pointer;font:inherit}
+.tto-member-collection-list button.selected{background:#dff5f4;border-color:#54a9ae}
+.tto-member-collection-list button b{font-size:10px;color:#5f808e}
+.tto-member-collection-members{padding:15px;border:1px solid #dbe8ee;border-radius:12px}
+.tto-member-collection-members h3{margin:0 0 12px;color:#1a5875}
+.tto-member-collection-members>a{display:flex;align-items:center;justify-content:space-between;gap:10px;
+ border-bottom:1px solid #e7eef2;padding:12px 4px;text-decoration:none;color:#246d99;font-size:12px}
+.tto-member-collection-members>a small{color:#6f8492}
+.tto-member-confirm-mask{position:fixed;inset:0;z-index:1003;background:#112d457a;display:grid;place-items:center;padding:22px}
+.tto-member-confirm{background:#fff;width:min(500px,100%);padding:24px;border-radius:18px}
+.tto-member-confirm h3{margin-top:0;color:#8f3847}
+.tto-member-confirm p{line-height:2}
+.tto-member-confirm button{padding:10px 20px;background:#ebf5fa;border:1px solid #b7d8e7;border-radius:8px;cursor:pointer}
+.tto-member-number-policy{margin-top:8px}
+.tto-member-number-policy h2{margin:0 0 12px}
+.tto-member-policy-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:13px 0}
+.tto-member-policy-fields label{display:grid;gap:6px;font-size:11px;color:#416780}
+.tto-member-policy-fields input{width:100%;min-width:0;padding:9px 10px;border:1px solid #ccdfeb;border-radius:8px}
+.tto-member-policy-fields button{align-self:end;cursor:pointer;padding:9px;border:1px solid #86c6d6;border-radius:8px;background:#e6f6f6;color:#096a7b}
+.tto-member-case{max-width:1530px}
+.tto-member-case-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:11px}
+.tto-member-case-top a{padding:9px 13px;border-radius:10px;background:#e5f2f8;text-decoration:none;color:#156c99;font-size:11px}
+.tto-member-case-grid{display:grid;grid-template-columns:minmax(230px,.33fr) minmax(0,1fr);gap:15px;direction:ltr}
+.tto-member-case-people,.tto-member-case-main{direction:rtl;min-width:0}
+.tto-member-case-people{border-radius:13px;border:1px solid #dbe6ee;padding:9px;background:#f7fbfd;align-self:start}
+.tto-member-case-people h2{margin:0 0 10px;color:#fff;background:#185b88;padding:12px;border-radius:8px;font-size:12px}
+.tto-member-case-people a{display:flex;align-items:center;gap:11px;padding:12px 8px;
+ background:#fff;border:1px solid #e2ebf1;border-radius:8px;margin-bottom:7px;text-decoration:none;color:#2374a0}
+.tto-member-case-people a[aria-current=page]{border-color:#7dc2d0;background:#ebf9f8}
+.tto-member-case-people a strong{display:block;font-size:11px}
+.tto-member-case-people a small{display:block;color:#7e93a2;margin-top:5px;font-size:10px}
+.tto-member-small-avatar{width:43px;height:43px;display:grid;place-items:center;flex:none;
+ color:#799aae;border-radius:8px;background:#edf5f9;font-size:25px}
+.tto-member-case-main{display:grid;gap:12px;align-content:start}
+.tto-member-case-head{background:#fff;border:1px solid #dce7ef;border-radius:14px;padding:19px;
+ display:flex;justify-content:space-between;gap:15px;align-items:flex-start;flex-wrap:wrap;min-height:190px}
+.tto-member-case-person{display:flex;align-items:center;gap:15px}
+.tto-member-case-avatar{height:95px;width:82px;flex:none;display:grid;place-items:center;
+ border:1px solid #dce7ef;border-radius:9px;background:#f0f6f9;color:#96afbb;font-size:48px}
+.tto-member-case-person h1{font-size:19px;margin:0 0 9px;color:#174968}
+.tto-member-case-person p{font-size:11px;margin:5px 0;color:#55788d}
+.tto-member-case-head-actions{display:flex;gap:8px;flex-wrap:wrap}
+.tto-member-case-head-actions a{font-size:11px;text-decoration:none;color:#146d9c;padding:10px 12px;
+ border:1px solid #c6e0ed;border-radius:8px;background:#eff8fc}
+.tto-member-case-icons{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:6px}
+.tto-member-case-icons button{min-width:39px;height:37px;border:1px solid #8296a5;color:#fff;
+ background:#768c9f;border-radius:5px;font-size:18px;cursor:pointer}
+.tto-member-case-icons button.selected,.tto-member-case-icons button:hover{background:#176d90;border-color:#176d90}
+.tto-member-case-details{border-radius:13px;background:#fff;border:1px solid #dce7ef;padding:18px;min-height:300px}
+.tto-member-case-tabs{display:flex;justify-content:flex-start;flex-wrap:wrap;gap:6px;
+ border-bottom:1px solid #dce7ef;padding-bottom:12px}
+.tto-member-case-tabs button{background:#fff;border:none;border-inline-start:1px solid #dce7ef;padding:8px;
+ font:inherit;cursor:pointer;color:#1b719c;font-size:11px}
+.tto-member-case-tabs button[aria-current=page]{font-weight:800;color:#15435e}
+.tto-member-case-detail-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:25px;padding-top:18px}
+.tto-member-case-detail-columns h2{font-size:13px;color:#1c5b7d;border-bottom:1px solid #dce8ee;padding-bottom:9px}
+.tto-member-case-detail-columns dl{display:grid;grid-template-columns:145px minmax(0,1fr);gap:0;margin:0}
+.tto-member-case-detail-columns :is(dt,dd){margin:0;font-size:11px;padding:11px 3px;border-bottom:1px solid #eef2f5}
+.tto-member-case-detail-columns dt{color:#8393a0}
+.tto-member-case-detail-columns dd{color:#213f58;font-weight:700}
+.tto-member-case-panel{padding:20px 4px;font-size:12px;color:#5f798b}
+@media(max-width:1100px){.tto-nav02-layout.tto-nav02-member-layout{grid-template-columns:minmax(0,1fr) minmax(245px,.65fr)}}
+@media(max-width:850px){.tto-nav02-layout.tto-nav02-member-layout{grid-template-columns:1fr}
+ .tto-member-sidebar{order:2}.tto-member-case-grid{grid-template-columns:1fr}
+ .tto-member-case-people{display:flex;gap:7px;flex-wrap:wrap}
+ .tto-member-case-people h2{flex:1 1 100%}
+ .tto-member-case-detail-columns{grid-template-columns:1fr}
+ .tto-member-policy-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.tto-member-collection-grid{grid-template-columns:1fr}
+ .tto-member-case-detail-columns dl{grid-template-columns:100px minmax(0,1fr)}
+ .tto-member-policy-fields{grid-template-columns:1fr}}
+
+
+/* Member catalog administration and permanent numbering policy controls. */
+.tto-member-catalog-create{display:flex;align-items:end;gap:10px;flex-wrap:wrap;
+ padding:12px;background:#f0f8fb;border:1px solid #d5e5ed;border-radius:11px}
+.tto-member-catalog-create label{display:grid;gap:7px;min-width:225px;flex:1;font-weight:700;
+ font-size:11px;color:#37627b}
+.tto-member-catalog-create input{font:inherit;border:1px solid #c7ddea;border-radius:8px;
+ padding:9px 11px;color:#23465e;min-height:38px}
+.tto-member-catalog-create button,.tto-member-policy-actions button{cursor:pointer;background:#167a9b;
+ color:white;border:0;border-radius:9px;padding:11px 18px;font-size:11px;font-weight:750}
+.tto-member-policy-actions{display:flex;justify-content:flex-start;padding:8px 0 2px}

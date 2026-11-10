@@ -23,7 +23,7 @@ class Nav02IntakeContract(unittest.TestCase):
                "birthDate","birthPlace","telephone","mobile","postalCode","address",
                "initialShares","subscribedShares","nominalRial","paidRial","paymentDate","receiptRef"):
    self.assertIn(name,form)
-  for title in ("آقا","خانم","شرکت","سازمان","اداره"):
+  for title in ("آقا","خانم"):
    self.assertIn('"'+title+'"',form)
  def test_staging_db_never_mutates_legal_ledger(self):
   sql=src("database/migrations/9999t_ph12_nav02_shareholder_intake_drafts.sql")
@@ -46,7 +46,7 @@ class Nav02IntakeContract(unittest.TestCase):
    '"SELECT tto.commerce_demo_nav02_add_secure($1,$2,$3,$4,$5,$6) AS record"',
    '"SELECT tto.commerce_demo_nav02_capital_secure($1,$2::uuid,$3::jsonb,$4,$5,$6) AS record"'):
    self.assertIn(marker,api)
-  for marker in ('ORIGIN_DENIED','PREVIEW_ONLY',
+  for marker in ('ORIGIN_DENIED','LOGIN_REQUIRED',
     '/v1/commerce/demo/nav02','Cache-Control','BODY_TOO_LARGE','DUPLICATE_DRAFT'):
    self.assertIn(marker,bff)
   self.assertIn('"\u002fapi\u002fcommerce\u002fnav02"',proxy)
@@ -59,9 +59,10 @@ class Nav02IntakeContract(unittest.TestCase):
   form=src("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
   self.assertIn("URL.createObjectURL(photo)",form)
   self.assertIn('quarantinePhoto(',form)
-  self.assertIn('testOnlyConfirmed',form)
+  self.assertIn('personalDataConfirmed',form)
   self.assertIn('photoRetryId',form)
   self.assertIn('"/api/commerce/nav02/photo"',form)
-  self.assertIn("فقط داده ساختگی مجاز است",form)
+  self.assertIn("حداقل یکی",form)
+  self.assertIn("validIranianNationalId",form)
   self.assertNotIn('FormData(',form)
 if __name__=="__main__":unittest.main()

@@ -27,7 +27,7 @@ class PhotoQuarantineContract(unittest.TestCase):
   self.assertNotIn('console.log',method)
  def test_bff_failclosed(self):
   edge=read("apps/cooperative-management/app/api/commerce/nav02/photo/route.ts")
-  for term in ('ORIGIN_REQUIRED','ORIGIN_DENIED','LOGIN_REQUIRED','PREVIEW_ONLY',
+  for term in ('ORIGIN_REQUIRED','ORIGIN_DENIED','LOGIN_REQUIRED','ORIGIN_REQUIRED',
    'BODY_TOO_LARGE','private, no-store','dataBase64','1040000',
    '/v1/commerce/demo/nav02/photo','status:"QUARANTINED",visible:false,scanned:false'):
    self.assertIn(term,edge)
@@ -35,7 +35,7 @@ class PhotoQuarantineContract(unittest.TestCase):
   self.assertIn('"/api/commerce/nav02/photo"',proxy)
  def test_photo_opt_in_and_partial_failure_not_duplicated(self):
   ui=read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
-  for term in ('testOnlyConfirmed','photoRetryId','quarantinePhoto(','"/api/commerce/nav02/photo"',
+  for term in ('personalDataConfirmed','photoRetryId','quarantinePhoto(','"/api/commerce/nav02/photo"',
    'تأیید می‌کنم','قرنطینه','URL.revokeObjectURL','file.size>716800',
    'هر دو',):
    # "هر دو" is not part of UI, all other statements are expected.

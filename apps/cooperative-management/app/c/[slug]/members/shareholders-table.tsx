@@ -3,8 +3,8 @@ import Link from "next/link";
 import {useEffect,useMemo,useRef,useState,type FormEvent} from "react";
 
 type Draft={
- id:string;title:string;name:string;group:string;identifierMask:string;
- state:string;managementState?:"ACTIVE_DRAFT"|"SUSPENDED_DRAFT";
+ id:string;title:string;name:string;group:string;identifierMask:string;membershipStatus?:string|null;
+ state:string;managementState?:"ACTIVE_DRAFT"|"SUSPENDED_DRAFT"|"ARCHIVED_DRAFT";
  version?:number;photoState?:"NONE"|"QUARANTINED";
  initialShares?:string|null;subscribedShares?:string|null;
  nominalRial?:string|null;declaredPaidRial?:string|null;
@@ -78,7 +78,8 @@ export function ShareholdersTable({slug}:{slug:string}){
    "دریافت فهرست سهامداران آزمایشی ناموفق بود.");
   const body=await response.json() as {items?:Draft[]};
   if(!Array.isArray(body.items))throw Error("پاسخ سرور معتبر نیست.");
-  setRows(body.items);return body.items;
+  const shareholderDrafts=body.items.filter(item=>item.membershipStatus!=="APPLICANT_UNVERIFIED"&&item.managementState!=="ARCHIVED_DRAFT");
+  setRows(shareholderDrafts);return shareholderDrafts;
  }
  useEffect(()=>{
   let alive=true;void reload().catch(e=>{
@@ -159,8 +160,8 @@ export function ShareholdersTable({slug}:{slug:string}){
    <p>فهرست پرونده‌های اولیه و تأییدنشده در فضای همین تعاونی؛ وضعیت‌های این جدول جایگزین دفتر رسمی مالکیت سهام یا وضعیت قانونی عضویت نیستند.</p>
   </header>
   <nav aria-label="زیرمنوهای اعضا و سهام" className="tto-nav02-switch">
-   <Link href={base+"add"}>♙ افزودن سهامدار</Link>
-   <Link href={base+"shares"}>▥ اطلاعات سهام</Link>
+   <Link href={base+"add"}>♙ ثبت عضو</Link>
+   <Link href={base+"shares"}>▥ ثبت سهام</Link>
    <Link href={base+"shareholders"} aria-current="page">♧ سهامداران</Link>
   </nav>
   <div className="tto-nav02-warning" role="status">

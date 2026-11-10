@@ -7,7 +7,6 @@ const SLUG=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TOKEN=/^[A-Za-z0-9_-]{32,256}$/;
 export async function POST(req:NextRequest){
- if(process.env.VERCEL_ENV==="production")return fail(503,"PREVIEW_ONLY");
  const token=req.cookies.get("tto_session")?.value;
  if(!token||!TOKEN.test(token))return fail(401,"LOGIN_REQUIRED");
  const origin=req.headers.get("origin");
