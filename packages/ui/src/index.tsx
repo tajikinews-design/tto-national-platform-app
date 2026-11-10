@@ -96,11 +96,11 @@ function navHref(i: number, basePath = "") {
 
 export function PortalShell({
   surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, allowedModules, canManageSettings = false, settingsSection, memberSection, NavigationLink
-}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users";memberSection?:"add"|"shares";NavigationLink?:ComponentType<{href:string;children:ReactNode;className?:string;"aria-current"?: "page";"aria-label"?:string}>}) {
+}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users";memberSection?:"add"|"shares"|"shareholders";NavigationLink?:ComponentType<{href:string;children:ReactNode;className?:string;"aria-current"?: "page";"aria-label"?:string}>}) {
  const cfg=surfaces[surface],selection=Math.max(NAV_IDS.indexOf(activeId),0);
  const InternalLink=NavigationLink??"a";
  const home=selection===0,currentTitle=settingsSection==="credentials"?"تغییر نام کاربری و رمز عبور":
-  settingsSection==="users"?"کاربران و سطح دسترسی":memberSection==="add"?"افزودن سهامدار":memberSection==="shares"?"اطلاعات اولیه سهام":home?cfg.title:cfg.navigation[selection];
+  settingsSection==="users"?"کاربران و سطح دسترسی":memberSection==="add"?"افزودن سهامدار":memberSection==="shares"?"اطلاعات اولیه سهام":memberSection==="shareholders"?"سهامداران":home?cfg.title:cfg.navigation[selection];
  return <div className="shell tto-approved-shell" lang="fa" dir="rtl" data-tto-demo-only={demoOnly?"true":undefined}>
    <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
    <aside className="nav-area">
@@ -123,6 +123,10 @@ export function PortalShell({
           <InternalLink className={memberSection==="shares"?"tto-settings-sublink selected":"tto-settings-sublink"}
            href={basePath+"/members/shares"} aria-current={memberSection==="shares"?"page":undefined}>
            <span aria-hidden="true">▥</span> اطلاعات سهام
+          </InternalLink>
+          <InternalLink className={memberSection==="shareholders"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/members/shareholders"} aria-current={memberSection==="shareholders"?"page":undefined}>
+           <span aria-hidden="true">♧</span> سهامداران
           </InternalLink>
          </div>
         </details>;
