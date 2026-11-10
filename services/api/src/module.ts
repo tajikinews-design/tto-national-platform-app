@@ -672,6 +672,89 @@ export class FoundationCommandsController {
     });
   }
 
+  @Get("commerce/demo/nav02/officers/history")
+  async nav02OfficersHistory(@Headers("authorization") auth:string|undefined,
+    @Query("slug") slug:string,@Query("id") id:string){
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       typeof id!=="string"||!uuidPattern.test(id))
+      throw new BadRequestException("INVALID_OFFICER_HISTORY");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      const r=await c.query<{items:unknown}>(
+        "SELECT tto.nav02_office_holder_draft_history($1,$2::uuid) AS items",[slug,id]);
+      if(!Array.isArray(r.rows[0]?.items))throw new ServiceUnavailableException("OFFICER_HISTORY_UNAVAILABLE");
+      return {items:r.rows[0].items};
+    });
+  }
+
+  @Post("commerce/demo/nav02/officers/edit")
+  @HttpCode(200)
+  async nav02OfficersEdit(@Headers("authorization") auth:string|undefined,
+    @Body() body:Record<string,unknown>){
+    if(!body||typeof body!=="object"||Array.isArray(body)||
+       typeof body.id!=="string"||!uuidPattern.test(body.id)||
+       !Number.isSafeInteger(body.version)||Number(body.version)<1)
+      throw new BadRequestException("INVALID_OFFICER_VERSION");
+    const {id,version,...rest}=body;
+    // Reuse all original create validation/authorization and input normalization
+    // without creating a record: edit calls only the version-fenced update RPC.
+    const fields=["slug","memberDraftId","externalName","ceoSource","officeCode",
+      "signingAuthorized","signingScope","startDate","endDate","gazetteName",
+      "gazetteDate","gazetteIssue","noticeNumber"];
+    if(Object.keys(rest).some(k=>!fields.includes(k))||
+       typeof rest.slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(rest.slug)||
+       !["BOARD_CHAIR","BOARD_VICE_CHAIR","CEO","BOARD_MEMBER","BOARD_SECRETARY",
+         "AUDITOR_PRIMARY","AUDITOR_ALT1","AUDITOR_ALT2"].includes(String(rest.officeCode))||
+       !["MEMBER","EXTERNAL"].includes(String(rest.ceoSource))||
+       typeof rest.signingAuthorized!=="boolean"||
+       !["externalName","signingScope","gazetteName","gazetteIssue","noticeNumber"].every(
+         k=>typeof rest[k]==="string")||
+       String(rest.signingScope).length>1000||String(rest.gazetteName).length>160||
+       String(rest.gazetteIssue).length>80||String(rest.noticeNumber).length>100||
+       (rest.ceoSource==="EXTERNAL"&&
+        (rest.officeCode!=="CEO"||rest.memberDraftId!==null||
+         String(rest.externalName).trim().length<3||String(rest.externalName).length>180))||
+       (rest.ceoSource==="MEMBER"&&
+        (typeof rest.memberDraftId!=="string"||!uuidPattern.test(rest.memberDraftId)||
+         rest.externalName!==""))||
+       typeof rest.startDate!=="string"||typeof rest.endDate!=="string"||
+       !/^\d{4}-\d{2}-\d{2}$/.test(rest.startDate)||
+       !/^\d{4}-\d{2}-\d{2}$/.test(rest.endDate)||
+       (rest.gazetteDate!==null&&rest.gazetteDate!==""&&
+        (typeof rest.gazetteDate!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(rest.gazetteDate))))
+      throw new BadRequestException("INVALID_OFFICER_EDIT");
+    const d0=new Date(rest.startDate+"T00:00:00Z"),d1=new Date(rest.endDate+"T00:00:00Z");
+    if(!Number.isFinite(d0.getTime())||!Number.isFinite(d1.getTime())||d1<d0||
+       d0.toISOString().slice(0,10)!==rest.startDate||
+       d1.toISOString().slice(0,10)!==rest.endDate)
+      throw new BadRequestException("INVALID_OFFICER_DATES");
+    if(rest.ceoSource==="MEMBER"){
+      const list=await this.nav02IntakeList(auth,rest.slug);
+      const member=(list.items as Record<string,unknown>[]).find(m=>m.id===rest.memberDraftId);
+      if(!member||member.personType!=="NATURAL"||
+         member.membershipStatus==="NON_MEMBER_REPORTED")
+        throw new ForbiddenException("OFFICER_MEMBER_NOT_ELIGIBLE");
+    }
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      try{
+        const r=await c.query<{version:number}>(
+          "SELECT tto.nav02_office_holder_draft_edit($1,$2::uuid,$3,$4::uuid,$5,$6,$7,$8,$9,$10::date,$11::date,$12,$13::date,$14,$15) AS version",
+          [rest.slug,id,version,rest.ceoSource==="MEMBER"?rest.memberDraftId:null,
+           rest.ceoSource==="EXTERNAL"?String(rest.externalName).trim():null,
+           rest.ceoSource,rest.officeCode,rest.signingAuthorized,rest.signingScope,
+           rest.startDate,rest.endDate,rest.gazetteName,rest.gazetteDate||null,
+           rest.gazetteIssue,rest.noticeNumber]);
+        return {saved:true,version:r.rows[0]?.version,status:"DRAFT_ONLY",legalPowerGranted:false};
+      }catch(e){
+        if((e as {code?:string}).code==="40001")throw new ConflictException("OFFICER_STALE_VERSION");
+        if((e as {code?:string}).code==="42501")throw new ForbiddenException("OFFICER_SCOPE_DENIED");
+        if((e as {code?:string}).code==="23514")throw new BadRequestException("INVALID_OFFICER_DRAFT");
+        throw e;
+      }
+    });
+  }
+
   @Get("commerce/demo/nav02")
   async nav02IntakeList(@Headers("authorization") auth:string|undefined,@Query("slug") slug:string){
     if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
