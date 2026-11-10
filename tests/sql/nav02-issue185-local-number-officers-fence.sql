@@ -42,6 +42,16 @@ BEGIN
  PERFORM tto.nav02_member_number_policy_set('ci-nav02a',123,'','');
  a:=tto.nav02_member_number_issue('ci-nav02a','dddddddd-dddd-4ddd-8ddd-ddddddddddda');
  IF a<>'000123' THEN RAISE EXCEPTION 'SLUG_PRESENT_OR_BAD_NUMBER_A:%',a;END IF;
+ -- Synthetic receipt only: ClamAV protocol and GCM integrity are checked separately.
+ IF tto.nav02_attachment_save('ci-nav02a','dddddddd-dddd-4ddd-8ddd-ddddddddddda',
+   'Synthetic resolution attachment','application/pdf','synthetic.pdf',80,
+   decode(repeat('a4',32),'hex'),decode(repeat('b4',12),'hex'),
+   decode(repeat('c4',16),'hex'),decode(repeat('d4',80),'hex'),
+   'ClamAV synthetic CI verdict') IS NULL
+ THEN RAISE EXCEPTION 'ATTACHMENT_STORE_FAILED';END IF;
+ IF jsonb_array_length(tto.nav02_attachment_list('ci-nav02a',
+   'dddddddd-dddd-4ddd-8ddd-ddddddddddda'))<>1
+ THEN RAISE EXCEPTION 'ATTACHMENT_OWNER_LIST_FAILED';END IF;
  ra:=tto.nav02_office_holder_draft_create('ci-nav02a',
   'dddddddd-dddd-4ddd-8ddd-ddddddddddda',null,'MEMBER','BOARD_CHAIR',true,
   'Joint signatures subject to official resolution','2026-01-01','2028-01-01',
@@ -75,6 +85,19 @@ BEGIN
  IF a<>b THEN RAISE EXCEPTION 'CROSS_COOPERATIVE_IDENTICAL_NUMBER_REJECTED:%/%',a,b;END IF;
  v:=tto.nav02_office_holder_drafts_list('ci-nav02b');
  IF jsonb_array_length(v)<>0 THEN RAISE EXCEPTION 'CROSS_TENANT_OFFICER_LEAK';END IF;
+ BEGIN
+  PERFORM tto.nav02_attachment_list('ci-nav02a',
+   'dddddddd-dddd-4ddd-8ddd-ddddddddddda');
+  RAISE EXCEPTION 'CROSS_TENANT_ATTACHMENT_LIST_ALLOWED';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ BEGIN
+  PERFORM tto.nav02_attachment_save('ci-nav02b',
+   'dddddddd-dddd-4ddd-8ddd-ddddddddddda','Forbidden foreign attachment',
+   'application/pdf','wrong.pdf',80,decode(repeat('e4',32),'hex'),
+   decode(repeat('b4',12),'hex'),decode(repeat('c4',16),'hex'),
+   decode(repeat('d4',80),'hex'),'ClamAV synthetic CI verdict');
+  RAISE EXCEPTION 'CROSS_TENANT_ATTACHMENT_INSERT_ALLOWED';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
  BEGIN
   PERFORM tto.nav02_office_holder_draft_create('ci-nav02b',
    'dddddddd-dddd-4ddd-8ddd-ddddddddddda',null,'MEMBER','BOARD_MEMBER',false,'',
