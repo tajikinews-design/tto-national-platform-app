@@ -70,7 +70,7 @@ export function MemberCase({slug,memberId}:{slug:string;memberId:string}){
   </section>:null}
   {member?<div className="tto-member-case-grid">
    <aside className="tto-member-case-people" aria-label="انتخاب پرونده عضو">
-    <h2>افراد عضو</h2>
+    <h2>پرونده اشخاص</h2>
     {items.map(item=><Link href={base+"profile/"+encodeURIComponent(item.id)} key={item.id}
      aria-current={memberId===item.id?"page":undefined}>
      <span className="tto-member-small-avatar" aria-hidden="true">♙</span>
@@ -135,7 +135,7 @@ export function MemberCase({slug,memberId}:{slug:string;memberId:string}){
       <p>احراز مالکیت سهام و تأیید قانونی عضویت در دفتر مستقل انجام می‌شود.</p>
      </div>:tab==="termination"?<div className="tto-member-case-panel">
       <h2>درخواست پایان عضویت براساس دلیل قانونی</h2>
-      {member.membershipStatus==="NON_MEMBER_REPORTED"?<p role="status">این پرونده غیرعضو است؛ پایان عضویت برای آن مصداق ندارد.</p>:
+      {member.personType!=="NATURAL"||member.membershipStatus!=="ACTIVE_REPORTED"?<p role="status">درخواست پایان عضویت فقط برای شخص حقیقی با وضعیت عضو فعال قابل ثبت است؛ وضعیت اظهاری باید با دفتر رسمی بررسی شود.</p>:
       <form className="tto-member-end-request" onSubmit={async e=>{
        e.preventDefault();setEndBusy(true);setEndMessage("");
        try{
