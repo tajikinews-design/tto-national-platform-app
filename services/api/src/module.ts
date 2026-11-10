@@ -633,6 +633,78 @@ export class FoundationCommandsController {
   private nav02CatalogGate(){
     this.nav02DataKey();
   }
+  /** The following routes only request legal review or reissue administrative references.
+   * Neither route mutates official membership, votes or the CHILD07 share ledger. */
+  @Post("commerce/demo/nav02/collections/archive")
+  @HttpCode(200)
+  async nav02CollectionArchive(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    const {slug,name}=input??{};
+    if(!input||Object.keys(input).some(k=>!["slug","name"].includes(k))||
+       typeof slug!=="string"||typeof name!=="string"||name.trim().length<3||name.length>100)
+      throw new BadRequestException("INVALID_COLLECTION_ARCHIVE");
+    const actor=await this.db.sessionActor(auth);
+    const result=await this.db.withActor(actor,async c=>{
+      const r=await c.query<{data:unknown}>(
+       "SELECT tto.nav02_member_collection_archive($1,$2) AS data",[slug,name]);
+      return r.rows[0]?.data;
+    });
+    return {saved:true,record:result};
+  }
+  @Post("commerce/demo/nav02/member-number-policy/reissue")
+  @HttpCode(200)
+  async nav02MemberNumberReissue(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    const {slug,nextSerial,prefix,suffix,expectedCount,acknowledgement}=input??{};
+    if(!input||Object.keys(input).some(k=>!["slug","nextSerial","prefix","suffix","expectedCount","acknowledgement"].includes(k))||
+       typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       typeof nextSerial!=="string"||!/^[1-9][0-9]{0,11}$/.test(nextSerial)||
+       typeof prefix!=="string"||!/^[A-Z0-9-]{0,12}$/.test(prefix)||
+       typeof suffix!=="string"||!/^[A-Z0-9-]{0,12}$/.test(suffix)||
+       !Number.isSafeInteger(expectedCount)||Number(expectedCount)<1||
+       acknowledgement!=="REISSUE_ALL_MEMBERS_ACKNOWLEDGED")
+      throw new BadRequestException("INVALID_REISSUE_CONFIRMATION");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      try{
+        const r=await c.query<{record:unknown}>(
+         "SELECT tto.nav02_member_number_reissue($1,$2::bigint,$3,$4,$5::integer,$6) AS record",
+         [slug,nextSerial,prefix,suffix,expectedCount,acknowledgement]);
+        return {saved:true,record:r.rows[0]?.record};
+      }catch(e){
+        if((e as {code?:string}).code==="40001")throw new ConflictException("MEMBER_NUMBER_SET_CHANGED");
+        if((e as {code?:string}).code==="23505")throw new ConflictException("MEMBER_NUMBER_COLLISION");
+        if((e as {code?:string}).code==="22023")throw new BadRequestException("INVALID_REISSUE_POLICY");
+        throw e;
+      }
+    });
+  }
+  @Post("commerce/demo/nav02/end-requests")
+  @HttpCode(200)
+  async nav02MemberEndRequest(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    const {slug,draftId,reason,evidenceReference,proposedDate}=input??{};
+    if(!input||Object.keys(input).some(k=>!["slug","draftId","reason","evidenceReference","proposedDate"].includes(k))||
+       typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       typeof draftId!=="string"||!uuidPattern.test(draftId)||
+       !["RESIGNATION","DEATH","LEGAL_EXPULSION","FULL_SHARE_TRANSFER"].includes(String(reason))||
+       typeof evidenceReference!=="string"||evidenceReference.trim().length<5||evidenceReference.length>160||
+       typeof proposedDate!=="string"||proposedDate!==""&&!/^\d{4}-\d{2}-\d{2}$/.test(proposedDate))
+      throw new BadRequestException("INVALID_END_REQUEST");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      try{
+        const r=await c.query<{record:unknown}>(
+         "SELECT tto.nav02_member_end_request_submit($1,$2::uuid,$3,$4,$5::date) AS record",
+         [slug,draftId,reason,evidenceReference,proposedDate||null]);
+        return {saved:true,record:r.rows[0]?.record};
+      }catch(e){
+        if((e as {code?:string}).code==="23505")throw new ConflictException("END_REQUEST_ALREADY_PENDING");
+        if((e as {code?:string}).code==="42501")throw new ForbiddenException("MEMBER_SCOPE_DENIED");
+        throw e;
+      }
+    });
+  }
   @Get("commerce/demo/nav02/collections")
   async nav02Collections(@Headers("authorization") auth:string|undefined,
     @Query("slug") slug:string){
