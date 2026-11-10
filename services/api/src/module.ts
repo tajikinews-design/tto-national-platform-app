@@ -620,7 +620,7 @@ export class FoundationCommandsController {
              !/^([0-9])\1+$/.test(person.nationalId)||
              !/(ساختگی|آزمایش|TEST|SYNTHETIC)/i.test(String(person.fullName)))
             throw new ForbiddenException("SYNTHETIC_ONLY");
-          const next={...person,title:f.title,fullName:f.fullName.trim(),group:f.group.trim()};
+          const next={...person,title:f.title,fullName:String(f.fullName).trim(),group:String(f.group).trim()};
           const iv=randomBytes(12),cipher=createCipheriv("aes-256-gcm",key,iv);
           cipher.setAAD(Buffer.from(slug+":profile:v1","utf8"));
           const encrypted=Buffer.concat([
