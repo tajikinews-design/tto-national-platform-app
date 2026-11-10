@@ -142,23 +142,44 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   "کد ملی معتبر نیست؛ رقم کنترل را بررسی کنید.":"";
  const countyCondition=profile.bornInCounty==="yes"||profile.residentInCounty==="yes"||
   profile.employedInCounty==="yes";
- async function quarantinePhoto(file:File,id:string){
-  if(file.size<68||file.size>716800)throw Error("حجم عکس باید حداکثر ۷۰۰ کیلوبایت باشد.");
-  const bytes=new Uint8Array(await file.arrayBuffer());
+ async function savePhoto(file:File,id:string){
+  if(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size<68||file.size>5242880)
+   throw Error("عکس باید JPEG، PNG یا WebP با حجم کمتر از ۵ مگابایت باشد.");
+  // Decode then re-encode a bounded raster. No original metadata or active
+  // file format is sent to the server. It remains private to the tenant owner.
+  let image:ImageBitmap;
+  try{image=await createImageBitmap(file);}catch{throw Error("ساختار تصویر معتبر نیست؛ عکس دیگری انتخاب کنید.");}
+  let normalized:Blob;
+  try{
+   if(image.width<1||image.height<1||image.width>9000||image.height>9000)
+    throw Error("ابعاد تصویر قابل قبول نیست.");
+   const scale=Math.min(1,800/image.width,1000/image.height);
+   const canvas=document.createElement("canvas");
+   canvas.width=Math.max(1,Math.round(image.width*scale));
+   canvas.height=Math.max(1,Math.round(image.height*scale));
+   const ctx=canvas.getContext("2d");
+   if(!ctx)throw Error("پردازش تصویر در این مرورگر پشتیبانی نمی‌شود.");
+   ctx.drawImage(image,0,0,canvas.width,canvas.height);
+   normalized=await new Promise<Blob>((resolve,reject)=>{
+    canvas.toBlob(blob=>blob?resolve(blob):reject(Error("پردازش عکس ناموفق بود.")),"image/jpeg",.83);
+   });
+  }finally{image.close();}
+  if(normalized.size<68||normalized.size>716800)
+   throw Error("حجم عکس پس از آماده‌سازی باید حداکثر ۷۰۰ کیلوبایت باشد.");
+  const bytes=new Uint8Array(await normalized.arrayBuffer());
   let bin="";
   for(let i=0;i<bytes.length;i+=8192)bin+=String.fromCharCode(...bytes.subarray(i,i+8192));
-  const dataBase64=btoa(bin);
   const r=await fetch("/api/commerce/nav02/photo",{
    method:"POST",credentials:"same-origin",cache:"no-store",
    headers:{"Content-Type":"application/json"},
-   body:JSON.stringify({slug,draftId:id,mime:file.type,dataBase64})
+   body:JSON.stringify({slug,draftId:id,mime:"image/jpeg",dataBase64:btoa(bin)})
   });
-  if(!r.ok)throw Error(r.status===409?"برای این پرونده قبلاً عکس قرنطینه شده است.":
-   r.status===403?"مجوز آپلود در این تعاونی ندارید.":
-   "سرویس قرنطینه امن عکس آماده نیست. پرونده سهامدار ذخیره شده است.");
+  if(!r.ok)throw Error(r.status===403?"مجوز جایگزینی عکس در این تعاونی را ندارید.":
+   r.status===409?"پرونده عکس هم‌زمان تغییر کرده است؛ دوباره تلاش کنید.":
+   "ذخیره عکس خصوصی موفق نبود؛ اطلاعات پرونده قبلاً ذخیره شده‌اند.");
   const result=await r.json() as {saved?:boolean;status?:string;visible?:boolean};
-  if(result.saved!==true||result.status!=="QUARANTINED"||result.visible!==false)
-   throw Error("پاسخ قرنطینه عکس معتبر نبود.");
+  if(result.saved!==true||result.status!=="READY_PRIVATE"||result.visible!==true)
+   throw Error("سرور آماده‌بودن تصویر خصوصی را تأیید نکرد.");
  }
  async function submit(e:FormEvent<HTMLFormElement>){
   e.preventDefault();if(busy)return;setError(false);setNotice("");
@@ -166,7 +187,6 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    if(!personalDataConfirmed){setError(true);setNotice("تأیید صحت اطلاعات و مجوز ثبت آن لازم است.");return}
    if(photoRetryId){setError(true);setNotice("آپلود عکس پرونده قبلی را تکمیل یا لغو کنید.");return}
    if(editId&&editVersion===null){setError(true);setNotice("تا دریافت امن پرونده، ویرایش امکان ثبت ندارد.");return}
-   if(editId&&photo){setError(true);setNotice("تغییر عکس پرونده به ثبت نسخه جدید و اسکن امن عکس نیاز دارد؛ عکس انتخابی را از پنل کناری حذف کنید.");return;}
    if(attachment){setError(true);setNotice("ضمیمه انتخاب شده اما سرویس قرنطینه مدارک هنوز متصل نیست؛ برای جلوگیری از ثبت ناقص، فایل را حذف کنید یا منتظر فعال‌سازی امن ضمائم بمانید.");return}
    if(profile.personType==="NATURAL"&&!/^09[0-9]{9}$/.test(profile.mobile)){
     setError(true);setNotice("شماره همراه معتبر نیست؛ شماره ۱۱ رقمی متعلق به صاحب کد ملی را وارد کنید.");return;
@@ -226,10 +246,16 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    const d=await r.json() as {saved?:boolean;record?:{id?:unknown}};
    if(d.saved!==true)throw Error("ثبت توسط سرور تأیید نشد.");
    if(editId){
-    await refresh();
     const ver=(d.record as {version?:unknown}|undefined)?.version;
     if(typeof ver==="number"&&Number.isSafeInteger(ver))setEditVersion(ver);
-    setError(false);setNotice("ویرایش پرونده عضو با ثبت تاریخچه و کنترل نسخه ذخیره شد.");
+    if(photo){
+     setPhotoRetryId(editId);
+     try{await savePhoto(photo,editId);setPhoto(null);setPhotoRetryId("");}
+     catch(err){await refresh();throw Error("اطلاعات ویرایش شد؛ "+
+      (err instanceof Error?err.message:"ذخیره عکس انجام نشد."));}
+    }
+    await refresh();
+    setError(false);setNotice("تمام اطلاعات و تصویر انتخابی (در صورت وجود) ذخیره شدند؛ تغییر هویت برای احراز مجدد علامت‌گذاری می‌شود.");
     return;
    }
    // The profile commit is separate. Never retry the profile on a photo error.
@@ -238,16 +264,16 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
     if(typeof id!=="string"){setError(true);setNotice("پرونده ثبت شد ولی شناسه عکس معتبر نیست.");return}
     setPhotoRetryId(id);
     try{
-     await quarantinePhoto(photo,id);
+     await savePhoto(photo,id);
      setPhotoRetryId("");setPhoto(null);setPersonalDataConfirmed(false);
      setProfile(initialProfile);
      await refresh();
      setError(false);
-     setNotice("درخواست عضویت ذخیره شد؛ عکس در قرنطینه خصوصی قرار گرفت و نمایش آن در فهرست منوط به اسکن است.");
+     setNotice("پرونده و عکس به‌صورت خصوصی ثبت شد؛ عکس در فهرست و سوابق قابل مشاهده است.");
     }catch(err){
      await refresh();
      setError(true);
-     setNotice(err instanceof Error?err.message:"پرونده ذخیره شد ولی تصویر هنوز قرنطینه نشده است؛ دوباره تلاش کنید.");
+     setNotice(err instanceof Error?err.message:"پرونده ذخیره شد ولی عکس هنوز بارگذاری نشده است؛ دوباره تلاش کنید.");
     }
     return;
    }
@@ -295,11 +321,11 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        <Link href={"/c/"+encodeURIComponent(slug)+"/settings/member-number"}>تنظیم قالب شماره عضویت</Link>
       </div>
       <div className="tto-nav02-name-row">
-       <Field title="نوع شخصیت *"><select value={profile.personType} disabled={Boolean(editId)} onChange={e=>{
+       <Field title="نوع شخصیت *"><select value={profile.personType} onChange={e=>{
         const legal=e.target.value==="LEGAL";
-        setProfile({...initialProfile,personType:legal?"LEGAL":"NATURAL",
+        setProfile(old=>({...old,personType:legal?"LEGAL":"NATURAL",
          title:legal?"شرکت":"آقا",group:legal?"سهامدار غیرعضو":"متقاضی عضویت",
-         membershipStatus:legal?"NON_MEMBER_REPORTED":"APPLICANT_UNVERIFIED"});
+         nationalId:"",membershipStatus:legal?"NON_MEMBER_REPORTED":"APPLICANT_UNVERIFIED"}));
        }}><option value="NATURAL">حقیقی</option><option value="LEGAL">حقوقی</option></select></Field>
        {profile.personType==="NATURAL"?<Field title="عنوان *"><select value={profile.title} onChange={e=>change("title",e.target.value)}>
         {TITLES.map(t=><option key={t}>{t}</option>)}</select></Field>:null}
@@ -309,7 +335,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
       </div>
       <div className="tto-nav02-name-row">
        <Field title="وضعیت عضویت *"><select value={profile.membershipStatus}
-         disabled={profile.personType==="LEGAL"} onChange={e=>change("membershipStatus",e.target.value)}>
+         onChange={e=>change("membershipStatus",e.target.value)}>
         {MEMBER_STATES.filter(([key])=>profile.personType!=="LEGAL"||key==="NON_MEMBER_REPORTED")
           .map(([key,label])=><option key={key} value={key}>{label}</option>)}
        </select></Field>
@@ -320,7 +346,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
       </div>
       {profile.personType==="LEGAL"?<>
        <Field title="شناسه ملی شخصیت حقوقی *"><input required dir="ltr" inputMode="numeric" minLength={11} maxLength={11}
-        readOnly={Boolean(editId)} value={profile.nationalId} onChange={e=>change("nationalId",e.target.value)}/></Field>
+        value={profile.nationalId} onChange={e=>change("nationalId",e.target.value)}/></Field>
        <Field title="شماره ثبت *"><input required maxLength={30} inputMode="numeric"
         value={profile.registrationNumber} onChange={e=>change("registrationNumber",e.target.value)}/></Field>
        <Field title="شماره اقتصادی *"><input required maxLength={14} inputMode="numeric"
@@ -352,7 +378,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
         key==="group"?<select value={profile.group} onChange={e=>change("group",e.target.value)}>
          {["متقاضی عضویت","عضو مؤسس","عضو جدید","عضو سابق"].map(g=><option key={g} value={g}>{g}</option>)}
         </select>:
-        <input value={profile[key]} maxLength={max} required={required} readOnly={Boolean(editId)&&key==="nationalId"}
+        <input value={profile[key]} maxLength={max} required={required}
          aria-invalid={key==="nationalId"?Boolean(nationalIdError):key==="mobile"?Boolean(mobileError):undefined}
          inputMode={key==="nationalId"||key==="postalCode"||key==="mobile"||key==="telephone"?"numeric":"text"}
          dir={key==="nationalId"?"ltr":undefined}
@@ -388,12 +414,12 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        پرونده سهامدار قبلاً ذخیره شده است؛ برای آن دوباره فرم را ثبت نکنید.
        <button type="button" disabled={busy||!photo} onClick={async()=>{
         if(!photo||busy)return;setBusy(true);
-        try{await quarantinePhoto(photo,photoRetryId);setPhotoRetryId("");setPhoto(null);
+        try{await savePhoto(photo,photoRetryId);setPhotoRetryId("");setPhoto(null);
          setProfile(initialProfile);setPersonalDataConfirmed(false);setError(false);
-         setNotice("عکس فقط در قرنطینه خصوصی رمزنگاری‌شده ثبت شد؛ انتشار و دانلود ممنوع است.");
+         setNotice("عکس خصوصی ثبت شد و در فهرست و پرونده قابل مشاهده است.");
         }catch(e){setError(true);setNotice(e instanceof Error?e.message:"آپلود ناموفق بود.")}
         finally{setBusy(false)}
-       }}>تلاش مجدد آپلود خصوصی</button>
+       }}>تلاش مجدد ذخیره عکس</button>
        <button type="button" onClick={()=>{setPhotoRetryId("");setPhoto(null);
         setProfile(initialProfile);setPersonalDataConfirmed(false)}}>انصراف از ارسال عکس</button>
       </div>:null}
@@ -430,7 +456,10 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
     </form>
     {notice?<div role={error?"alert":"status"} className={"tto-nav02-message"+(error?" error":"")}>{notice}</div>:null}
    </section>
-   {section==="add"?<MemberSidebar slug={slug} photo={photo} photoUrl={photoUrl}
+   {section==="add"?<MemberSidebar slug={slug} photo={photo} photoUrl={photoUrl||(
+    editId&&items.find(x=>x.id===editId&&((x as RecordItem & {photoState?:string}).photoState==="READY_PRIVATE"))?
+    "/api/commerce/nav02/photo/view?slug="+encodeURIComponent(slug)+"&draftId="+encodeURIComponent(editId):""
+   )}
     onPhoto={setPhoto} collection={profile.collectionName}
     onCollection={v=>change("collectionName",v)}
     collections={items.map(x=>(x as RecordItem & {collectionName?:string}).collectionName??"").filter(Boolean)}
