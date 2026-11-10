@@ -8,7 +8,7 @@ export type MemberRow={
  identityVerification?:string;managementState?:string;state:string;version?:number;
  photoState?:string;capitalState?:string;
 };
-type View="list"|"archive"|"collections";
+type View="list"|"archive"|"collections"|"member-number";
 const membershipText=(v?:string|null)=>({APPLICANT_UNVERIFIED:"متقاضی",ACTIVE_REPORTED:"عضو فعال (اظهاری)",FORMER_REPORTED:"عضو سابق (اظهاری)",NON_MEMBER_REPORTED:"غیرعضو"} as Record<string,string>)[v??""]??"نامشخص";
 const sharesText=(v?:string|null)=>({NONE_UNVERIFIED:"فاقد سهام",HOLDER_REPORTED:"سهامدار (اظهاری)",TRANSFER_PENDING_REPORTED:"انتقال در جریان (اظهاری)"} as Record<string,string>)[v??""]??"نامشخص";
 const actions=[
@@ -111,7 +111,7 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
  }
  return <div className="tto-nav02-page">
   <header className="tto-nav02-hero"><span className="tto-settings-eyebrow">NAV-02 · مدیریت اعضا</span>
-   <h1>{view==="list"?"لیست اعضا":view==="archive"?"بایگانی اعضا":"مجموعه‌های اعضا"}</h1>
+   <h1>{view==="list"?"لیست اعضا":view==="archive"?"بایگانی اعضا":view==="member-number"?"تنظیم ساختار شماره عضویت":"مجموعه‌های اعضا"}</h1>
    <p>اطلاعات عضویت و مجموعه‌ها جدا از حقوق سهامداری و دفتر رسمی سهام نمایش داده می‌شوند.</p>
   </header>
   <nav className="tto-nav02-switch" aria-label="بخش‌های مدیریت اعضا">
@@ -121,7 +121,7 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
    <Link href={base+"collections"} aria-current={view==="collections"?"page":undefined}>▥ مجموعه‌ها</Link>
    <Link href={base+"archive"} aria-current={view==="archive"?"page":undefined}>▣ بایگانی</Link>
   </nav>
-  {view==="collections"?<div className="tto-nav02-card">
+  {view==="member-number"?null:view==="collections"?<div className="tto-nav02-card">
    <h2>مجموعه‌ها و افراد وابسته</h2>
    <p>برای مشاهده افراد هر مجموعه، آن را انتخاب کنید. فقط مجموعه‌های دارای عضو ثبت‌شده در اطلاعات مجاز نمایش داده می‌شوند.</p>
    <form className="tto-member-catalog-create" onSubmit={async e=>{
@@ -223,10 +223,10 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
       </div>
     </div>:null}
   </div>}
-  {view==="list"?<section className="tto-nav02-card tto-member-number-policy">
+  {view==="member-number"?<section className="tto-nav02-card tto-member-number-policy">
    <h2>تنظیم ساختار شماره عضویت</h2>
    <p>شماره باید به‌صورت تراکنشی توسط سرور صادر شود؛ پیشوند و پسوند بخش ثابت شماره صادرشده هستند.
-    تغییر تنظیمات نباید شماره‌های قبلی را تغییر دهد یا دوباره تخصیص دهد.</p>
+    تغییر ساختار شماره پس از صدور حتی یک شماره، نیازمند تأیید صریح و نگهداری سابقه تمام شماره‌های قبلی است. شماره‌های سابق در دفتر تاریخی حذف فیزیکی نمی‌شوند.</p>
    <div className="tto-member-policy-fields">
     <label>شروع شماره عضویت<input type="text" inputMode="numeric" value={memberNumberStart}
      onChange={e=>setMemberNumberStart(e.target.value)} placeholder="۱"/></label>
@@ -265,7 +265,7 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
     }}>ذخیره تنظیمات شماره عضویت</button>
    </div>
    {policyMessage?<p role="status">{policyMessage}</p>:null}
-   <small>شماره‌های قبلی دائمی هستند و پس از حذف عضو نیز در رجیستری محفوظ می‌مانند. رزرو شماره توسط مرورگر انجام نمی‌شود.</small>
+   <small>شماره‌های صادرشده از نظر ممیزی قابل حذف نیستند. جایگزینی شماره نمایشی قدیمی با نسخه جدید فقط از طریق فرایند تراکنشی و ثبت تاریخچه مجاز است.</small>
   </section>:null}
  </div>;
 }
