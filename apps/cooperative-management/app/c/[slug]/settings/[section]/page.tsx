@@ -20,7 +20,7 @@ export default async function CooperativeSettingsSubpage({params}:
  return <CooperativeEntryGate slug={slug} moduleId="NAV-11" settingsSection={tab==="officers"?"users":tab}
   ownerSettings={content}
   manager={<PortalSessionGate surface="cooperative" workspaceSlug={slug}>
-    <PortalShell surface="cooperative" activeId="NAV-11" settingsSection={tab}
+    <PortalShell surface="cooperative" activeId="NAV-11" settingsSection={tab==="officers"?"users":tab}
      basePath={"/c/"+slug} NavigationLink={CooperativeNavLink}>
      <section className="tto-settings-page">
       <div className="tto-settings-card" role="status">
