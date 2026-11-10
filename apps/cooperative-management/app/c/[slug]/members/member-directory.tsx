@@ -70,7 +70,7 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
   const o=new Map<string,MemberRow[]>();
   for(const name of catalog)if(name)o.set(name,[]);
   for(const x of rows){const name=x.collectionName?.trim();if(!name)continue;
-   o.set(name,[...(o.get(name)??[]),x]);}
+   if(o.has(name))o.set(name,[...(o.get(name)??[]),x]);}
   return [...o].sort(([a],[b])=>a.localeCompare(b,"fa"));
  },[rows,catalog]);
  useEffect(()=>{
@@ -256,7 +256,7 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
        {actions.map(a=>{
         if(view==="archive"&&a.key!=="restore"&&a.key!=="audit"&&a.key!=="edit"&&a.key!=="identity")return null;
         if(view!=="archive"&&a.key==="restore")return null;
-        if(a.key==="termination"&&(row.membershipStatus==="NON_MEMBER_REPORTED"||row.membershipStatus==="FORMER_REPORTED"))return null;
+        if(a.key==="termination"&&row.membershipStatus!=="ACTIVE_REPORTED")return null;
         if(a.key==="suspend"&&row.managementState==="SUSPENDED_DRAFT")return null;
         if(a.key==="resume"&&row.managementState!=="SUSPENDED_DRAFT")return null;
         return <button type="button" key={a.key} disabled={busy} title={a.label}
