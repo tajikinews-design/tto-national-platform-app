@@ -68,6 +68,11 @@ class ThreePortalBoundary(unittest.TestCase):
                     self.assertIn('fetch("/api/auth/password/session"',gate)
                     self.assertIn('managerSession.workspaceSlug===slug',gate)
                     self.assertIn('fetch("/api/commerce/password-login"',gate)
+                    self.assertIn('accountKind==="manager"',gate)
+                    self.assertIn('"/api/auth/password/login":"/api/commerce/password-login"',gate)
+                    self.assertIn('d?.authenticated===true&&d.workspaceSlug===slug&&d.surface==="cooperative"',gate)
+                    self.assertIn('d?.authenticated===true&&d.slug===slug&&d.commercialOnly===true',gate)
+                    self.assertIn('accountKind==="subscriber"&&mode==="otp"',gate)
                     self.assertIn('verifiedWorkspaceBySlug.delete(slug)',gate)
                     self.assertIn('demoOnly allowedModules={workspace.permissions}',gate)
                 else:
