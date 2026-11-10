@@ -5,7 +5,7 @@ BEGIN;
 CREATE TABLE tto.nav02_member_attachment_drafts(
  attachment_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  order_id uuid NOT NULL REFERENCES tto.commerce_demo_workspace_owners(order_id),
- draft_id uuid NOT NULL REFERENCES tto.commerce_demo_shareholder_drafts(draft_id),
+ draft_id uuid NOT NULL REFERENCES tto.commerce_demo_shareholder_drafts(draft_id) ON DELETE CASCADE,
  subject text NOT NULL CHECK(length(btrim(subject)) BETWEEN 3 AND 160),
  mime text NOT NULL CHECK(mime IN('application/pdf','image/jpeg','image/png')),
  original_filename text NOT NULL CHECK(length(original_filename) BETWEEN 1 AND 180),
