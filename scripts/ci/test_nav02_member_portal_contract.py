@@ -39,7 +39,10 @@ class MemberPortalContracts(unittest.TestCase):
    self.assertIn(marker,side)
   for marker in ("لیست اعضا","بایگانی","شماره عضویت","حذف دائم","تعلیق"):
    self.assertIn(marker,directory)
-  self.assertIn("نام و نام خانوادگی",directory)
+  self.assertIn("نام / عنوان",directory)
+  self.assertIn("نوع شخصیت",directory)
+  self.assertIn("وضعیت سهام",directory)
+  self.assertIn("احراز هویت",directory)
   self.assertIn("نام کاربری",shell) if False else None
   self.assertIn("پرونده عضویت",case) if False else None
   self.assertIn("افراد عضو",case)
