@@ -49,3 +49,65 @@
 @media(max-width:650px){.tto-nav02-form{grid-template-columns:1fr}
 .tto-nav02-card{padding:16px}.tto-nav02-hero{padding:20px}
 .tto-nav02-switch a{flex:1;text-align:center}}
+
+/* NAV-02 shareholder directory: compact, keyboard-operable and mobile scrollable. */
+.tto-nav02-directory{display:grid;gap:13px;padding:18px}
+.tto-nav02-directory-tools{display:flex;flex-wrap:wrap;align-items:end;gap:10px}
+.tto-nav02-directory-tools label{display:grid;gap:5px;min-width:175px;flex:1;font-size:11px;color:#46657d;font-weight:700}
+.tto-nav02-directory-tools :is(input,select){height:36px;border-radius:8px;border:1px solid #ccdce6;background:#fff;color:#17415c;padding:0 10px;font:inherit;font-size:12px}
+.tto-nav02-directory-tools button,.tto-nav02-directory-footer button{border:1px solid #bfdde5;background:#f1f9fa;border-radius:8px;padding:8px 11px;color:#15637a;cursor:pointer;font-size:11px}
+.tto-nav02-directory-tools button:disabled,.tto-nav02-directory-footer button:disabled{opacity:.45;cursor:not-allowed}
+.tto-nav02-directory-count{font-size:10px;color:#6c8191;align-self:center;white-space:normal}
+.tto-nav02-table-scroll{max-width:100%;overflow-x:auto;border:1px solid #dce8ef;border-radius:12px}
+.tto-nav02-table{width:100%;min-width:1120px;border-collapse:collapse;font-size:11px;white-space:nowrap;text-align:right;color:#234b69}
+.tto-nav02-table th{background:#eef6fa;color:#25516e;font-weight:850;padding:12px 9px;text-align:right;border-bottom:1px solid #d5e5ef}
+.tto-nav02-table td{padding:10px 9px;border-bottom:1px solid #e5edf2;vertical-align:middle}
+.tto-nav02-table tbody tr:nth-child(even){background:#f9fcfd}
+.tto-nav02-table tbody tr:hover{background:#ecf8f7}
+.tto-nav02-table tbody tr:last-child td{border-bottom:0}
+.tto-nav02-table td strong{font-size:11px;display:block}
+.tto-nav02-row-mask{display:block;color:#71889c;margin-top:3px;font-size:10px}
+.tto-nav02-num{text-align:center;font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.tto-nav02-avatar{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:1px solid #bdd7e5;border-radius:11px;background:#edf5fa;color:#527d95;margin:0 auto}
+.tto-nav02-table td:first-child{text-align:center}
+.tto-nav02-table td:first-child small{display:block;margin-top:4px;font-size:9px;color:#7d8e98}
+.tto-nav02-state{display:inline-block;padding:5px 8px;border-radius:7px;background:#e8f5f2;color:#186c65;font-size:10px}
+.tto-nav02-state.pending{background:#eef2f5;color:#667a8d}
+.tto-nav02-state.suspended{background:#fff1e5;color:#a46523}
+.tto-nav02-action-group{display:flex;gap:3px;align-items:center}
+.tto-nav02-icon-btn{width:30px;height:31px;border:1px solid #d8e8ef;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:#fff;color:#236e87;cursor:pointer;text-decoration:none}
+.tto-nav02-icon-btn:hover{background:#e4f4f4;border-color:#8dc9d0}
+.tto-nav02-icon-btn:focus-visible{outline:3px solid #8abbea;outline-offset:1px}
+.tto-nav02-icon-btn:disabled{opacity:.35;cursor:not-allowed}
+.tto-nav02-icon-btn.danger{color:#a64b58}
+.tto-nav02-icon-btn.danger:hover{background:#fff0f1;border-color:#ecb3bd}
+.tto-nav02-directory-footer{display:flex;justify-content:space-between;flex-wrap:wrap;align-items:center;gap:12px;font-size:11px;color:#53718a}
+.tto-nav02-directory-footer p{max-width:760px;margin:0;font-size:10px;line-height:1.9}
+.tto-nav02-directory-footer>div{display:flex;gap:9px;align-items:center}
+.tto-nav02-modal-cover{position:fixed;inset:0;background:#081e3499;z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px}
+.tto-nav02-modal{background:white;color:#204866;border-radius:17px;padding:19px;max-width:490px;max-height:90vh;overflow:auto;width:100%;box-shadow:0 22px 90px #00172c55}
+.tto-nav02-modal:focus-visible{outline:3px solid #68abd4}
+.tto-nav02-modal-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tto-nav02-modal-heading h2{margin:0;font-size:17px}
+.tto-nav02-modal-heading button{background:#edf5f8;border:0;border-radius:7px;width:33px;height:33px;color:#356782;font-size:20px;cursor:pointer}
+.tto-nav02-modal-target{font-size:12px;color:#657e90;padding:7px 0 14px;margin:0;border-bottom:1px solid #e7eef2}
+.tto-nav02-modal-form{display:grid;gap:12px;padding-top:13px}
+.tto-nav02-modal-form label{font-size:12px;font-weight:700;display:grid;gap:6px}
+.tto-nav02-modal-form :is(input,select){width:100%;height:39px;border:1px solid #c6dce7;border-radius:9px;background:#fafcfd;color:#234c69;padding:0 11px;font:inherit}
+.tto-nav02-modal-form small{font-size:10px;color:#748696;line-height:1.8}
+.tto-nav02-modal-buttons{display:flex;justify-content:flex-end;gap:9px;margin-top:14px}
+.tto-nav02-modal-buttons button{border:1px solid #d0e0e9;border-radius:9px;background:#eff6f9;color:#315e79;font-weight:800;padding:10px 15px;cursor:pointer}
+.tto-nav02-modal-buttons button[type=submit]{background:#096a83;color:#fff}
+.tto-nav02-modal-buttons button.danger{background:#a33544;color:#fff;border-color:#a33544}
+.tto-nav02-modal-buttons button:disabled{opacity:.48;cursor:not-allowed}
+.tto-nav02-danger-zone{padding:12px;border:1px solid #edc6c9;border-radius:10px;background:#fff8f8}
+.tto-nav02-danger-zone>strong{color:#a33544;font-size:13px}
+.tto-nav02-danger-zone p{font-size:11px;color:#90414c;line-height:2}
+.tto-nav02-modal-form .tto-nav02-delete-check{display:flex;align-items:center;font-size:11px;gap:8px}
+.tto-nav02-delete-check input{width:18px;height:18px;flex:none}
+.tto-nav02-details{padding:10px 0;font-size:12px}
+.tto-nav02-details p{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #e6eef1;padding:8px 0;margin:0}
+.tto-nav02-audit ul{list-style:none;padding:0;display:grid;gap:7px}
+.tto-nav02-audit li{display:flex;justify-content:space-between;gap:10px;font-size:11px;padding:9px;background:#f3f8fb;border-radius:8px}
+.tto-nav02-audit li span{color:#6e8396}
+@media(max-width:650px){.tto-nav02-directory{padding:10px}.tto-nav02-directory-tools label{min-width:145px}.tto-nav02-modal{padding:14px}}
