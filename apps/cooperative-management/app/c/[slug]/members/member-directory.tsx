@@ -34,6 +34,7 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
  const [numberPreview,setNumberPreview]=useState("");
  const [policyMessage,setPolicyMessage]=useState("");
  const [issuedCount,setIssuedCount]=useState(0);
+ const [numberPolicyReady,setNumberPolicyReady]=useState(false);
  const [reissueConfirm,setReissueConfirm]=useState(false);
  const [reissueAcknowledged,setReissueAcknowledged]=useState(false);
  const [collectionToArchive,setCollectionToArchive]=useState("");
@@ -84,16 +85,21 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
    {credentials:"same-origin",cache:"no-store"})
    .then(async r=>r.ok?r.json() as Promise<{policy?:{nextSerial:string;prefix:string;suffix:string;issuedCount?:number}}>:null)
    .then(d=>{
-    if(!live||!d?.policy)return;
+    if(!live)return;
+    if(!d?.policy||!Number.isSafeInteger(d.policy.issuedCount))
+      throw Error("دفتر شماره عضویت و شمار شماره‌های صادرشده در سرور هنوز آماده نیست.");
     setMemberNumberStart(d.policy.nextSerial);
     setNumberPrefix(d.policy.prefix);setNumberSuffix(d.policy.suffix);
-    setIssuedCount(Number(d.policy.issuedCount??0));
-   }).catch(()=>{});
+    setIssuedCount(Number(d.policy.issuedCount));
+    setNumberPolicyReady(true);
+   }).catch(()=>{if(live){setNumberPolicyReady(false);
+    setPolicyMessage("تغییر شماره عضویت تا آماده‌شدن دفتر معتبر شماره‌ها غیرفعال است.");}});
   return()=>{live=false};
  },[slug]);
  const [selectedGroup,setSelectedGroup]=useState("");
  const chosen=groups.find(([name])=>name===selectedGroup);
  async function savePolicy(confirmed:boolean){
+  if(!numberPolicyReady){setPolicyMessage("دریافت شمار شماره‌های ثبت‌شده تأیید نشده است؛ هیچ تغییری مجاز نیست.");return;}
   if(!/^[1-9][0-9]{0,11}$/.test(memberNumberStart)||
      !/^[A-Z0-9-]{0,12}$/.test(numberPrefix)||!/^[A-Z0-9-]{0,12}$/.test(numberSuffix)){
     setPolicyMessage("ساختار شماره نامعتبر است.");return;
@@ -304,9 +310,10 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
    </div>
    {numberPreview?<p role="status">پیش‌نمایش قالب (ذخیره نشده): <b dir="ltr">{numberPreview}</b></p>:null}
    <div className="tto-member-policy-actions">
-    <button type="button" disabled={busy} onClick={()=>void savePolicy(false)}>ذخیره تنظیمات شماره عضویت</button>
+    <button type="button" disabled={busy||!numberPolicyReady} onClick={()=>void savePolicy(false)}>ذخیره تنظیمات شماره عضویت</button>
    </div>
    {policyMessage?<p role="status">{policyMessage}</p>:null}
+   {!numberPolicyReady?<p role="alert">دفتر شماره عضویت هنوز آماده نیست؛ تنظیمات و بازشماره‌گذاری غیرفعال هستند.</p>:null}
    {issuedCount>0?<p role="status">تاکنون {issuedCount.toLocaleString("fa-IR")} شماره عضویت فعال صادر شده است. هر تغییر ساختار، همه شماره‌های جاری را یکجا جایگزین می‌کند و نیازمند تأیید مجدد است.</p>:null}
    {reissueConfirm?<div className="tto-member-confirm-mask" role="dialog" aria-modal="true" aria-label="هشدار بازشماره‌گذاری">
     <div className="tto-member-confirm"><h3>هشدار تغییر شماره تمام اعضا</h3>
