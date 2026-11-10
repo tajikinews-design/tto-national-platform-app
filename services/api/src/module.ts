@@ -508,8 +508,8 @@ export class FoundationCommandsController {
        typeof f.fullName!=="string"||f.fullName.trim().length<3||
        f.informationConfirmed!=="yes"||JSON.stringify(f).length>4500||
        (isLegal? (f.title!=="شرکت"||f.membershipStatus!=="NON_MEMBER_REPORTED"||
-         !/^\\d{11}$/.test(String(f.nationalId))||!/^\\d{1,30}$/.test(String(f.registrationNumber))||
-         !/^\\d{12,14}$/.test(String(f.economicCode))||
+         !/^\d{11}$/.test(String(f.nationalId))||!/^\d{1,30}$/.test(String(f.registrationNumber))||
+         !/^\d{12,14}$/.test(String(f.economicCode))||
          typeof f.representativeName!=="string"||f.representativeName.trim().length<3||
          !this.validNationalCode(String(f.representativeNationalId))||
          !/^09[0-9]{9}$/.test(String(f.representativeMobile))) :
@@ -814,7 +814,7 @@ export class FoundationCommandsController {
          (fields.birthDate!==undefined&&fields.birthDate!==""&&
          !(action==="memberProfile"||action==="legalProfile"?
           this.validJalaliBirthDate(String(fields.birthDate)):
-          /^\\d{4}-\\d{2}-\\d{2}$/.test(String(fields.birthDate)))))
+          /^\d{4}-\d{2}-\d{2}$/.test(String(fields.birthDate)))))
        throw new BadRequestException("INVALID_PROFILE_FIELDS");
       // Reported statuses describe administrative intake only. Legal admission,
       // share ownership and voting always require independent CHILD06/CHILD07 evidence.
@@ -842,9 +842,9 @@ export class FoundationCommandsController {
       if(action==="legalProfile"){
         if(fields.personType!=="LEGAL"||fields.title!=="شرکت"||
            fields.membershipStatus!=="NON_MEMBER_REPORTED"||!shareOk||
-           !/^\\d{11}$/.test(String(fields.nationalId))||
-           !/^\\d{1,30}$/.test(String(fields.registrationNumber))||
-           !/^\\d{12,14}$/.test(String(fields.economicCode))||
+           !/^\d{11}$/.test(String(fields.nationalId))||
+           !/^\d{1,30}$/.test(String(fields.registrationNumber))||
+           !/^\d{12,14}$/.test(String(fields.economicCode))||
            typeof fields.representativeName!=="string"||fields.representativeName.trim().length<3||
            !this.validNationalCode(String(fields.representativeNationalId))||
            !/^09[0-9]{9}$/.test(String(fields.representativeMobile)))
@@ -2195,7 +2195,7 @@ export class FoundationCommandsController {
     const current=input?.currentPassword;
     if(typeof username!=="string"||!/^[A-Za-z0-9._-]{5,64}$/.test(username)||
        typeof password!=="string"||password.length<14||password.length>128||
-       Buffer.byteLength(password)>256||/^\\d+$/.test(password)||
+       Buffer.byteLength(password)>256||/^\d+$/.test(password)||
        typeof current!=="string"||current.length<1||current.length>128)
       throw new BadRequestException("WEAK_NEW_CREDENTIALS");
     const actor=await this.db.sessionActor(auth);
