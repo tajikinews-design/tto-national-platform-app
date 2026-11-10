@@ -80,7 +80,18 @@ export async function POST(req:NextRequest){
   if(r.status===409)return fail(409,"DUPLICATE_DRAFT");
   if(r.status===422&&data.action==="memberProfile")return fail(422,"SHAHKAR_MISMATCH");
   if(r.status===400)return fail(400,"INVALID_VALUES");
-  if(!r.ok)return fail(503,"INTAKE_UNAVAILABLE");
+  if(!r.ok){
+   // Only expose non-sensitive operational fault categories; never provider payloads.
+   if(r.status===503){
+    const payload=await r.json().catch(()=>null) as {message?:unknown}|null;
+    const message=typeof payload?.message==="string"?payload.message:"";
+    if(message==="SHAHKAR_NOT_CONFIGURED")return fail(503,"IDENTITY_PROVIDER_NOT_CONFIGURED");
+    if(message==="SHAHKAR_UNAVAILABLE")return fail(503,"IDENTITY_PROVIDER_UNAVAILABLE");
+    if(["PRIVATE_IDENTITY_KEY_UNAVAILABLE","PRIVATE_IDENTITY_KEY_INVALID"].includes(message))
+     return fail(503,"IDENTITY_ENCRYPTION_UNAVAILABLE");
+   }
+   return fail(503,"INTAKE_UNAVAILABLE");
+  }
   const result=await r.json() as {saved?:unknown;record?:unknown};
   if(result.saved!==true)return fail(502,"INVALID_RESULT");
   return NextResponse.json(result,{headers:H});
