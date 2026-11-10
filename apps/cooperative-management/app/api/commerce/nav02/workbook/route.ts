@@ -58,6 +58,8 @@ export async function GET(req:NextRequest){
   // NOT from the deliberately sparse/masked listing. Any failed row aborts
   // the entire export: no partially empty spreadsheet or tenant leakage.
   const owners=obj.items as Array<Record<string,unknown>>;
+  // Narrow nullable GET parameters before a nested asynchronous worker closure.
+  const scopedBase:URL=base,scopedSlug:string=slug,scopedToken:string=token;
   const rows:string[][]=new Array(owners.length);
   let cursor=0;
   async function worker(){
