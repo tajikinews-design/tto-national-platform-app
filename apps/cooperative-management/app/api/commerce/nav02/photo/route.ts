@@ -38,12 +38,13 @@ export async function POST(req:NextRequest){
    body:raw,redirect:"error",cache:"no-store",signal:AbortSignal.timeout(15000)});
   if(result.status===401)return fail(401,"LOGIN_REQUIRED");
   if(result.status===403)return fail(403,"OWNER_REQUIRED");
-  if(result.status===409)return fail(409,"PHOTO_ALREADY_QUARANTINED");
+  if(result.status===409)return fail(409,"PHOTO_DUPLICATE");
   if(result.status===400)return fail(400,"INVALID_PHOTO");
-  if(!result.ok)return fail(503,"PRIVATE_QUARANTINE_UNAVAILABLE");
-  const json=await result.json() as {saved?:unknown;quarantine?:{status?:unknown;canDownload?:unknown}};
-  if(json.saved!==true||json.quarantine?.status!=="QUARANTINED"||json.quarantine.canDownload!==false)
-   return fail(502,"INVALID_QUARANTINE_RESULT");
-  return NextResponse.json({saved:true,status:"QUARANTINED",visible:false,scanned:false},{headers:H});
- }catch{return fail(503,"PRIVATE_QUARANTINE_UNAVAILABLE")}
+  if(!result.ok)return fail(503,"PRIVATE_PHOTO_SAVE_UNAVAILABLE");
+  const json=await result.json() as {saved?:unknown;photo?:{saved?:unknown;display?:unknown;replaceable?:unknown}};
+  if(json.saved!==true||json.photo?.saved!==true||
+   json.photo?.display!=="OWNER_PRIVATE"||json.photo?.replaceable!==true)
+   return fail(502,"INVALID_PHOTO_SAVE_RESULT");
+  return NextResponse.json({saved:true,status:"READY_PRIVATE",visible:true},{headers:H});
+ }catch{return fail(503,"PRIVATE_PHOTO_SAVE_UNAVAILABLE")}
 }
