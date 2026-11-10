@@ -55,6 +55,12 @@ class MemberFormLegal(unittest.TestCase):
   self.assertIn("archiveCollection",directory)
   self.assertIn("FULL_SHARE_TRANSFER",case)
   self.assertIn("فقط به‌عنوان غیرعضو",read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx"))
+ def test_backend_readiness_is_exact_api_preview_only(self):
+  route=read("apps/cooperative-management/app/api/internal/backend-ready/route.ts")
+  self.assertIn('trustedPreviewApis=new Set',route)
+  self.assertIn('"https://tto-api-preview-454wmjead-tajikinews-6739.vercel.app"',route)
+  self.assertIn('trustedPreviewApis.has(base)',route)
+  self.assertNotIn('includes("vercel.app")',route)
  def test_checksum_both_sides_and_clear_errors(self):
   form=read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
   api=read("services/api/src/module.ts")
