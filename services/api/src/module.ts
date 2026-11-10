@@ -625,15 +625,16 @@ export class FoundationCommandsController {
       }).map(x=>[x.draftId,x.membershipNumber]));
       // Photo release must remain disabled until the independent scanner,
       // SQL migration and disclosure review have been approved for this environment.
-      let photoReady:unknown=[];
+      let photoReady:unknown[]=[];
       if(process.env.TTO_NAV02_PRIVATE_PHOTO_RELEASE_ENABLED==="true"){
-        photoReady=await this.db.withActor(actor,async c=>{
+        const result=await this.db.withActor(actor,async c=>{
           const r=await c.query<{ids:unknown}>(
             "SELECT tto.nav02_photo_ready_for_owner($1) AS ids",[slug]);
           return r.rows[0]?.ids;
         });
-        if(!Array.isArray(photoReady))
+        if(!Array.isArray(result))
           throw new ServiceUnavailableException("PRIVATE_PHOTO_STATUS_UNAVAILABLE");
+        photoReady=result;
       }
       const safePhotos=new Set(photoReady.filter((x:unknown):x is string=>typeof x==="string"));
       return {items:items.map(x=>({...x,membershipNumber:lookup.get(String(x.id))??null,
