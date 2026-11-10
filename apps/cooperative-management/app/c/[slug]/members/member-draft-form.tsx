@@ -376,7 +376,8 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        {key==="address"?<textarea value={profile.address} rows={3} maxLength={600}
         onChange={e=>change("address",e.target.value)}/>:
         key==="group"?<select value={profile.group} onChange={e=>change("group",e.target.value)}>
-         {["متقاضی عضویت","عضو مؤسس","عضو جدید","عضو سابق"].map(g=><option key={g} value={g}>{g}</option>)}
+         {[...new Set(["متقاضی عضویت","عضو مؤسس","عضو جدید","عضو سابق",profile.group])].map(g=>
+          <option key={g} value={g}>{g}</option>)}
         </select>:
         <input value={profile[key]} maxLength={max} required={required}
          aria-invalid={key==="nationalId"?Boolean(nationalIdError):key==="mobile"?Boolean(mobileError):undefined}
@@ -414,14 +415,21 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        پرونده سهامدار قبلاً ذخیره شده است؛ برای آن دوباره فرم را ثبت نکنید.
        <button type="button" disabled={busy||!photo} onClick={async()=>{
         if(!photo||busy)return;setBusy(true);
-        try{await savePhoto(photo,photoRetryId);setPhotoRetryId("");setPhoto(null);
-         setProfile(initialProfile);setPersonalDataConfirmed(false);setError(false);
-         setNotice("عکس خصوصی ثبت شد و در فهرست و پرونده قابل مشاهده است.");
+        try{
+         await savePhoto(photo,photoRetryId);
+         setPhotoRetryId("");setPhoto(null);
+         if(!editId){setProfile(initialProfile);setPersonalDataConfirmed(false);}
+         await refresh();
+         setError(false);
+         setNotice(editId?"تصویر جدید ذخیره شد؛ سایر اطلاعات ویرایش‌شده پرونده حفظ شدند.":
+          "عکس خصوصی ثبت شد و در فهرست و پرونده قابل مشاهده است.");
         }catch(e){setError(true);setNotice(e instanceof Error?e.message:"آپلود ناموفق بود.")}
         finally{setBusy(false)}
        }}>تلاش مجدد ذخیره عکس</button>
-       <button type="button" onClick={()=>{setPhotoRetryId("");setPhoto(null);
-        setProfile(initialProfile);setPersonalDataConfirmed(false)}}>انصراف از ارسال عکس</button>
+       <button type="button" onClick={()=>{
+        setPhotoRetryId("");setPhoto(null);
+        if(!editId){setProfile(initialProfile);setPersonalDataConfirmed(false);}
+       }}>انصراف از ارسال عکس</button>
       </div>:null}
      </>:<>
       <Field title="جست‌وجوی سهامدار"><input value={search}
