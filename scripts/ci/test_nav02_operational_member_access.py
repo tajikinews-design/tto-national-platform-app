@@ -45,6 +45,16 @@ class OperationalMemberAccess(unittest.TestCase):
    'STALE_MEMBER_RECORD','Authorization:"Bearer "+tk'):
    self.assertIn(s,bff)
   self.assertIn('"/api/commerce/nav02/member-profile"',proxy)
+ def test_profile_failure_codes_are_safe_and_distinct(self):
+  bff=src("apps/cooperative-management/app/api/commerce/nav02/member-profile/route.ts")
+  frontend=src("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
+  for name in ("IDENTITY_PROVIDER_NOT_CONFIGURED","IDENTITY_PROVIDER_UNAVAILABLE",
+               "IDENTITY_ENCRYPTION_UNAVAILABLE","MEMBER_PROFILE_UNAVAILABLE","MEMBER_EDIT_UNAVAILABLE"):
+   self.assertIn(name,bff)
+  self.assertIn("operationalError(r",bff)
+  self.assertIn("IDENTITY_ENCRYPTION_UNAVAILABLE",frontend)
+  self.assertIn('"Cache-Control":"private, no-store"',bff)
+  self.assertNotIn("console.log",bff)
  def test_real_operational_management_routes_require_identity_not_mock_env(self):
   api=src("services/api/src/module.ts")
   begin=api.index('@Get("commerce/demo/nav02/manage")')
