@@ -5,7 +5,7 @@ import {useEffect,useMemo,useRef,useState,type FormEvent} from "react";
 type Draft={
  id:string;title:string;name:string;group:string;identifierMask:string;membershipStatus?:string|null;
  state:string;managementState?:"ACTIVE_DRAFT"|"SUSPENDED_DRAFT"|"ARCHIVED_DRAFT";
- version?:number;photoState?:"NONE"|"QUARANTINED";
+ version?:number;photoState?:"NONE"|"QUARANTINED"|"READY_PRIVATE";
  initialShares?:string|null;subscribedShares?:string|null;
  nominalRial?:string|null;declaredPaidRial?:string|null;
  paymentDate?:string|null;capitalState?:string|null;
@@ -105,6 +105,7 @@ export function ShareholdersTable({slug}:{slug:string}){
  const visible=filtered.slice((Math.min(page,totalPages)-1)*10,Math.min(page,totalPages)*10);
  function close(){setMode(null);setSelection(null);setAudit([]);setConfirmation("");setAck(false);}
  async function open(row:Draft,next:Mode){
+  if(next==="profileEdit"){window.location.assign(base+"add?edit="+encodeURIComponent(row.id));return;}
   setSelection(row);setMode(next);setConfirmation("");setAck(false);setAudit([]);
   setProfile({title:row.title,fullName:row.name,group:row.group});
   setCapital({initialShares:row.initialShares??"0",subscribedShares:row.subscribedShares??"0",
@@ -200,10 +201,11 @@ export function ShareholdersTable({slug}:{slug:string}){
        visible.map(item=>{
         const suspended=item.managementState==="SUSPENDED_DRAFT";
         return <tr key={item.id}>
-         <td><div className="tto-nav02-avatar" title={item.photoState==="QUARANTINED"?"عکس قرنطینه‌شده؛ نمایش ممنوع":"تصویری ثبت نشده"}>
-          <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-           <circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg></div>
-          <small>{item.photoState==="QUARANTINED"?"قرنطینه":"بدون عکس"}</small>
+         <td>{item.photoState==="READY_PRIVATE"?
+          <img className="tto-nav02-avatar" width={38} height={38}
+           loading="lazy" alt={"عکس "+item.name}
+           src={"/api/commerce/nav02/photo/view?slug="+encodeURIComponent(slug)+"&draftId="+encodeURIComponent(item.id)}/>:
+          <div className="tto-nav02-avatar" aria-label="عکسی ثبت نشده است">♙</div>}
          </td>
          <td>{item.title}</td>
          <td><strong>{item.name}</strong><small className="tto-nav02-row-mask">{item.identifierMask}</small></td>
@@ -255,7 +257,10 @@ export function ShareholdersTable({slug}:{slug:string}){
       <p>سهام در تعهد: <strong>{fmt(selection.subscribedShares)}</strong></p>
       <p>پرداخت اظهارشده: <strong>{fmt(selection.declaredPaidRial)} ریال</strong></p>
       <p>مبلغ در تعهد: <strong>{commitment(selection)} ریال</strong></p>
-      <p>عکس: <strong>{selection.photoState==="QUARANTINED"?"قرنطینه امن، فاقد مجوز نمایش":"ثبت نشده"}</strong></p>
+      <p>عکس: {selection.photoState==="READY_PRIVATE"?
+        <img width={75} height={90} alt={"تصویر پرسنلی "+selection.name}
+         src={"/api/commerce/nav02/photo/view?slug="+encodeURIComponent(slug)+"&draftId="+encodeURIComponent(selection.id)}/>:
+        <strong>ثبت نشده</strong>}</p>
       <p>مالکیت، عضویت و حق رأی قانونی: <strong>تأیید نشده</strong></p>
      </div>:null}
      {mode==="audit"?<div className="tto-nav02-audit">
@@ -277,7 +282,7 @@ export function ShareholdersTable({slug}:{slug:string}){
        <label>گروه
         <input required maxLength={90} value={profile.group}
          onChange={e=>setProfile(p=>({...p,group:e.target.value}))}/></label>
-       <small>شناسه ملی و نوع حقیقی/حقوقی در این ویرایش ثابت‌اند؛ برای تغییر آن‌ها پرونده جدید لازم است. فقط داده ساختگی مجاز است.</small>
+       <small>برای ویرایش کامل شناسه ملی، نوع شخصیت و دیگر فیلدها از فرم اصلی پرونده استفاده کنید؛ برای تغییر آن‌ها پرونده جدید لازم است. فقط داده ساختگی مجاز است.</small>
       </>:null}
       {mode==="capitalEdit"?<>
        {([

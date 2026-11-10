@@ -96,11 +96,11 @@ function navHref(i: number, basePath = "") {
 
 export function PortalShell({
   surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, allowedModules, canManageSettings = false, settingsSection, memberSection, NavigationLink
-}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users";memberSection?:"add"|"shares"|"shareholders"|"list"|"archive"|"collections"|"profile";NavigationLink?:ComponentType<{href:string;children:ReactNode;className?:string;"aria-current"?: "page";"aria-label"?:string}>}) {
+}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users"|"collections"|"member-number";memberSection?:"add"|"shares"|"shareholders"|"list"|"archive"|"collections"|"profile";NavigationLink?:ComponentType<{href:string;children:ReactNode;className?:string;"aria-current"?: "page";"aria-label"?:string}>}) {
  const cfg=surfaces[surface],selection=Math.max(NAV_IDS.indexOf(activeId),0);
  const InternalLink=NavigationLink??"a";
  const home=selection===0,currentTitle=settingsSection==="credentials"?"تغییر نام کاربری و رمز عبور":
-  settingsSection==="users"?"کاربران و سطح دسترسی":memberSection==="add"?"ثبت عضو":memberSection==="shares"?"ثبت سهام":memberSection==="list"?"لیست اعضا":memberSection==="archive"?"بایگانی اعضا":memberSection==="collections"?"مجموعه‌ها":memberSection==="profile"?"پرونده عضویت":memberSection==="shareholders"?"سهامداران":home?cfg.title:cfg.navigation[selection];
+  settingsSection==="users"?"کاربران و سطح دسترسی":settingsSection==="collections"?"مدیریت مجموعه‌ها":settingsSection==="member-number"?"تنظیم شماره عضویت":memberSection==="add"?"ثبت عضو":memberSection==="shares"?"ثبت سهام":memberSection==="list"?"لیست اعضا":memberSection==="archive"?"بایگانی اعضا":memberSection==="collections"?"مجموعه‌ها":memberSection==="profile"?"پرونده عضویت":memberSection==="shareholders"?"سهامداران":home?cfg.title:cfg.navigation[selection];
  return <div className="shell tto-approved-shell" lang="fa" dir="rtl" data-tto-demo-only={demoOnly?"true":undefined}>
    <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
    <aside className="nav-area">
@@ -157,6 +157,14 @@ export function PortalShell({
           <InternalLink className={settingsSection==="users"?"tto-settings-sublink selected":"tto-settings-sublink"}
            href={basePath+"/settings/users"} aria-current={settingsSection==="users"?"page":undefined}>
             <span aria-hidden="true">♧</span> کاربران و سطح دسترسی
+          </InternalLink>
+          <InternalLink className={settingsSection==="collections"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/settings/collections"} aria-current={settingsSection==="collections"?"page":undefined}>
+            <span aria-hidden="true">▤</span> مدیریت مجموعه‌ها
+          </InternalLink>
+          <InternalLink className={settingsSection==="member-number"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/settings/member-number"} aria-current={settingsSection==="member-number"?"page":undefined}>
+            <span aria-hidden="true">▥</span> تنظیم ساختار شماره عضویت
           </InternalLink>
          </div>
         </details>;

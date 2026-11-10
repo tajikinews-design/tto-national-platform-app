@@ -31,34 +31,45 @@ export async function POST(req:NextRequest){
  try{if(new URL(origin).origin!==new URL(req.url).origin)return fail(403,"ORIGIN_DENIED")}
  catch{return fail(403,"ORIGIN_DENIED")}
  if(req.headers.get("content-type")?.split(";")[0]!=="application/json")return fail(415,"JSON_REQUIRED");
- const raw=await req.text();if(raw.length>3400)return fail(413,"BODY_TOO_LARGE");
+ const raw=await req.text();if(raw.length>6400)return fail(413,"BODY_TOO_LARGE");
  let data:Record<string,unknown>;
  try{const v:unknown=JSON.parse(raw);if(!v||typeof v!=="object"||Array.isArray(v))throw Error();
   data=v as Record<string,unknown>;}catch{return fail(400,"INVALID_BODY")}
  if(Object.keys(data).some(k=>!["slug","action","draftId","data"].includes(k))||
    typeof data.slug!=="string"||!SLUG.test(data.slug)||
-   !["profile","memberProfile","capital"].includes(String(data.action))||
+   !["profile","memberProfile","legalProfile","capital"].includes(String(data.action))||
    !data.data||typeof data.data!=="object"||Array.isArray(data.data))
   return fail(400,"INVALID_BODY");
  const d=data.data as Record<string,unknown>;
  if(Object.values(d).some(v=>typeof v!=="string")||
- ((data.action==="profile"||data.action==="memberProfile")&&(
+ ((data.action==="profile"||data.action==="memberProfile"||data.action==="legalProfile")&&(
   Object.keys(d).some(k=>!["title","fullName","group","nationalId","fatherName",
   "birthCertificate","birthDate","birthPlace","telephone","mobile","postalCode","address",
   "bornInCounty","residentInCounty","employedInCounty","informationConfirmed","membershipStatus",
-  "personType","shareholdingStatus","collectionName","occupation"].includes(k))||
+  "personType","shareholdingStatus","collectionName","occupation","registrationNumber",
+  "economicCode","representativeName","representativeNationalId","representativeMobile"].includes(k))||
   !["آقا","خانم","شرکت","سازمان","اداره"].includes(String(d.title))||
   typeof d.fullName!=="string"||d.fullName.trim().length<3||
   typeof d.group!=="string"||d.group.trim().length<2||
   typeof d.nationalId!=="string"||
   !(d.title==="آقا"||d.title==="خانم"?/^\d{10}$/:/^\d{11}$/).test(d.nationalId)||
+  (data.action==="legalProfile"&&(d.personType!=="LEGAL"||d.title!=="شرکت"||
+    d.membershipStatus!=="NON_MEMBER_REPORTED"||
+    !/^\d{11}$/.test(String(d.nationalId))||!/^\d{1,30}$/.test(String(d.registrationNumber))||
+    !/^\d{12,14}$/.test(String(d.economicCode))||
+    typeof d.representativeName!=="string"||d.representativeName.trim().length<3||
+    !/^\d{10}$/.test(String(d.representativeNationalId))||
+    !/^09[0-9]{9}$/.test(String(d.representativeMobile))||
+    d.informationConfirmed!=="yes"))||
   (data.action==="memberProfile"&&(!["آقا","خانم"].includes(String(d.title))||
     !["yes","no"].includes(String(d.bornInCounty))||
     !["yes","no"].includes(String(d.residentInCounty))||
     !["yes","no"].includes(String(d.employedInCounty))||
-    ![d.bornInCounty,d.residentInCounty,d.employedInCounty].includes("yes")||
-    d.informationConfirmed!=="yes"||d.membershipStatus!=="APPLICANT_UNVERIFIED"||
-    d.personType!=="NATURAL"||d.shareholdingStatus!=="NONE_UNVERIFIED"||
+    (d.membershipStatus!=="NON_MEMBER_REPORTED"&&
+     ![d.bornInCounty,d.residentInCounty,d.employedInCounty].includes("yes"))||
+    d.informationConfirmed!=="yes"||!["APPLICANT_UNVERIFIED","ACTIVE_REPORTED","FORMER_REPORTED","NON_MEMBER_REPORTED"].includes(String(d.membershipStatus))||
+    d.personType!=="NATURAL"||
+    !["NONE_UNVERIFIED","HOLDER_REPORTED","TRANSFER_PENDING_REPORTED"].includes(String(d.shareholdingStatus))||
     typeof d.collectionName!=="string"||d.collectionName.length>100||
     typeof d.occupation!=="string"||d.occupation.length>120||
     typeof d.mobile!=="string"||!/^09[0-9]{9}$/.test(d.mobile)||
@@ -78,7 +89,7 @@ export async function POST(req:NextRequest){
   if(r.status===401)return fail(401,"LOGIN_REQUIRED");
   if(r.status===403)return fail(403,"OWNER_REQUIRED");
   if(r.status===409)return fail(409,"DUPLICATE_DRAFT");
-  if(r.status===422&&data.action==="memberProfile")return fail(422,"SHAHKAR_MISMATCH");
+  if(r.status===422&&(data.action==="memberProfile"||data.action==="legalProfile"))return fail(422,"SHAHKAR_MISMATCH");
   if(r.status===400)return fail(400,"INVALID_VALUES");
   if(!r.ok){
    // Only expose non-sensitive operational fault categories; never provider payloads.

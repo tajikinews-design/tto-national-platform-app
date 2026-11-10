@@ -41,6 +41,6 @@ class Nav02SensitiveEncryption(unittest.TestCase):
   api=source("services/api/src/module.ts")
   for term in ("APIIR_TOKEN","SHAHKAR_NOT_CONFIGURED",
                "SHAHKAR_UNAVAILABLE","SYNTHETIC_ONLY","nav02_member_number_issue",
-               "IMMUTABLE_IDENTITY_REQUIRES_REVERIFICATION"):
+               "nav02_member_edit_all_fields",'identityVerification=identityChanged?"UNVERIFIED"'):
    self.assertIn(term,api)
 if __name__=="__main__":unittest.main()

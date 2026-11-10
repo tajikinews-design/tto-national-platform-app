@@ -15,8 +15,10 @@ class ShahkarJalali(unittest.TestCase):
                '"https://s.api.ir/api/sw1/Shahkar"','isCompany:false','result.success===true&&result.data===false',
                'UnprocessableEntityException("SHAHKAR_MISMATCH")'):
    self.assertIn(term,api)
-  self.assertIn('await this.checkNav02Shahkar(String(fields.nationalId),String(fields.mobile))',api)
-  self.assertIn('r.status===422&&data.action==="memberProfile"',bff)
+  self.assertIn('await this.checkNav02Shahkar(String(action==="legalProfile"?fields.representativeNationalId:fields.nationalId)',api)
+  self.assertIn('String(action==="legalProfile"?fields.representativeMobile:fields.mobile)',api)
+  self.assertIn('fields.personType!=="LEGAL"',api)
+  self.assertIn('r.status===422&&(data.action==="memberProfile"||data.action==="legalProfile")',bff)
   self.assertIn('r.status===422?',ui)
  def test_jalali_is_not_native_gregorian_picker(self):
   form=read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")

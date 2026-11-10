@@ -290,3 +290,41 @@
 .tto-member-catalog-create button,.tto-member-policy-actions button{cursor:pointer;background:#167a9b;
  color:white;border:0;border-radius:9px;padding:11px 18px;font-size:11px;font-weight:750}
 .tto-member-policy-actions{display:flex;justify-content:flex-start;padding:8px 0 2px}
+
+/* NAV02-02: semantic directory identity, right-aligned governance and review-only forms. */
+.tto-member-photo-thumb{width:36px;height:42px;display:inline-grid;place-items:center;
+ border:1px solid #c8dce7;border-radius:8px;background:#ecf3f8;color:#385b72;font-size:18px}
+.tto-nav02-table th,.tto-nav02-table td{white-space:nowrap}
+.tto-member-collection-row{display:flex;gap:6px;align-items:stretch;min-width:0}
+.tto-member-collection-row>button:first-child{flex:1;min-width:0}
+.tto-member-collection-row>button:last-child{width:40px;flex-shrink:0;border:1px solid #e6b8b8;
+ border-radius:9px;background:#fff4f4;color:#a33d3d;cursor:pointer;font-size:16px}
+.tto-member-case-icons{direction:rtl;display:flex;justify-content:flex-start;flex-wrap:wrap;gap:8px;text-align:right}
+.tto-member-end-request{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;direction:rtl}
+.tto-member-end-request label{display:grid;gap:7px;min-width:0;font-size:12px;font-weight:750}
+.tto-member-end-request :is(input,select){min-width:0;height:42px;padding:0 10px;border:1px solid #cbdce7;border-radius:9px;background:#fff;color:#183d59}
+.tto-member-end-request button{align-self:end;min-height:42px;border:none;border-radius:10px;background:#16748f;color:#fff;padding:8px 14px;cursor:pointer}
+.tto-member-end-request button:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:650px){.tto-member-end-request{grid-template-columns:1fr}}
+
+.tto-member-photo-thumb:is(img){object-fit:cover;display:inline-block;border:1px solid #c8dce7;border-radius:8px}
+.tto-member-case-avatar img{max-width:100%;max-height:100%;object-fit:cover;border-radius:10px}
+
+/* NAV02 member intake: every data field occupies one of three equal columns;
+   only full address and non-field workflow messages span the whole row. */
+.tto-nav02-member-layout .tto-nav02-form{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px}
+.tto-nav02-member-layout .tto-nav02-name-row,
+.tto-nav02-member-layout .tto-nav02-birth-row{display:contents}
+.tto-nav02-member-layout .tto-nav02-name-row>.tto-nav02-field,
+.tto-nav02-member-layout .tto-nav02-birth-row>.tto-nav02-field{min-width:0;grid-column:auto}
+.tto-nav02-member-layout .tto-nav02-field.wide{grid-column:1/-1}
+.tto-nav02-member-layout .tto-nav02-field :is(input,select,textarea){min-width:0}
+@media(max-width:1050px){
+ .tto-nav02-member-layout .tto-nav02-form{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:720px){
+ .tto-nav02-member-layout .tto-nav02-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:480px){
+ .tto-nav02-member-layout .tto-nav02-form{grid-template-columns:minmax(0,1fr)}
+}

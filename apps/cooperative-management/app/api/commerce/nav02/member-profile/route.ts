@@ -50,7 +50,7 @@ export async function POST(req:NextRequest){
  try{if(new URL(origin).origin!==new URL(req.url).origin)return fail(403,"ORIGIN_DENIED")}
  catch{return fail(403,"ORIGIN_DENIED")}
  if(req.headers.get("content-type")?.split(";")[0]!=="application/json")return fail(415,"JSON_REQUIRED");
- const raw=await req.text();if(raw.length>3900)return fail(413,"BODY_TOO_LARGE");
+ const raw=await req.text();if(raw.length>6900)return fail(413,"BODY_TOO_LARGE");
  let value:Record<string,unknown>;
  try{const p:unknown=JSON.parse(raw);if(!p||typeof p!=="object"||Array.isArray(p))throw Error();
   value=p as Record<string,unknown>}catch{return fail(400,"INVALID_BODY")}

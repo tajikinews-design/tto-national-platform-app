@@ -474,9 +474,7 @@ export class FoundationCommandsController {
         data=JSON.parse(decrypted.toString("utf8")) as Record<string,unknown>;
         decrypted.fill(0);
       }catch{throw new ServiceUnavailableException("PRIVATE_MEMBER_PROFILE_UNAVAILABLE")}
-      if(!data||data.personType!=="NATURAL"||
-         data.membershipStatus!=="APPLICANT_UNVERIFIED"||
-         data.shareholdingStatus!=="NONE_UNVERIFIED")
+      if(!data||!["NATURAL","LEGAL"].includes(String(data.personType)))
         throw new ForbiddenException("OFFICIAL_MEMBERSHIP_SEPARATE");
       return {profile:data,version:sealed.version,managementState:sealed.state};
     });
@@ -494,26 +492,35 @@ export class FoundationCommandsController {
        !data||typeof data!=="object"||Array.isArray(data))
       throw new BadRequestException("INVALID_MEMBER_EDIT_REQUEST");
     const f=data as Record<string,unknown>;
-    const max:Record<string,number>={title:12,fullName:180,group:90,nationalId:10,
+    const max:Record<string,number>={title:12,fullName:180,group:90,nationalId:11,
       fatherName:120,birthCertificate:45,birthDate:10,birthPlace:120,
       telephone:25,mobile:11,postalCode:12,address:600,collectionName:100,
+      registrationNumber:30,economicCode:14,representativeName:180,representativeNationalId:10,
+      representativeMobile:11,
       occupation:120,bornInCounty:3,residentInCounty:3,employedInCounty:3,
       informationConfirmed:3,membershipStatus:25,personType:10,shareholdingStatus:25};
+    const isLegal=f.personType==="LEGAL";
+    const validMembership=["APPLICANT_UNVERIFIED","ACTIVE_REPORTED","FORMER_REPORTED","NON_MEMBER_REPORTED"].includes(String(f.membershipStatus));
+    const validShares=["NONE_UNVERIFIED","HOLDER_REPORTED","TRANSFER_PENDING_REPORTED"].includes(String(f.shareholdingStatus));
     if(Object.keys(f).some(k=>!(k in max)||typeof f[k]!=="string"||
        (f[k] as string).length>max[k])||
-       !["آقا","خانم"].includes(String(f.title))||
+       !validMembership||!validShares||
        typeof f.fullName!=="string"||f.fullName.trim().length<3||
-       typeof f.group!=="string"||f.group.trim().length<2||
-       typeof f.nationalId!=="string"||!this.validNationalCode(f.nationalId)||
-       typeof f.mobile!=="string"||!/^09[0-9]{9}$/.test(f.mobile)||
-       (f.birthDate!==""&&!this.validJalaliBirthDate(String(f.birthDate)))||
-       !["yes","no"].includes(String(f.bornInCounty))||
-       !["yes","no"].includes(String(f.residentInCounty))||
-       !["yes","no"].includes(String(f.employedInCounty))||
-       ![f.bornInCounty,f.residentInCounty,f.employedInCounty].includes("yes")||
-       f.informationConfirmed!=="yes"||
-       f.personType!=="NATURAL"||f.membershipStatus!=="APPLICANT_UNVERIFIED"||
-       f.shareholdingStatus!=="NONE_UNVERIFIED"||JSON.stringify(f).length>2800)
+       f.informationConfirmed!=="yes"||JSON.stringify(f).length>4500||
+       (isLegal? (f.title!=="شرکت"||f.membershipStatus!=="NON_MEMBER_REPORTED"||
+         !/^\d{11}$/.test(String(f.nationalId))||!/^\d{1,30}$/.test(String(f.registrationNumber))||
+         !/^\d{12,14}$/.test(String(f.economicCode))||
+         typeof f.representativeName!=="string"||f.representativeName.trim().length<3||
+         !this.validNationalCode(String(f.representativeNationalId))||
+         !/^09[0-9]{9}$/.test(String(f.representativeMobile))) :
+        (!["آقا","خانم"].includes(String(f.title))||!this.validNationalCode(String(f.nationalId))||
+         !/^09[0-9]{9}$/.test(String(f.mobile))||
+         (f.birthDate!==""&&!this.validJalaliBirthDate(String(f.birthDate)))||
+         !["yes","no"].includes(String(f.bornInCounty))||
+         !["yes","no"].includes(String(f.residentInCounty))||
+         !["yes","no"].includes(String(f.employedInCounty))||
+         (f.membershipStatus!=="NON_MEMBER_REPORTED"&&
+          ![f.bornInCounty,f.residentInCounty,f.employedInCounty].includes("yes")))))
       throw new BadRequestException("INVALID_MEMBER_EDIT_FIELDS");
     const key=this.nav02DataKey(),actor=await this.db.sessionActor(auth);
     return this.db.withActor(actor,async c=>{
@@ -532,25 +539,29 @@ export class FoundationCommandsController {
         original=JSON.parse(decrypted.toString("utf8")) as Record<string,unknown>;
         decrypted.fill(0);
       }catch{throw new ServiceUnavailableException("PRIVATE_MEMBER_PROFILE_UNAVAILABLE")}
-      if(original.personType!=="NATURAL"||
-         original.membershipStatus!=="APPLICANT_UNVERIFIED"||
-         original.shareholdingStatus!=="NONE_UNVERIFIED"||
-         original.nationalId!==f.nationalId)
-        throw new ForbiddenException("IMMUTABLE_IDENTITY_REQUIRES_REVERIFICATION");
-      // A changed mobile must be matched against the immutable national code.
-      // A Shahkar rejection/outage rolls back the database transaction.
-      if(original.mobile!==f.mobile)
-        await this.checkNav02Shahkar(f.nationalId as string,f.mobile as string);
+      // All draft fields are editable. Identity corrections invalidate the prior
+      // match; they NEVER grant legal admission, shareholder ownership or votes.
+      // Reverification is separate and must not block saving an unverified draft.
+      const identityChanged=original.personType!==f.personType||
+       original.nationalId!==f.nationalId||
+       original.representativeNationalId!==f.representativeNationalId||
+       original.representativeMobile!==f.representativeMobile||
+       original.mobile!==f.mobile;
+      const identityVerification=identityChanged?"UNVERIFIED":
+       (typeof original.identityVerification==="string"?original.identityVerification:"UNVERIFIED");
+      const hmacKey=createHmac("sha256",key).update("TTO-NAV02-ID-FINGERPRINT-V1").digest();
+      const digest=createHmac("sha256",hmacKey).update(String(f.nationalId)).digest();
       const cipherIv=randomBytes(12),cipher=createCipheriv("aes-256-gcm",key,cipherIv);
       cipher.setAAD(Buffer.from(slug+":profile:v1","utf8"));
-      const encrypted=Buffer.concat([cipher.update(Buffer.from(JSON.stringify(f),"utf8")),cipher.final()]);
+      const encrypted=Buffer.concat([cipher.update(Buffer.from(JSON.stringify({...f,identityVerification}),"utf8")),cipher.final()]);
       const tag=cipher.getAuthTag();
       try{
         const row=await c.query<{record:unknown}>(
-          "SELECT tto.commerce_demo_nav02_edit_profile_secure($1,$2::uuid,$3,$4,$5,$6,$7) AS record",
-          [slug,draftId,version,f.title,cipherIv,tag,encrypted]);
+          "SELECT tto.nav02_member_edit_all_fields($1,$2::uuid,$3,$4,$5,$6,$7,$8) AS record",
+          [slug,draftId,version,f.title,digest,cipherIv,tag,encrypted]);
         return {saved:true,record:row.rows[0]?.record};
       }catch(e){
+        if((e as {code?:string}).code==="23505")throw new ConflictException("MEMBER_IDENTIFIER_DUPLICATE");
         if((e as {code?:string}).code==="40001")throw new ConflictException("STALE_MEMBER_VERSION");
         if((e as {code?:string}).code==="42501")throw new ForbiddenException("MEMBER_EDIT_NOT_AUTHORIZED");
         throw e;
@@ -597,9 +608,11 @@ export class FoundationCommandsController {
          paymentDate:p.paymentDate,capitalState:p.capitalState,
          managementState:p.managementState??"ACTIVE_DRAFT",
          version:p.version??1,photoState:p.photoState??"NONE",
-         personType:person.personType==="NATURAL"?"NATURAL":null,
-         membershipStatus:person.membershipStatus==="APPLICANT_UNVERIFIED"?"APPLICANT_UNVERIFIED":null,
-         shareholdingStatus:person.shareholdingStatus==="NONE_UNVERIFIED"?"NONE_UNVERIFIED":null};
+         personType:["NATURAL","LEGAL"].includes(String(person.personType))?person.personType:null,
+         membershipStatus:["APPLICANT_UNVERIFIED","ACTIVE_REPORTED","FORMER_REPORTED","NON_MEMBER_REPORTED"].includes(String(person.membershipStatus))?person.membershipStatus:null,
+         shareholdingStatus:["NONE_UNVERIFIED","HOLDER_REPORTED","TRANSFER_PENDING_REPORTED"].includes(String(person.shareholdingStatus))?person.shareholdingStatus:null,
+         identityVerification:person.identityVerification==="SHAHKAR_CONFIRMED"?"SHAHKAR_CONFIRMED":
+          person.identityVerification==="REPRESENTATIVE_MOBILE_CONFIRMED"?"REPRESENTATIVE_MOBILE_CONFIRMED":"UNVERIFIED"};
       }catch{throw new ServiceUnavailableException("PRIVATE_IDENTITY_UNAVAILABLE")}
     });
     {
@@ -613,7 +626,18 @@ export class FoundationCommandsController {
         const a=r as Record<string,unknown>;
         return !!a&&typeof a.draftId==="string"&&typeof a.membershipNumber==="string";
       }).map(x=>[x.draftId,x.membershipNumber]));
-      return {items:items.map(x=>({...x,membershipNumber:lookup.get(String(x.id))??null}))};
+      // Only authenticated tenant owners receive a private image availability bit.
+      // Validated raster photos require no asynchronous scanner or quarantine step.
+      const photoReady=await this.db.withActor(actor,async c=>{
+        const r=await c.query<{ids:unknown}>(
+          "SELECT tto.nav02_photo_ready_for_owner($1) AS ids",[slug]);
+        return r.rows[0]?.ids;
+      });
+      if(!Array.isArray(photoReady))
+        throw new ServiceUnavailableException("PRIVATE_PHOTO_STATUS_UNAVAILABLE");
+      const safePhotos=new Set(photoReady.filter((x:unknown):x is string=>typeof x==="string"));
+      return {items:items.map(x=>({...x,membershipNumber:lookup.get(String(x.id))??null,
+       photoState:safePhotos.has(String(x.id))?"READY_PRIVATE":x.photoState}))};
     }
   }
 
@@ -622,6 +646,97 @@ export class FoundationCommandsController {
    */
   private nav02CatalogGate(){
     this.nav02DataKey();
+  }
+  /** The following routes only request legal review or reissue administrative references.
+   * Neither route mutates official membership, votes or the CHILD07 share ledger. */
+  @Post("commerce/demo/nav02/collections/archive")
+  @HttpCode(200)
+  async nav02CollectionArchive(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    const {slug,name}=input??{};
+    if(!input||Object.keys(input).some(k=>!["slug","name"].includes(k))||
+       typeof slug!=="string"||typeof name!=="string"||name.trim().length<3||name.length>100)
+      throw new BadRequestException("INVALID_COLLECTION_ARCHIVE");
+    const actor=await this.db.sessionActor(auth);
+    const result=await this.db.withActor(actor,async c=>{
+      const r=await c.query<{data:unknown}>(
+       "SELECT tto.nav02_member_collection_archive($1,$2) AS data",[slug,name]);
+      return r.rows[0]?.data;
+    });
+    return {saved:true,record:result};
+  }
+  @Post("commerce/demo/nav02/member-number-policy/reissue")
+  @HttpCode(200)
+  async nav02MemberNumberReissue(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    const {slug,nextSerial,prefix,suffix,expectedCount,acknowledgement}=input??{};
+    if(!input||Object.keys(input).some(k=>!["slug","nextSerial","prefix","suffix","expectedCount","acknowledgement"].includes(k))||
+       typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       typeof nextSerial!=="string"||!/^[1-9][0-9]{0,11}$/.test(nextSerial)||
+       typeof prefix!=="string"||!/^[A-Z0-9-]{0,12}$/.test(prefix)||
+       typeof suffix!=="string"||!/^[A-Z0-9-]{0,12}$/.test(suffix)||
+       !Number.isSafeInteger(expectedCount)||Number(expectedCount)<1||
+       acknowledgement!=="REISSUE_ALL_MEMBERS_ACKNOWLEDGED")
+      throw new BadRequestException("INVALID_REISSUE_CONFIRMATION");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      try{
+        const r=await c.query<{record:unknown}>(
+         "SELECT tto.nav02_member_number_reissue($1,$2::bigint,$3,$4,$5::integer,$6) AS record",
+         [slug,nextSerial,prefix,suffix,expectedCount,acknowledgement]);
+        return {saved:true,record:r.rows[0]?.record};
+      }catch(e){
+        if((e as {code?:string}).code==="40001")throw new ConflictException("MEMBER_NUMBER_SET_CHANGED");
+        if((e as {code?:string}).code==="23505")throw new ConflictException("MEMBER_NUMBER_COLLISION");
+        if((e as {code?:string}).code==="22023")throw new BadRequestException("INVALID_REISSUE_POLICY");
+        throw e;
+      }
+    });
+  }
+  @Post("commerce/demo/nav02/end-requests")
+  @HttpCode(200)
+  async nav02MemberEndRequest(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    const {slug,draftId,reason,evidenceReference,proposedDate}=input??{};
+    if(!input||Object.keys(input).some(k=>!["slug","draftId","reason","evidenceReference","proposedDate"].includes(k))||
+       typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       typeof draftId!=="string"||!uuidPattern.test(draftId)||
+       !["RESIGNATION","DEATH","LEGAL_EXPULSION","FULL_SHARE_TRANSFER"].includes(String(reason))||
+       typeof evidenceReference!=="string"||evidenceReference.trim().length<5||evidenceReference.length>160||
+       typeof proposedDate!=="string"||proposedDate!==""&&!/^\d{4}-\d{2}-\d{2}$/.test(proposedDate))
+      throw new BadRequestException("INVALID_END_REQUEST");
+    const actor=await this.db.sessionActor(auth);
+    const key=this.nav02DataKey();
+    return this.db.withActor(actor,async c=>{
+      const existing=await c.query<{profile:Record<string,unknown>|null}>(
+       "SELECT tto.commerce_demo_nav02_profile_for_edit($1,$2::uuid) AS profile",[slug,draftId]);
+      const row=existing.rows[0]?.profile;
+      if(!row||typeof row.cipher!=="string"||typeof row.iv!=="string"||typeof row.tag!=="string")
+        throw new ForbiddenException("MEMBER_SCOPE_DENIED");
+      let person:Record<string,unknown>;
+      try{
+        const dec=createDecipheriv("aes-256-gcm",key,Buffer.from(row.iv,"base64"));
+        dec.setAAD(Buffer.from(slug+":profile:v1","utf8"));
+        dec.setAuthTag(Buffer.from(row.tag,"base64"));
+        const plain=Buffer.concat([dec.update(Buffer.from(row.cipher,"base64")),dec.final()]);
+        person=JSON.parse(plain.toString("utf8")) as Record<string,unknown>;
+        plain.fill(0);
+      }catch{
+        throw new ServiceUnavailableException("PRIVATE_MEMBER_PROFILE_UNAVAILABLE");
+      }
+      if(person.personType!=="NATURAL"||person.membershipStatus!=="ACTIVE_REPORTED")
+        throw new ForbiddenException("ACTIVE_NATURAL_MEMBER_REQUIRED");
+      try{
+        const r=await c.query<{record:unknown}>(
+         "SELECT tto.nav02_member_end_request_submit($1,$2::uuid,$3,$4,$5::date) AS record",
+         [slug,draftId,reason,evidenceReference,proposedDate||null]);
+        return {saved:true,record:r.rows[0]?.record};
+      }catch(e){
+        if((e as {code?:string}).code==="23505")throw new ConflictException("END_REQUEST_ALREADY_PENDING");
+        if((e as {code?:string}).code==="42501")throw new ForbiddenException("MEMBER_SCOPE_DENIED");
+        throw e;
+      }
+    });
   }
   @Get("commerce/demo/nav02/collections")
   async nav02Collections(@Headers("authorization") auth:string|undefined,
@@ -686,6 +801,15 @@ export class FoundationCommandsController {
       throw new BadRequestException("INVALID_NUMBER_POLICY");
     const actor=await this.db.sessionActor(auth);
     const policy=await this.db.withActor(actor,async c=>{
+      // Do not allow a legacy pre-migration policy function to bypass
+      // the required existing-member renumber confirmation.
+      const state=await c.query<{data:unknown}>(
+       "SELECT tto.nav02_member_number_policy_get($1) AS data",[input.slug]);
+      const snapshot=state.rows[0]?.data as {issuedCount?:unknown}|null;
+      if(!snapshot||!Number.isSafeInteger(snapshot.issuedCount))
+        throw new ServiceUnavailableException("NUMBER_POLICY_MIGRATION_REQUIRED");
+      if(Number(snapshot.issuedCount)>0)
+        throw new ConflictException("CONFIRMED_ALL_MEMBER_REISSUE_REQUIRED");
       const r=await c.query<{data:unknown}>(
        "SELECT tto.nav02_member_number_policy_set($1,$2::bigint,$3,$4) AS data",
        [input.slug,input.nextSerial,input.prefix,input.suffix]);
@@ -710,47 +834,63 @@ export class FoundationCommandsController {
       throw new BadRequestException("INVALID_FIELD_TYPE");
     const key=this.nav02DataKey();
     const actor=await this.db.sessionActor(auth);
-    if(action==="profile"||action==="memberProfile"){
+    if(action==="profile"||action==="memberProfile"||action==="legalProfile"){
       const allowed=["title","fullName","group","nationalId","fatherName","birthCertificate",
        "birthDate","birthPlace","telephone","mobile","postalCode","address",
        "bornInCounty","residentInCounty","employedInCounty","informationConfirmed","membershipStatus",
-       "personType","shareholdingStatus","collectionName","occupation"];
+       "personType","shareholdingStatus","collectionName","occupation",
+       "registrationNumber","economicCode","representativeName","representativeNationalId","representativeMobile"];
       const lengths:Record<string,number>={title:12,fullName:180,group:90,nationalId:11,
        fatherName:120,birthCertificate:45,birthDate:10,birthPlace:120,telephone:25,
        mobile:20,postalCode:12,address:600,bornInCounty:3,residentInCounty:3,
        employedInCounty:3,informationConfirmed:3,membershipStatus:25,
-       personType:10,shareholdingStatus:25,collectionName:100,occupation:120};
+       personType:10,shareholdingStatus:25,collectionName:100,occupation:120,
+       registrationNumber:30,economicCode:14,representativeName:180,representativeNationalId:10,representativeMobile:11};
       if(Object.keys(fields).some(k=>!allowed.includes(k)||String(fields[k]).length>lengths[k])||
          !["آقا","خانم","شرکت","سازمان","اداره"].includes(String(fields.title))||
          typeof fields.fullName!=="string"||fields.fullName.trim().length<3||
          typeof fields.group!=="string"||fields.group.trim().length<2||
          typeof fields.nationalId!=="string"||
          !(fields.title==="آقا"||fields.title==="خانم"?/^\d{10}$/:/^\d{11}$/).test(fields.nationalId)||
-         JSON.stringify(fields).length>2400||
+         JSON.stringify(fields).length>4200||
          (fields.birthDate!==undefined&&fields.birthDate!==""&&
-         !(action==="memberProfile"?
+         !(action==="memberProfile"||action==="legalProfile"?
           this.validJalaliBirthDate(String(fields.birthDate)):
-          /^\\d{4}-\\d{2}-\\d{2}$/.test(String(fields.birthDate)))))
+          /^\d{4}-\d{2}-\d{2}$/.test(String(fields.birthDate)))))
        throw new BadRequestException("INVALID_PROFILE_FIELDS");
-      // A member applicant is a natural person. County conditions are declarations
-      // encrypted with the profile, not independently validated eligibility.
+      // Reported statuses describe administrative intake only. Legal admission,
+      // share ownership and voting always require independent CHILD06/CHILD07 evidence.
+      const statusOk=["APPLICANT_UNVERIFIED","ACTIVE_REPORTED","FORMER_REPORTED","NON_MEMBER_REPORTED"]
+       .includes(String(fields.membershipStatus));
+      const shareOk=["NONE_UNVERIFIED","HOLDER_REPORTED","TRANSFER_PENDING_REPORTED"]
+       .includes(String(fields.shareholdingStatus));
       if(action==="memberProfile"){
         if(!["آقا","خانم"].includes(String(fields.title))||
            !this.validNationalCode(String(fields.nationalId))||
            !["yes","no"].includes(String(fields.bornInCounty))||
            !["yes","no"].includes(String(fields.residentInCounty))||
            !["yes","no"].includes(String(fields.employedInCounty))||
-           ![fields.bornInCounty,fields.residentInCounty,fields.employedInCounty].includes("yes")||
+           (fields.membershipStatus!=="NON_MEMBER_REPORTED"&&
+            ![fields.bornInCounty,fields.residentInCounty,fields.employedInCounty].includes("yes"))||
            fields.informationConfirmed!=="yes"||
-           fields.membershipStatus!=="APPLICANT_UNVERIFIED"||
-           fields.personType!=="NATURAL"||
-           fields.shareholdingStatus!=="NONE_UNVERIFIED"||
+           !statusOk||fields.personType!=="NATURAL"||!shareOk||
            typeof fields.mobile!=="string"||!/^09[0-9]{9}$/.test(fields.mobile))
           throw new BadRequestException("INVALID_MEMBER_APPLICATION");
         // Real-identity collection remains explicitly disabled absent independent
         // controller/privacy/retention approval. No membership/ledger role is granted.
         // Official membership remains subject to board approval; registration
         // is a verified application, not automatic admission or voting rights.
+      }
+      if(action==="legalProfile"){
+        if(fields.personType!=="LEGAL"||fields.title!=="شرکت"||
+           fields.membershipStatus!=="NON_MEMBER_REPORTED"||!shareOk||
+           !/^\d{11}$/.test(String(fields.nationalId))||
+           !/^\d{1,30}$/.test(String(fields.registrationNumber))||
+           !/^\d{12,14}$/.test(String(fields.economicCode))||
+           typeof fields.representativeName!=="string"||fields.representativeName.trim().length<3||
+           !this.validNationalCode(String(fields.representativeNationalId))||
+           !/^09[0-9]{9}$/.test(String(fields.representativeMobile)))
+          throw new BadRequestException("INVALID_LEGAL_SHAREHOLDER");
       }
       // The legacy shareholder profile endpoint remains synthetic-only.
       if(action==="profile"&&process.env.TTO_NAV02_REAL_PII_ENABLED!=="true"&&
@@ -760,7 +900,9 @@ export class FoundationCommandsController {
       const iv=randomBytes(12),cipher=createCipheriv("aes-256-gcm",key,iv);
       cipher.setAAD(Buffer.from(slug+":profile:v1","utf8"));
       const encrypted=Buffer.concat([cipher.update(
-       Buffer.from(JSON.stringify(fields),"utf8")),cipher.final()]);
+       Buffer.from(JSON.stringify({...fields,identityVerification:
+        action==="memberProfile"?"SHAHKAR_CONFIRMED":
+        action==="legalProfile"?"REPRESENTATIVE_MOBILE_CONFIRMED":"UNVERIFIED"}),"utf8")),cipher.final()]);
       const tag=cipher.getAuthTag();
       const hmacKey=createHmac("sha256",key).update("TTO-NAV02-ID-FINGERPRINT-V1").digest();
       const digest=createHmac("sha256",hmacKey).update(fields.nationalId).digest();
@@ -772,7 +914,7 @@ export class FoundationCommandsController {
           // The database owner/tenant/duplicate check must succeed first.
           // On nonmatch or provider failure, withActor rolls the transaction
           // back; no unverified member record is committed.
-          if(action==="memberProfile"){
+          if(action==="memberProfile"||action==="legalProfile"){
             const chosen=String(fields.collectionName??"").trim();
             if(chosen){
               const groupResult=await c.query<{data:unknown}>(
@@ -784,11 +926,14 @@ export class FoundationCommandsController {
                  }))
                 throw new BadRequestException("COLLECTION_NOT_REGISTERED");
             }
-            await this.checkNav02Shahkar(String(fields.nationalId),String(fields.mobile));
+            await this.checkNav02Shahkar(String(action==="legalProfile"?fields.representativeNationalId:fields.nationalId),
+             String(action==="legalProfile"?fields.representativeMobile:fields.mobile));
             const record=r.rows[0]?.record;
             if(!record||typeof record!=="object"||Array.isArray(record)||
                typeof (record as {id?:unknown}).id!=="string")
               throw new ServiceUnavailableException("INVALID_MEMBER_ID");
+            if(fields.membershipStatus==="NON_MEMBER_REPORTED")
+              return {saved:true,record:{...record,membershipNumber:null}};
             const issued=await c.query<{member_number:string}>(
               "SELECT tto.nav02_member_number_issue($1,$2::uuid) AS member_number",
               [slug,(record as {id:string}).id]);
@@ -987,6 +1132,41 @@ export class FoundationCommandsController {
    * seven-day quarantine. NEVER return bytes or grant scan/release status.
    * Synthetic image testing only; real PII needs separate security clearance.
    */
+  @Get("commerce/demo/nav02/photo/view")
+  async nav02PhotoView(@Headers("authorization") auth:string|undefined,
+    @Query("slug") slug:string,@Query("draftId") draftId:string){
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       typeof draftId!=="string"||!uuidPattern.test(draftId))
+      throw new BadRequestException("INVALID_PRIVATE_PHOTO_REQUEST");
+    const actor=await this.db.sessionActor(auth);
+    const result=await this.db.withActor(actor,async c=>{
+      const r=await c.query<{payload:Record<string,unknown>|null}>(
+       "SELECT tto.nav02_photo_payload_for_owner($1,$2::uuid) AS payload",[slug,draftId]);
+      return r.rows[0]?.payload;
+    });
+    if(!result)throw new ForbiddenException("PHOTO_NOT_AVAILABLE_OR_OWNER_DENIED");
+    if(!["image/png","image/jpeg","image/webp"].includes(String(result.mime))||
+       typeof result.cipher!=="string"||typeof result.iv!=="string"||
+       typeof result.tag!=="string"||typeof result.sha!=="string"||
+       typeof result.size!=="number"||result.size>716800)
+      throw new ServiceUnavailableException("PHOTO_ENVELOPE_INVALID");
+    const encodedKey=process.env.TTO_NAV02_PHOTO_KEY;
+    const key=Buffer.from(encodedKey??"","base64");
+    if(key.length!==32)throw new ServiceUnavailableException("PHOTO_KEY_UNAVAILABLE");
+    let raw:Buffer;
+    try{
+      const decipher=createDecipheriv("aes-256-gcm",key,Buffer.from(result.iv,"base64"));
+      decipher.setAAD(Buffer.from(slug+":"+draftId+":"+result.mime+":"+result.sha,"utf8"));
+      decipher.setAuthTag(Buffer.from(result.tag,"base64"));
+      raw=Buffer.concat([decipher.update(Buffer.from(result.cipher,"base64")),decipher.final()]);
+    }catch{throw new ServiceUnavailableException("PHOTO_DECRYPTION_FAILED")}
+    if(raw.length!==result.size||createHash("sha256").update(raw).digest("hex")!==result.sha){
+      raw.fill(0);throw new ServiceUnavailableException("PHOTO_INTEGRITY_FAILED");
+    }
+    const base64=raw.toString("base64");raw.fill(0);
+    return {mime:result.mime,base64};
+  }
+
   @Post("commerce/demo/nav02/photo")
   @HttpCode(200)
   async nav02QuarantinePhoto(@Headers("authorization") auth:string|undefined,
@@ -1027,14 +1207,14 @@ export class FoundationCommandsController {
     return this.db.withActor(actor,async c=>{
       try{
         const result=await c.query<{record:Record<string,unknown>}>(
-          "SELECT tto.commerce_demo_nav02_quarantine_photo($1,$2::uuid,$3,$4,$5,$6,$7,$8) AS record",
+          "SELECT tto.nav02_member_photo_save($1,$2::uuid,$3,$4,$5,$6,$7,$8) AS record",
           [slug,draftId,mime,encrypted.length,sha,iv,tag,encrypted]);
-        return {saved:true,quarantine:result.rows[0]?.record??null};
+        return {saved:true,photo:result.rows[0]?.record??null};
       }catch(e){
         const code=(e as {code?:string}).code;
-        if(code==="23505")throw new ConflictException("PHOTO_ALREADY_QUARANTINED");
+        if(code==="23505")throw new ConflictException("PHOTO_DUPLICATE");
         if(code==="42501")throw new ForbiddenException("NAV02_OWNER_REQUIRED");
-        if(code==="22023"||code==="23514")throw new BadRequestException("INVALID_QUARANTINE");
+        if(code==="22023"||code==="23514")throw new BadRequestException("INVALID_PHOTO_CONTENT");
         throw e;
       }
     });
@@ -2092,7 +2272,7 @@ export class FoundationCommandsController {
     const current=input?.currentPassword;
     if(typeof username!=="string"||!/^[A-Za-z0-9._-]{5,64}$/.test(username)||
        typeof password!=="string"||password.length<14||password.length>128||
-       Buffer.byteLength(password)>256||/^\\d+$/.test(password)||
+       Buffer.byteLength(password)>256||/^\d+$/.test(password)||
        typeof current!=="string"||current.length<1||current.length>128)
       throw new BadRequestException("WEAK_NEW_CREDENTIALS");
     const actor=await this.db.sessionActor(auth);

@@ -29,17 +29,15 @@ class PhotoQuarantineContract(unittest.TestCase):
   edge=read("apps/cooperative-management/app/api/commerce/nav02/photo/route.ts")
   for term in ('ORIGIN_REQUIRED','ORIGIN_DENIED','LOGIN_REQUIRED','ORIGIN_REQUIRED',
    'BODY_TOO_LARGE','private, no-store','dataBase64','1040000',
-   '/v1/commerce/demo/nav02/photo','status:"QUARANTINED",visible:false,scanned:false'):
+   '/v1/commerce/demo/nav02/photo','status:"READY_PRIVATE",visible:true'):
    self.assertIn(term,edge)
   proxy=read("apps/cooperative-management/proxy.ts")
   self.assertIn('"/api/commerce/nav02/photo"',proxy)
  def test_photo_opt_in_and_partial_failure_not_duplicated(self):
   ui=read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
-  for term in ('personalDataConfirmed','photoRetryId','quarantinePhoto(','"/api/commerce/nav02/photo"',
-   'تأیید می‌کنم','قرنطینه','URL.revokeObjectURL','file.size>716800',
-   'هر دو',):
-   # "هر دو" is not part of UI, all other statements are expected.
-   if term=="هر دو":continue
+  for term in ('personalDataConfirmed','photoRetryId','savePhoto(','"/api/commerce/nav02/photo"',
+   'تأیید می‌کنم','URL.revokeObjectURL','normalized.size>716800',
+   'createImageBitmap(file)','canvas.toBlob('):
    self.assertIn(term,ui)
   self.assertNotIn('localStorage',ui)
   self.assertNotIn('window.sessionStorage',ui)

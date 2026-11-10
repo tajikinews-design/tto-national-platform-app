@@ -8,7 +8,10 @@ def src(path):return (R/path).read_text(encoding="utf-8")
 class SettingsSubpages(unittest.TestCase):
  def test_two_owner_scoped_settings_routes(self):
   p=src("apps/cooperative-management/app/c/[slug]/settings/[section]/page.tsx")
-  self.assertIn('section!=="credentials"&&section!=="users"',p)
+  self.assertIn('["credentials","users","collections","member-number"].includes(section)',p)
+  self.assertIn('ownerSettings={content}',p)
+  self.assertIn('tab==="users"?<UsersSettings',p)
+  self.assertIn('view={tab==="collections"?"collections":"member-number"}',p)
   self.assertIn('moduleId="NAV-11"',p)
   self.assertIn('ownerSettings={content}',p)
   self.assertIn('settingsSection={tab}',p)

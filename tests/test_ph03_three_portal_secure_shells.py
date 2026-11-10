@@ -60,7 +60,29 @@ class ThreePortalBoundary(unittest.TestCase):
             else:
                 self.assertIn('PortalSessionGate surface="'+surface+'"',home)
                 login_page=(APPS/app/"app/login/page.tsx").read_text(encoding="utf-8")
-                self.assertIn('PortalPasswordLogin surface="'+surface+'"',login_page)
+                if surface=="cooperative":
+                    # Both approved entry patterns are tenant-scoped, never authority grants.
+                    self.assertIn('<AuthFrame surface="cooperative">',login_page)
+                    if 'PortalPasswordLogin surface="cooperative"' in login_page:
+                        shared=(UI/"portal-password-login.tsx").read_text(encoding="utf-8")
+                        self.assertIn('fetch("/api/auth/password/login"',shared)
+                        self.assertIn('workspaceSlug',shared)
+                        self.assertIn('response.status===403',shared)
+                    else:
+                        self.assertIn('if(SLUG.test(input))redirect("/c/"',login_page)
+                    gate=(APPS/app/'app/c/[slug]/entry-gate.tsx').read_text(encoding="utf-8")
+                    self.assertIn('fetch("/api/auth/password/session"',gate)
+                    self.assertIn('managerSession.workspaceSlug===slug',gate)
+                    self.assertIn('"/api/auth/password/login":"/api/commerce/password-login"',gate)
+                    self.assertIn('accountKind==="manager"',gate)
+                    self.assertIn('"/api/auth/password/login":"/api/commerce/password-login"',gate)
+                    self.assertIn('d?.authenticated===true&&d.workspaceSlug===slug&&d.surface==="cooperative"',gate)
+                    self.assertIn('d?.authenticated===true&&d.slug===slug&&d.commercialOnly===true',gate)
+                    self.assertIn('accountKind==="subscriber"&&mode==="otp"',gate)
+                    self.assertIn('verifiedWorkspaceBySlug.delete(slug)',gate)
+                    self.assertIn('demoOnly allowedModules={workspace.permissions}',gate)
+                else:
+                    self.assertIn('PortalPasswordLogin surface="'+surface+'"',login_page)
                 for endpoint in ("login","session"):
                     self.assertTrue((APPS/app/f"app/api/auth/password/{endpoint}/route.ts").is_file())
             bff=(APPS/app/"app/api/auth/session/route.ts").read_text(encoding="utf-8")

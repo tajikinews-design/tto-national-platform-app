@@ -10,43 +10,69 @@ const verifiedWorkspaceBySlug=new Map<string,WorkspaceAccess>();
 // authority grant, personal data or cookie is written to storage.
 // The commercial owner can view the approved shell, not assume legal manager powers.
 function WorkspaceSignIn({slug}:{slug:string}){
- const [mode,setMode]=useState<"otp"|"password">("otp");
+ const [accountKind,setAccountKind]=useState<"subscriber"|"manager">("subscriber");
+ const [mode,setMode]=useState<"otp"|"password">("password");
  const [username,setUsername]=useState(""),[password,setPassword]=useState("");
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
  async function login(e:FormEvent<HTMLFormElement>){
   e.preventDefault();if(busy)return;setBusy(true);setError("");
   try{
-   const r=await fetch("/api/commerce/password-login",{method:"POST",credentials:"same-origin",
-    headers:{"Content-Type":"application/json"},body:JSON.stringify({slug,username,password})});
-   const d=r.ok?await r.json() as {authenticated?:unknown;slug?:unknown}:null;
-   if(!r.ok||d?.authenticated!==true||d.slug!==slug){
-    setError(r.status===401?"نام کاربری یا رمز عبور نامعتبر است.":"سرویس ورود در دسترس نیست.");return;
+   const endpoint=accountKind==="manager"?"/api/auth/password/login":"/api/commerce/password-login";
+   const body=accountKind==="manager"?{workspaceSlug:slug,username,password}:{slug,username,password};
+   const r=await fetch(endpoint,{method:"POST",credentials:"same-origin",cache:"no-store",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+   const d=r.ok?await r.json() as {
+    authenticated?:boolean;workspaceSlug?:string;surface?:string;
+    slug?:string;commercialOnly?:boolean
+   }:null;
+   const accepted=accountKind==="manager"?
+    d?.authenticated===true&&d.workspaceSlug===slug&&d.surface==="cooperative":
+    d?.authenticated===true&&d.slug===slug&&d.commercialOnly===true;
+   if(!r.ok||!accepted){
+    setError(r.status===401?"نام کاربری یا رمز عبور معتبر نیست.":
+     r.status===403?"این حساب به فضای انتخابی مجوز دسترسی ندارد یا تعداد تلاش‌های ورود محدود شده است.":
+     accountKind==="manager"?"ورود مستقل مدیر رسمی تا تأیید هویت، سمت قانونی و تنظیمات امنیتی فعال نیست.":
+     "سرویس ورود صاحب اشتراک آزمایشی آماده نیست؛ وضعیت اتصال و تنظیمات آزمایش بررسی شود.");
+    return;
    }
    setPassword("");window.location.replace("/c/"+encodeURIComponent(slug));
-  }catch{setError("ارتباط با سرویس ورود برقرار نشد.")}
-  finally{setBusy(false)}
+  }catch{setError("ارتباط با سرویس امن ورود برقرار نشد.");}
+  finally{setBusy(false);}
  }
  return <AuthFrame surface="cooperative">
-  <section className="tto-auth-controls" data-tto-auth-surface="cooperative" aria-label="ورود مدیر تعاونی">
-   <p className="tto-auth-muted-note">روش ورود دلخواه را انتخاب کنید. دسترسی به فضای همین تعاونی محدود است.</p>
+  <section className="tto-auth-controls" data-tto-auth-surface="cooperative" aria-label="ورود اختصاصی تعاونی">
+   <p className="tto-auth-muted-note">نوع حساب را انتخاب کنید. هر حساب فقط به تعاونی و نقش ثبت‌شده خودش دسترسی دارد.</p>
    <p className="tto-login-scope">تعاونی انتخاب‌شده: <b dir="ltr">{slug}.ttoir.ir</b></p>
-   <div className="tto-auth-method-tabs" role="tablist" aria-label="انتخاب روش ورود">
-    <button className="tto-auth-tab" type="button" role="tab" aria-selected={mode==="otp"} onClick={()=>setMode("otp")}>رمز یک‌بارمصرف</button>
-    <button className="tto-auth-tab" type="button" role="tab" aria-selected={mode==="password"} onClick={()=>setMode("password")}>نام کاربری و رمز</button>
+   <div className="tto-auth-method-tabs" role="tablist" aria-label="نوع حساب">
+    <button type="button" className="tto-auth-tab" role="tab" aria-selected={accountKind==="subscriber"}
+     onClick={()=>{setAccountKind("subscriber");setMode("password");setError("");setPassword("");}}>
+     صاحب اشتراک آزمایشی</button>
+    <button type="button" className="tto-auth-tab" role="tab" aria-selected={accountKind==="manager"}
+     onClick={()=>{setAccountKind("manager");setMode("password");setError("");setPassword("");}}>
+     مدیر رسمی تعاونی</button>
    </div>
-   {mode==="otp"?<OtpLogin enabled={true} surface="cooperative" postLoginRedirect={"/c/"+slug}/>:
+   {accountKind==="subscriber"?<div className="tto-auth-method-tabs" role="tablist" aria-label="روش ورود صاحب اشتراک">
+    <button className="tto-auth-tab" type="button" role="tab" aria-selected={mode==="otp"}
+     onClick={()=>{setError("");setMode("otp")}}>رمز یک‌بارمصرف</button>
+    <button className="tto-auth-tab" type="button" role="tab" aria-selected={mode==="password"}
+     onClick={()=>{setError("");setMode("password")}}>نام کاربری و رمز</button>
+   </div>:<p className="tto-auth-muted-note">
+    ورود مدیر رسمی فقط با حساب مستقلِ دارای هویت و سمت قانونی تأییدشده امکان‌پذیر است.
+   </p>}
+   {accountKind==="subscriber"&&mode==="otp"?
+    <OtpLogin enabled={true} surface="cooperative" postLoginRedirect={"/c/"+slug}/>:
     <form onSubmit={login} autoComplete="on">
-     <label htmlFor="workspace-username">نام کاربری مدیر تعاونی</label>
+     <label htmlFor="workspace-username">نام کاربری {accountKind==="manager"?"مدیر رسمی":"صاحب اشتراک"}</label>
      <input id="workspace-username" required dir="ltr" autoComplete="username" minLength={5} maxLength={64}
       pattern="[a-z][a-z0-9._-]{4,63}" value={username}
       onChange={e=>setUsername(e.target.value.toLowerCase().trim())}/>
      <label htmlFor="workspace-password">رمز عبور</label>
      <input id="workspace-password" required type="password" autoComplete="current-password"
       value={password} onChange={e=>setPassword(e.target.value)}/>
-     <button type="submit" disabled={busy}>{busy?"در حال بررسی امن…":"ورود به پنل مدیر تعاونی"}</button>
+     <button type="submit" disabled={busy}>{busy?"در حال بررسی امن…":"ورود به فضای تعاونی"}</button>
     </form>}
    {error?<p role="alert" className="tto-login-error">{error}</p>:null}
-   <p className="tto-auth-muted-note">ورود به‌تنهایی اختیار قانونی یا مجوز عملیات سهام ایجاد نمی‌کند.</p>
+   <p className="tto-auth-muted-note">صاحب اشتراک آزمایشی به‌صورت خودکار مدیر قانونی، عضو یا صاحب حق رأی نمی‌شود.</p>
   </section>
  </AuthFrame>;
 }
@@ -90,7 +116,7 @@ function InlineFirstCredentials({workspace}:{workspace:Workspace}){
  </div>;
 }
 export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettings,settingsSection,nav02Content,memberSection}:
- {slug:string;manager:ReactNode;moduleId?:string;ownerSettings?:ReactNode;settingsSection?:"credentials"|"users";nav02Content?:ReactNode;memberSection?:"add"|"shares"|"shareholders"|"list"|"archive"|"collections"|"profile"}){
+ {slug:string;manager:ReactNode;moduleId?:string;ownerSettings?:ReactNode;settingsSection?:"credentials"|"users"|"collections"|"member-number";nav02Content?:ReactNode;memberSection?:"add"|"shares"|"shareholders"|"list"|"archive"|"collections"|"profile"}){
  const [phase,setPhase]=useState<"checking"|"manager"|"demo"|"login"|"denied"|"unavailable">(
   ()=>verifiedWorkspaceBySlug.get(slug)?.kind??"checking");
  const [workspace,setWorkspace]=useState<Workspace|null>(

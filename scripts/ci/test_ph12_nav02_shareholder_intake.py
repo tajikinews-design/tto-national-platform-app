@@ -58,7 +58,8 @@ class Nav02IntakeContract(unittest.TestCase):
  def test_photo_protected_no_storage_bypass(self):
   form=src("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
   self.assertIn("URL.createObjectURL(photo)",form)
-  self.assertIn('quarantinePhoto(',form)
+  self.assertIn('savePhoto(',form)
+  self.assertIn('createImageBitmap(file)',form)
   self.assertIn('personalDataConfirmed',form)
   self.assertIn('photoRetryId',form)
   self.assertIn('"/api/commerce/nav02/photo"',form)
