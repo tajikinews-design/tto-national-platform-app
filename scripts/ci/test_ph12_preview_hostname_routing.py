@@ -1,4 +1,4 @@
-"""PREVIEW-only DNS-host routing test. No real customer, payment or DB writes."""
+"""Role-bound tenant hostname routing and service entry; no payment or DB writes."""
 import unittest
 from pathlib import Path
 
@@ -7,16 +7,16 @@ def read(path):
  return (ROOT/path).read_text(encoding="utf-8")
 
 class TestTtoHostRouting(unittest.TestCase):
- def test_main_domain_is_technical_test_portal_not_a_sales_site(self):
+ def test_main_domain_is_role_scoped_service_entry(self):
   proxy=read("apps/cooperative-management/proxy.ts")
   page=read("apps/cooperative-management/app/site/page.tsx")
   self.assertIn('const DOMAIN="ttoir.ir"',proxy)
   self.assertIn('new URL("/site",request.url)',proxy)
-  self.assertIn('"development-test-only"',proxy)
-  self.assertIn("PREVIEW-ONLY",proxy)
-  self.assertIn("مرکز آزمون توسعه TTO",page)
-  self.assertIn("فقط مسیرهای فنی را بررسی می‌کنیم",page)
-  self.assertIn("بدون ثبت تجاری",page)
+  self.assertNotIn('"development-test-only"',proxy)
+  self.assertIn("Tenant-scoped cooperative operations",proxy)
+  self.assertIn("پلتفرم ملی تعاونی توسعه و عمران",page)
+  self.assertIn("دسترسی به پرونده‌های تعاونی",page)
+  self.assertIn("حفظ محرمانگی اطلاعات",page)
   self.assertIn("robots:{index:false,follow:false,noarchive:true}",page)
   self.assertNotIn("<PublicPlans",page)
   self.assertNotIn("قیمت‌گذاری",page)
