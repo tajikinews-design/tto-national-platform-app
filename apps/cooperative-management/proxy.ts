@@ -19,7 +19,7 @@ const SAFE_LOGIN_APIS=new Set([
  "/api/auth/otp/request","/api/auth/otp/verify","/api/auth/logout",
  "/api/me/tenant-options",
  "/api/commerce/workspaces", "/api/commerce/password-login", "/api/commerce/subscriptions", "/api/commerce/team", "/api/commerce/nav02",
- "/api/commerce/nav02/photo"
+ "/api/commerce/nav02/photo", "/api/commerce/nav02/manage"
 ]);
 const CONTEXT_API=/^\/api\/tenants\/[0-9a-f-]{36}\/context$/i;
 
@@ -74,7 +74,7 @@ export function proxy(request:NextRequest){
  if(path==="/c/"+slug||path.startsWith("/c/"+slug+"/modules/")&&
   /^\/c\/[a-z0-9-]+\/modules\/nav-(?:0[2-9]|1[01])$/.test(path)||
   path==="/c/"+slug+"/settings/credentials"||path==="/c/"+slug+"/settings/users"||
-  path==="/c/"+slug+"/members/add"||path==="/c/"+slug+"/members/new"||path==="/c/"+slug+"/members/shares")return NextResponse.next();
+  path==="/c/"+slug+"/members/add"||path==="/c/"+slug+"/members/new"||path==="/c/"+slug+"/members/shares"||path==="/c/"+slug+"/members/shareholders")return NextResponse.next();
  if(path==="/settings/subscription")return NextResponse.next();
  if(SAFE_LOGIN_APIS.has(path)||CONTEXT_API.test(path))return NextResponse.next();
  return unavailable(request);
