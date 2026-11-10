@@ -1,0 +1,117 @@
+import {NextRequest,NextResponse} from "next/server";
+import {trustedBackendHeaders} from "../../../../../lib/trusted-backend";
+import {workbookXlsx,parseMemberXlsx} from "../../../../../lib/nav02-xlsx";
+export const runtime="nodejs";export const dynamic="force-dynamic";
+const H={"Cache-Control":"private, no-store","Vary":"Cookie","X-Robots-Tag":"noindex"};
+const fail=(status:number,code:string)=>NextResponse.json({code},{status,headers:H});
+const SLUG=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+const headings=["عنوان","نام و نام خانوادگی","گروه عضویت","کد ملی","شماره همراه",
+ "نام پدر","شماره شناسنامه","تاریخ تولد (شمسی)","محل تولد","تلفن",
+ "کدپستی","نشانی","شغل","متولد شهرستان","ساکن شهرستان","شاغل شهرستان"];
+function session(req:NextRequest){const t=req.cookies.get("tto_session")?.value;
+ return t&&/^[A-Za-z0-9_-]{32,256}$/.test(t)?t:null}
+function baseUrl(){const b=process.env.TTO_API_BASE_URL;if(!b?.startsWith("https://"))return null;
+ try{const u=new URL(b);return u.username||u.password||u.hash?null:u}catch{return null}}
+function excelFile(rows:string[][],name:string){
+ const data=workbookXlsx(rows);
+ return new NextResponse(new Uint8Array(data),{headers:{
+  ...H,"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "Content-Disposition":'attachment; filename="'+name+'.xlsx"',
+  "X-Content-Type-Options":"nosniff"}});
+}
+const fake=["خانم","شخص کاملاً ساختگی","عضو اولیه","0000000000","09000000000",
+ "نام آزمایشی","00000","1370/01/01","نمونه","","0000000000",
+ "نشانی نمونه و غیرواقعی","آزمایشی","بله","خیر","خیر"];
+export async function GET(req:NextRequest){
+ const token=session(req),slug=req.nextUrl.searchParams.get("slug");
+ if(!token)return fail(401,"LOGIN_REQUIRED");
+ if(!slug||!SLUG.test(slug))return fail(400,"INVALID_SLUG");
+ const base=baseUrl();if(!base)return fail(503,"BACKEND_UNAVAILABLE");
+ const mode=req.nextUrl.searchParams.get("mode");
+ if(!["sample","export"].includes(mode??""))return fail(400,"INVALID_MODE");
+ // The authorized owner check is mandatory even to fetch the template.
+ try{
+  const url=new URL("/v1/commerce/demo/nav02",base);url.searchParams.set("slug",slug);
+  const r=await fetch(url,{cache:"no-store",redirect:"error",signal:AbortSignal.timeout(10500),
+   headers:{Authorization:"Bearer "+token,...trustedBackendHeaders(req)}});
+  if(r.status===401)return fail(401,"LOGIN_REQUIRED");
+  if(r.status===403)return fail(403,"OWNER_REQUIRED");
+  if(!r.ok)return fail(503,"MEMBER_LIST_UNAVAILABLE");
+  const obj=await r.json() as {items?:unknown};
+  if(!Array.isArray(obj.items))return fail(502,"INVALID_OWNER_LIST");
+  if(mode==="sample")return excelFile([headings,fake],"TTO_Members_Sample");
+  if(obj.items.length>249)return fail(422,"EXPORT_BATCH_LIMIT_249");
+  const rows=obj.items.map((v:unknown)=>{
+   const p=v as Record<string,unknown>;
+   if(!p||typeof p!=="object")throw Error("INVALID_MEMBER");
+   // Export only approved list view fields. Never export decrypted national ID,
+   // mobile, or photos; masks are clearly marked in the header.
+   return [p.title,p.name,p.group,p.identifierMask,p.mobileMask,
+    "","","","", "", "", "",p.occupation,
+    "", "", ""].map(x=>String(x??""));
+  });
+  const exportHeads=headings.map(h=>["کد ملی","شماره همراه"].includes(h)?h+" (پوشیده)":h);
+  return excelFile([exportHeads,...rows],"TTO_Members_Export_Masked");
+ }catch{return fail(503,"WORKBOOK_EXPORT_UNAVAILABLE")}
+}
+export async function POST(req:NextRequest){
+ const token=session(req);if(!token)return fail(401,"LOGIN_REQUIRED");
+ const origin=req.headers.get("origin");if(!origin)return fail(403,"ORIGIN_REQUIRED");
+ try{if(new URL(origin).origin!==new URL(req.url).origin)return fail(403,"ORIGIN_DENIED")}
+ catch{return fail(403,"ORIGIN_DENIED")}
+ const slug=req.nextUrl.searchParams.get("slug");
+ if(!slug||!SLUG.test(slug))return fail(400,"INVALID_SLUG");
+ if(req.headers.get("content-type")?.split(";")[0]!==
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+  return fail(415,"XLSX_REQUIRED");
+ if(Number(req.headers.get("content-length")||0)>2097152)return fail(413,"XLSX_TOO_LARGE");
+ const bytes=Buffer.from(await req.arrayBuffer());
+ if(bytes.length>2097152)return fail(413,"XLSX_TOO_LARGE");
+ const base=baseUrl();if(!base)return fail(503,"BACKEND_UNAVAILABLE");
+ // Separate read-only authorization gate before parsing any submitted data.
+ try{
+  const url=new URL("/v1/commerce/demo/nav02",base);url.searchParams.set("slug",slug);
+  const gate=await fetch(url,{cache:"no-store",redirect:"error",signal:AbortSignal.timeout(10500),
+   headers:{Authorization:"Bearer "+token,...trustedBackendHeaders(req)}});
+  if(gate.status===401)return fail(401,"LOGIN_REQUIRED");
+  if(gate.status===403)return fail(403,"OWNER_REQUIRED");
+  if(!gate.ok)return fail(503,"MEMBER_LIST_UNAVAILABLE");
+  const known=await gate.json() as {items?:Array<{identifierMask?:string}>};
+  if(!Array.isArray(known.items))return fail(502,"INVALID_OWNER_LIST");
+ }catch{return fail(503,"OWNER_AUTH_UNAVAILABLE")}
+ try{
+  const data=parseMemberXlsx(bytes);
+  if(data.length<2||data.length>201||headings.some((h,i)=>data[0][i]!==h))
+   return fail(400,"XLSX_TEMPLATE_MISMATCH_OR_ROW_LIMIT");
+  const seen=new Set<string>();
+  const rows=data.slice(1).filter(row=>row.some(v=>v.trim())).map((r,i)=>{
+    if(r.length>headings.length)throw Error("UNSUPPORTED_COLUMNS");
+    const fields=headings.map((_,j)=>String(r[j]??"").trim());
+    const [title,fullName,group,nationalId,mobile,fatherName,birthCertificate,
+      birthDate,birthPlace,telephone,postalCode,address,occupation,born,resident,employed]=fields;
+    const errors:string[]=[];
+    if(!["آقا","خانم"].includes(title))errors.push("عنوان");
+    if(fullName.length<3||fullName.length>180)errors.push("نام");
+    if(group.length<2||group.length>90)errors.push("گروه");
+    if(!/^\d{10}$/.test(nationalId)||/^([0-9])\1{9}$/.test(nationalId))errors.push("کد ملی");
+    if(!/^09[0-9]{9}$/.test(mobile))errors.push("شماره همراه");
+    if(![born,resident,employed].includes("بله"))errors.push("شرایط شهرستان");
+    if(![born,resident,employed].every(v=>["بله","خیر"].includes(v)))errors.push("پرچم شهرستان");
+    if(birthDate&&!/^1[2-5][0-9]{2}\/(0[1-9]|1[0-2])\/\d{2}$/.test(birthDate))errors.push("تاریخ تولد");
+    if(seen.has(nationalId))errors.push("کد ملی تکراری در فایل");
+    seen.add(nationalId);
+    return {row:i+2,valid:errors.length===0,errors,fields:{
+     title,fullName,group,nationalId,mobile,fatherName,birthCertificate,birthDate,
+     birthPlace,telephone,postalCode,address,occupation,
+     bornInCounty:born==="بله"?"yes":"no",residentInCounty:resident==="بله"?"yes":"no",
+     employedInCounty:employed==="بله"?"yes":"no",
+     informationConfirmed:"yes",membershipStatus:"APPLICANT_UNVERIFIED",
+     personType:"NATURAL",shareholdingStatus:"NONE_UNVERIFIED",collectionName:"",
+     registrationNumber:"",economicCode:"",representativeName:"",
+     representativeNationalId:"",representativeMobile:""
+    }};
+  });
+  return NextResponse.json({rows,count:rows.length,hasErrors:rows.some(x=>!x.valid),
+   status:"PREVIEW_ONLY_REQUIRES_EXPLICIT_CONFIRMATION"},{headers:H});
+ }catch{return fail(400,"UNSAFE_OR_INVALID_XLSX")}
+}
