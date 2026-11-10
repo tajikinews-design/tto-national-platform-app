@@ -48,15 +48,15 @@ export function MemberSidebar(p:MemberSidebarInput){
      onChange={e=>{
       const f=e.currentTarget.files?.[0]??null;
       if(!f)return;
-      if(!["image/png","image/jpeg","image/webp"].includes(f.type)||f.size>716800){
-       setCollectionNotice("عکس باید PNG، JPEG یا WebP و حداکثر ۷۰۰ کیلوبایت باشد.");
+      if(!["image/png","image/jpeg","image/webp"].includes(f.type)||f.size>5242880){
+       setCollectionNotice("عکس باید PNG، JPEG یا WebP و حداکثر ۵ مگابایت باشد.");
        e.currentTarget.value="";return;
       }
       setCollectionNotice("");p.onPhoto(f);
      }}/>
     <button type="button" onClick={()=>p.onPhoto(null)} disabled={!p.photo}>حذف عکس</button>
    </div>
-   <small>تصویر انتخاب‌شده فقط پیش‌نمایش محلی است؛ انتشار منوط به اسکن امن است.</small>
+   <small>عکس در زمان ثبت به JPEG استاندارد تبدیل می‌شود و فقط برای افراد مجاز همین تعاونی نمایش داده می‌شود.</small>
   </section>
   <section className="tto-member-side-section">
    <h2>شماره عضویت</h2>
