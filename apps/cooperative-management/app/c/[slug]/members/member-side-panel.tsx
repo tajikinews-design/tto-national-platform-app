@@ -63,7 +63,7 @@ export function MemberSidebar(p:MemberSidebarInput){
   <section className="tto-member-side-section">
    <h2>شماره عضویت</h2>
    <output className="tto-member-number-output" dir="ltr">{p.numberText||"پس از ثبت امن صادر می‌شود"}</output>
-   <small>شماره یکتا پس از تخصیص قطعی، تغییر یا تخصیص مجدد نخواهد داشت.</small>
+   <small>شماره عضویت فقط در محدوده همین تعاونی تعریف می‌شود و می‌تواند با شماره سایر تعاونی‌ها یکسان باشد.</small>
   </section>
   <section className="tto-member-side-section">
    <h2>مجموعه عضو</h2>
@@ -118,7 +118,7 @@ export function MemberSidebar(p:MemberSidebarInput){
    {p.attachment?<small>{p.attachment.name} — فایل هنوز به سرور ارسال نشده است.</small>:null}
    {p.attachment?<button type="button" className="tto-member-link-button"
     onClick={()=>p.onAttachment(null)}>حذف فایل انتخابی</button>:null}
-   <small>ارسال و نگهداری ضمائم مستلزم قرنطینه، کنترل دسترسی و اسکن فایل است.</small>
+   <small>ضمائم PDF، JPEG یا PNG تا ۵۱۲ کیلوبایت فقط پس از اسکن پاک و رمزنگاری ذخیره می‌شوند؛ بدون اسکن موفق فایل پذیرفته نمی‌شود.</small>
   </section>
   {p.draftId?<MemberAttachmentList slug={p.slug} draftId={p.draftId}/>:null}
  </aside>;
