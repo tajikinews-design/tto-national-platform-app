@@ -84,6 +84,44 @@ class MemberFormLegal(unittest.TestCase):
   self.assertIn('commercialOnly:true',backend)
   self.assertIn('TTO_PORTAL_PASSWORD_LOGIN_ENABLED',backend)
   self.assertIn('TTO_SECURE_REAL_DATA_STAGING_ENABLED',backend)
+ def test_all_member_fields_editable_and_three_column_layout(self):
+  form=read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
+  css=read("apps/cooperative-management/app/member-intake.css")
+  api=read("services/api/src/module.ts")
+  sql=read("database/migrations/9999za_ph12_nav02_member_form_r3_edit_photo.sql")
+  for old in ('readOnly={Boolean(editId)}','disabled={Boolean(editId)}',
+              'readOnly={Boolean(editId)&&key==="nationalId"}',
+              'if(editId&&photo){setError(true)'):
+   self.assertNotIn(old,form)
+  for key in ("fullName","fatherName","birthCertificate","birthDate","birthPlace",
+              "mobile","telephone","postalCode","address","occupation","collectionName",
+              "registrationNumber","economicCode","representativeName",
+              "representativeNationalId","representativeMobile","membershipStatus",
+              "shareholdingStatus","personType","group","nationalId"):
+   self.assertIn(key,form)
+  self.assertIn('repeat(3,minmax(0,1fr))',css)
+  self.assertIn('.tto-nav02-member-layout .tto-nav02-field.wide{grid-column:1/-1}',css)
+  self.assertIn('tto.nav02_member_edit_all_fields',api)
+  self.assertIn('national_id_hmac=p_digest',sql)
+  self.assertIn('identityVerification=identityChanged?"UNVERIFIED"',api)
+  self.assertIn('MEMBER_IDENTIFIER_DUPLICATE',api)
+  self.assertNotIn('IMMUTABLE_IDENTITY_REQUIRES_REVERIFICATION',api)
+ def test_private_photos_render_in_all_views_and_are_replaceable(self):
+  form=read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
+  table=read("apps/cooperative-management/app/c/[slug]/members/shareholders-table.tsx")
+  directory=read("apps/cooperative-management/app/c/[slug]/members/member-directory.tsx")
+  case=read("apps/cooperative-management/app/c/[slug]/members/member-case.tsx")
+  api=read("services/api/src/module.ts")
+  sql=read("database/migrations/9999za_ph12_nav02_member_form_r3_edit_photo.sql")
+  for source in (table,directory,case):
+   self.assertIn('photoState==="READY_PRIVATE"',source)
+   self.assertIn('/api/commerce/nav02/photo/view?slug=',source)
+  self.assertIn('if(next==="profileEdit"){window.location.assign(',table)
+  self.assertIn('setPhotoRetryId(editId)',form)
+  self.assertIn('tto.nav02_member_photo_save',api)
+  self.assertIn('ON CONFLICT(draft_id) DO UPDATE',sql)
+  self.assertIn('tto.nav02_member_owner_order',sql)
+  self.assertNotIn('TTO_NAV02_PRIVATE_PHOTO_RELEASE_ENABLED',api)
  def test_checksum_both_sides_and_clear_errors(self):
   form=read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
   api=read("services/api/src/module.ts")
@@ -111,8 +149,14 @@ class MemberFormLegal(unittest.TestCase):
   side=read("apps/cooperative-management/app/c/[slug]/members/member-side-panel.tsx")
   self.assertIn('alt="پیش‌نمایش عکس پرسنلی انتخاب‌شده"',side)
   self.assertIn("onPhoto={setPhoto}",form)
-  self.assertIn('quarantinePhoto(',form)
+  self.assertIn('async function savePhoto(',form)
+  self.assertIn('createImageBitmap(file)',form)
+  self.assertIn('canvas.toBlob(',form)
   self.assertNotIn('localStorage',form)
   photo=read("apps/cooperative-management/app/api/commerce/nav02/photo/route.ts")
-  self.assertIn('visible:false,scanned:false',photo)
+  self.assertIn('visible:true',photo)
+  self.assertIn('Authorization:"Bearer "+token',photo)
+  viewer=read("apps/cooperative-management/app/api/commerce/nav02/photo/view/route.ts")
+  self.assertIn('LOGIN_REQUIRED',viewer)
+  self.assertIn('"Cache-Control":"private, no-store"',viewer)
 if __name__=="__main__":unittest.main()
