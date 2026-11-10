@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
-type Member={id:string;name:string;personType?:string;membershipStatus?:string;identifierMask?:string};
+type Member={id:string;name:string;personType?:string|null;identifierMask?:string};
 type Officer={id:string;version:number;officeCode:string;memberDraftId:string|null;externalName:string|null;
  ceoSource:string;signingAuthorized:boolean;signingScope:string;startDate:string;endDate:string;
  gazetteName:string;gazetteDate:string|null;gazetteIssue:string;noticeNumber:string;status:string};
@@ -32,7 +32,9 @@ export function OfficersSettings({slug}:{slug:string}){
   const m=await mr.json() as {items?:Member[]};
   const o=await or.json() as {items?:Officer[]};
   if(!Array.isArray(m.items)||!Array.isArray(o.items))throw Error("فهرست دریافتی معتبر نیست.");
-  setMembers(m.items.filter(x=>x.personType==="NATURAL"&&x.membershipStatus!=="NON_MEMBER_REPORTED"));
+  // The member directory is the source for suggestions; a reported status is NOT a display filter.
+  // The API independently verifies tenant ownership and eligibility at save time.
+  setMembers(m.items.filter(x=>x&&typeof x.id==="string"&&typeof x.name==="string"&&x.personType!=="LEGAL"));
   setItems(o.items);
  }
  useEffect(()=>{void load().catch(e=>setError(e instanceof Error?e.message:"خطای دریافت فهرست"));},[slug]);
@@ -89,8 +91,11 @@ export function OfficersSettings({slug}:{slug:string}){
   </div></header>
   <div className="tto-settings-card">
    <h2>{editTarget?"ویرایش پیش‌نویس سمت":"ثبت پیش‌نویس سمت"}</h2>
-   <p role="status">افراد هیئت‌مدیره و بازرسان از فهرست اعضای همین تعاونی انتخاب می‌شوند. مدیرعامل می‌تواند خارج از تعاونی باشد.</p>
-   <form onSubmit={e=>void submit(e)} className="tto-nav02-form">
+   <p role="status">گزینش افراد از پرونده‌های همین تعاونی انجام می‌شود؛ ثبت پیش‌نویس سمت به‌تنهایی اختیار قانونی ایجاد نمی‌کند.</p>
+   <div className="tto-officer-member-status" role="status"><span>افراد قابل انتخاب: {members.length.toLocaleString("fa-IR")}</span>
+    <button type="button" disabled={busy} onClick={()=>void load().catch(e=>setError(e instanceof Error?e.message:"خطای تازه‌سازی"))}>↻ تازه‌سازی فهرست اعضا</button></div>
+   <form onSubmit={e=>void submit(e)} className="tto-nav02-form tto-officer-form">
+    <h3 className="tto-officer-section-title">۱. سمت و شخص انتخاب‌شده</h3>
     <label>سمت <select value={form.officeCode} onChange={e=>{
      const officeCode=e.target.value;
      setForm(x=>({...x,officeCode,ceoSource:officeCode==="CEO"?x.ceoSource:"MEMBER"}));
@@ -112,7 +117,9 @@ export function OfficersSettings({slug}:{slug:string}){
        {candidates.map(x=><option key={x.id} value={x.id}>
         {x.name} — {x.identifierMask||"شناسه محفوظ"}</option>)}
       </select>
-     </label></>}
+     </label>
+     {members.length===0?<p role="status" className="tto-officer-empty">فهرست اشخاص حقیقی خالی یا هنوز بارگذاری نشده است. ابتدا در بخش «لیست اعضا» وجود پرونده را بررسی و سپس فهرست را تازه‌سازی کنید.</p>:candidates.length===0?<p role="status" className="tto-officer-empty">عضوی با عبارت جست‌وجوی فعلی پیدا نشد.</p>:null}</>}
+    <h3 className="tto-officer-section-title">۲. اطلاعات امضا و دوره مسئولیت</h3>
     <label>حدود امضا
       <select value={form.signingAuthorized?"yes":"no"}
        onChange={e=>update("signingAuthorized",e.target.value==="yes")}>
@@ -120,13 +127,14 @@ export function OfficersSettings({slug}:{slug:string}){
        <option value="yes">صاحب امضای مجاز (اظهاری)</option>
       </select>
     </label>
-    <label>شرح حدود اختیارات و ترکیب امضا
+    <label className="tto-officer-wide">شرح حدود اختیارات و ترکیب امضا
       <textarea maxLength={1000} value={form.signingScope}
        onChange={e=>update("signingScope",e.target.value)} rows={2}/></label>
     <label>تاریخ شروع سمت (میلادی موقت) <input required type="date" value={form.startDate}
      onChange={e=>update("startDate",e.target.value)}/></label>
     <label>تاریخ پایان سمت (میلادی موقت) <input required type="date" min={form.startDate||undefined}
      value={form.endDate} onChange={e=>update("endDate",e.target.value)}/></label>
+    <h3 className="tto-officer-section-title">۳. مستندات و اطلاعات آگهی</h3>
     <label>روزنامه انتشار آگهی <input maxLength={160} value={form.gazetteName}
      onChange={e=>update("gazetteName",e.target.value)}/></label>
     <label>تاریخ انتشار آگهی (میلادی موقت) <input type="date" value={form.gazetteDate}
@@ -135,7 +143,7 @@ export function OfficersSettings({slug}:{slug:string}){
      onChange={e=>update("gazetteIssue",e.target.value)}/></label>
     <label>شماره آگهی <input maxLength={100} value={form.noticeNumber}
      onChange={e=>update("noticeNumber",e.target.value)}/></label>
-    <div className="tto-nav02-actions">
+    <div className="tto-nav02-actions tto-officer-actions">
      <button disabled={busy||(!external&&!form.memberDraftId)} type="submit">
       {busy?"در حال ذخیره…":editTarget?"ثبت ویرایش نسخه "+editTarget.version:"ذخیره پیش‌نویس سمت"}</button>
      {editTarget?<button type="button" onClick={()=>{setEditTarget(null);setForm(empty);setMessage("");}}>انصراف از ویرایش</button>:null}
