@@ -700,7 +700,26 @@ export class FoundationCommandsController {
        typeof proposedDate!=="string"||proposedDate!==""&&!/^\d{4}-\d{2}-\d{2}$/.test(proposedDate))
       throw new BadRequestException("INVALID_END_REQUEST");
     const actor=await this.db.sessionActor(auth);
+    const key=this.nav02DataKey();
     return this.db.withActor(actor,async c=>{
+      const existing=await c.query<{profile:Record<string,unknown>|null}>(
+       "SELECT tto.commerce_demo_nav02_profile_for_edit($1,$2::uuid) AS profile",[slug,draftId]);
+      const row=existing.rows[0]?.profile;
+      if(!row||typeof row.cipher!=="string"||typeof row.iv!=="string"||typeof row.tag!=="string")
+        throw new ForbiddenException("MEMBER_SCOPE_DENIED");
+      let person:Record<string,unknown>;
+      try{
+        const dec=createDecipheriv("aes-256-gcm",key,Buffer.from(row.iv,"base64"));
+        dec.setAAD(Buffer.from(slug+":profile:v1","utf8"));
+        dec.setAuthTag(Buffer.from(row.tag,"base64"));
+        const plain=Buffer.concat([dec.update(Buffer.from(row.cipher,"base64")),dec.final()]);
+        person=JSON.parse(plain.toString("utf8")) as Record<string,unknown>;
+        plain.fill(0);
+      }catch{
+        throw new ServiceUnavailableException("PRIVATE_MEMBER_PROFILE_UNAVAILABLE");
+      }
+      if(person.personType!=="NATURAL"||person.membershipStatus!=="ACTIVE_REPORTED")
+        throw new ForbiddenException("ACTIVE_NATURAL_MEMBER_REQUIRED");
       try{
         const r=await c.query<{record:unknown}>(
          "SELECT tto.nav02_member_end_request_submit($1,$2::uuid,$3,$4,$5::date) AS record",
