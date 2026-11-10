@@ -6,6 +6,16 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 const SLUG=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 const TOKEN=/^[A-Za-z0-9_-]{32,256}$/;
 const fail=(status:number,code:string)=>NextResponse.json({code},{status,headers:CACHE});
+async function operationalError(r:Response,fallback:string){
+ if(r.status!==503)return fail(503,fallback);
+ const payload=await r.json().catch(()=>null) as {message?:unknown}|null;
+ const message=typeof payload?.message==="string"?payload.message:"";
+ if(message==="SHAHKAR_NOT_CONFIGURED")return fail(503,"IDENTITY_PROVIDER_NOT_CONFIGURED");
+ if(message==="SHAHKAR_UNAVAILABLE")return fail(503,"IDENTITY_PROVIDER_UNAVAILABLE");
+ if(["PRIVATE_IDENTITY_KEY_UNAVAILABLE","PRIVATE_IDENTITY_KEY_INVALID","PRIVATE_MEMBER_PROFILE_UNAVAILABLE"].includes(message))
+  return fail(503,"IDENTITY_ENCRYPTION_UNAVAILABLE");
+ return fail(503,fallback);
+}
 function token(req:NextRequest){const s=req.cookies.get("tto_session")?.value;return s&&TOKEN.test(s)?s:null}
 function backend(){
  const base=process.env.TTO_API_BASE_URL;
@@ -25,7 +35,7 @@ export async function GET(req:NextRequest){
     headers:{Authorization:"Bearer "+tk,...trustedBackendHeaders(req)}});
   if(r.status===401)return fail(401,"LOGIN_REQUIRED");
   if(r.status===403)return fail(403,"MEMBER_SCOPE_DENIED");
-  if(!r.ok)return fail(503,"MEMBER_PROFILE_UNAVAILABLE");
+  if(!r.ok)return operationalError(r,"MEMBER_PROFILE_UNAVAILABLE");
   const body=await r.json() as {profile?:unknown;version?:unknown;managementState?:unknown};
   if(!body.profile||typeof body.profile!=="object"||Array.isArray(body.profile)||
      !Number.isSafeInteger(body.version)||typeof body.managementState!=="string")
@@ -62,7 +72,7 @@ export async function POST(req:NextRequest){
   if(r.status===409)return fail(409,"STALE_MEMBER_RECORD");
   if(r.status===422)return fail(422,"SHAHKAR_MISMATCH");
   if(r.status===400)return fail(400,"INVALID_PROFILE_EDIT");
-  if(!r.ok)return fail(503,"MEMBER_EDIT_UNAVAILABLE");
+  if(!r.ok)return operationalError(r,"MEMBER_EDIT_UNAVAILABLE");
   const body=await r.json() as {saved?:unknown;record?:unknown};
   if(body.saved!==true||!body.record)return fail(502,"INVALID_MEMBER_EDIT_REPLY");
   return NextResponse.json(body,{headers:CACHE});
