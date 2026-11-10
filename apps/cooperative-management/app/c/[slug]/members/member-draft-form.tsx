@@ -547,7 +547,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
     </form>
     {notice?<div role={error?"alert":"status"} className={"tto-nav02-message"+(error?" error":"")}>{notice}</div>:null}
    </section>
-   {section==="add"?<MemberSidebar slug={slug} photo={photo} photoUrl={photoUrl||(
+   {section==="add"?<MemberSidebar slug={slug} draftId={editId||undefined} photo={photo} photoUrl={photoUrl||(
     editId&&items.find(x=>x.id===editId&&((x as RecordItem & {photoState?:string}).photoState==="READY_PRIVATE"))?
     "/api/commerce/nav02/photo/view?slug="+encodeURIComponent(slug)+"&draftId="+encodeURIComponent(editId):""
    )}
