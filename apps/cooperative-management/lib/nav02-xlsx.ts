@@ -74,6 +74,8 @@ function zipEntries(buffer:Buffer){
     throw Error("UNSAFE_XLSX_ENTRY");
   const name=buffer.subarray(p+46,p+46+n).toString("utf8");
   if(name.includes("..")||name.startsWith("/")||found.has(name))throw Error("INVALID_XLSX_PATH");
+  if(/vbaProject|externalLinks|connections|embeddings|activeX|oleObject/i.test(name))
+   throw Error("ACTIVE_XLSX_NOT_ALLOWED");
   if(name.endsWith(".xml")){
    if(local+30>buffer.length||buffer.readUInt32LE(local)!==0x04034b50)
     throw Error("INVALID_XLSX_LOCAL_HEADER");
