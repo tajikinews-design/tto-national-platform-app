@@ -96,11 +96,11 @@ function navHref(i: number, basePath = "") {
 
 export function PortalShell({
   surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, allowedModules, canManageSettings = false, settingsSection, memberSection, NavigationLink
-}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users";memberSection?:"add"|"shares"|"shareholders";NavigationLink?:ComponentType<{href:string;children:ReactNode;className?:string;"aria-current"?: "page";"aria-label"?:string}>}) {
+}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users";memberSection?:"add"|"shares"|"shareholders"|"list"|"archive"|"collections"|"profile";NavigationLink?:ComponentType<{href:string;children:ReactNode;className?:string;"aria-current"?: "page";"aria-label"?:string}>}) {
  const cfg=surfaces[surface],selection=Math.max(NAV_IDS.indexOf(activeId),0);
  const InternalLink=NavigationLink??"a";
  const home=selection===0,currentTitle=settingsSection==="credentials"?"تغییر نام کاربری و رمز عبور":
-  settingsSection==="users"?"کاربران و سطح دسترسی":memberSection==="add"?"افزودن اعضا":memberSection==="shares"?"اطلاعات اولیه سهام":memberSection==="shareholders"?"سهامداران":home?cfg.title:cfg.navigation[selection];
+  settingsSection==="users"?"کاربران و سطح دسترسی":memberSection==="add"?"ثبت عضو":memberSection==="shares"?"ثبت سهام":memberSection==="list"?"لیست اعضا":memberSection==="archive"?"بایگانی اعضا":memberSection==="collections"?"مجموعه‌ها":memberSection==="profile"?"پرونده عضویت":memberSection==="shareholders"?"سهامداران":home?cfg.title:cfg.navigation[selection];
  return <div className="shell tto-approved-shell" lang="fa" dir="rtl" data-tto-demo-only={demoOnly?"true":undefined}>
    <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
    <aside className="nav-area">
@@ -118,11 +118,23 @@ export function PortalShell({
          <div className="tto-settings-submenu" aria-label="زیرمنوهای اعضا و سهام">
           <InternalLink className={memberSection==="add"?"tto-settings-sublink selected":"tto-settings-sublink"}
            href={basePath+"/members/add"} aria-current={memberSection==="add"?"page":undefined}>
-           <span aria-hidden="true">♙</span> افزودن اعضا
+           <span aria-hidden="true">♙</span> ثبت عضو
           </InternalLink>
           <InternalLink className={memberSection==="shares"?"tto-settings-sublink selected":"tto-settings-sublink"}
            href={basePath+"/members/shares"} aria-current={memberSection==="shares"?"page":undefined}>
-           <span aria-hidden="true">▥</span> اطلاعات سهام
+           <span aria-hidden="true">▥</span> ثبت سهام
+          </InternalLink>
+          <InternalLink className={memberSection==="list"||memberSection==="profile"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/members/list"} aria-current={memberSection==="list"?"page":undefined}>
+           <span aria-hidden="true">☷</span> لیست اعضا
+          </InternalLink>
+          <InternalLink className={memberSection==="collections"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/members/collections"} aria-current={memberSection==="collections"?"page":undefined}>
+           <span aria-hidden="true">▤</span> مجموعه‌ها
+          </InternalLink>
+          <InternalLink className={memberSection==="archive"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/members/archive"} aria-current={memberSection==="archive"?"page":undefined}>
+           <span aria-hidden="true">▣</span> بایگانی
           </InternalLink>
           <InternalLink className={memberSection==="shareholders"?"tto-settings-sublink selected":"tto-settings-sublink"}
            href={basePath+"/members/shareholders"} aria-current={memberSection==="shareholders"?"page":undefined}>

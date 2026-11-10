@@ -160,8 +160,8 @@ export function ShareholdersTable({slug}:{slug:string}){
    <p>فهرست پرونده‌های اولیه و تأییدنشده در فضای همین تعاونی؛ وضعیت‌های این جدول جایگزین دفتر رسمی مالکیت سهام یا وضعیت قانونی عضویت نیستند.</p>
   </header>
   <nav aria-label="زیرمنوهای اعضا و سهام" className="tto-nav02-switch">
-   <Link href={base+"add"}>♙ افزودن سهامدار</Link>
-   <Link href={base+"shares"}>▥ اطلاعات سهام</Link>
+   <Link href={base+"add"}>♙ ثبت عضو</Link>
+   <Link href={base+"shares"}>▥ ثبت سهام</Link>
    <Link href={base+"shareholders"} aria-current="page">♧ سهامداران</Link>
   </nav>
   <div className="tto-nav02-warning" role="status">

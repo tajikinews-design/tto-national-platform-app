@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import {JalaliBirthDatePicker} from "./jalali-birth-picker";
+import {MemberSidebar} from "./member-side-panel";
 import {useEffect,useMemo,useState,type FormEvent} from "react";
 type Section="add"|"shares";
 type RecordItem={id:string;name:string;title:string;group:string;identifierMask:string;membershipStatus?:string|null;
@@ -9,6 +10,7 @@ type RecordItem={id:string;name:string;title:string;group:string;identifierMask:
 const TITLES=["آقا","خانم"] as const;
 const initialProfile={title:"آقا",fullName:"",group:"متقاضی عضویت",nationalId:"",fatherName:"",
  birthCertificate:"",birthDate:"",birthPlace:"",telephone:"",mobile:"",postalCode:"",address:"",
+ collectionName:"",occupation:"",
  bornInCounty:"no",residentInCounty:"no",employedInCounty:"no",
  informationConfirmed:"no",membershipStatus:"APPLICANT_UNVERIFIED",
  personType:"NATURAL",shareholdingStatus:"NONE_UNVERIFIED"};
@@ -45,10 +47,18 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
  const [draftId,setDraftId]=useState("");
  const [photo,setPhoto]=useState<File|null>(null),[photoUrl,setPhotoUrl]=useState("");
  const [photoRetryId,setPhotoRetryId]=useState("");
+ const [attachment,setAttachment]=useState<File|null>(null);
+ const [attachmentSubject,setAttachmentSubject]=useState("");
+ const [editId,setEditId]=useState("");
  const [personalDataConfirmed,setPersonalDataConfirmed]=useState(false);
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [notice,setNotice]=useState(""),[error,setError]=useState(false);
  const base="/c/"+encodeURIComponent(slug)+"/members/";
+ useEffect(()=>{
+  if(section!=="add")return;
+  const id=new URLSearchParams(window.location.search).get("edit");
+  if(id&&/^[0-9a-f-]{36}$/i.test(id))setEditId(id);
+ },[section]);
  useEffect(()=>{
   if(!photo){setPhotoUrl("");return}
   const url=URL.createObjectURL(photo);setPhotoUrl(url);
@@ -115,6 +125,8 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   if(section==="add"){
    if(!personalDataConfirmed){setError(true);setNotice("تأیید صحت اطلاعات و مجوز ثبت آن لازم است.");return}
    if(photoRetryId){setError(true);setNotice("آپلود عکس پرونده قبلی را تکمیل یا لغو کنید.");return}
+   if(editId){setError(true);setNotice("ویرایش کامل به دریافت امن داده پرونده و API ویرایش تأییدشده نیاز دارد؛ ثبت پرونده جدید از این صفحه انجام نمی‌شود.");return}
+   if(attachment){setError(true);setNotice("ضمیمه انتخاب شده اما سرویس قرنطینه مدارک هنوز متصل نیست؛ برای جلوگیری از ثبت ناقص، فایل را حذف کنید یا منتظر فعال‌سازی امن ضمائم بمانید.");return}
    if(!/^09[0-9]{9}$/.test(profile.mobile)){
     setError(true);setNotice("شماره همراه معتبر نیست؛ شماره ۱۱ رقمی متعلق به صاحب کد ملی را وارد کنید.");return;
    }
@@ -181,34 +193,34 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
  return <div className="tto-nav02-page">
   <header className="tto-nav02-hero">
    <span className="tto-settings-eyebrow">NAV-02 · پرونده عضویت</span>
-   <h1>{section==="add"?"افزودن اعضا":"ثبت اطلاعات اولیه سهام"}</h1>
+   <h1>{section==="add"?"ثبت عضو":"ثبت سهام"}</h1>
    <p>{section==="add"?
     "ثبت اطلاعات شخص حقیقی و شرایط درخواست عضویت؛ تأیید عضویت با مرجع مجاز تعاونی است.":
     "ثبت اطلاعات اولیه سهام با رعایت تفکیک قانونی عضو و سهامدار غیرعضو."}</p>
   </header>
   <nav aria-label="زیرمنوهای اعضا و سهام" className="tto-nav02-switch">
-   <Link href={base+"add"} aria-current={section==="add"?"page":undefined}>♙ افزودن اعضا</Link>
-   <Link href={base+"shares"} aria-current={section==="shares"?"page":undefined}>▥ اطلاعات سهام</Link>
+   <Link href={base+"add"} aria-current={section==="add"?"page":undefined}>♙ ثبت عضو</Link>
+   <Link href={base+"shares"} aria-current={section==="shares"?"page":undefined}>▥ ثبت سهام</Link>
+   <Link href={base+"list"}>☷ لیست اعضا</Link>
+   <Link href={base+"collections"}>▥ مجموعه‌ها</Link>
    <Link href={base+"shareholders"}>♧ سهامداران</Link>
   </nav>
   {section==="shares"?<div className="tto-nav02-warning" role="status">
    اطلاعات سرمایه در این بخش صرفاً اظهار اولیه است و جایگزین دفتر رسمی سهام نیست.</div>:null}
-  <div className="tto-nav02-layout">
+  <div className={"tto-nav02-layout"+(section==="add"?" tto-nav02-member-layout":"")}>
    <section className="tto-nav02-card" aria-label={section==="add"?"فرم افزودن اعضا":"فرم اظهار اطلاعات سهام"}>
     <h2>{section==="add"?"مشخصات متقاضی عضویت":"اطلاعات سرمایه و پرداخت اظهارشده"}</h2>
+    {editId&&section==="add"?<div className="tto-nav02-warning" role="status">
+     نمای ویرایش پرونده انتخاب‌شده است. تا تکمیل API امن بازیابی و ثبت ویرایش،
+     ذخیره پرونده جدید در این حالت عمداً متوقف می‌ماند.
+     <p><Link href={base+"profile/"+encodeURIComponent(editId)}>مشاهده پرونده انتخابی</Link></p>
+    </div>:null}
     <form onSubmit={submit} className="tto-nav02-form">
      {section==="add"?<>
-      <div className="tto-nav02-photo">
-       <label htmlFor="nav02-photo">عکس پرسنلی</label>
-       <input id="nav02-photo" type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{
-        const file=e.currentTarget.files?.[0]??null;
-        if(file&&(!["image/png","image/jpeg","image/webp"].includes(file.type)||file.size>716800)){
-         setError(true);setNotice("فقط تصویر PNG، JPEG یا WebP تا حجم ۷۰۰ کیلوبایت پذیرفته می‌شود.");setPhoto(null);return;
-        }
-        setPhoto(file);
-       }}/>
-       {photoUrl?<img src={photoUrl} alt="نمایش فوری عکس انتخاب‌شده" width="110" height="130"/>:null}
-       {photo?<button type="button" onClick={()=>{setPhoto(null);setNotice("")}}>حذف عکس انتخابی</button>:null}
+      <div className="tto-member-number-notice">
+       <strong>شماره عضویت:</strong>
+       <span>پس از ثبت و تخصیص قطعی در دفتر شماره‌های یکتا صادر می‌شود</span>
+       <Link href={base+"list"}>تنظیم قالب شماره عضویت</Link>
       </div>
       <div className="tto-nav02-name-row">
        <Field title="عنوان *"><select value={profile.title} onChange={e=>change("title",e.target.value)}>
@@ -298,13 +310,20 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        onChange={e=>setCapital(p=>({...p,receiptRef:e.target.value}))}/></Field>
       <p className="tto-nav02-summary">کل ارزش اسمی اظهارشده: <strong>{faNumber(Number(subtotal))} ریال</strong></p>
      </>}
-     <div className="tto-nav02-actions"><button type="submit" disabled={busy||loading||Boolean(photoRetryId)||(section==="add"&&(!personalDataConfirmed||!countyCondition||Boolean(nationalIdError)||Boolean(mobileError)||!profile.mobile))}>
+     <div className="tto-nav02-actions"><button type="submit" disabled={busy||loading||Boolean(photoRetryId)||Boolean(editId)||(section==="add"&&(!personalDataConfirmed||!countyCondition||Boolean(nationalIdError)||Boolean(mobileError)||!profile.mobile))}>
       {busy?"در حال ثبت پرونده…":section==="add"?"ثبت درخواست عضویت":"ثبت اطلاعات اظهارشده سهام"}
      </button><span>هیچ اثر مالی یا انتقال قانونی ثبت نمی‌شود.</span></div>
     </form>
     {notice?<div role={error?"alert":"status"} className={"tto-nav02-message"+(error?" error":"")}>{notice}</div>:null}
    </section>
-   <aside className="tto-nav02-card" aria-label="فهرست پرونده‌های اولیه">
+   {section==="add"?<MemberSidebar photo={photo} photoUrl={photoUrl}
+    onPhoto={setPhoto} collection={profile.collectionName}
+    onCollection={v=>change("collectionName",v)}
+    collections={items.map(x=>(x as RecordItem & {collectionName?:string}).collectionName??"").filter(Boolean)}
+    occupation={profile.occupation} onOccupation={v=>change("occupation",v)}
+    attachmentSubject={attachmentSubject} onAttachmentSubject={setAttachmentSubject}
+    attachment={attachment} onAttachment={setAttachment}/>
+   :   <aside className="tto-nav02-card" aria-label="فهرست پرونده‌های اولیه">
     <h2>پرونده‌های ثبت اولیه</h2>
     {loading?<p role="status">در حال دریافت پرونده‌های مجاز…</p>:
      visibleItems.length===0?<p>هنوز پرونده اولیه‌ای در این بخش ثبت نشده است.</p>:
@@ -314,7 +333,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
       {section==="shares"&&!x.capitalState?<button type="button" onClick={()=>setDraftId(x.id)}>انتخاب</button>:null}
      </article>)}</div>}
     <p className="tto-nav02-boundary">ثبت درخواست با تأیید قانونی عضویت، احراز سهام و حق رأی متفاوت است.</p>
-   </aside>
+   </aside>}
   </div>
  </div>;
 }

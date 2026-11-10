@@ -7,8 +7,12 @@ class MemberFormLegal(unittest.TestCase):
  def test_natural_person_only_and_distinct_nonmember_shareholder(self):
   form=read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
   self.assertIn('const TITLES=["آقا","خانم"]',form)
-  self.assertIn("افزودن اعضا",form)
+  self.assertIn("ثبت عضو",form)
   self.assertIn("APPLICANT_UNVERIFIED",form)
+  self.assertIn("MemberSidebar",form)
+  self.assertNotIn('className="tto-nav02-photo"',form)
+  self.assertIn('collectionName',form)
+  self.assertIn('occupation',form)
   self.assertIn("JalaliBirthDatePicker",form)
   self.assertIn("tto-nav02-birth-row",form)
   self.assertIn('personType:"NATURAL"',form)
