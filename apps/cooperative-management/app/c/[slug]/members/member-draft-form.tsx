@@ -64,6 +64,9 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
  const [editVersion,setEditVersion]=useState<number|null>(null);
  const [editLoading,setEditLoading]=useState(false);
  const [personalDataConfirmed,setPersonalDataConfirmed]=useState(false);
+ const [verifiedIdentityKey,setVerifiedIdentityKey]=useState("");
+ const [identityChecking,setIdentityChecking]=useState(false);
+ const [identityMessage,setIdentityMessage]=useState("");
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [notice,setNotice]=useState(""),[error,setError]=useState(false);
  const base="/c/"+encodeURIComponent(slug)+"/members/";
@@ -148,6 +151,36 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   !/^[0-9]{0,10}$/.test(profile.nationalId)?"کد ملی باید فقط ۱۰ رقم باشد.":
   profile.nationalId.length===10&&!validIranianNationalId(profile.nationalId)?
   "کد ملی معتبر نیست؛ رقم کنترل را بررسی کنید.":"";
+ const identityNationalCode=profile.personType==="LEGAL"?profile.representativeNationalId:profile.nationalId;
+ const identityMobile=profile.personType==="LEGAL"?profile.representativeMobile:profile.mobile;
+ const currentIdentityKey=slug+"|"+profile.personType+"|"+identityNationalCode+"|"+identityMobile;
+ const identityVerified=verifiedIdentityKey===currentIdentityKey;
+ async function verifyIdentity(){
+  if(!validIranianNationalId(identityNationalCode)||!/^09[0-9]{9}$/.test(identityMobile)){
+   setIdentityMessage("ابتدا کد ملی و شماره همراه معتبر را وارد کنید.");return;
+  }
+  setIdentityChecking(true);setIdentityMessage("");setVerifiedIdentityKey("");
+  const keyAtRequest=currentIdentityKey;
+  try{
+   const r=await fetch("/api/commerce/nav02/shahkar-preflight",{
+    method:"POST",credentials:"same-origin",cache:"no-store",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({slug,nationalCode:identityNationalCode,mobile:identityMobile})
+   });
+   if(!r.ok){
+    const p=await r.json().catch(()=>null) as {code?:unknown}|null;
+    throw Error(r.status===422?"شماره همراه با کد ملی مطابقت ندارد؛ ادامه ثبت مجاز نیست.":
+     r.status===403?"مجوز استعلام هویت در این تعاونی وجود ندارد.":
+     p?.code==="SHAHKAR_NOT_CONFIGURED"?"سرویس شاهکار پیکربندی نشده است؛ ثبت مجاز نیست.":
+     "استعلام شاهکار ناموفق یا در دسترس نیست؛ ثبت مجاز نیست.");
+   }
+   const data=await r.json() as {verified?:unknown};
+   if(data.verified!==true)throw Error("نتیجه مثبت معتبر دریافت نشد.");
+   setVerifiedIdentityKey(keyAtRequest);
+   setIdentityMessage("تطبیق شماره همراه و کد ملی در شاهکار تأیید شد.");
+  }catch(e){setIdentityMessage(e instanceof Error?e.message:"استعلام انجام نشد.");}
+  finally{setIdentityChecking(false);}
+ }
  const countyCondition=profile.bornInCounty==="yes"||profile.residentInCounty==="yes"||
   profile.employedInCounty==="yes";
  async function savePhoto(file:File,id:string){
@@ -192,6 +225,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
  async function submit(e:FormEvent<HTMLFormElement>){
   e.preventDefault();if(busy)return;setError(false);setNotice("");
   if(section==="add"){
+   if(!identityVerified||identityChecking){setError(true);setNotice("ابتدا تطبیق مثبت کد ملی و موبایل در شاهکار را در همین فرم دریافت کنید.");return}
    if(!personalDataConfirmed){setError(true);setNotice("تأیید صحت اطلاعات و مجوز ثبت آن لازم است.");return}
    if(photoRetryId){setError(true);setNotice("آپلود عکس پرونده قبلی را تکمیل یا لغو کنید.");return}
    if(editId&&editVersion===null){setError(true);setNotice("تا دریافت امن پرونده، ویرایش امکان ثبت ندارد.");return}
@@ -400,6 +434,13 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        </>:null}
        {key==="mobile"&&mobileError?<small role="alert" className="tto-nav02-field-error">{mobileError}</small>:null}
       </Field>)}
+      <div className="tto-nav02-warning" role="group" aria-label="تأیید شماره همراه با شاهکار">
+       <strong>استعلام شاهکار در فرم ثبت عضو</strong>
+       <p>پس از واردکردن کد ملی و شماره همراه، استعلام را انجام دهید. تا زمان پاسخ مثبت، ثبت پرونده غیرفعال است. تغییر هرکدام از این دو مقدار، تأیید قبلی را باطل می‌کند.</p>
+       <button type="button" disabled={identityChecking||busy||!validIranianNationalId(identityNationalCode)||!/^09[0-9]{9}$/.test(identityMobile)}
+        onClick={()=>void verifyIdentity()}>{identityChecking?"در حال استعلام…":"استعلام و تطبیق شاهکار"}</button>
+       <p role="status">{identityVerified?"✓ تطبیق مثبت دریافت شده است":identityMessage||"هنوز تطبیق مثبت دریافت نشده است."}</p>
+      </div>
       {profile.personType==="NATURAL"&&profile.membershipStatus!=="NON_MEMBER_REPORTED"?<fieldset className="tto-nav02-eligibility">
        <legend>شرایط ارتباط با شهرستان طبق ماده ۲ قانون تأسیس (حداقل یکی)</legend>
        <label><input type="checkbox" checked={profile.bornInCounty==="yes"}
@@ -464,7 +505,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        onChange={e=>setCapital(p=>({...p,receiptRef:e.target.value}))}/></Field>
       <p className="tto-nav02-summary">کل ارزش اسمی اظهارشده: <strong>{faNumber(Number(subtotal))} ریال</strong></p>
      </>}
-     <div className="tto-nav02-actions"><button type="submit" disabled={busy||loading||editLoading||Boolean(photoRetryId)||(Boolean(editId)&&editVersion===null)||(section==="add"&&(!personalDataConfirmed||Boolean(nationalIdError)||
+     <div className="tto-nav02-actions"><button type="submit" disabled={busy||loading||editLoading||Boolean(photoRetryId)||(Boolean(editId)&&editVersion===null)||(section==="add"&&(!identityVerified||identityChecking||!personalDataConfirmed||Boolean(nationalIdError)||
      (profile.personType==="NATURAL"&&((profile.membershipStatus!=="NON_MEMBER_REPORTED"&&!countyCondition)||Boolean(mobileError)||!profile.mobile))||
      (profile.personType==="LEGAL"&&(!profile.registrationNumber||!profile.economicCode||!profile.representativeName||!profile.representativeNationalId||!profile.representativeMobile))))}>
       {busy?"در حال ثبت پرونده…":section==="add"?(editId?"ذخیره ویرایش پرونده":"ثبت درخواست عضویت"):"ثبت اطلاعات اظهارشده سهام"}
