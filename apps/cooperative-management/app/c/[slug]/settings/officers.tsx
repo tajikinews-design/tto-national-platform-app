@@ -22,19 +22,26 @@ export function OfficersSettings({slug}:{slug:string}){
  const [history,setHistory]=useState<{versionBefore:number;versionAfter:number;revisedAt:string;previous:Record<string,unknown>}[]>([]);
  const [search,setSearch]=useState("");
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
+ const [officerUnavailable,setOfficerUnavailable]=useState(false);
  const base="/api/commerce/nav02/officers";
  async function load(){
   const [mr,or]=await Promise.all([
    fetch("/api/commerce/nav02?slug="+encodeURIComponent(slug),{credentials:"same-origin",cache:"no-store"}),
    fetch(base+"?slug="+encodeURIComponent(slug),{credentials:"same-origin",cache:"no-store"})
   ]);
-  if(!mr.ok||!or.ok)throw Error("دریافت اعضا یا پیش‌نویس سمت‌ها در دسترس نیست.");
+  if(!mr.ok)throw Error("دریافت فهرست اعضای تعاونی در دسترس نیست.");
   const m=await mr.json() as {items?:Member[]};
-  const o=await or.json() as {items?:Officer[]};
-  if(!Array.isArray(m.items)||!Array.isArray(o.items))throw Error("فهرست دریافتی معتبر نیست.");
-  // The member directory is the source for suggestions; a reported status is NOT a display filter.
-  // The API independently verifies tenant ownership and eligibility at save time.
+  if(!Array.isArray(m.items))throw Error("فهرست اعضا معتبر نیست.");
+  // Do not block the member selector if a previous API release lacks officers.
+  // Personnel is shown only from the authenticated, tenant-scoped member list.
   setMembers(m.items.filter(x=>x&&typeof x.id==="string"&&typeof x.name==="string"&&x.personType!=="LEGAL"));
+  if(!or.ok){
+   setItems([]);setOfficerUnavailable(true);
+   return;
+  }
+  const o=await or.json() as {items?:Officer[]};
+  if(!Array.isArray(o.items))throw Error("فهرست پیش‌نویس سمت‌ها معتبر نیست.");
+  setOfficerUnavailable(false);
   setItems(o.items);
  }
  useEffect(()=>{void load().catch(e=>setError(e instanceof Error?e.message:"خطای دریافت فهرست"));},[slug]);
@@ -92,6 +99,7 @@ export function OfficersSettings({slug}:{slug:string}){
   <div className="tto-settings-card">
    <h2>{editTarget?"ویرایش پیش‌نویس سمت":"ثبت پیش‌نویس سمت"}</h2>
    <p role="status">گزینش افراد از پرونده‌های همین تعاونی انجام می‌شود؛ ثبت پیش‌نویس سمت به‌تنهایی اختیار قانونی ایجاد نمی‌کند.</p>
+   {officerUnavailable?<p role="alert" className="tto-officer-source-warning">فهرست اعضا بارگذاری شده، اما API ثبت هیئت‌مدیره در محیط آزمایش هنوز هم‌نسخه نیست. تا اتصال سرویس معتبر، ذخیره سمت غیرفعال است.</p>:null}
    <div className="tto-officer-member-status" role="status"><span>افراد قابل انتخاب: {members.length.toLocaleString("fa-IR")}</span>
     <button type="button" disabled={busy} onClick={()=>void load().catch(e=>setError(e instanceof Error?e.message:"خطای تازه‌سازی"))}>↻ تازه‌سازی فهرست اعضا</button></div>
    <form onSubmit={e=>void submit(e)} className="tto-nav02-form tto-officer-form">
@@ -144,7 +152,7 @@ export function OfficersSettings({slug}:{slug:string}){
     <label>شماره آگهی <input maxLength={100} value={form.noticeNumber}
      onChange={e=>update("noticeNumber",e.target.value)}/></label>
     <div className="tto-nav02-actions tto-officer-actions">
-     <button disabled={busy||(!external&&!form.memberDraftId)} type="submit">
+     <button disabled={busy||officerUnavailable||(!external&&!form.memberDraftId)} type="submit">
       {busy?"در حال ذخیره…":editTarget?"ثبت ویرایش نسخه "+editTarget.version:"ذخیره پیش‌نویس سمت"}</button>
      {editTarget?<button type="button" onClick={()=>{setEditTarget(null);setForm(empty);setMessage("");}}>انصراف از ویرایش</button>:null}
     </div>
