@@ -4,7 +4,7 @@ import unittest
 R=Path(__file__).resolve().parents[2]
 def read(p):return (R/p).read_text(encoding="utf-8")
 class MemberFormLegal(unittest.TestCase):
- def test_natural_person_only_and_distinct_nonmember_shareholder(self):
+ def test_natural_members_and_legal_nonmembers_are_distinguished(self):
   form=read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
   self.assertIn('const TITLES=["آقا","خانم"]',form)
   self.assertIn("ثبت عضو",form)
@@ -17,12 +17,43 @@ class MemberFormLegal(unittest.TestCase):
   self.assertIn("tto-nav02-birth-row",form)
   self.assertIn('personType:"NATURAL"',form)
   self.assertIn('shareholdingStatus:"NONE_UNVERIFIED"',form)
-  self.assertIn('visibleItems=items.filter',form)
+  self.assertIn('const visibleItems=items;',form)
+  self.assertIn('profile.personType==="LEGAL"',form)
+  self.assertIn('registrationNumber',form)
+  self.assertIn('economicCode',form)
+  self.assertIn('representativeNationalId',form)
+  self.assertIn('NON_MEMBER_REPORTED',form)
+  self.assertIn('HOLDER_REPORTED',form)
   directory=read("apps/cooperative-management/app/c/[slug]/members/shareholders-table.tsx")
   self.assertIn('membershipStatus!=="APPLICANT_UNVERIFIED"',directory)
-  self.assertIn("سهامدار حقیقی یا حقوقی غیرعضو",form)
+  self.assertIn("شخص حقوقی در این فرم فقط به‌عنوان غیرعضو ثبت می‌شود",form)
+  self.assertIn('const MEMBER_STATES=',form)
+  self.assertIn('const SHARE_STATES=',form)
   self.assertNotIn("فقط داده ساختگی مجاز است",form)
   self.assertNotIn("عکس پرسنلی ساختگی",form)
+ def test_server_enforces_legal_person_nonmember_and_reported_states(self):
+  api=read("services/api/src/module.ts")
+  bff=read("apps/cooperative-management/app/api/commerce/nav02/route.ts")
+  for text in (api,bff):
+   for term in ("legalProfile","registrationNumber","economicCode","representativeNationalId",
+                "NON_MEMBER_REPORTED","TRANSFER_PENDING_REPORTED"):
+    self.assertIn(term,text)
+  self.assertIn('fields.membershipStatus!=="NON_MEMBER_REPORTED"',api)
+  self.assertIn("this.checkNav02Shahkar",api)
+  self.assertIn('identityVerification',api)
+ def test_governance_actions_are_versioned_and_not_legal_admission(self):
+  directory=read("apps/cooperative-management/app/c/[slug]/members/member-directory.tsx")
+  case=read("apps/cooperative-management/app/c/[slug]/members/member-case.tsx")
+  sql=read("database/migrations/9999z_ph12_nav02_member_governance_r2.sql")
+  for term in ("REISSUE_ALL_MEMBERS_ACKNOWLEDGED","p_expected","REISSUE_SET_CHANGED",
+               "nav02_member_number_history","nav02_member_number_current",
+               "nav02_member_end_requests","PENDING_LEGAL_REVIEW"):
+   self.assertIn(term,sql)
+  self.assertIn("reissueAcknowledged",directory)
+  self.assertIn("issuedCount>0",directory)
+  self.assertIn("archiveCollection",directory)
+  self.assertIn("FULL_SHARE_TRANSFER",case)
+  self.assertIn("فقط به‌عنوان غیرعضو",read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx"))
  def test_checksum_both_sides_and_clear_errors(self):
   form=read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
   api=read("services/api/src/module.ts")
