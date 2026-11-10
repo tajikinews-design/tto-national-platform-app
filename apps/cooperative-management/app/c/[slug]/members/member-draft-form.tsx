@@ -222,6 +222,30 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   if(result.saved!==true||result.status!=="READY_PRIVATE"||result.visible!==true)
    throw Error("سرور آماده‌بودن تصویر خصوصی را تأیید نکرد.");
  }
+ async function saveAttachment(file:File,subject:string,id:string){
+  if(!["image/jpeg","image/png","application/pdf"].includes(file.type)||
+     file.size<68||file.size>524288)
+   throw Error("فقط PDF، JPEG و PNG تا سقف ۵۱۲ کیلوبایت پذیرفته می‌شود.");
+  if(subject.trim().length<3||subject.length>160)
+   throw Error("موضوع ضمیمه باید حداقل سه حرف داشته باشد.");
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  let bin="";
+  for(let i=0;i<bytes.length;i+=8192)
+   bin+=String.fromCharCode(...bytes.subarray(i,i+8192));
+  const r=await fetch("/api/commerce/nav02/attachments",{
+   method:"POST",credentials:"same-origin",cache:"no-store",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({slug,draftId:id,subject:subject.trim(),
+    mime:file.type,filename:file.name,dataBase64:btoa(bin)})
+  });
+  bin="";
+  if(!r.ok)throw Error(r.status===422?"اسکن امنیتی، ضمیمه را رد کرد.":
+   r.status===403?"مجوز بارگذاری برای این تعاونی وجود ندارد.":
+   "ذخیره ضمیمه انجام نشد؛ وضعیت اسکن ClamAV و کلید رمزنگاری سرور بررسی شود.");
+  const data=await r.json() as {saved?:boolean;status?:string};
+  if(data.saved!==true||data.status!=="PRIVATE_READY")
+   throw Error("تأیید ذخیره خصوصی و اسکن‌شده ضمیمه دریافت نشد.");
+ }
  async function submit(e:FormEvent<HTMLFormElement>){
   e.preventDefault();if(busy)return;setError(false);setNotice("");
   if(section==="add"){
@@ -229,7 +253,10 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
    if(!personalDataConfirmed){setError(true);setNotice("تأیید صحت اطلاعات و مجوز ثبت آن لازم است.");return}
    if(photoRetryId){setError(true);setNotice("آپلود عکس پرونده قبلی را تکمیل یا لغو کنید.");return}
    if(editId&&editVersion===null){setError(true);setNotice("تا دریافت امن پرونده، ویرایش امکان ثبت ندارد.");return}
-   if(attachment){setError(true);setNotice("ضمیمه انتخاب شده اما سرویس قرنطینه مدارک هنوز متصل نیست؛ برای جلوگیری از ثبت ناقص، فایل را حذف کنید یا منتظر فعال‌سازی امن ضمائم بمانید.");return}
+   if(attachment&&(!attachmentSubject.trim()||attachment.size>524288||
+    !["application/pdf","image/png","image/jpeg"].includes(attachment.type))){
+    setError(true);setNotice("برای ضمیمه، موضوع و فایل معتبر PDF/JPEG/PNG تا سقف ۵۱۲ کیلوبایت لازم است.");return;
+   }
    if(profile.personType==="NATURAL"&&!/^09[0-9]{9}$/.test(profile.mobile)){
     setError(true);setNotice("شماره همراه معتبر نیست؛ شماره ۱۱ رقمی متعلق به صاحب کد ملی را وارد کنید.");return;
    }
@@ -296,26 +323,33 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
      catch(err){await refresh();throw Error("اطلاعات ویرایش شد؛ "+
       (err instanceof Error?err.message:"ذخیره عکس انجام نشد."));}
     }
+    if(attachment){
+     try{await saveAttachment(attachment,attachmentSubject,editId);
+      setAttachment(null);setAttachmentSubject("");}
+     catch(err){await refresh();throw Error("اطلاعات ویرایش شد اما ضمیمه ذخیره نشد؛ "+
+      (err instanceof Error?err.message:"خطای ضمیمه"));}
+    }
     await refresh();
     setError(false);setNotice("تمام اطلاعات و تصویر انتخابی (در صورت وجود) ذخیره شدند؛ تغییر هویت برای احراز مجدد علامت‌گذاری می‌شود.");
     return;
    }
-   // The profile commit is separate. Never retry the profile on a photo error.
-   if(section==="add"&&photo){
+   // A saved member is never retried automatically after an attachment error.
+   if(section==="add"&&(photo||attachment)){
     const id=d.record?.id;
-    if(typeof id!=="string"){setError(true);setNotice("پرونده ثبت شد ولی شناسه عکس معتبر نیست.");return}
-    setPhotoRetryId(id);
+    if(typeof id!=="string"){setError(true);setNotice("پرونده ثبت شد اما شناسه ضمائم معتبر نیست.");return}
     try{
-     await savePhoto(photo,id);
-     setPhotoRetryId("");setPhoto(null);setPersonalDataConfirmed(false);
-     setProfile(initialProfile);
-     await refresh();
+     if(photo){await savePhoto(photo,id);setPhoto(null);}
+     if(attachment){await saveAttachment(attachment,attachmentSubject,id);
+      setAttachment(null);setAttachmentSubject("");}
+     setProfile(initialProfile);setPersonalDataConfirmed(false);await refresh();
      setError(false);
-     setNotice("پرونده و عکس به‌صورت خصوصی ثبت شد؛ عکس در فهرست و سوابق قابل مشاهده است.");
+     setNotice("پرونده و فایل‌های انتخابی با کنترل خصوصی ثبت شدند.");
     }catch(err){
-     await refresh();
-     setError(true);
-     setNotice(err instanceof Error?err.message:"پرونده ذخیره شد ولی عکس هنوز بارگذاری نشده است؛ دوباره تلاش کنید.");
+     // Switch into secure edit flow, never duplicate the created member.
+     setEditId(id);setEditVersion(null);await refresh();
+     setError(true);setNotice("پرونده عضو ذخیره شده است اما ضمیمه/عکس کامل نشد؛ "+
+      (err instanceof Error?err.message:"خطای بارگذاری")+
+      " فایل ناموفق را از حالت ویرایش همین پرونده دوباره ارسال کنید.");
     }
     return;
    }
