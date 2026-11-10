@@ -55,10 +55,10 @@ export async function POST(req:NextRequest){
   !(d.title==="آقا"||d.title==="خانم"?/^\d{10}$/:/^\d{11}$/).test(d.nationalId)||
   (data.action==="legalProfile"&&(d.personType!=="LEGAL"||d.title!=="شرکت"||
     d.membershipStatus!=="NON_MEMBER_REPORTED"||
-    !/^\\d{11}$/.test(String(d.nationalId))||!/^\\d{1,30}$/.test(String(d.registrationNumber))||
-    !/^\\d{12,14}$/.test(String(d.economicCode))||
+    !/^\d{11}$/.test(String(d.nationalId))||!/^\d{1,30}$/.test(String(d.registrationNumber))||
+    !/^\d{12,14}$/.test(String(d.economicCode))||
     typeof d.representativeName!=="string"||d.representativeName.trim().length<3||
-    !/^\\d{10}$/.test(String(d.representativeNationalId))||
+    !/^\d{10}$/.test(String(d.representativeNationalId))||
     !/^09[0-9]{9}$/.test(String(d.representativeMobile))||
     d.informationConfirmed!=="yes"))||
   (data.action==="memberProfile"&&(!["آقا","خانم"].includes(String(d.title))||
