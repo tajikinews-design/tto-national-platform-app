@@ -25,6 +25,7 @@ const SAFE_LOGIN_APIS=new Set([
  "/api/commerce/nav02/shahkar-preflight", "/api/commerce/nav02/officers",
  "/api/commerce/nav02/officers/edit", "/api/commerce/nav02/officers/history",
  "/api/commerce/nav02/workbook",
+ "/api/commerce/nav02/attachments", "/api/commerce/nav02/attachments/download",
  "/api/commerce/nav02/collections/archive",
  "/api/commerce/nav02/member-number-policy/reissue",
  "/api/commerce/nav02/end-requests"
