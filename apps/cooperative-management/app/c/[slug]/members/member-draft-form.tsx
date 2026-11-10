@@ -188,12 +188,25 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
     {slug,action:"capital",draftId,data:capital};
    const r=await fetch(editId?"/api/commerce/nav02/member-profile":"/api/commerce/nav02",{method:"POST",credentials:"same-origin",cache:"no-store",
     headers:{"Content-Type":"application/json"},body:JSON.stringify(req)});
-   if(!r.ok)throw Error(r.status===409?"این پرونده یا اطلاعات اولیه سهام قبلاً ثبت شده است.":
+   if(!r.ok){
+    const response=await r.json().catch(()=>null) as {code?:unknown}|null;
+    const code=typeof response?.code==="string"?response.code:"";
+    if(r.status===503&&section==="add"){
+     const detail:Record<string,string>={
+      IDENTITY_PROVIDER_NOT_CONFIGURED:"اتصال شاهکار در سرور تنظیم نشده است؛ پرونده ثبت نشد.",
+      IDENTITY_PROVIDER_UNAVAILABLE:"سرویس شاهکار پاسخ معتبر نداده است؛ ثبت انجام نشد. پس از برقراری سرویس دوباره اقدام کنید.",
+      IDENTITY_ENCRYPTION_UNAVAILABLE:"سرویس رمزنگاری پرونده در سرور آماده نیست؛ ثبت انجام نشد.",
+      INTAKE_UNAVAILABLE:"سرویس ثبت اعضا خطا دارد؛ وضعیت اتصال و گزارش سرور بررسی شود."
+     };
+     if(detail[code])throw Error(detail[code]);
+    }
+    throw Error(r.status===409?"این پرونده یا اطلاعات اولیه سهام قبلاً ثبت شده است.":
     r.status===403?"مجوز ورود اطلاعات برای این تعاونی وجود ندارد.":
     r.status===422?"شماره همراه با کد ملی واردشده مطابقت ندارد؛ شماره‌ای متعلق به صاحب کد ملی وارد کنید.":
     r.status===400?"کد ملی، تاریخ تولد یا شرایط عضویت معتبر نیست.":
     r.status===503&&section==="add"?"اتصال به سرویس هویت یا دفتر اعضا برقرار نیست؛ ثبت انجام نشد.":
     "ذخیره اطلاعات انجام نشد.");
+   }
    const d=await r.json() as {saved?:boolean;record?:{id?:unknown}};
    if(d.saved!==true)throw Error("ثبت توسط سرور تأیید نشد.");
    if(editId){
