@@ -198,4 +198,41 @@ BEGIN
 END $f$;
 REVOKE ALL ON FUNCTION tto.nav02_member_end_request_submit(text,uuid,text,text,date) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION tto.nav02_member_end_request_submit(text,uuid,text,text,date) TO tto_app;
+-- Photo release is scanner-evidence-only. This migration does not approve or scan existing photos.
+ALTER TABLE tto.commerce_demo_nav02_photo_quarantine
+ DROP CONSTRAINT commerce_demo_nav02_photo_quarantine_scan_status_check,
+ DROP CONSTRAINT commerce_demo_nav02_photo_quarantine_disclosure_status_check;
+ALTER TABLE tto.commerce_demo_nav02_photo_quarantine
+ ADD CONSTRAINT nav02_photo_scan_status CHECK(scan_status IN('QUARANTINED','CLEAN','MALWARE')),
+ ADD CONSTRAINT nav02_photo_private_disclosure CHECK(
+  disclosure_status IN('BLOCKED','OWNER_ALLOWED') AND
+  (disclosure_status='BLOCKED' OR scan_status='CLEAN'));
+CREATE FUNCTION tto.nav02_photo_ready_for_owner(p_slug text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
+DECLARE v_order uuid;
+BEGIN
+ v_order:=tto.nav02_member_owner_order(p_slug);
+ RETURN(SELECT COALESCE(jsonb_agg(p.draft_id),'[]'::jsonb)
+  FROM tto.commerce_demo_nav02_photo_quarantine p
+  WHERE p.order_id=v_order AND p.scan_status='CLEAN'
+   AND p.disclosure_status='OWNER_ALLOWED' AND p.expires_at>clock_timestamp());
+END $f$;
+REVOKE ALL ON FUNCTION tto.nav02_photo_ready_for_owner(text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION tto.nav02_photo_ready_for_owner(text) TO tto_app;
+
+CREATE FUNCTION tto.nav02_photo_payload_for_owner(p_slug text,p_draft uuid) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
+DECLARE v_order uuid;
+BEGIN
+ v_order:=tto.nav02_member_owner_order(p_slug);
+ RETURN(SELECT jsonb_build_object('mime',p.declared_mime,'iv',encode(p.aes_gcm_iv,'base64'),
+  'tag',encode(p.aes_gcm_tag,'base64'),'cipher',encode(p.encrypted_bytes,'base64'),
+  'sha',encode(p.content_sha256,'hex'),'size',p.plaintext_bytes)
+ FROM tto.commerce_demo_nav02_photo_quarantine p
+ WHERE p.order_id=v_order AND p.draft_id=p_draft AND
+  p.scan_status='CLEAN' AND p.disclosure_status='OWNER_ALLOWED'
+  AND p.expires_at>clock_timestamp());
+END $f$;
+REVOKE ALL ON FUNCTION tto.nav02_photo_payload_for_owner(text,uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION tto.nav02_photo_payload_for_owner(text,uuid) TO tto_app;
 COMMIT;
