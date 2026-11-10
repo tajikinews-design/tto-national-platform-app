@@ -53,8 +53,8 @@ BEGIN
   'Synthetic Gazette',null,'56','NA-78');
  IF ra IS NULL THEN RAISE EXCEPTION 'EXTERNAL_CEO_DRAFT_FAILED';END IF;
  v:=tto.nav02_office_holder_drafts_list('ci-nav02a');
- IF jsonb_array_length(v)<>2 OR (SELECT count(*) FROM tto.nav02_office_holder_drafts
-   WHERE order_id='44444444-4444-4444-8444-444444444441' AND status='DRAFT_ONLY')<>2
+ IF jsonb_array_length(v)<>2 OR EXISTS(
+   SELECT 1 FROM jsonb_array_elements(v) item WHERE item->>'status'<>'DRAFT_ONLY')
  THEN RAISE EXCEPTION 'OFFICE_DRAFT_LIST_FAIL';END IF;
  PERFORM set_config('tto.actor_id','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',true);
  PERFORM tto.nav02_member_number_policy_set('ci-nav02b',123,'','');
