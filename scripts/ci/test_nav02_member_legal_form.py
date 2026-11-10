@@ -9,6 +9,8 @@ class MemberFormLegal(unittest.TestCase):
   self.assertIn('const TITLES=["آقا","خانم"]',form)
   self.assertIn("افزودن اعضا",form)
   self.assertIn("APPLICANT_UNVERIFIED",form)
+  self.assertIn("JalaliBirthDatePicker",form)
+  self.assertIn("tto-nav02-birth-row",form)
   self.assertIn('personType:"NATURAL"',form)
   self.assertIn('shareholdingStatus:"NONE_UNVERIFIED"',form)
   self.assertIn('visibleItems=items.filter',form)

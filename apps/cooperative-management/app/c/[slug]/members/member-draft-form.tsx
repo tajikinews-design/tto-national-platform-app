@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import {JalaliBirthDatePicker} from "./jalali-birth-picker";
 import {useEffect,useMemo,useState,type FormEvent} from "react";
 type Section="add"|"shares";
 type RecordItem={id:string;name:string;title:string;group:string;identifierMask:string;membershipStatus?:string|null;
@@ -82,8 +83,10 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
     BigInt(capital.nominalRial||0)}catch{return 0n}
  },[capital]);
  function change(k:keyof Profile,value:string){
-  setProfile(old=>({...old,[k]:k==="nationalId"?toLatinDigits(value):value}));setNotice("");
+  setProfile(old=>({...old,[k]:["nationalId","mobile"].includes(k)?toLatinDigits(value):value}));setNotice("");
  }
+ const mobileError=profile.mobile.length===0?"":!/^09[0-9]{9}$/.test(profile.mobile) ?
+  "شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود.":"";
  const nationalIdError=profile.nationalId.length===0?"":!/^[0-9]{0,10}$/.test(profile.nationalId)?
   "کد ملی باید فقط ۱۰ رقم باشد.":profile.nationalId.length===10&&!validIranianNationalId(profile.nationalId)?
   "کد ملی معتبر نیست؛ رقم کنترل را بررسی کنید.":"";
@@ -112,6 +115,9 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   if(section==="add"){
    if(!personalDataConfirmed){setError(true);setNotice("تأیید صحت اطلاعات و مجوز ثبت آن لازم است.");return}
    if(photoRetryId){setError(true);setNotice("آپلود عکس پرونده قبلی را تکمیل یا لغو کنید.");return}
+   if(!/^09[0-9]{9}$/.test(profile.mobile)){
+    setError(true);setNotice("شماره همراه معتبر نیست؛ شماره ۱۱ رقمی متعلق به صاحب کد ملی را وارد کنید.");return;
+   }
    if(!validIranianNationalId(profile.nationalId)){
     setError(true);setNotice("کد ملی نامعتبر است؛ شماره باید ۱۰ رقم و دارای رقم کنترل صحیح باشد.");return;
    }
@@ -138,8 +144,9 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
     headers:{"Content-Type":"application/json"},body:JSON.stringify(req)});
    if(!r.ok)throw Error(r.status===409?"این پرونده یا اطلاعات اولیه سهام قبلاً ثبت شده است.":
     r.status===403?"مجوز ورود اطلاعات برای این تعاونی وجود ندارد.":
-    r.status===400?"کد ملی یا شرایط عضویت معتبر نیست.":
-    r.status===503&&section==="add"?"ثبت اطلاعات واقعی هنوز مجوز امنیت و حفاظت داده را دریافت نکرده است؛ اطلاعاتی ذخیره نشد.":
+    r.status===422?"شماره همراه با کد ملی واردشده مطابقت ندارد؛ شماره‌ای متعلق به صاحب کد ملی وارد کنید.":
+    r.status===400?"کد ملی، تاریخ تولد یا شرایط عضویت معتبر نیست.":
+    r.status===503&&section==="add"?"استعلام هویتی در دسترس نیست یا مجوز داده واقعی فعال نشده است؛ ثبت انجام نشد.":
     "ذخیره اطلاعات انجام نشد.");
    const d=await r.json() as {saved?:boolean;record?:{id?:unknown}};
    if(d.saved!==true)throw Error("ثبت توسط سرور تأیید نشد.");
@@ -209,27 +216,32 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        <Field title="نام و نام خانوادگی *"><input required maxLength={180} autoComplete="name"
         value={profile.fullName} onChange={e=>change("fullName",e.target.value)}/></Field>
       </div>
-      {fields.map(([key,label,max,required])=><Field key={key} title={label+(required?" *":"")}
+      {fields.map(([key,label,max,required])=>key==="birthDate"?
+       <div key="jalali-birth-row" className="tto-nav02-birth-row">
+        <div className="tto-nav02-field"><span>تاریخ تولد (شمسی)</span>
+         <JalaliBirthDatePicker value={profile.birthDate} onChange={v=>change("birthDate",v)}/>
+        </div>
+        <Field title="محل تولد"><input value={profile.birthPlace} maxLength={120}
+         onChange={e=>change("birthPlace",e.target.value)}/></Field>
+       </div>:key==="birthPlace"?null:<Field key={key} title={label+(required?" *":"")}
        wide={key==="address"}>
        {key==="address"?<textarea value={profile.address} rows={3} maxLength={600}
         onChange={e=>change("address",e.target.value)}/>:
-        key==="birthDate"?<input type="date" value={profile.birthDate}
-         onChange={e=>change("birthDate",e.target.value)}/>:
         key==="group"?<select value={profile.group} onChange={e=>change("group",e.target.value)}>
          {["متقاضی عضویت","عضو مؤسس","عضو جدید","عضو سابق"].map(g=><option key={g} value={g}>{g}</option>)}
         </select>:
         <input value={profile[key]} maxLength={max} required={required}
-         aria-invalid={key==="nationalId"?Boolean(nationalIdError):undefined}
+         aria-invalid={key==="nationalId"?Boolean(nationalIdError):key==="mobile"?Boolean(mobileError):undefined}
          inputMode={key==="nationalId"||key==="postalCode"||key==="mobile"||key==="telephone"?"numeric":"text"}
          dir={key==="nationalId"?"ltr":undefined}
          autoComplete={key==="nationalId"?"off":undefined}
-         pattern={key==="nationalId"?"[0-9]{10}":undefined}
+         pattern={key==="nationalId"?"[0-9]{10}":key==="mobile"?"09[0-9]{9}":undefined}
          onChange={e=>change(key,e.target.value)}/>}
        {key==="nationalId"?<>
         {nationalIdError?<small role="alert" className="tto-nav02-field-error">{nationalIdError}</small>:
         profile.nationalId.length===10?<small className="tto-nav02-checksum-ok">رقم کنترل کد ملی صحیح است؛ تطبیق هویت نیازمند استعلام است.</small>:null}
        </>:null}
-       {key==="birthDate"?<small>تاریخ مطابق قالب تقویم نمایش داده‌شده ثبت می‌شود.</small>:null}
+       {key==="mobile"&&mobileError?<small role="alert" className="tto-nav02-field-error">{mobileError}</small>:null}
       </Field>)}
       <fieldset className="tto-nav02-eligibility">
        <legend>شرایط ارتباط با شهرستان طبق ماده ۲ قانون تأسیس (حداقل یکی)</legend>
@@ -286,7 +298,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        onChange={e=>setCapital(p=>({...p,receiptRef:e.target.value}))}/></Field>
       <p className="tto-nav02-summary">کل ارزش اسمی اظهارشده: <strong>{faNumber(Number(subtotal))} ریال</strong></p>
      </>}
-     <div className="tto-nav02-actions"><button type="submit" disabled={busy||loading||Boolean(photoRetryId)||(section==="add"&&(!personalDataConfirmed||!countyCondition||Boolean(nationalIdError)))}>
+     <div className="tto-nav02-actions"><button type="submit" disabled={busy||loading||Boolean(photoRetryId)||(section==="add"&&(!personalDataConfirmed||!countyCondition||Boolean(nationalIdError)||Boolean(mobileError)||!profile.mobile))}>
       {busy?"در حال ثبت پرونده…":section==="add"?"ثبت درخواست عضویت":"ثبت اطلاعات اظهارشده سهام"}
      </button><span>هیچ اثر مالی یا انتقال قانونی ثبت نمی‌شود.</span></div>
     </form>

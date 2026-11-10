@@ -1,4 +1,4 @@
-import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, HttpCode, Req, Query } from "@nestjs/common";
+import { Module, Global, Controller, Get, Headers, Param, ParseUUIDPipe, Injectable, UnauthorizedException, ForbiddenException, Post, Body, BadRequestException, ServiceUnavailableException, ConflictException, UnprocessableEntityException, HttpCode, Req, Query } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
 import { createCipheriv, createDecipheriv, createHash, createHmac, createPublicKey, verify as cryptoVerify, randomBytes, randomUUID, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 import { ApiIrSmsOtpProvider } from "./apiir-provider";
@@ -377,6 +377,60 @@ export class FoundationCommandsController {
    */
   // NAV-02 commercial-preview intake only. These are DRAFTS; no membership,
   // official shareholder registration, voting, ledger balance or share transfer.
+  /** Strictly gated. The legal owner approves enabling these flags and
+   * provisions APIIR_TOKEN through Vercel secrets. Provider payloads/results
+   * must never enter logs or application error bodies.
+   */
+  private async checkNav02Shahkar(nationalCode:string,mobile:string):Promise<void>{
+    if(process.env.TTO_NAV02_SHAHKAR_ENABLED!=="true"||
+       process.env.TTO_NAV02_MEMBER_INTAKE_ENABLED!=="true"||
+       process.env.TTO_NAV02_REAL_PII_ENABLED!=="true"||
+       process.env.VERCEL_ENV==="production")
+      throw new ServiceUnavailableException("SHAHKAR_NOT_APPROVED");
+    const key=process.env.APIIR_TOKEN;
+    if(!key||key.length<12)throw new ServiceUnavailableException("SHAHKAR_NOT_CONFIGURED");
+    try{
+      const response=await fetch("https://s.api.ir/api/sw1/Shahkar",{
+        method:"POST",redirect:"error",cache:"no-store",
+        headers:{"Authorization":"Bearer "+key,"Content-Type":"application/json"},
+        body:JSON.stringify({nationalCode,mobile,isCompany:false}),
+        signal:AbortSignal.timeout(8500)
+      });
+      if(!response.ok)throw new Error("PROVIDER_UNAVAILABLE");
+      const result=await response.json() as {success?:unknown;data?:unknown};
+      if(result.success===true&&result.data===true)return;
+      if(result.success===true&&result.data===false)
+        throw new UnprocessableEntityException("SHAHKAR_MISMATCH");
+      throw new Error("PROVIDER_UNVERIFIED");
+    }catch(e){
+      if(e instanceof UnprocessableEntityException)throw e;
+      throw new ServiceUnavailableException("SHAHKAR_UNAVAILABLE");
+    }
+  }
+  private validJalaliBirthDate(value:string):boolean{
+    const p=/^(1[2-5][0-9]{2})\\/(0[1-9]|1[0-2])\\/(0[1-9]|[12][0-9]|3[01])$/.exec(value);
+    if(!p)return false;
+    const y=Number(p[1]),m=Number(p[2]),d=Number(p[3]);
+    const formatter=new Intl.DateTimeFormat("en-US-u-ca-persian",
+      {year:"numeric",month:"numeric",day:"numeric",timeZone:"UTC"});
+    const findYearStart=(year:number)=>{
+      for(let day=18;day<=23;day++){
+        const dt=new Date(Date.UTC(year+621,2,day));
+        const parts=formatter.formatToParts(dt);
+        const get=(t:string)=>Number(parts.find(x=>x.type===t)?.value);
+        if(get("year")===year&&get("month")===1&&get("day")===1)return dt.getTime();
+      }
+      return 0;
+    };
+    const today=formatter.formatToParts(new Date());
+    const cur=Number(today.find(x=>x.type==="year")?.value);
+    if(y<1250||y>cur)return false;
+    const days=m<=6?31:m<=11?30:findYearStart(y+1)-findYearStart(y)===366*86400000?30:29;
+    if(d>days)return false;
+    const currentMonth=Number(today.find(x=>x.type==="month")?.value);
+    const currentDay=Number(today.find(x=>x.type==="day")?.value);
+    return y<cur||(m<currentMonth||(m===currentMonth&&d<=currentDay));
+  }
   private validNationalCode(value:string):boolean{
     if(!/^[0-9]{10}$/.test(value)||/^([0-9])\1{9}$/.test(value))return false;
     const sum=Array.from(value.slice(0,9)).reduce((acc,digit,i)=>acc+Number(digit)*(10-i),0);
@@ -471,7 +525,9 @@ export class FoundationCommandsController {
          !(fields.title==="آقا"||fields.title==="خانم"?/^\d{10}$/:/^\d{11}$/).test(fields.nationalId)||
          JSON.stringify(fields).length>2400||
          (fields.birthDate!==undefined&&fields.birthDate!==""&&
-         !/^\d{4}-\d{2}-\d{2}$/.test(String(fields.birthDate))))
+         !(action==="memberProfile"?
+          this.validJalaliBirthDate(String(fields.birthDate)):
+          /^\\d{4}-\\d{2}-\\d{2}$/.test(String(fields.birthDate)))))
        throw new BadRequestException("INVALID_PROFILE_FIELDS");
       // A member applicant is a natural person. County conditions are declarations
       // encrypted with the profile, not independently validated eligibility.
@@ -485,7 +541,8 @@ export class FoundationCommandsController {
            fields.informationConfirmed!=="yes"||
            fields.membershipStatus!=="APPLICANT_UNVERIFIED"||
            fields.personType!=="NATURAL"||
-           fields.shareholdingStatus!=="NONE_UNVERIFIED")
+           fields.shareholdingStatus!=="NONE_UNVERIFIED"||
+           typeof fields.mobile!=="string"||!/^09[0-9]{9}$/.test(fields.mobile))
           throw new BadRequestException("INVALID_MEMBER_APPLICATION");
         // Real-identity collection remains explicitly disabled absent independent
         // controller/privacy/retention approval. No membership/ledger role is granted.
@@ -510,6 +567,11 @@ export class FoundationCommandsController {
           const r=await c.query<{record:unknown}>(
             "SELECT tto.commerce_demo_nav02_add_secure($1,$2,$3,$4,$5,$6) AS record",
             [slug,fields.title,digest,iv,tag,encrypted]);
+          // The database owner/tenant/duplicate check must succeed first.
+          // On nonmatch or provider failure, withActor rolls the transaction
+          // back; no unverified member record is committed.
+          if(action==="memberProfile")
+            await this.checkNav02Shahkar(String(fields.nationalId),String(fields.mobile));
           return {saved:true,record:r.rows[0]?.record};
         }catch(e){
           const code=(e as {code?:string}).code;

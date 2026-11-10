@@ -129,3 +129,33 @@
 .tto-nav02-confirm{grid-column:1/-1;display:flex;align-items:center;gap:10px;font-size:12px}
 .tto-nav02-membership-note{grid-column:1/-1;background:#f4f9fc;color:#4d7087;border-radius:9px;padding:10px;font-size:11px}
 @media(max-width:650px){.tto-nav02-name-row{grid-template-columns:105px minmax(0,1fr)}.tto-nav02-eligibility{grid-template-columns:1fr}.tto-nav02-photo{grid-template-columns:minmax(0,1fr) 110px}}
+
+/* NAV02 fixed two-column alignment; the birth date occupies exactly one column. */
+.tto-nav02-birth-row{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ column-gap:16px;align-items:start;min-width:0}
+.tto-nav02-birth-row>.tto-nav02-field{min-width:0;align-self:start}
+.tto-nav02-jalali{position:relative;min-width:0}
+.tto-nav02-calendar-trigger{width:100%;height:44px;min-height:44px;background:#f9fcff;color:#143c5d;
+ border:1px solid #d4e3ec;border-radius:11px;padding:0 13px;display:flex;
+ align-items:center;justify-content:space-between;text-align:right;cursor:pointer;
+ font:550 12px var(--tto-font),Tahoma,Arial}
+.tto-nav02-calendar-trigger:focus-visible,.tto-nav02-calendar-pop button:focus-visible,
+.tto-nav02-calendar-pop select:focus-visible{outline:3px solid #86bff8;outline-offset:1px}
+.tto-nav02-calendar-pop{position:absolute;top:calc(100% + 7px);right:0;width:min(312px,90vw);
+ z-index:25;background:white;border:1px solid #cadde9;border-radius:12px;
+ box-shadow:0 18px 38px #173c6440;padding:12px;direction:rtl}
+.tto-nav02-calendar-controls{display:grid;grid-template-columns:31px minmax(0,1fr) 78px 31px;gap:5px}
+.tto-nav02-calendar-controls select{min-width:0;padding:0 3px!important;height:34px!important;font-size:11px!important}
+.tto-nav02-calendar-pop button{border:1px solid #dceaf1;background:#f2f8fb;border-radius:7px;
+ font:inherit;color:#244f6b;cursor:pointer}
+.tto-nav02-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));
+ grid-auto-rows:35px;gap:3px;margin:10px 0;text-align:center;align-items:stretch}
+.tto-nav02-calendar-grid button{background:#fff;padding:0}
+.tto-nav02-calendar-grid button:hover{background:#e1f5f3}
+.tto-nav02-calendar-grid button[aria-pressed=true]{background:#0e8194;color:#fff;font-weight:800}
+.tto-nav02-calendar-grid button:disabled{opacity:.25;cursor:not-allowed}
+.tto-nav02-weekday{display:grid;place-items:center;color:#597b91;font-weight:800;font-size:11px}
+.tto-nav02-calendar-footer{display:flex;justify-content:space-between;gap:8px}
+.tto-nav02-calendar-footer button{padding:8px;font-size:10px}
+@media(max-width:650px){.tto-nav02-birth-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .tto-nav02-calendar-pop{right:0}}
