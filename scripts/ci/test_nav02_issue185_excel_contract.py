@@ -18,15 +18,25 @@ class ExcelGate(unittest.TestCase):
   for guard in ("MAX_XLSX","MAX_ROWS","MAX_COLS","FORMULAS_NOT_ALLOWED",
    "UNSAFE_XLSX_ENTRY","INVALID_XLSX_CRC","ACTIVE_XLSX_NOT_ALLOWED"):
    self.assertIn(guard,XLSX)
- def test_export_is_tenant_authorized_and_masks_identity(self):
+ def test_export_is_tenant_authorized_and_complete_private(self):
   self.assertIn("session(req)",ROUTE)
   self.assertIn('new URL("/v1/commerce/demo/nav02"',ROUTE)
   self.assertIn("trustedBackendHeaders(req)",ROUTE)
-  self.assertIn("p.identifierMask",ROUTE)
-  self.assertIn("p.mobileMask",ROUTE)
+  self.assertIn('new URL("/v1/commerce/demo/nav02/member-profile"',ROUTE)
+  self.assertIn("MEMBER_DETAIL_NOT_AVAILABLE",ROUTE)
+  self.assertIn("INVALID_MEMBER_DETAIL",ROUTE)
+  self.assertIn("p.nationalId",ROUTE)
+  self.assertIn("p.mobile",ROUTE)
+  self.assertIn("p.representativeNationalId",ROUTE)
+  self.assertIn("p.representativeMobile",ROUTE)
+  self.assertIn("Cache-Control",ROUTE)
+  self.assertIn("no-store",ROUTE)
   self.assertIn('mode==="sample"',ROUTE)
   self.assertIn("fake=",ROUTE)
   self.assertIn("EXPORT_BATCH_LIMIT_249",ROUTE)
+  self.assertIn("new Array(owners.length)",ROUTE)
+  self.assertIn("Promise.all",ROUTE)
+  self.assertNotIn("p.identifierMask,p.mobileMask",ROUTE)
  def test_import_preview_then_explicit_verified_row_write(self):
   self.assertIn('ORIGIN_REQUIRED',ROUTE)
   self.assertIn('XLSX_TEMPLATE_MISMATCH_OR_ROW_LIMIT',ROUTE)
