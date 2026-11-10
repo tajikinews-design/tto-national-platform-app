@@ -136,7 +136,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
  const mobileError=profile.mobile.length===0?"":!/^09[0-9]{9}$/.test(profile.mobile) ?
   "شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود.":"";
  const nationalIdError=profile.nationalId.length===0?"":profile.personType==="LEGAL"?
-  (!/^\\d{0,11}$/.test(profile.nationalId)||profile.nationalId.length===11&&!/^\\d{11}$/.test(profile.nationalId)?"شناسه ملی شخص حقوقی باید ۱۱ رقم باشد.":""):
+  (!/^\d{0,11}$/.test(profile.nationalId)||profile.nationalId.length===11&&!/^\d{11}$/.test(profile.nationalId)?"شناسه ملی شخص حقوقی باید ۱۱ رقم باشد.":""):
   !/^[0-9]{0,10}$/.test(profile.nationalId)?"کد ملی باید فقط ۱۰ رقم باشد.":
   profile.nationalId.length===10&&!validIranianNationalId(profile.nationalId)?
   "کد ملی معتبر نیست؛ رقم کنترل را بررسی کنید.":"";
@@ -172,8 +172,8 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
     setError(true);setNotice("شماره همراه معتبر نیست؛ شماره ۱۱ رقمی متعلق به صاحب کد ملی را وارد کنید.");return;
    }
    if(profile.personType==="LEGAL"){
-    if(!/^\\d{11}$/.test(profile.nationalId)||!/^[0-9]{1,30}$/.test(profile.registrationNumber)||
-       !/^\\d{12,14}$/.test(profile.economicCode)||!profile.representativeName.trim()||
+    if(!/^\d{11}$/.test(profile.nationalId)||!/^[0-9]{1,30}$/.test(profile.registrationNumber)||
+       !/^\d{12,14}$/.test(profile.economicCode)||!profile.representativeName.trim()||
        !validIranianNationalId(profile.representativeNationalId)||
        !/^09[0-9]{9}$/.test(profile.representativeMobile)||profile.membershipStatus!=="NON_MEMBER_REPORTED"){
       setError(true);setNotice("شناسه ملی، شماره ثبت، شماره اقتصادی و مشخصات نماینده قانونی را تکمیل کنید. شخصیت حقوقی فقط به‌عنوان سهامدار غیرعضو ثبت می‌شود.");return;
