@@ -381,6 +381,32 @@ export class FoundationCommandsController {
    * provisions APIIR_TOKEN through Vercel secrets. Provider payloads/results
    * must never enter logs or application error bodies.
    */
+  /** Preflight-only Shahkar: the tenant owner's RLS permission is checked before
+   * any external lookup. No result is cached or treated as admission. The
+   * final create command independently rechecks Shahkar (TOCTOU fence).
+   */
+  @Post("commerce/demo/nav02/shahkar-preflight")
+  @HttpCode(200)
+  async nav02ShahkarPreflight(
+    @Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    if(!input||typeof input!=="object"||Array.isArray(input)||
+       Object.keys(input).some(k=>!["slug","nationalCode","mobile"].includes(k))||
+       typeof input.slug!=="string"||
+       !/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(input.slug)||
+       typeof input.nationalCode!=="string"||
+       !/^[0-9]{10}$/.test(input.nationalCode)||
+       typeof input.mobile!=="string"||
+       !/^09[0-9]{9}$/.test(input.mobile))
+      throw new BadRequestException("INVALID_SHAHKAR_PREFLIGHT");
+    const actor=await this.db.sessionActor(auth);
+    // The owner-scoped query must complete before any paid provider request.
+    await this.db.withActor(actor,async c=>{
+      await c.query("SELECT tto.nav02_member_collections_list($1)",[input.slug]);
+    });
+    await this.checkNav02Shahkar(input.nationalCode,input.mobile);
+    return {verified:true};
+  }
   private async checkNav02Shahkar(nationalCode:string,mobile:string):Promise<void>{
     // For lawful intake, verification is mandatory; absent provider credentials
     // are not interpreted as a match or permission to bypass verification.
