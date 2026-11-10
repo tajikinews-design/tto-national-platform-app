@@ -474,9 +474,7 @@ export class FoundationCommandsController {
         data=JSON.parse(decrypted.toString("utf8")) as Record<string,unknown>;
         decrypted.fill(0);
       }catch{throw new ServiceUnavailableException("PRIVATE_MEMBER_PROFILE_UNAVAILABLE")}
-      if(!data||data.personType!=="NATURAL"||
-         data.membershipStatus!=="APPLICANT_UNVERIFIED"||
-         data.shareholdingStatus!=="NONE_UNVERIFIED")
+      if(!data||!["NATURAL","LEGAL"].includes(String(data.personType)))
         throw new ForbiddenException("OFFICIAL_MEMBERSHIP_SEPARATE");
       return {profile:data,version:sealed.version,managementState:sealed.state};
     });
@@ -494,26 +492,35 @@ export class FoundationCommandsController {
        !data||typeof data!=="object"||Array.isArray(data))
       throw new BadRequestException("INVALID_MEMBER_EDIT_REQUEST");
     const f=data as Record<string,unknown>;
-    const max:Record<string,number>={title:12,fullName:180,group:90,nationalId:10,
+    const max:Record<string,number>={title:12,fullName:180,group:90,nationalId:11,
       fatherName:120,birthCertificate:45,birthDate:10,birthPlace:120,
       telephone:25,mobile:11,postalCode:12,address:600,collectionName:100,
+      registrationNumber:30,economicCode:14,representativeName:180,representativeNationalId:10,
+      representativeMobile:11,
       occupation:120,bornInCounty:3,residentInCounty:3,employedInCounty:3,
       informationConfirmed:3,membershipStatus:25,personType:10,shareholdingStatus:25};
+    const isLegal=f.personType==="LEGAL";
+    const validMembership=["APPLICANT_UNVERIFIED","ACTIVE_REPORTED","FORMER_REPORTED","NON_MEMBER_REPORTED"].includes(String(f.membershipStatus));
+    const validShares=["NONE_UNVERIFIED","HOLDER_REPORTED","TRANSFER_PENDING_REPORTED"].includes(String(f.shareholdingStatus));
     if(Object.keys(f).some(k=>!(k in max)||typeof f[k]!=="string"||
        (f[k] as string).length>max[k])||
-       !["آقا","خانم"].includes(String(f.title))||
+       !validMembership||!validShares||
        typeof f.fullName!=="string"||f.fullName.trim().length<3||
-       typeof f.group!=="string"||f.group.trim().length<2||
-       typeof f.nationalId!=="string"||!this.validNationalCode(f.nationalId)||
-       typeof f.mobile!=="string"||!/^09[0-9]{9}$/.test(f.mobile)||
-       (f.birthDate!==""&&!this.validJalaliBirthDate(String(f.birthDate)))||
-       !["yes","no"].includes(String(f.bornInCounty))||
-       !["yes","no"].includes(String(f.residentInCounty))||
-       !["yes","no"].includes(String(f.employedInCounty))||
-       ![f.bornInCounty,f.residentInCounty,f.employedInCounty].includes("yes")||
-       f.informationConfirmed!=="yes"||
-       f.personType!=="NATURAL"||f.membershipStatus!=="APPLICANT_UNVERIFIED"||
-       f.shareholdingStatus!=="NONE_UNVERIFIED"||JSON.stringify(f).length>2800)
+       f.informationConfirmed!=="yes"||JSON.stringify(f).length>4500||
+       (isLegal? (f.title!=="شرکت"||f.membershipStatus!=="NON_MEMBER_REPORTED"||
+         !/^\\d{11}$/.test(String(f.nationalId))||!/^\\d{1,30}$/.test(String(f.registrationNumber))||
+         !/^\\d{12,14}$/.test(String(f.economicCode))||
+         typeof f.representativeName!=="string"||f.representativeName.trim().length<3||
+         !this.validNationalCode(String(f.representativeNationalId))||
+         !/^09[0-9]{9}$/.test(String(f.representativeMobile))) :
+        (!["آقا","خانم"].includes(String(f.title))||!this.validNationalCode(String(f.nationalId))||
+         !/^09[0-9]{9}$/.test(String(f.mobile))||
+         (f.birthDate!==""&&!this.validJalaliBirthDate(String(f.birthDate)))||
+         !["yes","no"].includes(String(f.bornInCounty))||
+         !["yes","no"].includes(String(f.residentInCounty))||
+         !["yes","no"].includes(String(f.employedInCounty))||
+         (f.membershipStatus!=="NON_MEMBER_REPORTED"&&
+          ![f.bornInCounty,f.residentInCounty,f.employedInCounty].includes("yes")))))
       throw new BadRequestException("INVALID_MEMBER_EDIT_FIELDS");
     const key=this.nav02DataKey(),actor=await this.db.sessionActor(auth);
     return this.db.withActor(actor,async c=>{
@@ -532,18 +539,19 @@ export class FoundationCommandsController {
         original=JSON.parse(decrypted.toString("utf8")) as Record<string,unknown>;
         decrypted.fill(0);
       }catch{throw new ServiceUnavailableException("PRIVATE_MEMBER_PROFILE_UNAVAILABLE")}
-      if(original.personType!=="NATURAL"||
-         original.membershipStatus!=="APPLICANT_UNVERIFIED"||
-         original.shareholdingStatus!=="NONE_UNVERIFIED"||
-         original.nationalId!==f.nationalId)
+      if(original.personType!==f.personType||
+         original.nationalId!==f.nationalId||
+         (isLegal&&(original.representativeNationalId!==f.representativeNationalId)))
         throw new ForbiddenException("IMMUTABLE_IDENTITY_REQUIRES_REVERIFICATION");
       // A changed mobile must be matched against the immutable national code.
       // A Shahkar rejection/outage rolls back the database transaction.
-      if(original.mobile!==f.mobile)
-        await this.checkNav02Shahkar(f.nationalId as string,f.mobile as string);
+      if(isLegal?original.representativeMobile!==f.representativeMobile:
+         original.mobile!==f.mobile)
+        await this.checkNav02Shahkar(String(isLegal?f.representativeNationalId:f.nationalId),
+         String(isLegal?f.representativeMobile:f.mobile));
       const cipherIv=randomBytes(12),cipher=createCipheriv("aes-256-gcm",key,cipherIv);
       cipher.setAAD(Buffer.from(slug+":profile:v1","utf8"));
-      const encrypted=Buffer.concat([cipher.update(Buffer.from(JSON.stringify(f),"utf8")),cipher.final()]);
+      const encrypted=Buffer.concat([cipher.update(Buffer.from(JSON.stringify({...f,identityVerification:original.identityVerification??"UNVERIFIED"}),"utf8")),cipher.final()]);
       const tag=cipher.getAuthTag();
       try{
         const row=await c.query<{record:unknown}>(
@@ -597,9 +605,11 @@ export class FoundationCommandsController {
          paymentDate:p.paymentDate,capitalState:p.capitalState,
          managementState:p.managementState??"ACTIVE_DRAFT",
          version:p.version??1,photoState:p.photoState??"NONE",
-         personType:person.personType==="NATURAL"?"NATURAL":null,
-         membershipStatus:person.membershipStatus==="APPLICANT_UNVERIFIED"?"APPLICANT_UNVERIFIED":null,
-         shareholdingStatus:person.shareholdingStatus==="NONE_UNVERIFIED"?"NONE_UNVERIFIED":null};
+         personType:["NATURAL","LEGAL"].includes(String(person.personType))?person.personType:null,
+         membershipStatus:["APPLICANT_UNVERIFIED","ACTIVE_REPORTED","FORMER_REPORTED","NON_MEMBER_REPORTED"].includes(String(person.membershipStatus))?person.membershipStatus:null,
+         shareholdingStatus:["NONE_UNVERIFIED","HOLDER_REPORTED","TRANSFER_PENDING_REPORTED"].includes(String(person.shareholdingStatus))?person.shareholdingStatus:null,
+         identityVerification:person.identityVerification==="SHAHKAR_CONFIRMED"?"SHAHKAR_CONFIRMED":
+          person.identityVerification==="REPRESENTATIVE_MOBILE_CONFIRMED"?"REPRESENTATIVE_MOBILE_CONFIRMED":"UNVERIFIED"};
       }catch{throw new ServiceUnavailableException("PRIVATE_IDENTITY_UNAVAILABLE")}
     });
     {
@@ -710,47 +720,63 @@ export class FoundationCommandsController {
       throw new BadRequestException("INVALID_FIELD_TYPE");
     const key=this.nav02DataKey();
     const actor=await this.db.sessionActor(auth);
-    if(action==="profile"||action==="memberProfile"){
+    if(action==="profile"||action==="memberProfile"||action==="legalProfile"){
       const allowed=["title","fullName","group","nationalId","fatherName","birthCertificate",
        "birthDate","birthPlace","telephone","mobile","postalCode","address",
        "bornInCounty","residentInCounty","employedInCounty","informationConfirmed","membershipStatus",
-       "personType","shareholdingStatus","collectionName","occupation"];
+       "personType","shareholdingStatus","collectionName","occupation",
+       "registrationNumber","economicCode","representativeName","representativeNationalId","representativeMobile"];
       const lengths:Record<string,number>={title:12,fullName:180,group:90,nationalId:11,
        fatherName:120,birthCertificate:45,birthDate:10,birthPlace:120,telephone:25,
        mobile:20,postalCode:12,address:600,bornInCounty:3,residentInCounty:3,
        employedInCounty:3,informationConfirmed:3,membershipStatus:25,
-       personType:10,shareholdingStatus:25,collectionName:100,occupation:120};
+       personType:10,shareholdingStatus:25,collectionName:100,occupation:120,
+       registrationNumber:30,economicCode:14,representativeName:180,representativeNationalId:10,representativeMobile:11};
       if(Object.keys(fields).some(k=>!allowed.includes(k)||String(fields[k]).length>lengths[k])||
          !["آقا","خانم","شرکت","سازمان","اداره"].includes(String(fields.title))||
          typeof fields.fullName!=="string"||fields.fullName.trim().length<3||
          typeof fields.group!=="string"||fields.group.trim().length<2||
          typeof fields.nationalId!=="string"||
          !(fields.title==="آقا"||fields.title==="خانم"?/^\d{10}$/:/^\d{11}$/).test(fields.nationalId)||
-         JSON.stringify(fields).length>2400||
+         JSON.stringify(fields).length>4200||
          (fields.birthDate!==undefined&&fields.birthDate!==""&&
-         !(action==="memberProfile"?
+         !(action==="memberProfile"||action==="legalProfile"?
           this.validJalaliBirthDate(String(fields.birthDate)):
           /^\\d{4}-\\d{2}-\\d{2}$/.test(String(fields.birthDate)))))
        throw new BadRequestException("INVALID_PROFILE_FIELDS");
-      // A member applicant is a natural person. County conditions are declarations
-      // encrypted with the profile, not independently validated eligibility.
+      // Reported statuses describe administrative intake only. Legal admission,
+      // share ownership and voting always require independent CHILD06/CHILD07 evidence.
+      const statusOk=["APPLICANT_UNVERIFIED","ACTIVE_REPORTED","FORMER_REPORTED","NON_MEMBER_REPORTED"]
+       .includes(String(fields.membershipStatus));
+      const shareOk=["NONE_UNVERIFIED","HOLDER_REPORTED","TRANSFER_PENDING_REPORTED"]
+       .includes(String(fields.shareholdingStatus));
       if(action==="memberProfile"){
         if(!["آقا","خانم"].includes(String(fields.title))||
            !this.validNationalCode(String(fields.nationalId))||
            !["yes","no"].includes(String(fields.bornInCounty))||
            !["yes","no"].includes(String(fields.residentInCounty))||
            !["yes","no"].includes(String(fields.employedInCounty))||
-           ![fields.bornInCounty,fields.residentInCounty,fields.employedInCounty].includes("yes")||
+           (fields.membershipStatus!=="NON_MEMBER_REPORTED"&&
+            ![fields.bornInCounty,fields.residentInCounty,fields.employedInCounty].includes("yes"))||
            fields.informationConfirmed!=="yes"||
-           fields.membershipStatus!=="APPLICANT_UNVERIFIED"||
-           fields.personType!=="NATURAL"||
-           fields.shareholdingStatus!=="NONE_UNVERIFIED"||
+           !statusOk||fields.personType!=="NATURAL"||!shareOk||
            typeof fields.mobile!=="string"||!/^09[0-9]{9}$/.test(fields.mobile))
           throw new BadRequestException("INVALID_MEMBER_APPLICATION");
         // Real-identity collection remains explicitly disabled absent independent
         // controller/privacy/retention approval. No membership/ledger role is granted.
         // Official membership remains subject to board approval; registration
         // is a verified application, not automatic admission or voting rights.
+      }
+      if(action==="legalProfile"){
+        if(fields.personType!=="LEGAL"||fields.title!=="شرکت"||
+           fields.membershipStatus!=="NON_MEMBER_REPORTED"||!shareOk||
+           !/^\\d{11}$/.test(String(fields.nationalId))||
+           !/^\\d{1,30}$/.test(String(fields.registrationNumber))||
+           !/^\\d{12,14}$/.test(String(fields.economicCode))||
+           typeof fields.representativeName!=="string"||fields.representativeName.trim().length<3||
+           !this.validNationalCode(String(fields.representativeNationalId))||
+           !/^09[0-9]{9}$/.test(String(fields.representativeMobile)))
+          throw new BadRequestException("INVALID_LEGAL_SHAREHOLDER");
       }
       // The legacy shareholder profile endpoint remains synthetic-only.
       if(action==="profile"&&process.env.TTO_NAV02_REAL_PII_ENABLED!=="true"&&
@@ -760,7 +786,9 @@ export class FoundationCommandsController {
       const iv=randomBytes(12),cipher=createCipheriv("aes-256-gcm",key,iv);
       cipher.setAAD(Buffer.from(slug+":profile:v1","utf8"));
       const encrypted=Buffer.concat([cipher.update(
-       Buffer.from(JSON.stringify(fields),"utf8")),cipher.final()]);
+       Buffer.from(JSON.stringify({...fields,identityVerification:
+        action==="memberProfile"?"SHAHKAR_CONFIRMED":
+        action==="legalProfile"?"REPRESENTATIVE_MOBILE_CONFIRMED":"UNVERIFIED"}),"utf8")),cipher.final()]);
       const tag=cipher.getAuthTag();
       const hmacKey=createHmac("sha256",key).update("TTO-NAV02-ID-FINGERPRINT-V1").digest();
       const digest=createHmac("sha256",hmacKey).update(fields.nationalId).digest();
@@ -772,7 +800,7 @@ export class FoundationCommandsController {
           // The database owner/tenant/duplicate check must succeed first.
           // On nonmatch or provider failure, withActor rolls the transaction
           // back; no unverified member record is committed.
-          if(action==="memberProfile"){
+          if(action==="memberProfile"||action==="legalProfile"){
             const chosen=String(fields.collectionName??"").trim();
             if(chosen){
               const groupResult=await c.query<{data:unknown}>(
@@ -784,11 +812,14 @@ export class FoundationCommandsController {
                  }))
                 throw new BadRequestException("COLLECTION_NOT_REGISTERED");
             }
-            await this.checkNav02Shahkar(String(fields.nationalId),String(fields.mobile));
+            await this.checkNav02Shahkar(String(action==="legalProfile"?fields.representativeNationalId:fields.nationalId),
+             String(action==="legalProfile"?fields.representativeMobile:fields.mobile));
             const record=r.rows[0]?.record;
             if(!record||typeof record!=="object"||Array.isArray(record)||
                typeof (record as {id?:unknown}).id!=="string")
               throw new ServiceUnavailableException("INVALID_MEMBER_ID");
+            if(fields.membershipStatus==="NON_MEMBER_REPORTED")
+              return {saved:true,record:{...record,membershipNumber:null}};
             const issued=await c.query<{member_number:string}>(
               "SELECT tto.nav02_member_number_issue($1,$2::uuid) AS member_number",
               [slug,(record as {id:string}).id]);
