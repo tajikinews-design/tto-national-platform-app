@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import {JalaliBirthDatePicker} from "./jalali-birth-picker";
+import {JalaliBirthDatePicker,jalaliToGregorianISO,gregorianISOToJalali} from "./jalali-birth-picker";
 import {MemberSidebar} from "./member-side-panel";
 import {useEffect,useMemo,useState,type FormEvent} from "react";
 type Section="add"|"shares";
@@ -304,8 +304,11 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        onChange={e=>setCapital(p=>({...p,nominalRial:e.target.value}))}/></Field>
       <Field title="مبلغ پرداختی (ریال) *"><input required type="number" min="0" step="1" value={capital.paidRial}
        onChange={e=>setCapital(p=>({...p,paidRial:e.target.value}))}/></Field>
-      <Field title="تاریخ پرداخت"><input type="date" value={capital.paymentDate}
-       onChange={e=>setCapital(p=>({...p,paymentDate:e.target.value}))}/></Field>
+      <Field title="تاریخ پرداخت (شمسی)">
+       <JalaliBirthDatePicker placeholder="انتخاب تاریخ پرداخت (شمسی)" defaultToToday
+        value={gregorianISOToJalali(capital.paymentDate)}
+        onChange={value=>setCapital(p=>({...p,paymentDate:jalaliToGregorianISO(value)}))}/>
+      </Field>
       <Field title="شماره پیگیری / شماره فیش بانکی *"><input required maxLength={100} value={capital.receiptRef}
        onChange={e=>setCapital(p=>({...p,receiptRef:e.target.value}))}/></Field>
       <p className="tto-nav02-summary">کل ارزش اسمی اظهارشده: <strong>{faNumber(Number(subtotal))} ریال</strong></p>

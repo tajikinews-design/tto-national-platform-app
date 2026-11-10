@@ -30,4 +30,8 @@ class ShahkarJalali(unittest.TestCase):
   self.assertIn("grid-template-columns:repeat(2,minmax(0,1fr))",css)
   self.assertNotIn('type="date" value={profile.birthDate}',form)
   self.assertIn("validJalaliBirthDate",read("services/api/src/module.ts"))
+  self.assertIn("jalaliToGregorianISO",cal)
+  self.assertIn("gregorianISOToJalali",cal)
+  self.assertIn('placeholder="انتخاب تاریخ پرداخت (شمسی)"',form)
+  self.assertNotIn('<input type="date" value={capital.paymentDate}',form)
 if __name__=="__main__":unittest.main()

@@ -34,14 +34,33 @@ function canonical(value:string){
  const y=Number(p[1]),m=Number(p[2]),d=Number(p[3]);
  try {return d<=lengthOfMonth(y,m)?{y,m,d}:null}catch{return null}
 }
-export function JalaliBirthDatePicker({value,onChange}:{
- value:string;onChange:(value:string)=>void
+/** Explicit ISO/Gregorian boundary only for legacy capital-payment storage.
+ * All user-facing date controls and selected dates remain Persian/Jalali.
+ */
+export function jalaliToGregorianISO(value:string):string{
+ if(!value)return "";
+ const j=canonical(value);if(!j)return "";
+ const elapsed=Array.from({length:j.m-1},(_,i)=>lengthOfMonth(j.y,i+1))
+  .reduce((a,b)=>a+b,0)+(j.d-1);
+ return new Date(firstDay(j.y)+elapsed*oneDay).toISOString().slice(0,10);
+}
+export function gregorianISOToJalali(value:string):string{
+ if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(value))return "";
+ const date=new Date(value+"T00:00:00.000Z");
+ if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==value)return "";
+ const p=parts(date);
+ return [String(p.y).padStart(4,"0"),String(p.m).padStart(2,"0"),
+  String(p.d).padStart(2,"0")].join("/");
+}
+export function JalaliBirthDatePicker({value,onChange,placeholder="انتخاب تاریخ تولد (شمسی)",
+ defaultToToday=false}:{
+ value:string;onChange:(value:string)=>void;placeholder?:string;defaultToToday?:boolean
 }){
  const today=parts(new Date());
  const selected=canonical(value);
  const [open,setOpen]=useState(false);
- const [view,setView]=useState(()=>({y:selected?.y??Math.max(1250,today.y-25),
-  m:selected?.m??1}));
+ const [view,setView]=useState(()=>({y:selected?.y??(defaultToToday?today.y:Math.max(1250,today.y-25)),
+  m:selected?.m??(defaultToToday?today.m:1)}));
  const days=useMemo(()=>{
   try{
    const count=lengthOfMonth(view.y,view.m);
@@ -68,10 +87,10 @@ export function JalaliBirthDatePicker({value,onChange}:{
  return <div className="tto-nav02-jalali" dir="rtl">
   <button className="tto-nav02-calendar-trigger" type="button"
    aria-haspopup="dialog" aria-expanded={open} onClick={()=>setOpen(x=>!x)}>
-   <span>{selected?`${selected.y}/${String(selected.m).padStart(2,"0")}/${String(selected.d).padStart(2,"0")}`:"انتخاب تاریخ تولد (شمسی)"}</span>
+   <span>{selected?`${selected.y}/${String(selected.m).padStart(2,"0")}/${String(selected.d).padStart(2,"0")}`:placeholder}</span>
    <span aria-hidden="true">▦</span>
   </button>
-  {open?<div className="tto-nav02-calendar-pop" role="dialog" aria-label="انتخاب تاریخ تولد شمسی">
+  {open?<div className="tto-nav02-calendar-pop" role="dialog" aria-label={placeholder}>
    <div className="tto-nav02-calendar-controls">
     <button type="button" onClick={()=>go(-1)} aria-label="ماه قبل">‹</button>
     <select aria-label="ماه شمسی" value={view.m} onChange={e=>setView(v=>({...v,m:Number(e.target.value)}))}>
