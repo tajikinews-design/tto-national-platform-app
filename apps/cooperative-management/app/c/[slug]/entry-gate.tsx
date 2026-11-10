@@ -10,17 +10,28 @@ const verifiedWorkspaceBySlug=new Map<string,WorkspaceAccess>();
 // authority grant, personal data or cookie is written to storage.
 // The commercial owner can view the approved shell, not assume legal manager powers.
 function WorkspaceSignIn({slug}:{slug:string}){
+ const [accountKind,setAccountKind]=useState<"subscriber"|"manager">("subscriber");
  const [mode,setMode]=useState<"otp"|"password">("otp");
  const [username,setUsername]=useState(""),[password,setPassword]=useState("");
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
  async function login(e:FormEvent<HTMLFormElement>){
   e.preventDefault();if(busy)return;setBusy(true);setError("");
   try{
-   const r=await fetch("/api/commerce/password-login",{method:"POST",credentials:"same-origin",
-    headers:{"Content-Type":"application/json"},body:JSON.stringify({slug,username,password})});
-   const d=r.ok?await r.json() as {authenticated?:unknown;slug?:unknown}:null;
-   if(!r.ok||d?.authenticated!==true||d.slug!==slug){
-    setError(r.status===401?"نام کاربری یا رمز عبور نامعتبر است.":"سرویس ورود در دسترس نیست.");return;
+   const formal=accountKind==="manager";
+   const r=await fetch(formal?"/api/auth/password/login":"/api/commerce/password-login",{
+    method:"POST",credentials:"same-origin",cache:"no-store",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(formal?{workspaceSlug:slug,username,password}:{slug,username,password})});
+   const d=r.ok?await r.json() as {authenticated?:unknown;slug?:unknown;
+    workspaceSlug?:unknown;surface?:unknown;commercialOnly?:unknown}:null;
+   const attested=formal?
+    d?.authenticated===true&&d.workspaceSlug===slug&&d.surface==="cooperative":
+    d?.authenticated===true&&d.slug===slug&&d.commercialOnly===true;
+   if(!r.ok||!attested){
+    setError(r.status===401?"نام کاربری یا رمز عبور معتبر نیست.":
+     r.status===403?"این حساب مجوز ورود ندارد یا محدودیت تلاش ورود فعال است.":
+     formal?"ورود مدیر رسمی نیازمند احراز هویت مستقل، نقش معتبر و فعال‌سازی امنیتی در Preview است.":
+     "ورود صاحب اشتراک آزمایشی آماده نیست؛ تنظیمات امنیتی Preview را بررسی کنید.");return;
    }
    setPassword("");window.location.replace("/c/"+encodeURIComponent(slug));
   }catch{setError("ارتباط با سرویس ورود برقرار نشد.")}
