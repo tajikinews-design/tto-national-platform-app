@@ -802,6 +802,15 @@ export class FoundationCommandsController {
       throw new BadRequestException("INVALID_NUMBER_POLICY");
     const actor=await this.db.sessionActor(auth);
     const policy=await this.db.withActor(actor,async c=>{
+      // Do not allow a legacy pre-migration policy function to bypass
+      // the required existing-member renumber confirmation.
+      const state=await c.query<{data:unknown}>(
+       "SELECT tto.nav02_member_number_policy_get($1) AS data",[input.slug]);
+      const snapshot=state.rows[0]?.data as {issuedCount?:unknown}|null;
+      if(!snapshot||!Number.isSafeInteger(snapshot.issuedCount))
+        throw new ServiceUnavailableException("NUMBER_POLICY_MIGRATION_REQUIRED");
+      if(Number(snapshot.issuedCount)>0)
+        throw new ConflictException("CONFIRMED_ALL_MEMBER_REISSUE_REQUIRED");
       const r=await c.query<{data:unknown}>(
        "SELECT tto.nav02_member_number_policy_set($1,$2::bigint,$3,$4) AS data",
        [input.slug,input.nextSerial,input.prefix,input.suffix]);
