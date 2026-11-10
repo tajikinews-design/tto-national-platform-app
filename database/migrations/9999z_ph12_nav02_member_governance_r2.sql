@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS tto.nav02_member_number_revisions(
  created_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
 CREATE TABLE IF NOT EXISTS tto.nav02_member_number_current(
- draft_id uuid PRIMARY KEY REFERENCES tto.commerce_demo_shareholder_drafts(draft_id),
+ draft_id uuid PRIMARY KEY REFERENCES tto.commerce_demo_shareholder_drafts(draft_id) ON DELETE CASCADE,
  order_id uuid NOT NULL REFERENCES tto.commerce_demo_workspace_owners(order_id),
  revision_id uuid NOT NULL REFERENCES tto.nav02_member_number_revisions(revision_id),
  serial bigint NOT NULL CHECK(serial>0),
@@ -63,6 +63,32 @@ BEGIN
 END $f$;
 REVOKE ALL ON FUNCTION tto.nav02_member_collections_list(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION tto.nav02_member_collections_list(text) TO tto_app;
+
+CREATE OR REPLACE FUNCTION tto.nav02_member_collection_create(p_slug text,p_name text) RETURNS jsonb
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
+DECLARE v_order uuid;v_id uuid;v_name text;
+BEGIN
+ v_name:=btrim(p_name);
+ IF v_name IS NULL OR length(v_name) NOT BETWEEN 3 AND 100
+ THEN RAISE EXCEPTION 'INVALID_COLLECTION_NAME' USING ERRCODE='22023';END IF;
+ v_order:=tto.nav02_member_owner_order(p_slug);
+ UPDATE tto.nav02_member_collections SET archived_at=NULL,archived_by=NULL
+ WHERE order_id=v_order AND lower(btrim(name))=lower(v_name) AND archived_at IS NOT NULL
+ RETURNING collection_id INTO v_id;
+ IF v_id IS NULL THEN
+  INSERT INTO tto.nav02_member_collections(order_id,name,created_by)
+   VALUES(v_order,v_name,tto.context_actor_id())
+   ON CONFLICT DO NOTHING RETURNING collection_id INTO v_id;
+ END IF;
+ IF v_id IS NULL THEN
+  SELECT collection_id INTO v_id FROM tto.nav02_member_collections
+  WHERE order_id=v_order AND lower(btrim(name))=lower(v_name);
+ END IF;
+ IF v_id IS NULL THEN RAISE EXCEPTION 'COLLECTION_NOT_CREATED';END IF;
+ RETURN jsonb_build_object('id',v_id,'name',v_name);
+END $f$;
+REVOKE ALL ON FUNCTION tto.nav02_member_collection_create(text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION tto.nav02_member_collection_create(text,text) TO tto_app;
 
 CREATE FUNCTION tto.nav02_member_collection_archive(p_slug text,p_name text) RETURNS jsonb
  LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
