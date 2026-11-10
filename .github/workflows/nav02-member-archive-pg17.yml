@@ -53,6 +53,7 @@ jobs:
           done
           if [ "${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}" = "feat/nav02-member-registration-r2-20261110" ]; then
             psql_ci database/migrations/9999z_ph12_nav02_member_governance_r2.sql
+            psql_ci database/migrations/9999za_ph12_nav02_member_form_r3_edit_photo.sql
           fi
           echo NAV02_ISOLATED_PG17_SCHEMA_APPLIED
       - name: Test membership number non-reuse, collection ownership and archive with rollback
