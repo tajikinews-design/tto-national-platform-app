@@ -38,7 +38,7 @@ class Issue185(unittest.TestCase):
    self.assertIn(role,UI)
   for key in ("gazetteName","gazetteDate","gazetteIssue","noticeNumber","signingScope","signingAuthorized"):
    self.assertIn(key,UI)
-  self.assertIn('section==="officers"',ROUTE)
+  self.assertIn('tab==="officers"',ROUTE)
   self.assertIn("/settings/officers",MENU)
  def test_bff_session_csrf_and_backend_check(self):
   self.assertIn('if(!token(r))return fail(401',BFF)
