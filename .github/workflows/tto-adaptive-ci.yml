@@ -107,6 +107,7 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
           pnpm check
+          node --test scripts/ci/nav02-xlsx-roundtrip.test.cjs
       - name: PH03 isolated three-portal Chromium keyboard RTL and contrast acceptance
         if: github.event_name == 'pull_request' && github.head_ref == 'feat/ph03-three-portal-secure-shells-20261102'
         env:
