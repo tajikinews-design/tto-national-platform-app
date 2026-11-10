@@ -45,7 +45,7 @@ class MemberPortalContracts(unittest.TestCase):
   self.assertIn("احراز هویت",directory)
   self.assertIn("نام کاربری",shell) if False else None
   self.assertIn("پرونده عضویت",case) if False else None
-  self.assertIn("افراد عضو",case)
+  self.assertIn("پرونده اشخاص",case)
   self.assertIn("عضویت",case)
   self.assertIn("href={basePath+\"/members/list\"}",shell)
   self.assertIn("archive",read("apps/cooperative-management/app/c/[slug]/members/[section]/page.tsx"))
