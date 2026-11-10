@@ -57,6 +57,13 @@ class OperationalMemberAccess(unittest.TestCase):
   self.assertIn("commerce_demo_nav02_audit",block)
   self.assertIn("commerce_demo_nav02_change_state",block)
   self.assertIn("commerce_demo_nav02_delete_unverified",block)
+ def test_backend_ready_pins_exact_reviewed_api_with_trusted_oidc(self):
+  probe=src("apps/cooperative-management/app/api/internal/backend-ready/route.ts")
+  self.assertIn("https://tto-api-preview-ct4e6hp5q-tajikinews-6739.vercel.app",probe)
+  self.assertIn("trustedBackendHeaders(request)",probe)
+  self.assertIn("trustedPreviewApis.has(base)",probe)
+  self.assertIn("signal:AbortSignal.timeout(8500)",probe)
+  self.assertNotIn('startsWith("https://tto-api-preview-',probe)
  def test_legal_membership_and_share_ledger_remain_distinct(self):
   api=src("services/api/src/module.ts")
   self.assertIn('APPLICANT_UNVERIFIED',api)
