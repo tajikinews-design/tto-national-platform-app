@@ -8,6 +8,11 @@ const SLUG=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 const headings=["عنوان","نام و نام خانوادگی","گروه عضویت","کد ملی","شماره همراه",
  "نام پدر","شماره شناسنامه","تاریخ تولد (شمسی)","محل تولد","تلفن",
  "کدپستی","نشانی","شغل","متولد شهرستان","ساکن شهرستان","شاغل شهرستان"];
+function validNationalCode(v:string){
+ if(!/^[0-9]{10}$/.test(v)||/^([0-9])\1{9}$/.test(v))return false;
+ let total=0;for(let i=0;i<9;i++)total+=Number(v[i])*(10-i);
+ const r=total%11;return Number(v[9])===(r<2?r:11-r);
+}
 function session(req:NextRequest){const t=req.cookies.get("tto_session")?.value;
  return t&&/^[A-Za-z0-9_-]{32,256}$/.test(t)?t:null}
 function baseUrl(){const b=process.env.TTO_API_BASE_URL;if(!b?.startsWith("https://"))return null;
@@ -93,7 +98,7 @@ export async function POST(req:NextRequest){
     if(!["آقا","خانم"].includes(title))errors.push("عنوان");
     if(fullName.length<3||fullName.length>180)errors.push("نام");
     if(group.length<2||group.length>90)errors.push("گروه");
-    if(!/^\d{10}$/.test(nationalId)||/^([0-9])\1{9}$/.test(nationalId))errors.push("کد ملی");
+    if(!validNationalCode(nationalId))errors.push("کد ملی");
     if(!/^09[0-9]{9}$/.test(mobile))errors.push("شماره همراه");
     if(![born,resident,employed].includes("بله"))errors.push("شرایط شهرستان");
     if(![born,resident,employed].every(v=>["بله","خیر"].includes(v)))errors.push("پرچم شهرستان");
