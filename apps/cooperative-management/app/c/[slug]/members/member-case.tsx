@@ -80,7 +80,11 @@ export function MemberCase({slug,memberId}:{slug:string;memberId:string}){
    <div className="tto-member-case-main">
     <section className="tto-member-case-head">
      <div className="tto-member-case-person">
-      <div className="tto-member-case-avatar" aria-label={member.photoState==="QUARANTINED"?"عکس در قرنطینه و هنوز قابل نمایش نیست":"عکس پرسنلی بررسی‌شده موجود نیست"}>♙</div>
+      <div className="tto-member-case-avatar" aria-label="عکس پرسنلی خصوصی پرونده">
+       {member.photoState==="READY_PRIVATE"?<img
+        src={"/api/commerce/nav02/photo/view?slug="+encodeURIComponent(slug)+"&draftId="+encodeURIComponent(member.id)}
+        width={75} height={90} alt={"عکس پرسنلی "+member.name}/>:
+        <span aria-label={member.photoState==="QUARANTINED"?"تصویر در انتظار اسکن":"عکس موجود نیست"}>♙</span>}</div>
       <div><h1>{member.title} {member.name}</h1>
        <p>شماره عضویت: <strong dir="ltr">{member.membershipNumber||"در انتظار صدور رسمی"}</strong></p>
        <p><span className="tto-nav02-state pending">{({APPLICANT_UNVERIFIED:"متقاضی",ACTIVE_REPORTED:"عضو فعال (اظهاری)",FORMER_REPORTED:"عضو سابق (اظهاری)",NON_MEMBER_REPORTED:"غیرعضو"} as Record<string,string>)[member.membershipStatus??""]??"وضعیت نامشخص"}</span>
