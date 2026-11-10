@@ -7,7 +7,6 @@ const H={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Opt
  "X-Robots-Tag":"noindex","Content-Security-Policy":"default-src 'none'"};
 const fail=(s:number,code:string)=>NextResponse.json({code},{status:s,headers:H});
 export async function GET(req:NextRequest){
- if(process.env.TTO_NAV02_PRIVATE_PHOTO_RELEASE_ENABLED!=="true")return fail(404,"PRIVATE_PHOTO_DISABLED");
  const token=req.cookies.get("tto_session")?.value;
  if(!token||!/^[A-Za-z0-9_-]{32,256}$/.test(token))return fail(401,"LOGIN_REQUIRED");
  const slug=req.nextUrl.searchParams.get("slug"),draftId=req.nextUrl.searchParams.get("draftId");
@@ -20,7 +19,7 @@ export async function GET(req:NextRequest){
   const response=await fetch(u,{cache:"no-store",redirect:"error",signal:AbortSignal.timeout(9500),
    headers:{Authorization:"Bearer "+token,...trustedBackendHeaders(req)}});
   if(response.status===401)return fail(401,"LOGIN_REQUIRED");
-  if(response.status===403)return fail(403,"PRIVATE_PHOTO_NOT_READY");
+  if(response.status===403)return fail(403,"PRIVATE_PHOTO_OWNER_DENIED");
   if(!response.ok)return fail(503,"PRIVATE_PHOTO_UNAVAILABLE");
   const result=await response.json() as {mime?:unknown;base64?:unknown};
   if(!["image/png","image/jpeg","image/webp"].includes(String(result.mime))||
