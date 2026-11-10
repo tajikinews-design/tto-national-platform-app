@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {trustedBackendHeaders} from "../../../../lib/trusted-backend";
+import {displayMemberNumber} from "../../../../lib/nav02-member-number";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 const H={"Cache-Control":"private, no-store","Vary":"Cookie","X-Robots-Tag":"noindex"};
 const fail=(status:number,code:string)=>NextResponse.json({code},{status,headers:H});
@@ -22,7 +23,12 @@ export async function GET(req:NextRequest){
   if(!r.ok)return fail(503,"INTAKE_UNAVAILABLE");
   const data=await r.json() as {items?:unknown};
   if(!Array.isArray(data.items))return fail(502,"INVALID_RESULT");
-  return NextResponse.json({items:data.items},{headers:H});
+  const items=data.items.map((raw:unknown)=>{
+   if(!raw||typeof raw!=="object"||Array.isArray(raw))throw Error("INVALID_MEMBER");
+   const row=raw as Record<string,unknown>;
+   return {...row,membershipNumber:displayMemberNumber(slug,row.membershipNumber)};
+  });
+  return NextResponse.json({items},{headers:H});
  }catch{return fail(503,"INTAKE_UNAVAILABLE")}
 }
 export async function POST(req:NextRequest){
