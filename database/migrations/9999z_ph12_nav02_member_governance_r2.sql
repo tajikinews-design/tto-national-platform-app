@@ -243,7 +243,7 @@ BEGIN
   WHERE p.order_id=v_order AND p.scan_status='CLEAN'
    AND p.disclosure_status='OWNER_ALLOWED' AND p.expires_at>clock_timestamp());
 END $f$;
-REVOKE ALL ON FUNCTION tto.nav02_photo_ready_for_owner(text) FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION tto.nav02_photo_ready_for_owner(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION tto.nav02_photo_ready_for_owner(text) TO tto_app;
 
 CREATE FUNCTION tto.nav02_photo_payload_for_owner(p_slug text,p_draft uuid) RETURNS jsonb
@@ -259,6 +259,6 @@ BEGIN
   p.scan_status='CLEAN' AND p.disclosure_status='OWNER_ALLOWED'
   AND p.expires_at>clock_timestamp());
 END $f$;
-REVOKE ALL ON FUNCTION tto.nav02_photo_payload_for_owner(text,uuid) FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION tto.nav02_photo_payload_for_owner(text,uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION tto.nav02_photo_payload_for_owner(text,uuid) TO tto_app;
 COMMIT;
