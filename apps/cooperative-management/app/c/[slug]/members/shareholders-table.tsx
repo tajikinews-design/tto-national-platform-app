@@ -4,7 +4,7 @@ import {useEffect,useMemo,useRef,useState,type FormEvent} from "react";
 
 type Draft={
  id:string;title:string;name:string;group:string;identifierMask:string;membershipStatus?:string|null;
- state:string;managementState?:"ACTIVE_DRAFT"|"SUSPENDED_DRAFT";
+ state:string;managementState?:"ACTIVE_DRAFT"|"SUSPENDED_DRAFT"|"ARCHIVED_DRAFT";
  version?:number;photoState?:"NONE"|"QUARANTINED";
  initialShares?:string|null;subscribedShares?:string|null;
  nominalRial?:string|null;declaredPaidRial?:string|null;
