@@ -3,7 +3,7 @@ import Link from "next/link";
 import {useEffect,useMemo,useRef,useState,type FormEvent} from "react";
 
 type Draft={
- id:string;title:string;name:string;group:string;identifierMask:string;membershipStatus?:string|null;
+ id:string;title:string;name:string;group:string;identifierMask:string;shareholdingStatus?:string|null;
  state:string;managementState?:"ACTIVE_DRAFT"|"SUSPENDED_DRAFT"|"ARCHIVED_DRAFT";
  version?:number;photoState?:"NONE"|"QUARANTINED"|"READY_PRIVATE";
  initialShares?:string|null;subscribedShares?:string|null;
@@ -78,7 +78,12 @@ export function ShareholdersTable({slug}:{slug:string}){
    "دریافت فهرست سهامداران آزمایشی ناموفق بود.");
   const body=await response.json() as {items?:Draft[]};
   if(!Array.isArray(body.items))throw Error("پاسخ سرور معتبر نیست.");
-  const shareholderDrafts=body.items.filter(item=>item.membershipStatus!=="APPLICANT_UNVERIFIED"&&item.managementState!=="ARCHIVED_DRAFT");
+  // Shareholder display must follow share-related evidence, not membership status.
+  // Reported shares are still drafts, never a verified CHILD07 ownership ledger.
+  const shareholderDrafts=body.items.filter(item=>
+   item.managementState!=="ARCHIVED_DRAFT"&&
+   (Boolean(item.capitalState)||item.shareholdingStatus==="HOLDER_REPORTED"||
+    item.shareholdingStatus==="TRANSFER_PENDING_REPORTED"));
   setRows(shareholderDrafts);return shareholderDrafts;
  }
  useEffect(()=>{
@@ -166,7 +171,7 @@ export function ShareholdersTable({slug}:{slug:string}){
    <Link href={base+"shareholders"} aria-current="page">♧ سهامداران</Link>
   </nav>
   <div className="tto-nav02-warning" role="status">
-   فقط پرونده‌های ساختگی و تأییدنشده؛ عکس‌های قرنطینه‌شده تا قبل از اسکن ایمن نمایش یا دانلود نمی‌شوند.
+   این فهرست، پیش‌نویس‌های دارای اطلاعات سهام اظهارشده را نمایش می‌دهد؛ ثبت در این بخش مالکیت رسمی سهام ایجاد نمی‌کند.
    تعلیق فقط وضعیت پیش‌نویس را تغییر می‌دهد و هیچ سهم قانونی را مسدود نمی‌کند.
   </div>
   <div className="tto-nav02-card tto-nav02-directory">
