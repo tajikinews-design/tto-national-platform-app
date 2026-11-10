@@ -9,20 +9,87 @@
  outline:3px solid #86bff8;outline-offset:1px
 }
 .tto-approved-shell input[type="checkbox"]{accent-color:#0878b7;cursor:pointer}
-/* The two new submenu links inherit the approved sidebar's blue/navy vocabulary. */
-.tto-approved-shell .tto-settings-tree{border-radius:11px;overflow:visible}
-.tto-approved-shell .tto-settings-tree>summary{list-style:none;cursor:pointer;user-select:none}
-.tto-approved-shell .tto-settings-tree>summary::-webkit-details-marker{display:none}
-.tto-approved-shell .tto-settings-tree>summary:focus-visible{outline:3px solid #86bff8;outline-offset:2px}
-.tto-approved-shell .tto-settings-chevron{margin-inline-start:auto;color:#4586a3;font-size:18px;transition:transform .2s}
-.tto-approved-shell .tto-settings-tree[open] .tto-settings-chevron{transform:rotate(180deg)}
-.tto-approved-shell .tto-settings-submenu{display:grid;gap:5px;margin:4px 19px 10px 0;padding-right:12px;border-right:2px solid #cbecf4}
-.tto-approved-shell .tto-settings-sublink{display:flex;gap:8px;align-items:center;padding:10px 11px;border-radius:9px;color:#526986;font-weight:650;font-size:12px;text-decoration:none;line-height:1.65;transition:background .15s,color .15s}
-.tto-approved-shell .tto-settings-sublink:hover,.tto-approved-shell .tto-settings-sublink:focus-visible{background:#ecf7fd;color:#075c8f}
-.tto-approved-shell .tto-settings-sublink.selected{background:#e1f6f4;color:#09627c}
-.tto-approved-shell .tto-settings-sublink>span{font-size:16px;color:#07a9ac}
-@media(max-width:800px){.tto-approved-shell .tto-settings-tree{min-width:max-content}
- .tto-approved-shell .tto-settings-submenu{background:#fff;padding:6px;border:1px solid #deebf1;border-radius:12px;margin:0}}
+/* Cooperative-only secondary navigation: distinct indigo-teal surface,
+   visible motion in both directions, keyboard focus, and reduced motion. */
+.tto-approved-shell .tto-animated-tree{
+ border-radius:12px;
+ overflow:clip;
+ background:transparent;
+ transition:background-color .28s ease,box-shadow .28s ease;
+}
+.tto-approved-shell .tto-animated-tree.is-expanded{
+ background:#e8f0fa;
+ box-shadow:inset 3px 0 0 #2c65a7,0 4px 14px rgba(24,54,86,.07);
+}
+.tto-approved-shell .tto-accordion-trigger{
+ width:100%;display:flex;align-items:center;gap:9px;text-align:start;
+ font:inherit;border:0;cursor:pointer;
+}
+.tto-approved-shell .tto-accordion-trigger:focus-visible{
+ outline:3px solid #2a77af;outline-offset:-3px
+}
+.tto-approved-shell .tto-settings-chevron{
+ margin-inline-start:auto;display:inline-flex;align-items:center;
+ justify-content:center;width:23px;height:23px;
+ background:#deebfa;color:#235989;border-radius:7px;font-size:20px;
+ transition:transform .35s cubic-bezier(.2,.8,.2,1),background-color .25s,color .25s
+}
+.tto-approved-shell .tto-animated-tree.is-expanded .tto-settings-chevron{
+ transform:rotate(180deg);background:#27629e;color:#fff
+}
+.tto-approved-shell .tto-submenu-motion{
+ display:grid;grid-template-rows:0fr;opacity:0;
+ transform:translateY(-9px);visibility:hidden;
+ transition:grid-template-rows .38s cubic-bezier(.2,.8,.2,1),
+  opacity .26s ease,transform .38s cubic-bezier(.2,.8,.2,1),
+  visibility 0s linear .38s;
+}
+.tto-approved-shell .tto-animated-tree.is-expanded .tto-submenu-motion{
+ grid-template-rows:1fr;opacity:1;transform:translateY(0);visibility:visible;
+ transition:grid-template-rows .38s cubic-bezier(.2,.8,.2,1),
+  opacity .32s ease .04s,transform .38s cubic-bezier(.2,.8,.2,1),
+  visibility 0s;
+}
+.tto-approved-shell .tto-submenu-motion-inner{min-height:0;overflow:hidden}
+.tto-approved-shell .tto-settings-submenu{
+ display:grid;gap:5px;margin:4px 9px 11px;
+ padding:9px 12px 9px 9px;
+ background:linear-gradient(145deg,#dceafa,#e5f5f7);
+ border-inline-start:3px solid #31809f;
+ border-radius:9px;
+}
+.tto-approved-shell .tto-settings-sublink{
+ display:flex;gap:8px;align-items:center;min-height:38px;
+ padding:9px 11px;border-radius:8px;color:#284761;font-weight:650;
+ font-size:12px;text-decoration:none;line-height:1.65;
+ background:rgba(255,255,255,.43);border:1px solid transparent;
+ transition:background .18s ease,color .18s ease,transform .18s ease,border-color .18s ease
+}
+.tto-approved-shell .tto-settings-sublink:hover,
+.tto-approved-shell .tto-settings-sublink:focus-visible{
+ background:#fff;color:#145f89;border-color:#8bb4ca;
+ transform:translateX(-3px);
+}
+.tto-approved-shell .tto-settings-sublink:focus-visible{
+ outline:3px solid #287eac;outline-offset:1px
+}
+.tto-approved-shell .tto-settings-sublink.selected{
+ background:#b9e4e1;color:#075e66;border-color:#61a8ab;font-weight:750;
+}
+.tto-approved-shell .tto-settings-sublink>span{font-size:16px;color:#097f8a}
+@media(max-width:800px){
+ .tto-approved-shell .tto-animated-tree{min-width:max-content}
+ .tto-approved-shell .tto-settings-submenu{margin:4px 6px 9px;padding:7px}
+}
+@media(prefers-reduced-motion:reduce){
+ .tto-approved-shell .tto-animated-tree,
+ .tto-approved-shell .tto-settings-chevron,
+ .tto-approved-shell .tto-submenu-motion,
+ .tto-approved-shell .tto-animated-tree.is-expanded .tto-submenu-motion,
+ .tto-approved-shell .tto-settings-sublink{
+  transition:none;transform:none
+ }
+}
 
 /* Tenant scoped route verification: a neutral, minimal loading state.
    Authentication branding is reserved for an actual login, not every click. */
