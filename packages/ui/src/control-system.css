@@ -100,3 +100,20 @@
 .tto-workspace-access-error{min-height:100svh;display:grid;place-items:center;background:#f4f8fc;padding:20px}
 .tto-workspace-access-error section{max-width:520px;padding:30px;background:#fff;border-radius:14px;border:1px solid #dbe8f1}
 @media(prefers-reduced-motion:reduce){.tto-workspace-transition-spinner{animation:none}}
+
+/* NAV02: accordion consumes document flow, never overlaps adjacent menus.
+   Avoid flex/horizontal navigation on narrower displays when expanded. */
+.tto-approved-shell .nav-area nav{align-content:start;align-items:stretch}
+.tto-approved-shell .tto-animated-tree{position:relative;z-index:auto;min-height:0;isolation:isolate}
+.tto-approved-shell .tto-submenu-motion{position:static;inset:auto;min-height:0;overflow:clip}
+.tto-approved-shell .tto-animated-tree.is-expanded .tto-submenu-motion{overflow:visible}
+.tto-approved-shell .tto-submenu-motion-inner{min-width:0;min-height:0;overflow:hidden}
+.tto-approved-shell .tto-settings-submenu{min-width:0;overflow-wrap:anywhere}
+.tto-approved-shell .tto-settings-sublink{min-width:0;white-space:normal}
+@media(max-width:770px){
+ .tto-approved-shell .nav-area nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));overflow:visible;align-items:start}
+ .tto-approved-shell .tto-animated-tree{min-width:0}
+ .tto-approved-shell .tto-accordion-trigger{white-space:normal;min-height:44px}
+ .tto-approved-shell .tto-animated-tree.is-expanded{grid-row:span 2}
+}
+@media(max-width:480px){.tto-approved-shell .nav-area nav{grid-template-columns:minmax(0,1fr)}}
