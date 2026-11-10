@@ -1,0 +1,63 @@
+name: NAV02 Issue185 local numbers and officer drafts PG17 (NO DEPLOY)
+on:
+  push:
+    branches:
+      - feat/nav02-issue185-member-ux-20261110
+  pull_request:
+    paths:
+      - 'database/migrations/9999z*.sql'
+      - 'tests/sql/nav02-issue185-local-number-officers-fence.sql'
+      - '.github/workflows/nav02-issue185-pg17.yml'
+permissions:
+  contents: read
+jobs:
+  nav02-local-numbers-officers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: tto
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tto"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      CI: "true"
+      APIIR_TOKEN: ""
+      TTO_NAV02_REAL_PII_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Run local number and officers source contracts
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/test_nav02_issue185_governance_number_contract.py -v
+      - name: Apply NAV02 migrations to disposable PG17
+        run: |
+          set -euo pipefail
+          psql_ci(){ docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$1"; }
+          for f in database/migrations/000{1,2,3,4,5,6,7,8,9}_*.sql database/migrations/0010_*.sql; do
+            test -f "$f"
+            psql_ci "$f"
+          done
+          psql_ci database/migrations/9992_ph10_workspace_addresses.sql
+          for f in database/migrations/9999{n,o,p,q,r,s,t,u,v,w,x,y}_*.sql; do
+            test -f "$f"
+            psql_ci "$f"
+          done
+          for f in database/migrations/9999z_ph12_nav02_member_governance_r2.sql database/migrations/9999za_ph12_nav02_member_form_r3_edit_photo.sql database/migrations/9999zb_nav02_member_numbers_cooperative_local.sql database/migrations/9999zc_nav02_office_holders_draft.sql; do
+            psql_ci "$f"
+          done
+          echo NAV02_ISSUE185_ISOLATED_PG17_SCHEMA_APPLIED
+      - name: Prove cross-tenant duplicate number allowed and officer scope blocked
+        run: |
+          set -euo pipefail
+          docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/nav02-issue185-local-number-officers-fence.sql
+          count=$(docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d tto -Atc 'SELECT count(*) FROM tto.nav02_office_holder_drafts')
+          test "$count" = "0"
+          echo NAV02_ISSUE185_LOCAL_NUMBER_OFFICERS_PG17_PASS
