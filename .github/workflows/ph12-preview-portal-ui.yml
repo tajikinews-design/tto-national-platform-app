@@ -1,7 +1,7 @@
 name: PH12 three-portal linked Preview UI build (NO DEPLOY)
 on:
   push:
-    branches: [feat/ph12-portal-preview-modules-api-navigation-20261108, feat/ph12-approved-dashboards-separated-logins-20261108]
+    branches: [feat/ph12-portal-preview-modules-api-navigation-20261108, feat/ph12-approved-dashboards-separated-logins-20261108, feat/nav02-shareholder-intake-draft-20261109]
   pull_request:
     branches: [feat/child06-coop-two-person-attestation-hold-20261108, feat/ph12-portal-preview-modules-api-navigation-20261108]
 permissions:
@@ -35,8 +35,11 @@ jobs:
           python3 scripts/ci/test_ph12_name_first_demo_workspace.py -v
           python3 scripts/ci/test_ph12_cooperative_onboarding_flow.py -v
           python3 scripts/ci/test_ph12_cooperative_settings_subpages.py -v
-          python3 scripts/ci/test_ph12_cooperative_fast_navigation.py -v
+          python3 scripts/ci/test_ph12_nav02_shareholder_intake.py -v
+          python3 scripts/ci/test_ph12_nav02_photo_quarantine.py -v
+          python3 scripts/ci/test_ph12_nav02_sensitive_envelopes.py -v
           python3 scripts/ci/test_ph12_members_draft_forms.py -v
+          python3 scripts/ci/test_ph12_cooperative_fast_navigation.py -v
           echo "TTO_CUSTOM_VANITY_DOMAIN_CONTRACT_PASS"
       - name: Install workspace and validate all preview portals
         run: |

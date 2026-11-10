@@ -375,6 +375,357 @@ export class FoundationCommandsController {
    * tenants require a separate formally approved national directory read model.
    * Never infer legal registration or tenant activation from a reserved slug.
    */
+  // NAV-02 commercial-preview intake only. These are DRAFTS; no membership,
+  // official shareholder registration, voting, ledger balance or share transfer.
+  private nav02DataKey():Buffer{
+    const encoded=process.env.TTO_NAV02_PII_KEY;
+    if(!encoded)throw new ServiceUnavailableException("PRIVATE_IDENTITY_KEY_UNAVAILABLE");
+    const key=Buffer.from(encoded,"base64");
+    if(key.length!==32||key.toString("base64")!==encoded)
+      throw new ServiceUnavailableException("PRIVATE_IDENTITY_KEY_INVALID");
+    return key;
+  }
+  @Get("commerce/demo/nav02")
+  async nav02IntakeList(@Headers("authorization") auth:string|undefined,@Query("slug") slug:string){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
+      throw new ServiceUnavailableException("PREVIEW_ONLY");
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug))
+      throw new BadRequestException("INVALID_SLUG");
+    const key=this.nav02DataKey();
+    const actor=await this.db.sessionActor(auth);
+    const protectedRows=await this.db.withActor(actor,async c=>{
+      const r=await c.query<{items:unknown}>(
+       "SELECT tto.commerce_demo_nav02_list_secure($1) AS items",[slug]);
+      return r.rows[0]?.items??[];
+    });
+    if(!Array.isArray(protectedRows))throw new ServiceUnavailableException("PRIVATE_LIST_INVALID");
+    const items=protectedRows.map((item:unknown)=>{
+      if(!item||typeof item!=="object"||Array.isArray(item))
+        throw new ServiceUnavailableException("PRIVATE_ROW_INVALID");
+      const p=item as Record<string,unknown>;
+      try{
+        if(typeof p.cipher!=="string"||typeof p.iv!=="string"||typeof p.tag!=="string")
+          throw Error("MISSING_ENVELOPE");
+        const decipher=createDecipheriv("aes-256-gcm",key,Buffer.from(p.iv,"base64"));
+        decipher.setAAD(Buffer.from(slug+":profile:v1","utf8"));
+        decipher.setAuthTag(Buffer.from(p.tag,"base64"));
+        const decoded=Buffer.concat([decipher.update(Buffer.from(p.cipher,"base64")),decipher.final()]);
+        const person=JSON.parse(decoded.toString("utf8")) as Record<string,unknown>;
+        decoded.fill(0);
+        if(!person||typeof person.fullName!=="string"||
+           typeof person.group!=="string"||typeof person.nationalId!=="string")
+          throw Error("INVALID_PROFILE");
+        return {id:p.id,title:p.title,name:person.fullName,group:person.group,
+         identifierMask:"***"+person.nationalId.slice(-4),state:p.state,
+         initialShares:p.initialShares,subscribedShares:p.subscribedShares,
+         nominalRial:p.nominalRial,declaredPaidRial:p.declaredPaidRial,
+         paymentDate:p.paymentDate,capitalState:p.capitalState,
+         managementState:p.managementState??"ACTIVE_DRAFT",
+         version:p.version??1,photoState:p.photoState??"NONE"};
+      }catch{throw new ServiceUnavailableException("PRIVATE_IDENTITY_UNAVAILABLE")}
+    });
+    return {items};
+  }
+  @Post("commerce/demo/nav02")
+  @HttpCode(200)
+  async nav02IntakeCommand(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
+      throw new ServiceUnavailableException("PREVIEW_ONLY");
+    if(!input||typeof input!=="object"||Array.isArray(input)||
+       Object.keys(input).some(k=>!["action","slug","draftId","data"].includes(k)))
+      throw new BadRequestException("INVALID_INTAKE_BODY");
+    const {action,slug,data}=input;
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       !data||typeof data!=="object"||Array.isArray(data))
+      throw new BadRequestException("INVALID_INTAKE");
+    const fields=data as Record<string,unknown>;
+    if(!Object.values(fields).every(x=>typeof x==="string"))
+      throw new BadRequestException("INVALID_FIELD_TYPE");
+    const key=this.nav02DataKey();
+    const actor=await this.db.sessionActor(auth);
+    if(action==="profile"){
+      const allowed=["title","fullName","group","nationalId","fatherName","birthCertificate",
+       "birthDate","birthPlace","telephone","mobile","postalCode","address"];
+      const lengths:Record<string,number>={title:12,fullName:180,group:90,nationalId:11,
+       fatherName:120,birthCertificate:45,birthDate:10,birthPlace:120,telephone:25,
+       mobile:20,postalCode:12,address:600};
+      if(Object.keys(fields).some(k=>!allowed.includes(k)||String(fields[k]).length>lengths[k])||
+         !["آقا","خانم","شرکت","سازمان","اداره"].includes(String(fields.title))||
+         typeof fields.fullName!=="string"||fields.fullName.trim().length<3||
+         typeof fields.group!=="string"||fields.group.trim().length<2||
+         typeof fields.nationalId!=="string"||
+         !(fields.title==="آقا"||fields.title==="خانم"?/^\d{10}$/:/^\d{11}$/).test(fields.nationalId)||
+         JSON.stringify(fields).length>2400||
+         (fields.birthDate!==undefined&&fields.birthDate!==""&&
+         !/^\d{4}-\d{2}-\d{2}$/.test(String(fields.birthDate))))
+       throw new BadRequestException("INVALID_PROFILE_FIELDS");
+      // No real personal identifiers in the isolated public Preview before sign-off.
+      if(process.env.TTO_NAV02_REAL_PII_ENABLED!=="true"&&
+         (!/^([0-9])\1+$/.test(fields.nationalId)||
+          !/(ساختگی|آزمایش|TEST|SYNTHETIC)/i.test(fields.fullName)))
+       throw new BadRequestException("SYNTHETIC_ONLY");
+      const iv=randomBytes(12),cipher=createCipheriv("aes-256-gcm",key,iv);
+      cipher.setAAD(Buffer.from(slug+":profile:v1","utf8"));
+      const encrypted=Buffer.concat([cipher.update(
+       Buffer.from(JSON.stringify(fields),"utf8")),cipher.final()]);
+      const tag=cipher.getAuthTag();
+      const hmacKey=createHmac("sha256",key).update("TTO-NAV02-ID-FINGERPRINT-V1").digest();
+      const digest=createHmac("sha256",hmacKey).update(fields.nationalId).digest();
+      return this.db.withActor(actor,async c=>{
+        try{
+          const r=await c.query<{record:unknown}>(
+            "SELECT tto.commerce_demo_nav02_add_secure($1,$2,$3,$4,$5,$6) AS record",
+            [slug,fields.title,digest,iv,tag,encrypted]);
+          return {saved:true,record:r.rows[0]?.record};
+        }catch(e){
+          const code=(e as {code?:string}).code;
+          if(code==="23505")throw new ConflictException("DUPLICATE_UNVERIFIED_DRAFT");
+          if(code==="42501")throw new ForbiddenException("PREVIEW_OWNER_REQUIRED");
+          if(code==="22023"||code==="23514")throw new BadRequestException("INVALID_INTAKE_VALUES");
+          throw e;
+        }
+      });
+    }
+    if(action==="capital"){
+      const allowed=["initialShares","subscribedShares","nominalRial","paidRial",
+       "paymentDate","receiptRef"];
+      if(typeof input.draftId!=="string"||!uuidPattern.test(input.draftId)||
+       Object.keys(fields).some(k=>!allowed.includes(k))||
+       !["initialShares","subscribedShares","nominalRial","paidRial"].every(k=>
+          typeof fields[k]==="string"&&/^\d{1,17}$/.test(fields[k] as string))||
+       typeof fields.receiptRef!=="string"||fields.receiptRef.trim().length<3||
+       fields.receiptRef.length>100||typeof fields.paymentDate!=="string"||
+       !/^(|\d{4}-\d{2}-\d{2})$/.test(fields.paymentDate))
+       throw new BadRequestException("INVALID_CAPITAL_FIELDS");
+      const iv=randomBytes(12),cipher=createCipheriv("aes-256-gcm",key,iv);
+      cipher.setAAD(Buffer.from(slug+":"+input.draftId+":receipt:v1","utf8"));
+      const encrypted=Buffer.concat([cipher.update(Buffer.from(fields.receiptRef,"utf8")),cipher.final()]);
+      const tag=cipher.getAuthTag();
+      const {receiptRef:discard,...safeFields}=fields;
+      return this.db.withActor(actor,async c=>{
+        try{
+          const r=await c.query<{record:unknown}>(
+            "SELECT tto.commerce_demo_nav02_capital_secure($1,$2::uuid,$3::jsonb,$4,$5,$6) AS record",
+            [slug,input.draftId,JSON.stringify(safeFields),encrypted,iv,tag]);
+          return {saved:true,record:r.rows[0]?.record};
+        }catch(e){
+          const code=(e as {code?:string}).code;
+          if(code==="23505")throw new ConflictException("DUPLICATE_UNVERIFIED_DRAFT");
+          if(code==="42501")throw new ForbiddenException("PREVIEW_OWNER_REQUIRED");
+          if(code==="22023"||code==="23514")throw new BadRequestException("INVALID_INTAKE_VALUES");
+          throw e;
+        }
+      });
+    }
+    throw new BadRequestException("INVALID_INTAKE_ACTION");
+  }
+
+  /**
+   * Synthetic NAV-02 owner management. No official membership, share ledger,
+   * settlement, vote or public photo is ever changed through this endpoint.
+   * Existing encrypted profile bytes are decrypted only inside the server.
+   */
+  @Get("commerce/demo/nav02/manage")
+  async nav02Audit(@Headers("authorization") auth:string|undefined,
+    @Query("slug") slug:string,@Query("draftId") draftId:string){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
+      throw new ServiceUnavailableException("PREVIEW_ONLY");
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       typeof draftId!=="string"||!uuidPattern.test(draftId))
+      throw new BadRequestException("INVALID_NAV02_AUDIT_QUERY");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      const r=await c.query<{events:unknown}>(
+        "SELECT tto.commerce_demo_nav02_audit($1,$2::uuid) AS events",[slug,draftId]);
+      return {events:r.rows[0]?.events??[]};
+    });
+  }
+
+  @Post("commerce/demo/nav02/manage")
+  @HttpCode(200)
+  async nav02Manage(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
+      throw new ServiceUnavailableException("PREVIEW_ONLY");
+    if(!input||typeof input!=="object"||Array.isArray(input)||
+       Object.keys(input).some(k=>!["slug","draftId","version","action","data","confirmation"].includes(k)))
+      throw new BadRequestException("INVALID_NAV02_MANAGEMENT_BODY");
+    const {slug,draftId,version,action,data,confirmation}=input;
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       typeof draftId!=="string"||!uuidPattern.test(draftId)||
+       !Number.isSafeInteger(version)||Number(version)<1||
+       !["profileEdit","capitalEdit","suspend","resume","delete"].includes(String(action)))
+      throw new BadRequestException("INVALID_NAV02_MANAGEMENT_REQUEST");
+    const actor=await this.db.sessionActor(auth);
+    const v=Number(version);
+    const key=this.nav02DataKey();
+    try{
+      if(action==="suspend"||action==="resume"){
+        if(data!==undefined||confirmation!==undefined)
+          throw new BadRequestException("UNEXPECTED_MANAGEMENT_FIELDS");
+        return await this.db.withActor(actor,async c=>{
+          const r=await c.query<{record:unknown}>(
+            "SELECT tto.commerce_demo_nav02_change_state($1,$2::uuid,$3,$4) AS record",
+            [slug,draftId,v,action]);
+          return {saved:true,record:r.rows[0]?.record};
+        });
+      }
+      if(action==="delete"){
+        if(process.env.TTO_NAV02_REAL_PII_ENABLED==="true")
+          throw new ForbiddenException("REAL_PII_DELETION_NOT_APPROVED");
+        if(confirmation!=="DELETE_SYNTHETIC_DRAFT"||data!==undefined)
+          throw new BadRequestException("EXPLICIT_DELETE_CONFIRMATION_REQUIRED");
+        return await this.db.withActor(actor,async c=>{
+          const r=await c.query<{record:unknown}>(
+            "SELECT tto.commerce_demo_nav02_delete_unverified($1,$2::uuid,$3,$4) AS record",
+            [slug,draftId,v,confirmation]);
+          return {saved:true,record:r.rows[0]?.record};
+        });
+      }
+      if(!data||typeof data!=="object"||Array.isArray(data)||
+         confirmation!==undefined)
+        throw new BadRequestException("INVALID_MANAGEMENT_FIELDS");
+      const f=data as Record<string,unknown>;
+      if(action==="profileEdit"){
+        if(Object.keys(f).some(k=>!["title","fullName","group"].includes(k))||
+           !["آقا","خانم","شرکت","سازمان","اداره"].includes(String(f.title))||
+           typeof f.fullName!=="string"||f.fullName.trim().length<3||f.fullName.length>180||
+           typeof f.group!=="string"||f.group.trim().length<2||f.group.length>90||
+           !/(ساختگی|آزمایش|TEST|SYNTHETIC)/i.test(f.fullName))
+          throw new BadRequestException("SYNTHETIC_PROFILE_REQUIRED");
+        return await this.db.withActor(actor,async c=>{
+          const r=await c.query<{profile:Record<string,unknown>|null}>(
+            "SELECT tto.commerce_demo_nav02_profile_for_edit($1,$2::uuid) AS profile",
+            [slug,draftId]);
+          const protectedProfile=r.rows[0]?.profile;
+          if(!protectedProfile)throw new ForbiddenException("PREVIEW_OWNER_REQUIRED");
+          if(protectedProfile.version!==v)
+            throw new ConflictException("STALE_NAV02_DRAFT");
+          if(protectedProfile.state!=="ACTIVE_DRAFT")
+            throw new ForbiddenException("SUSPENDED_NAV02_DRAFT");
+          let person:Record<string,unknown>;
+          try{
+            const decipher=createDecipheriv("aes-256-gcm",key,
+              Buffer.from(String(protectedProfile.iv),"base64"));
+            decipher.setAAD(Buffer.from(slug+":profile:v1","utf8"));
+            decipher.setAuthTag(Buffer.from(String(protectedProfile.tag),"base64"));
+            const decoded=Buffer.concat([
+              decipher.update(Buffer.from(String(protectedProfile.cipher),"base64")),
+              decipher.final()]);
+            person=JSON.parse(decoded.toString("utf8")) as Record<string,unknown>;
+            decoded.fill(0);
+          }catch{throw new ServiceUnavailableException("PRIVATE_IDENTITY_UNAVAILABLE");}
+          if(!person||typeof person.nationalId!=="string"||
+             !/^([0-9])\1+$/.test(person.nationalId)||
+             !/(ساختگی|آزمایش|TEST|SYNTHETIC)/i.test(String(person.fullName)))
+            throw new ForbiddenException("SYNTHETIC_ONLY");
+          const next={...person,title:f.title,fullName:String(f.fullName).trim(),group:String(f.group).trim()};
+          const iv=randomBytes(12),cipher=createCipheriv("aes-256-gcm",key,iv);
+          cipher.setAAD(Buffer.from(slug+":profile:v1","utf8"));
+          const encrypted=Buffer.concat([
+            cipher.update(Buffer.from(JSON.stringify(next),"utf8")),cipher.final()]);
+          const tag=cipher.getAuthTag();
+          const upd=await c.query<{record:unknown}>(
+            "SELECT tto.commerce_demo_nav02_edit_profile_secure($1,$2::uuid,$3,$4,$5,$6,$7) AS record",
+            [slug,draftId,v,f.title,iv,tag,encrypted]);
+          return {saved:true,record:upd.rows[0]?.record};
+        });
+      }
+      if(action==="capitalEdit"){
+        const names=["initialShares","subscribedShares","nominalRial","paidRial","paymentDate","receiptRef"];
+        if(Object.keys(f).some(k=>!names.includes(k))||
+           !["initialShares","subscribedShares","nominalRial","paidRial"].every(k=>
+             typeof f[k]==="string"&&/^[0-9]{1,17}$/.test(String(f[k])))||
+           typeof f.paymentDate!=="string"||!/^(|\d{4}-\d{2}-\d{2})$/.test(f.paymentDate)||
+           typeof f.receiptRef!=="string"||f.receiptRef.length>100||
+           f.receiptRef.trim().length<3||
+           !/(ساختگی|آزمایش|TEST|SYNTHETIC)/i.test(f.receiptRef))
+          throw new BadRequestException("SYNTHETIC_CAPITAL_FIELDS_REQUIRED");
+        const iv=randomBytes(12),cipher=createCipheriv("aes-256-gcm",key,iv);
+        cipher.setAAD(Buffer.from(slug+":"+draftId+":receipt:v1","utf8"));
+        const encrypted=Buffer.concat([cipher.update(
+          Buffer.from(f.receiptRef,"utf8")),cipher.final()]);
+        const tag=cipher.getAuthTag();
+        const {receiptRef:discard,...safe}=f;
+        return await this.db.withActor(actor,async c=>{
+          const r=await c.query<{record:unknown}>(
+            "SELECT tto.commerce_demo_nav02_edit_capital_secure($1,$2::uuid,$3,$4::jsonb,$5,$6,$7) AS record",
+            [slug,draftId,v,JSON.stringify(safe),encrypted,iv,tag]);
+          return {saved:true,record:r.rows[0]?.record};
+        });
+      }
+      throw new BadRequestException("INVALID_MANAGEMENT_ACTION");
+    }catch(e){
+      const code=(e as {code?:string}).code;
+      if(code==="40001"||code==="23505")throw new ConflictException("STALE_OR_DUPLICATE_DRAFT");
+      if(code==="42501")throw new ForbiddenException("PREVIEW_OWNER_OR_STATUS_REQUIRED");
+      if(code==="22023"||code==="23514"||code==="22008")
+        throw new BadRequestException("INVALID_DRAFT_MANAGEMENT_VALUES");
+      throw e;
+    }
+  }
+
+  /**
+   * NAV02 photo upload is encrypted in memory and stored only in private
+   * seven-day quarantine. NEVER return bytes or grant scan/release status.
+   * Synthetic image testing only; real PII needs separate security clearance.
+   */
+  @Post("commerce/demo/nav02/photo")
+  @HttpCode(200)
+  async nav02QuarantinePhoto(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    if(process.env.TTO_ISOLATED_DEMO_DB!=="true"||process.env.VERCEL_ENV==="production")
+      throw new ServiceUnavailableException("PREVIEW_ONLY");
+    if(!input||typeof input!=="object"||Array.isArray(input)||
+      Object.keys(input).some(k=>!["slug","draftId","mime","dataBase64"].includes(k)))
+      throw new BadRequestException("INVALID_PHOTO_BODY");
+    const {slug,draftId,mime,dataBase64}=input;
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+      typeof draftId!=="string"||!uuidPattern.test(draftId)||
+      !["image/jpeg","image/png","image/webp"].includes(String(mime))||
+      typeof dataBase64!=="string"||dataBase64.length>955736||
+      dataBase64.length<88||!/^[A-Za-z0-9+/]+={0,2}$/.test(dataBase64))
+      throw new BadRequestException("INVALID_PHOTO_INPUT");
+    const raw=Buffer.from(dataBase64,"base64");
+    if(raw.length<68||raw.length>716800||raw.toString("base64")!==dataBase64)
+      throw new BadRequestException("PHOTO_TOO_LARGE_OR_INVALID");
+    const signature=(mime==="image/png"&&raw.subarray(0,8).equals(
+       Buffer.from("89504e470d0a1a0a","hex"))&&raw.toString("ascii",12,16)==="IHDR")||
+      (mime==="image/jpeg"&&raw[0]===0xff&&raw[1]===0xd8&&raw[2]===0xff&&
+       raw[raw.length-2]===0xff&&raw[raw.length-1]===0xd9)||
+      (mime==="image/webp"&&raw.toString("ascii",0,4)==="RIFF"&&
+       raw.toString("ascii",8,12)==="WEBP"&&raw.readUInt32LE(4)+8===raw.length);
+    if(!signature)throw new BadRequestException("PHOTO_SIGNATURE_MISMATCH");
+    const encodedKey=process.env.TTO_NAV02_PHOTO_KEY;
+    if(!encodedKey)throw new ServiceUnavailableException("PRIVATE_PHOTO_KEY_UNAVAILABLE");
+    const key=Buffer.from(encodedKey,"base64");
+    if(key.length!==32||key.toString("base64")!==encodedKey)
+      throw new ServiceUnavailableException("PRIVATE_PHOTO_KEY_INVALID");
+    const sha=createHash("sha256").update(raw).digest();
+    const iv=randomBytes(12);
+    const cipher=createCipheriv("aes-256-gcm",key,iv);
+    cipher.setAAD(Buffer.from(slug+":"+draftId+":"+mime+":"+sha.toString("hex"),"utf8"));
+    const encrypted=Buffer.concat([cipher.update(raw),cipher.final()]);
+    const tag=cipher.getAuthTag();
+    raw.fill(0);
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      try{
+        const result=await c.query<{record:Record<string,unknown>}>(
+          "SELECT tto.commerce_demo_nav02_quarantine_photo($1,$2::uuid,$3,$4,$5,$6,$7,$8) AS record",
+          [slug,draftId,mime,encrypted.length,sha,iv,tag,encrypted]);
+        return {saved:true,quarantine:result.rows[0]?.record??null};
+      }catch(e){
+        const code=(e as {code?:string}).code;
+        if(code==="23505")throw new ConflictException("PHOTO_ALREADY_QUARANTINED");
+        if(code==="42501")throw new ForbiddenException("NAV02_OWNER_REQUIRED");
+        if(code==="22023"||code==="23514")throw new BadRequestException("INVALID_QUARANTINE");
+        throw e;
+      }
+    });
+  }
+
   @Get("commerce/demo/team")
   async demoTeam(@Headers("authorization") auth:string|undefined,@Query("slug") slug:string){
     if(process.env.TTO_ISOLATED_DEMO_DB!=="true")throw new ServiceUnavailableException("DEMO_ONLY");
@@ -1587,12 +1938,16 @@ export class FoundationCommandsController {
     const digest=createHash("sha256").update(token).digest();
     const accepted=await this.db.consumeChallenge(id,hashedCandidate,digest);
     if(!accepted)throw new UnauthorizedException("Challenge invalid or expired");
-    // A fresh, successfully consumed OTP is the only source of credential-setup proof.
-    // Do not expose an endpoint that lets an existing password session assert OTP.
-    const otpActor=await this.db.sessionActor("Bearer "+token);
-    await this.db.withActor(otpActor,async c=>{
-      await c.query("SELECT tto.mark_commerce_demo_otp_proof($1)",[digest]);
-    });
+    // Only the isolated commercial-demo workspace needs this additional OTP
+    // credential-setup proof. The official auth path must not depend on
+    // preview-only 9999o SQL functions. In demo mode proof failure remains
+    // fail-closed: no successful login response without its database write.
+    if(process.env.TTO_ISOLATED_DEMO_DB==="true"&&process.env.VERCEL_ENV!=="production"){
+      const otpActor=await this.db.sessionActor("Bearer "+token);
+      await this.db.withActor(otpActor,async c=>{
+        await c.query("SELECT tto.mark_commerce_demo_otp_proof($1)",[digest]);
+      });
+    }
     return {accessToken:token,tokenType:"Bearer"};
   }
   @Post("auth/step-up/request")
