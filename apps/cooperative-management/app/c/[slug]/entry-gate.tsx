@@ -38,26 +38,32 @@ function WorkspaceSignIn({slug}:{slug:string}){
   finally{setBusy(false)}
  }
  return <AuthFrame surface="cooperative">
-  <section className="tto-auth-controls" data-tto-auth-surface="cooperative" aria-label="ورود مدیر تعاونی">
-   <p className="tto-auth-muted-note">روش ورود دلخواه را انتخاب کنید. دسترسی به فضای همین تعاونی محدود است.</p>
+  <section className="tto-auth-controls" data-tto-auth-surface="cooperative" aria-label="ورود به فضای اختصاصی تعاونی">
    <p className="tto-login-scope">تعاونی انتخاب‌شده: <b dir="ltr">{slug}.ttoir.ir</b></p>
-   <div className="tto-auth-method-tabs" role="tablist" aria-label="انتخاب روش ورود">
+   <p className="tto-auth-muted-note">حساب صاحب اشتراک آزمایشی و مدیر رسمی تعاونی دارای مجوزهای مستقل هستند.</p>
+   <div className="tto-auth-method-tabs" role="tablist" aria-label="نوع حساب">
+    <button className="tto-auth-tab" type="button" role="tab" aria-selected={accountKind==="subscriber"}
+     onClick={()=>{setAccountKind("subscriber");setMode("otp");setError("");}}>صاحب اشتراک آزمایشی</button>
+    <button className="tto-auth-tab" type="button" role="tab" aria-selected={accountKind==="manager"}
+     onClick={()=>{setAccountKind("manager");setMode("password");setError("");}}>مدیر رسمی تعاونی</button>
+   </div>
+   {accountKind==="subscriber"?<div className="tto-auth-method-tabs" role="tablist" aria-label="روش ورود صاحب اشتراک">
     <button className="tto-auth-tab" type="button" role="tab" aria-selected={mode==="otp"} onClick={()=>setMode("otp")}>رمز یک‌بارمصرف</button>
     <button className="tto-auth-tab" type="button" role="tab" aria-selected={mode==="password"} onClick={()=>setMode("password")}>نام کاربری و رمز</button>
-   </div>
-   {mode==="otp"?<OtpLogin enabled={true} surface="cooperative" postLoginRedirect={"/c/"+slug}/>:
+   </div>:<p className="tto-auth-muted-note">ورود مستقل مدیر رسمی فقط با اعتبارنامه و نقش تأییدشده انجام می‌شود.</p>}
+   {accountKind==="subscriber"&&mode==="otp"?<OtpLogin enabled={true} surface="cooperative" postLoginRedirect={"/c/"+slug}/>:
     <form onSubmit={login} autoComplete="on">
-     <label htmlFor="workspace-username">نام کاربری مدیر تعاونی</label>
+     <label htmlFor="workspace-username">نام کاربری {accountKind==="manager"?"مدیر رسمی تعاونی":"صاحب اشتراک"}</label>
      <input id="workspace-username" required dir="ltr" autoComplete="username" minLength={5} maxLength={64}
       pattern="[a-z][a-z0-9._-]{4,63}" value={username}
       onChange={e=>setUsername(e.target.value.toLowerCase().trim())}/>
      <label htmlFor="workspace-password">رمز عبور</label>
      <input id="workspace-password" required type="password" autoComplete="current-password"
       value={password} onChange={e=>setPassword(e.target.value)}/>
-     <button type="submit" disabled={busy}>{busy?"در حال بررسی امن…":"ورود به پنل مدیر تعاونی"}</button>
+     <button type="submit" disabled={busy}>{busy?"در حال بررسی امن…":accountKind==="manager"?"ورود مدیر رسمی تعاونی":"ورود صاحب اشتراک"}</button>
     </form>}
    {error?<p role="alert" className="tto-login-error">{error}</p>:null}
-   <p className="tto-auth-muted-note">ورود به‌تنهایی اختیار قانونی یا مجوز عملیات سهام ایجاد نمی‌کند.</p>
+   <p className="tto-auth-muted-note">ورود صاحب اشتراک، اختیار مدیریت رسمی یا عملیات قانونی سهام ایجاد نمی‌کند.</p>
   </section>
  </AuthFrame>;
 }
