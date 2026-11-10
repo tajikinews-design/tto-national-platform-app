@@ -53,7 +53,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   return()=>{live=false};
  },[slug]);
  const selected=items.find(x=>x.id===draftId);
- const filtered=items.filter(x=>(x.name+" "+x.identifierMask+" "+x.group).toLocaleLowerCase("fa")
+ const filtered=items.filter(x=>(x as RecordItem & {managementState?:string}).managementState!=="SUSPENDED_DRAFT").filter(x=>(x.name+" "+x.identifierMask+" "+x.group).toLocaleLowerCase("fa")
   .includes(search.toLocaleLowerCase("fa")));
  const subtotal=useMemo(()=>{
   try{return (BigInt(capital.initialShares||0)+BigInt(capital.subscribedShares||0))*
@@ -151,6 +151,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   <nav aria-label="زیرمنوهای اعضا و سهام" className="tto-nav02-switch">
    <Link href={base+"add"} aria-current={section==="add"?"page":undefined}>♙ افزودن سهامدار</Link>
    <Link href={base+"shares"} aria-current={section==="shares"?"page":undefined}>▥ اطلاعات سهام</Link>
+   <Link href={base+"shareholders"}>♧ سهامداران</Link>
   </nav>
   <div className="tto-nav02-warning" role="status"><strong>محیط آزمایشی</strong> · فقط داده ساختگی مجاز است: شناسه باید ۱۰ یا ۱۱ رقم یکسان باشد و نام شامل «ساختگی» یا «آزمایش» باشد. تمام فیلدهای هویتی و شماره پیگیری در پایگاه به‌صورت رمزنگاری‌شده ذخیره می‌شوند. عکس انتخابی فقط به قرنطینه خصوصی فرستاده می‌شود و تا پایان اسکن نمایش داده نخواهد شد.</div>
   <div className="tto-nav02-layout">
