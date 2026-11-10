@@ -1353,6 +1353,121 @@ export class FoundationCommandsController {
     return {mime:result.mime,base64};
   }
 
+  /** Owner-only member attachments. Uploaded bytes must pass local ClamAV
+   * before any encrypted persistence; scanner failures are never bypassed.
+   * This is not an official legal document registry.
+   */
+  @Post("commerce/demo/nav02/attachments")
+  @HttpCode(200)
+  async nav02AttachmentSave(@Headers("authorization") auth:string|undefined,
+    @Body() input:Record<string,unknown>){
+    if(!input||typeof input!=="object"||Array.isArray(input)||
+       Object.keys(input).some(k=>!["slug","draftId","subject","mime","filename","dataBase64"].includes(k))||
+       typeof input.slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(input.slug)||
+       typeof input.draftId!=="string"||!uuidPattern.test(input.draftId)||
+       typeof input.subject!=="string"||input.subject.trim().length<3||
+       input.subject.length>160||typeof input.filename!=="string"||
+       input.filename.length<1||input.filename.length>180||
+       /[\\/\x00-\x1f]/.test(input.filename)||
+       !["image/jpeg","image/png","application/pdf"].includes(String(input.mime))||
+       typeof input.dataBase64!=="string"||input.dataBase64.length<92||
+       input.dataBase64.length>699052||!/^[A-Za-z0-9+/]+={0,2}$/.test(input.dataBase64))
+      throw new BadRequestException("INVALID_ATTACHMENT_INPUT");
+    const slug=input.slug,draftId=input.draftId,mime=input.mime;
+    const actor=await this.db.sessionActor(auth);
+    await this.db.withActor(actor,async c=>{
+      const r=await c.query<{data:unknown}>(
+        "SELECT tto.nav02_attachment_list($1,$2::uuid) AS data",[slug,draftId]);
+      if(!Array.isArray(r.rows[0]?.data))throw new ForbiddenException("ATTACHMENT_OWNER_REQUIRED");
+    });
+    const bytes=Buffer.from(input.dataBase64,"base64");
+    if(bytes.length<68||bytes.length>524288||bytes.toString("base64")!==input.dataBase64)
+      throw new BadRequestException("ATTACHMENT_INVALID_SIZE");
+    const signature=(mime==="application/pdf"&&bytes.subarray(0,5).toString("ascii")==="%PDF-")||
+      (mime==="image/png"&&bytes.subarray(0,8).equals(Buffer.from("89504e470d0a1a0a","hex")))||
+      (mime==="image/jpeg"&&bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff&&
+       bytes[bytes.length-2]===0xff&&bytes[bytes.length-1]===0xd9);
+    if(!signature){bytes.fill(0);throw new BadRequestException("ATTACHMENT_SIGNATURE_INVALID")}
+    let scan;
+    try{scan=await scanQuarantineBytes(bytes)}
+    catch{bytes.fill(0);throw new ServiceUnavailableException("ATTACHMENT_SCANNER_UNAVAILABLE")}
+    if(scan.verdict!=="CLEAN"){
+      bytes.fill(0);throw new UnprocessableEntityException("ATTACHMENT_MALWARE_REJECTED");
+    }
+    const encodedKey=process.env.TTO_NAV02_ATTACHMENT_KEY??"";
+    const key=Buffer.from(encodedKey,"base64");
+    if(key.length!==32||key.toString("base64")!==encodedKey){
+      bytes.fill(0);throw new ServiceUnavailableException("ATTACHMENT_ENCRYPTION_KEY_UNAVAILABLE");
+    }
+    const hash=createHash("sha256").update(bytes).digest();
+    const iv=randomBytes(12),cipher=createCipheriv("aes-256-gcm",key,iv);
+    cipher.setAAD(Buffer.from(slug+":"+draftId+":"+mime+":"+hash.toString("hex")));
+    const encrypted=Buffer.concat([cipher.update(bytes),cipher.final()]);
+    const tag=cipher.getAuthTag(),size=bytes.length;bytes.fill(0);key.fill(0);
+    return this.db.withActor(actor,async c=>{
+      try{
+        const r=await c.query<{id:string}>(
+          "SELECT tto.nav02_attachment_save($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11) AS id",
+          [slug,draftId,input.subject,input.mime,input.filename,size,hash,iv,tag,encrypted,scan.engine]);
+        return {saved:true,id:r.rows[0]?.id,status:"PRIVATE_READY",legalEvidence:false};
+      }catch(e){
+        if((e as {code?:string}).code==="42501")throw new ForbiddenException("ATTACHMENT_OWNER_REQUIRED");
+        if((e as {code?:string}).code==="23514")throw new BadRequestException("ATTACHMENT_CONSTRAINT");
+        throw e;
+      }
+    });
+  }
+
+  @Get("commerce/demo/nav02/attachments")
+  async nav02AttachmentList(@Headers("authorization") auth:string|undefined,
+    @Query("slug") slug:string,@Query("draftId") draftId:string){
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       typeof draftId!=="string"||!uuidPattern.test(draftId))
+      throw new BadRequestException("INVALID_ATTACHMENT_QUERY");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      const r=await c.query<{items:unknown}>(
+        "SELECT tto.nav02_attachment_list($1,$2::uuid) AS items",[slug,draftId]);
+      if(!Array.isArray(r.rows[0]?.items))throw new ServiceUnavailableException("ATTACHMENT_LIST_UNAVAILABLE");
+      return {items:r.rows[0].items};
+    });
+  }
+
+  @Get("commerce/demo/nav02/attachments/download")
+  async nav02AttachmentDownload(@Headers("authorization") auth:string|undefined,
+    @Query("slug") slug:string,@Query("draftId") draftId:string,@Query("id") id:string){
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+       typeof draftId!=="string"||!uuidPattern.test(draftId)||
+       typeof id!=="string"||!uuidPattern.test(id))
+      throw new BadRequestException("INVALID_ATTACHMENT_QUERY");
+    const actor=await this.db.sessionActor(auth);
+    const item=await this.db.withActor(actor,async c=>{
+      const r=await c.query<{mime:string;filename:string;byte_count:number;sha:Buffer;
+        iv:Buffer;tag:Buffer;cipher:Buffer}>(
+        "SELECT * FROM tto.nav02_attachment_fetch_owner($1,$2::uuid,$3::uuid)",[slug,draftId,id]);
+      return r.rows[0];
+    });
+    if(!item)throw new ForbiddenException("ATTACHMENT_NOT_AVAILABLE");
+    const encodedKey=process.env.TTO_NAV02_ATTACHMENT_KEY??"";
+    const key=Buffer.from(encodedKey,"base64");
+    if(key.length!==32||key.toString("base64")!==encodedKey)
+      throw new ServiceUnavailableException("ATTACHMENT_KEY_UNAVAILABLE");
+    let raw:Buffer;
+    try{
+      const decipher=createDecipheriv("aes-256-gcm",key,item.iv);
+      decipher.setAAD(Buffer.from(slug+":"+draftId+":"+item.mime+":"+item.sha.toString("hex")));
+      decipher.setAuthTag(item.tag);
+      raw=Buffer.concat([decipher.update(item.cipher),decipher.final()]);
+    }catch{throw new ServiceUnavailableException("ATTACHMENT_INTEGRITY_INVALID")}
+    finally{key.fill(0)}
+    const actual=createHash("sha256").update(raw).digest();
+    if(raw.length!==item.byte_count||!timingSafeEqual(actual,item.sha)){
+      raw.fill(0);throw new ServiceUnavailableException("ATTACHMENT_INTEGRITY_INVALID");
+    }
+    const dataBase64=raw.toString("base64");raw.fill(0);
+    return {mime:item.mime,filename:item.filename,dataBase64};
+  }
+
   @Post("commerce/demo/nav02/photo")
   @HttpCode(200)
   async nav02QuarantinePhoto(@Headers("authorization") auth:string|undefined,
