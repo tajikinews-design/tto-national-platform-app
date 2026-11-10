@@ -140,3 +140,17 @@
 .tto-members-person-summary strong{font-size:12px;color:#174365}
 .tto-members-person-summary small{font-size:10px;color:#738ca0}
 @media(max-width:640px){.tto-members-photo-preview{flex-wrap:wrap}.tto-members-page .tto-settings-card{min-width:0}}
+
+/* NAV02 officer form: exactly three evenly spaced fields per desktop row. */
+.tto-settings-page .tto-officer-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 16px;align-items:start;margin-top:18px}
+.tto-officer-form>label{display:grid;gap:7px;min-width:0;align-content:start;font-size:12px;font-weight:750;color:#325778;line-height:1.8}
+.tto-officer-form>label :is(input,select,textarea){display:block;width:100%;max-width:100%;min-width:0;padding:9px 12px;border:1px solid #cfdee9;border-radius:10px;background:#fbfdff;color:#1c4565;font:inherit}
+.tto-officer-form>label :is(input,select){min-height:44px}
+.tto-officer-form>label textarea{min-height:85px;resize:vertical}
+.tto-officer-form .tto-officer-section-title{grid-column:1/-1;margin:13px 0 1px;padding:12px 14px;border:1px solid #d7e8f0;border-radius:11px;background:#f1f8fb;font-size:13px;color:#135477}
+.tto-officer-form .tto-officer-wide,.tto-officer-form .tto-officer-empty{grid-column:1/-1}
+.tto-officer-form .tto-officer-actions{grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-start;padding-top:13px;border-top:1px solid #e5edf3}
+.tto-officer-member-status{display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;background:#f2faf8;padding:12px 14px;border-radius:10px;color:#276376;font-size:12px}
+.tto-officer-member-status button{cursor:pointer;border:1px solid #b6d9e0;border-radius:9px;padding:8px 12px;background:#fff;color:#225e7a}
+@media(max-width:1000px){.tto-settings-page .tto-officer-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:610px){.tto-settings-page .tto-officer-form{grid-template-columns:minmax(0,1fr)}}
