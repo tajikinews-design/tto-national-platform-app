@@ -1,10 +1,11 @@
 "use client";
-import {useState} from "react";
+import {useRef,useState} from "react";
 type Profile=Record<string,string>;
 type PreviewRow={row:number;valid:boolean;errors:string[];fields:Profile};
 type Preview={rows:PreviewRow[];count:number;hasErrors:boolean;status:string};
 export function MemberExcelPanel({slug,onImported}:{slug:string;onImported:()=>Promise<void>}){
  const [rows,setRows]=useState<PreviewRow[]>([]);
+ const filePicker=useRef<HTMLInputElement|null>(null);
  const [filename,setFilename]=useState("");
  const [error,setError]=useState("");
  const [notice,setNotice]=useState("");
@@ -60,38 +61,54 @@ export function MemberExcelPanel({slug,onImported}:{slug:string;onImported:()=>P
    await onImported().catch(()=>{});
   }finally{setBusy(false);}
  }
- return <section className="tto-settings-card" aria-label="ورود و خروج اکسل اعضا">
-  <h2>ورود و خروج فایل Excel اعضا</h2>
-  <p>ابتدا فایل نمونه را دریافت کنید. ورود فایل با پیش‌نمایش و تأیید صریح انجام می‌شود؛ هر عضو پیش از ثبت، جداگانه در سرور از شاهکار استعلام می‌شود. هیچ سهامی یا حق رأی خودکار ایجاد نمی‌شود.</p>
-  <div className="tto-nav02-actions">
-   <a href={url+"&mode=sample"} download="TTO_Members_Sample.xlsx">دریافت نمونه Excel با یک ردیف آزمایشی</a>
-   <a href={url+"&mode=export"} download="TTO_Members_Export_Masked.xlsx">خروجی Excel اعضا (اطلاعات هویتی پوشیده)</a>
-  </div>
-  <label>بارگذاری فایل Excel تکمیل‌شده
-   <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    disabled={busy} onChange={e=>{const file=e.currentTarget.files?.[0];if(file)void preview(file);}}/>
-  </label>
-  {filename&&rows.length>0?<div>
-   <h3>پیش‌نمایش: {filename}</h3>
-   <div className="tto-nav02-table-scroll"><table className="tto-nav02-table"><thead><tr>
-    <th>ردیف</th><th>نام</th><th>کد ملی</th><th>شماره همراه</th><th>کنترل اولیه</th>
-   </tr></thead><tbody>{rows.map(r=><tr key={r.row}>
-    <td>{r.row}</td><td>{r.fields.fullName}</td>
-    <td>{r.fields.nationalId.replace(/^(.{2}).+(.{2})$/,"$1******$2")}</td>
-    <td>{r.fields.mobile.replace(/^(.{4}).+(.{3})$/,"$1****$2")}</td>
-    <td>{r.valid?"آماده استعلام شاهکار":r.errors.join("، ")}</td>
-   </tr>)}</tbody></table></div>
-   <label><input type="checkbox" checked={confirmed}
-    disabled={busy||rows.some(r=>!r.valid)}
-    onChange={e=>setConfirmed(e.target.checked)}/>
-    صحت اطلاعات و اختیار قانونی ثبت این درخواست‌ها را تأیید می‌کنم.</label>
-   <button type="button" disabled={busy||!confirmed||rows.some(r=>!r.valid)}
-    onClick={()=>void commit()}>{busy?"در حال پردازش…":"استعلام شاهکار و ثبت ردیف‌ها"}</button>
-   <button type="button" disabled={busy} onClick={()=>{setRows([]);setConfirmed(false);setFilename("");}}>
-    لغو ورود فایل</button>
-   <p>عملیات به‌صورت ردیفی انجام می‌شود؛ در صورت توقف، ردیف‌های موفق قبلی خودکار برگردانده نمی‌شوند.</p>
-  </div>:null}
-  {error?<p role="alert">{error}</p>:null}
-  {notice?<p role="status">{notice}</p>:null}
- </section>;
+ return <div className="tto-excel-toolbar" aria-label="ابزار فایل اکسل اعضا">
+  <button type="button" className="tto-excel-icon" disabled={busy}
+   title="ورود فایل اکسل اعضا" aria-label="ورود فایل اکسل اعضا"
+   onClick={()=>filePicker.current?.click()}>
+   <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+    strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V3m0 0L7 8m5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>
+  </button>
+  <a className="tto-excel-icon" title="خروجی کامل اکسل اعضا؛ حاوی اطلاعات محرمانه"
+   aria-label="خروجی کامل اکسل اعضای مجاز" href={url+"&mode=export"} download="TTO_Members_Export_Private.xlsx">
+   <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+    strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v13m0 0-5-5m5 5 5-5M4 18v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg>
+  </a>
+  <a className="tto-excel-icon tto-excel-template" title="دریافت نمونه تکمیل‌شده اکسل"
+   aria-label="دریافت فایل نمونه تکمیل‌شده اکسل" href={url+"&mode=sample"} download="TTO_Members_Sample.xlsx">
+   <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+    strokeLinecap="round" strokeLinejoin="round"><path d="M7 3h8l4 4v13a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM15 3v5h5M8 12h8M8 16h8M11 11v6"/></svg>
+  </a>
+  <input ref={filePicker} type="file" className="tto-excel-file" aria-label="انتخاب فایل اکسل اعضا"
+   accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+   disabled={busy} onChange={e=>{const file=e.currentTarget.files?.[0];if(file)void preview(file);e.currentTarget.value="";}}/>
+  {error?<p role="alert" className="tto-excel-message">{error}</p>:null}
+  {notice&&!rows.length?<p role="status" className="tto-excel-message">{notice}</p>:null}
+  {rows.length>0?<div className="tto-excel-review-mask" role="dialog" aria-modal="true"
+   aria-label="پیش‌نمایش ورود اعضا از اکسل">
+   <section className="tto-excel-review-panel">
+    <header><h2>پیش‌نمایش فایل: {filename}</h2>
+     <button type="button" aria-label="بستن پیش‌نمایش" disabled={busy}
+      onClick={()=>{setRows([]);setConfirmed(false);setFilename("");}}>×</button></header>
+    <p role="status">{notice} هیچ رکوردی قبل از تأیید شما ذخیره نمی‌شود.</p>
+    <div className="tto-nav02-table-scroll"><table className="tto-nav02-table"><thead><tr>
+     <th>ردیف</th><th>نام</th><th>کد ملی</th><th>شماره همراه</th><th>کنترل اولیه</th>
+    </tr></thead><tbody>{rows.map(r=><tr key={r.row}>
+     <td>{r.row}</td><td>{r.fields.fullName}</td>
+     <td>{r.fields.nationalId.replace(/^(.{2}).+(.{2})$/,"$1******$2")}</td>
+     <td>{r.fields.mobile.replace(/^(.{4}).+(.{3})$/,"$1****$2")}</td>
+     <td>{r.valid?"آماده استعلام شاهکار":r.errors.join("، ")}</td>
+    </tr>)}</tbody></table></div>
+    <label className="tto-excel-consent"><input type="checkbox" checked={confirmed}
+      disabled={busy||rows.some(r=>!r.valid)}
+      onChange={e=>setConfirmed(e.target.checked)}/>
+      صحت اطلاعات، رعایت محرمانگی و اختیار ثبت این درخواست‌ها را تأیید می‌کنم.</label>
+    <footer className="tto-excel-review-actions">
+     <button type="button" disabled={busy||!confirmed||rows.some(r=>!r.valid)}
+      onClick={()=>void commit()}>{busy?"در حال پردازش…":"استعلام شاهکار و ثبت ردیف‌ها"}</button>
+     <button type="button" disabled={busy} onClick={()=>{setRows([]);setConfirmed(false);setFilename("");}}>انصراف</button>
+    </footer>
+    <small>ثبت‌ها ردیفی‌اند؛ توقف در یک ردیف، ردیف‌های قبلی را خودکار برنمی‌گرداند.
+     فایل خروجی اطلاعات خصوصی دارد؛ آن را در محل عمومی منتشر نکنید.</small>
+   </section></div>:null}
+ </div>;
 }
