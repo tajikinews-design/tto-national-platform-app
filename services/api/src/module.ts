@@ -377,6 +377,12 @@ export class FoundationCommandsController {
    */
   // NAV-02 commercial-preview intake only. These are DRAFTS; no membership,
   // official shareholder registration, voting, ledger balance or share transfer.
+  private validNationalCode(value:string):boolean{
+    if(!/^[0-9]{10}$/.test(value)||/^([0-9])\1{9}$/.test(value))return false;
+    const sum=Array.from(value.slice(0,9)).reduce((acc,digit,i)=>acc+Number(digit)*(10-i),0);
+    const rest=sum%11;
+    return Number(value[9])===(rest<2?rest:11-rest);
+  }
   private nav02DataKey():Buffer{
     const encoded=process.env.TTO_NAV02_PII_KEY;
     if(!encoded)throw new ServiceUnavailableException("PRIVATE_IDENTITY_KEY_UNAVAILABLE");
@@ -444,12 +450,14 @@ export class FoundationCommandsController {
       throw new BadRequestException("INVALID_FIELD_TYPE");
     const key=this.nav02DataKey();
     const actor=await this.db.sessionActor(auth);
-    if(action==="profile"){
+    if(action==="profile"||action==="memberProfile"){
       const allowed=["title","fullName","group","nationalId","fatherName","birthCertificate",
-       "birthDate","birthPlace","telephone","mobile","postalCode","address"];
+       "birthDate","birthPlace","telephone","mobile","postalCode","address",
+       "bornInCounty","residentInCounty","employedInCounty","informationConfirmed","membershipStatus"];
       const lengths:Record<string,number>={title:12,fullName:180,group:90,nationalId:11,
        fatherName:120,birthCertificate:45,birthDate:10,birthPlace:120,telephone:25,
-       mobile:20,postalCode:12,address:600};
+       mobile:20,postalCode:12,address:600,bornInCounty:3,residentInCounty:3,
+       employedInCounty:3,informationConfirmed:3,membershipStatus:25};
       if(Object.keys(fields).some(k=>!allowed.includes(k)||String(fields[k]).length>lengths[k])||
          !["آقا","خانم","شرکت","سازمان","اداره"].includes(String(fields.title))||
          typeof fields.fullName!=="string"||fields.fullName.trim().length<3||
@@ -460,8 +468,26 @@ export class FoundationCommandsController {
          (fields.birthDate!==undefined&&fields.birthDate!==""&&
          !/^\d{4}-\d{2}-\d{2}$/.test(String(fields.birthDate))))
        throw new BadRequestException("INVALID_PROFILE_FIELDS");
-      // No real personal identifiers in the isolated public Preview before sign-off.
-      if(process.env.TTO_NAV02_REAL_PII_ENABLED!=="true"&&
+      // A member applicant is a natural person. County conditions are declarations
+      // encrypted with the profile, not independently validated eligibility.
+      if(action==="memberProfile"){
+        if(!["آقا","خانم"].includes(String(fields.title))||
+           !this.validNationalCode(String(fields.nationalId))||
+           !["yes","no"].includes(String(fields.bornInCounty))||
+           !["yes","no"].includes(String(fields.residentInCounty))||
+           !["yes","no"].includes(String(fields.employedInCounty))||
+           ![fields.bornInCounty,fields.residentInCounty,fields.employedInCounty].includes("yes")||
+           fields.informationConfirmed!=="yes"||
+           fields.membershipStatus!=="APPLICANT_UNVERIFIED")
+          throw new BadRequestException("INVALID_MEMBER_APPLICATION");
+        // Real-identity collection remains explicitly disabled absent independent
+        // controller/privacy/retention approval. No membership/ledger role is granted.
+        if(process.env.TTO_NAV02_MEMBER_INTAKE_ENABLED!=="true"||
+           process.env.TTO_NAV02_REAL_PII_ENABLED!=="true")
+          throw new ServiceUnavailableException("REAL_MEMBER_INTAKE_NOT_APPROVED");
+      }
+      // The legacy shareholder profile endpoint remains synthetic-only.
+      if(action==="profile"&&process.env.TTO_NAV02_REAL_PII_ENABLED!=="true"&&
          (!/^([0-9])\1+$/.test(fields.nationalId)||
           !/(ساختگی|آزمایش|TEST|SYNTHETIC)/i.test(fields.fullName)))
        throw new BadRequestException("SYNTHETIC_ONLY");

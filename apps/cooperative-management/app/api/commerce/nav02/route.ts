@@ -40,19 +40,26 @@ export async function POST(req:NextRequest){
   data=v as Record<string,unknown>;}catch{return fail(400,"INVALID_BODY")}
  if(Object.keys(data).some(k=>!["slug","action","draftId","data"].includes(k))||
    typeof data.slug!=="string"||!SLUG.test(data.slug)||
-   !["profile","capital"].includes(String(data.action))||
+   !["profile","memberProfile","capital"].includes(String(data.action))||
    !data.data||typeof data.data!=="object"||Array.isArray(data.data))
   return fail(400,"INVALID_BODY");
  const d=data.data as Record<string,unknown>;
  if(Object.values(d).some(v=>typeof v!=="string")||
- (data.action==="profile"&&(
+ ((data.action==="profile"||data.action==="memberProfile")&&(
   Object.keys(d).some(k=>!["title","fullName","group","nationalId","fatherName",
-  "birthCertificate","birthDate","birthPlace","telephone","mobile","postalCode","address"].includes(k))||
+  "birthCertificate","birthDate","birthPlace","telephone","mobile","postalCode","address",
+  "bornInCounty","residentInCounty","employedInCounty","informationConfirmed","membershipStatus"].includes(k))||
   !["آقا","خانم","شرکت","سازمان","اداره"].includes(String(d.title))||
   typeof d.fullName!=="string"||d.fullName.trim().length<3||
   typeof d.group!=="string"||d.group.trim().length<2||
   typeof d.nationalId!=="string"||
-  !(d.title==="آقا"||d.title==="خانم"?/^\d{10}$/:/^\d{11}$/).test(d.nationalId)))||
+  !(d.title==="آقا"||d.title==="خانم"?/^\d{10}$/:/^\d{11}$/).test(d.nationalId)||
+  (data.action==="memberProfile"&&(!["آقا","خانم"].includes(String(d.title))||
+    !["yes","no"].includes(String(d.bornInCounty))||
+    !["yes","no"].includes(String(d.residentInCounty))||
+    !["yes","no"].includes(String(d.employedInCounty))||
+    ![d.bornInCounty,d.residentInCounty,d.employedInCounty].includes("yes")||
+    d.informationConfirmed!=="yes"||d.membershipStatus!=="APPLICANT_UNVERIFIED"))))||
  (data.action==="capital"&&(
   typeof data.draftId!=="string"||!/^[a-f0-9-]{36}$/i.test(data.draftId)||
   Object.keys(d).some(k=>!["initialShares","subscribedShares","nominalRial","paidRial",

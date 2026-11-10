@@ -100,7 +100,7 @@ export function PortalShell({
  const cfg=surfaces[surface],selection=Math.max(NAV_IDS.indexOf(activeId),0);
  const InternalLink=NavigationLink??"a";
  const home=selection===0,currentTitle=settingsSection==="credentials"?"تغییر نام کاربری و رمز عبور":
-  settingsSection==="users"?"کاربران و سطح دسترسی":memberSection==="add"?"افزودن سهامدار":memberSection==="shares"?"اطلاعات اولیه سهام":memberSection==="shareholders"?"سهامداران":home?cfg.title:cfg.navigation[selection];
+  settingsSection==="users"?"کاربران و سطح دسترسی":memberSection==="add"?"افزودن اعضا":memberSection==="shares"?"اطلاعات اولیه سهام":memberSection==="shareholders"?"سهامداران":home?cfg.title:cfg.navigation[selection];
  return <div className="shell tto-approved-shell" lang="fa" dir="rtl" data-tto-demo-only={demoOnly?"true":undefined}>
    <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
    <aside className="nav-area">
@@ -118,7 +118,7 @@ export function PortalShell({
          <div className="tto-settings-submenu" aria-label="زیرمنوهای اعضا و سهام">
           <InternalLink className={memberSection==="add"?"tto-settings-sublink selected":"tto-settings-sublink"}
            href={basePath+"/members/add"} aria-current={memberSection==="add"?"page":undefined}>
-           <span aria-hidden="true">♙</span> افزودن سهامدار
+           <span aria-hidden="true">♙</span> افزودن اعضا
           </InternalLink>
           <InternalLink className={memberSection==="shares"?"tto-settings-sublink selected":"tto-settings-sublink"}
            href={basePath+"/members/shares"} aria-current={memberSection==="shares"?"page":undefined}>
@@ -162,7 +162,7 @@ export function PortalShell({
        <div className="tto-top-search"><span aria-hidden="true">⌕</span><span>جست‌وجوی پرونده‌ها، گزارش‌ها، خدمات و ...</span></div>
        <div className="tto-top-meta"><span>اعلان‌ها ♧</span><strong>{demoOnly?"پیش‌نمایش مدیریت تعاونی":cfg.title}</strong></div>
       </div>
-      {demoOnly?<section className="tto-login-scope" role="status" style={{marginBottom:16}}>پیش‌نمایش مدیریت تعاونی · عملیات رسمی و مالی تا احراز اختیار قانونی مدیر غیرفعال است.</section>:null}
+      {demoOnly&&memberSection!=="add"?<section className="tto-login-scope" role="status" style={{marginBottom:16}}>پیش‌نمایش مدیریت تعاونی · عملیات رسمی و مالی تا احراز اختیار قانونی مدیر غیرفعال است.</section>:null}
       {!home&&<div className="breadcrumb"><InternalLink href={basePath||"/"}>داشبورد</InternalLink><span>‹</span><span>{currentTitle}</span></div>}
       {home?<ApprovedDashboardHome surface={surface} demoOnly={demoOnly}>{children}</ApprovedDashboardHome>:
       <>
