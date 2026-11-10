@@ -38,6 +38,7 @@ jobs:
           python3 scripts/ci/test_ph12_nav02_sensitive_envelopes.py -v
           python3 scripts/ci/test_ph12_nav02_photo_quarantine.py -v
           python3 scripts/ci/test_ph12_members_draft_forms.py -v
+          python3 scripts/ci/test_ph12_nav02_management_contract.py -v
           echo "NAV02_SOURCE_CONTRACTS=PASS"
       - name: Preserve full regression gate
         run: |
