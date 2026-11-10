@@ -49,8 +49,8 @@ ALTER TABLE tto.nav02_member_number_history FORCE ROW LEVEL SECURITY;
 ALTER TABLE tto.nav02_member_end_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tto.nav02_member_end_requests FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON tto.nav02_member_number_revisions,tto.nav02_member_number_current,
- tto.nav02_member_number_history,tto.nav02_member_end_requests FROM PUBLIC,anon,authenticated,tto_app;
-REVOKE ALL ON SEQUENCE tto.nav02_member_number_history_history_id_seq FROM PUBLIC,anon,authenticated,tto_app;
+ tto.nav02_member_number_history,tto.nav02_member_end_requests FROM PUBLIC,tto_app;
+REVOKE ALL ON SEQUENCE tto.nav02_member_number_history_history_id_seq FROM PUBLIC,tto_app;
 
 CREATE OR REPLACE FUNCTION tto.nav02_member_collections_list(p_slug text) RETURNS jsonb
  LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,tto AS $f$
