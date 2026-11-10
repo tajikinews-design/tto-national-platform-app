@@ -1,8 +1,10 @@
 "use client";
 import {useEffect,useId,useState} from "react";
+import {MemberAttachmentList} from "./member-attachment-list";
 
 export type MemberSidebarInput={
  slug:string;
+ draftId?:string;
  photo:File|null;
  photoUrl:string;
  onPhoto:(file:File|null)=>void;
@@ -118,5 +120,6 @@ export function MemberSidebar(p:MemberSidebarInput){
     onClick={()=>p.onAttachment(null)}>حذف فایل انتخابی</button>:null}
    <small>ارسال و نگهداری ضمائم مستلزم قرنطینه، کنترل دسترسی و اسکن فایل است.</small>
   </section>
+  {p.draftId?<MemberAttachmentList slug={p.slug} draftId={p.draftId}/>:null}
  </aside>;
 }
