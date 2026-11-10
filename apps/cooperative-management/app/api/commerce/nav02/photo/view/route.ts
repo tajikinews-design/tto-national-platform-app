@@ -7,6 +7,7 @@ const H={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Opt
  "X-Robots-Tag":"noindex","Content-Security-Policy":"default-src 'none'"};
 const fail=(s:number,code:string)=>NextResponse.json({code},{status:s,headers:H});
 export async function GET(req:NextRequest){
+ if(process.env.TTO_NAV02_PRIVATE_PHOTO_RELEASE_ENABLED!=="true")return fail(404,"PRIVATE_PHOTO_DISABLED");
  const token=req.cookies.get("tto_session")?.value;
  if(!token||!/^[A-Za-z0-9_-]{32,256}$/.test(token))return fail(401,"LOGIN_REQUIRED");
  const slug=req.nextUrl.searchParams.get("slug"),draftId=req.nextUrl.searchParams.get("draftId");
