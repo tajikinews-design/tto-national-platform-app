@@ -306,3 +306,6 @@
 .tto-member-end-request button{align-self:end;min-height:42px;border:none;border-radius:10px;background:#16748f;color:#fff;padding:8px 14px;cursor:pointer}
 .tto-member-end-request button:disabled{opacity:.55;cursor:not-allowed}
 @media(max-width:650px){.tto-member-end-request{grid-template-columns:1fr}}
+
+.tto-member-photo-thumb:is(img){object-fit:cover;display:inline-block;border:1px solid #c8dce7;border-radius:8px}
+.tto-member-case-avatar img{max-width:100%;max-height:100%;object-fit:cover;border-radius:10px}
