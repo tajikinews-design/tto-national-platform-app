@@ -33,6 +33,10 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
  const [numberPrefix,setNumberPrefix]=useState(""),[numberSuffix,setNumberSuffix]=useState("");
  const [numberPreview,setNumberPreview]=useState("");
  const [policyMessage,setPolicyMessage]=useState("");
+ const [issuedCount,setIssuedCount]=useState(0);
+ const [reissueConfirm,setReissueConfirm]=useState(false);
+ const [reissueAcknowledged,setReissueAcknowledged]=useState(false);
+ const [collectionToArchive,setCollectionToArchive]=useState("");
  const [catalog,setCatalog]=useState<string[]>([]);
  const [newCatalog,setNewCatalog]=useState("");
  const [catalogMessage,setCatalogMessage]=useState("");
@@ -78,16 +82,61 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
    .catch(()=>{});
   fetch("/api/commerce/nav02/member-number-policy?slug="+encodeURIComponent(slug),
    {credentials:"same-origin",cache:"no-store"})
-   .then(async r=>r.ok?r.json() as Promise<{policy?:{nextSerial:string;prefix:string;suffix:string}}>:null)
+   .then(async r=>r.ok?r.json() as Promise<{policy?:{nextSerial:string;prefix:string;suffix:string;issuedCount?:number}}>:null)
    .then(d=>{
     if(!live||!d?.policy)return;
     setMemberNumberStart(d.policy.nextSerial);
     setNumberPrefix(d.policy.prefix);setNumberSuffix(d.policy.suffix);
+    setIssuedCount(Number(d.policy.issuedCount??0));
    }).catch(()=>{});
   return()=>{live=false};
  },[slug]);
  const [selectedGroup,setSelectedGroup]=useState("");
  const chosen=groups.find(([name])=>name===selectedGroup);
+ async function savePolicy(confirmed:boolean){
+  if(!/^[1-9][0-9]{0,11}$/.test(memberNumberStart)||
+     !/^[A-Z0-9-]{0,12}$/.test(numberPrefix)||!/^[A-Z0-9-]{0,12}$/.test(numberSuffix)){
+    setPolicyMessage("ساختار شماره نامعتبر است.");return;
+  }
+  if(issuedCount>0&&!confirmed){setReissueConfirm(true);return;}
+  setBusy(true);setPolicyMessage("");
+  try{
+   const reissue=issuedCount>0;
+   const response=await fetch("/api/commerce/nav02/member-number-policy"+(reissue?"/reissue":""),{
+    method:"POST",credentials:"same-origin",cache:"no-store",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({slug,nextSerial:memberNumberStart,prefix:numberPrefix,suffix:numberSuffix,
+     ...(reissue?{expectedCount:issuedCount,acknowledgement:"REISSUE_ALL_MEMBERS_ACKNOWLEDGED"}:{})})
+   });
+   if(!response.ok)throw Error(response.status===409?
+    "شمار اعضا یا شماره‌ها تغییر کرده یا شماره جدید قبلاً استفاده شده است؛ تازه‌سازی کنید.":
+    response.status===403?"دسترسی یا مجوز لازم برای تغییر ساختار شماره وجود ندارد.":
+    "تنظیمات شماره عضویت در سرور ثبت نشد.");
+   const payload=await response.json() as {saved?:boolean;record?:{count?:number;nextSerial?:string};policy?:{nextSerial?:string}};
+   if(payload.saved!==true)throw Error("سرور ذخیره تنظیمات را تأیید نکرد.");
+   if(typeof payload.record?.nextSerial==="string")setMemberNumberStart(payload.record.nextSerial);
+   else if(typeof payload.policy?.nextSerial==="string")setMemberNumberStart(payload.policy.nextSerial);
+   await load();
+   setPolicyMessage(reissue?"شماره جاری همه "+issuedCount.toLocaleString("fa-IR")+" عضو بازشماره‌گذاری شد؛ شماره‌های قبلی در تاریخچه تغییرناپذیر حفظ شدند.":"تنظیمات صدور شماره ذخیره شد.");
+   setReissueConfirm(false);setReissueAcknowledged(false);
+  }catch(err){setPolicyMessage(err instanceof Error?err.message:"خطا در ذخیره تنظیمات");}
+  finally{setBusy(false);}
+ }
+ async function archiveCollection(name:string){
+  setBusy(true);setCatalogMessage("");
+  try{
+   const response=await fetch("/api/commerce/nav02/collections/archive",{
+    method:"POST",credentials:"same-origin",cache:"no-store",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify({slug,name})});
+   if(!response.ok)throw Error(response.status===403?"مجوز تغییر مجموعه‌ها وجود ندارد.":
+    "بایگانی مجموعه انجام نشد.");
+   const data=await response.json() as {saved?:boolean;record?:{archived?:boolean}};
+   if(data.saved!==true||data.record?.archived!==true)throw Error("تأیید بایگانی مجموعه دریافت نشد.");
+   setCatalog(old=>old.filter(x=>x!==name));setSelectedGroup("");
+   setCatalogMessage("مجموعه از فهرست فعال خارج شد؛ نام آن در سوابق اشخاص قبلی باقی می‌ماند.");
+  }catch(e){setCatalogMessage(e instanceof Error?e.message:"بایگانی ناموفق بود.");}
+  finally{setCollectionToArchive("");setBusy(false);}
+ }
  async function run(row:MemberRow,action:string){
   if(action==="edit"){window.location.assign(base+"add?edit="+encodeURIComponent(row.id));return}
   if(action==="audit"){window.location.assign(base+"profile/"+encodeURIComponent(row.id)+"?tab=system");return}
@@ -148,10 +197,12 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
    {catalogMessage?<p role="status">{catalogMessage}</p>:null}
    <div className="tto-member-collection-grid">
     <aside className="tto-member-collection-list" aria-label="فهرست مجموعه‌ها">
-     {groups.length?groups.map(([name,members])=><button key={name} type="button"
-      className={selectedGroup===name?"selected":""} onClick={()=>setSelectedGroup(name)}>
-       <span>{name}</span><b>{members.length.toLocaleString("fa-IR")} نفر</b>
-      </button>):<p>هنوز مجموعه‌ای از سرور دریافت نشده است.</p>}
+     {groups.length?groups.map(([name,members])=><div className="tto-member-collection-row" key={name}>
+      <button type="button" className={selectedGroup===name?"selected":""} onClick={()=>setSelectedGroup(name)}>
+       <span>▤ {name}</span><b>{members.length.toLocaleString("fa-IR")} نفر</b></button>
+      {catalog.includes(name)?<button type="button" title="حذف از مجموعه‌های فعال" aria-label={"حذف مجموعه "+name}
+       onClick={()=>setCollectionToArchive(name)} disabled={busy}>⌫</button>:null}
+     </div>):<p>هنوز مجموعه‌ای از سرور دریافت نشده است.</p>}
     </aside>
     <section className="tto-member-collection-members">
      <h3>{chosen?chosen[0]:"یک مجموعه را انتخاب کنید"}</h3>
@@ -160,7 +211,13 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
      </Link>):<p>با انتخاب مجموعه، اعضای وابسته به آن در این بخش نمایش داده می‌شوند.</p>}
     </section>
    </div>
-   <p className="tto-nav02-boundary">ثبت مجموعه خالی و انتساب رسمی آن به عضو نیازمند دفتر مجموعه‌ها و API تأییدشده است؛ نام مجموعه صرفاً با ذخیره امن داده عضو دائمی می‌شود.</p>
+   {collectionToArchive?<div className="tto-member-confirm-mask" role="dialog" aria-modal="true" aria-label="تأیید بایگانی مجموعه">
+    <div className="tto-member-confirm"><h3>حذف مجموعه از فهرست فعال</h3>
+     <p>مجموعه «{collectionToArchive}» از فهرست انتخاب جدید خارج می‌شود. انتساب‌های تاریخی افراد حذف نخواهند شد.</p>
+     <button type="button" disabled={busy} onClick={()=>void archiveCollection(collectionToArchive)}>تأیید بایگانی مجموعه</button>
+     <button type="button" disabled={busy} onClick={()=>setCollectionToArchive("")}>انصراف</button>
+    </div></div>:null}
+   <p className="tto-nav02-boundary">حذف مجموعه در این ماژول به‌معنای خروج از فهرست فعال است؛ سوابق وابستگی اعضا برای ممیزی حفظ می‌شوند.</p>
   </div>:
   <div className="tto-nav02-card tto-nav02-directory">
    <div className="tto-nav02-directory-tools">
@@ -244,27 +301,18 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
    </div>
    {numberPreview?<p role="status">پیش‌نمایش قالب (ذخیره نشده): <b dir="ltr">{numberPreview}</b></p>:null}
    <div className="tto-member-policy-actions">
-    <button type="button" onClick={async()=>{
-     if(!/^[1-9][0-9]{0,11}$/.test(memberNumberStart)||
-       !/^[A-Z0-9-]{0,12}$/.test(numberPrefix)||!/^[A-Z0-9-]{0,12}$/.test(numberSuffix)){
-      setPolicyMessage("ساختار شماره نامعتبر است.");return;
-     }
-     setPolicyMessage("");
-     try{
-      const r=await fetch("/api/commerce/nav02/member-number-policy",{
-       method:"POST",credentials:"same-origin",cache:"no-store",
-       headers:{"Content-Type":"application/json"},
-       body:JSON.stringify({slug,nextSerial:memberNumberStart,prefix:numberPrefix,suffix:numberSuffix})
-      });
-      if(!r.ok)throw Error(r.status===400?"شماره شروع نباید از شماره تخصیص‌نیافته فعلی کمتر باشد.":
-       "دفتر شماره عضویت هنوز به سرور متصل نشده است؛ تنظیمات ذخیره نشد.");
-      const d=await r.json() as {saved?:boolean};
-      if(d.saved!==true)throw Error("تأیید ثبت تنظیمات دریافت نشد.");
-      setPolicyMessage("تنظیمات صدور شماره برای اعضای آینده در سرور ثبت شد.");
-     }catch(err){setPolicyMessage(err instanceof Error?err.message:"ذخیره ناموفق بود.")}
-    }}>ذخیره تنظیمات شماره عضویت</button>
+    <button type="button" disabled={busy} onClick={()=>void savePolicy(false)}>ذخیره تنظیمات شماره عضویت</button>
    </div>
    {policyMessage?<p role="status">{policyMessage}</p>:null}
+   {issuedCount>0?<p role="status">تاکنون {issuedCount.toLocaleString("fa-IR")} شماره عضویت فعال صادر شده است. هر تغییر ساختار، همه شماره‌های جاری را یکجا جایگزین می‌کند و نیازمند تأیید مجدد است.</p>:null}
+   {reissueConfirm?<div className="tto-member-confirm-mask" role="dialog" aria-modal="true" aria-label="هشدار بازشماره‌گذاری">
+    <div className="tto-member-confirm"><h3>هشدار تغییر شماره تمام اعضا</h3>
+     <p>با تأیید این اقدام، شماره جاری همه {issuedCount.toLocaleString("fa-IR")} عضو تغییر می‌کند. شماره‌های قبلی در دفتر تاریخچه باقی می‌مانند و قابل استفاده مجدد نیستند. این تغییر تراکنشی است و در صورت هر خطا هیچ شماره‌ای تغییر نمی‌کند.</p>
+     <label><input type="checkbox" checked={reissueAcknowledged}
+      onChange={e=>setReissueAcknowledged(e.target.checked)}/> از تغییر همگانی شماره‌ها و حفظ سابقه شماره‌های قبلی اطلاع دارم.</label>
+     <button type="button" disabled={busy||!reissueAcknowledged} onClick={()=>void savePolicy(true)}>تأیید و بازشماره‌گذاری همه اعضا</button>
+     <button type="button" disabled={busy} onClick={()=>{setReissueConfirm(false);setReissueAcknowledged(false)}}>انصراف</button>
+    </div></div>:null}
    <small>شماره‌های صادرشده از نظر ممیزی قابل حذف نیستند. جایگزینی شماره نمایشی قدیمی با نسخه جدید فقط از طریق فرایند تراکنشی و ثبت تاریخچه مجاز است.</small>
   </section>:null}
  </div>;
