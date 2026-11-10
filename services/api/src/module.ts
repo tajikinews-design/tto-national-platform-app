@@ -822,8 +822,15 @@ export class FoundationCommandsController {
       if(!Array.isArray(photoReady))
         throw new ServiceUnavailableException("PRIVATE_PHOTO_STATUS_UNAVAILABLE");
       const safePhotos=new Set(photoReady.filter((x:unknown):x is string=>typeof x==="string"));
-      return {items:items.map(x=>({...x,membershipNumber:lookup.get(String(x.id))??null,
-       photoState:safePhotos.has(String(x.id))?"READY_PRIVATE":x.photoState}))};
+      return {items:items.map(x=>{
+        const issued=lookup.get(String(x.id))??null;
+        // Keep immutable old ledger entries, but never expose a legacy
+        // cooperative slug as part of the member's local display number.
+        const membershipNumber=issued?.startsWith(slug+"-")
+          ?issued.slice(slug.length+1):issued;
+        return {...x,membershipNumber,
+          photoState:safePhotos.has(String(x.id))?"READY_PRIVATE":x.photoState};
+      })};
     }
   }
 
