@@ -19,7 +19,7 @@ const SAFE_LOGIN_APIS=new Set([
  "/api/auth/otp/request","/api/auth/otp/verify","/api/auth/logout",
  "/api/me/tenant-options",
  "/api/commerce/workspaces", "/api/commerce/password-login", "/api/commerce/subscriptions", "/api/commerce/team", "/api/commerce/nav02",
- "/api/commerce/nav02/photo", "/api/commerce/nav02/manage",
+ "/api/commerce/nav02/photo", "/api/commerce/nav02/photo/view", "/api/commerce/nav02/manage",
  "/api/commerce/nav02/collections", "/api/commerce/nav02/member-number-policy",
  "/api/commerce/nav02/member-profile",
  "/api/commerce/nav02/collections/archive",
