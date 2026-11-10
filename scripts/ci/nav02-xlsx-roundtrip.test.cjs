@@ -29,3 +29,17 @@ test("NAV02 malformed archive and size limits fail closed",()=>{
  assert.throws(()=>parseMemberXlsx(Buffer.alloc(2097153)));
  assert.throws(()=>workbookXlsx(Array.from({length:251},()=>["x"])));
 });
+
+test("NAV02 complete 25-column Persian worksheet has visible nonempty data",()=>{
+ const headers=Array.from({length:25},(_,i)=>"ستون شماره "+(i+1));
+ const values=Array.from({length:25},(_,i)=>"نمونه مقدار "+(i+1));
+ values[3]="1234567891";values[4]="09000000000";
+ const xlsx=workbookXlsx([headers,values]);
+ const sheet=parseMemberXlsx(xlsx);
+ assert.equal(sheet.length,2);
+ assert.equal(sheet[0].length,25);
+ assert.equal(sheet[1].length,25);
+ assert.deepEqual(sheet,[headers,values]);
+ assert.ok(xlsx.includes(Buffer.from("xl/styles.xml")));
+ assert.ok(xlsx.includes(Buffer.from("xl/worksheets/sheet1.xml")));
+});
