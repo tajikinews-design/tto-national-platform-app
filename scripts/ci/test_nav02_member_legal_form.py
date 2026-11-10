@@ -106,6 +106,10 @@ class MemberFormLegal(unittest.TestCase):
   self.assertIn('identityVerification=identityChanged?"UNVERIFIED"',api)
   self.assertIn('MEMBER_IDENTIFIER_DUPLICATE',api)
   self.assertNotIn('IMMUTABLE_IDENTITY_REQUIRES_REVERIFICATION',api)
+  self.assertIn('if(!editId){setProfile(initialProfile);setPersonalDataConfirmed(false);}',form)
+  self.assertIn('setPhotoRetryId("");setPhoto(null);',form)
+  self.assertIn('await refresh();',form)
+  self.assertIn('profile.group])].map(g=>',form)
  def test_private_photos_render_in_all_views_and_are_replaceable(self):
   form=read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
   table=read("apps/cooperative-management/app/c/[slug]/members/shareholders-table.tsx")
