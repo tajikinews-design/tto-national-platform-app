@@ -59,6 +59,7 @@ class MemberFormLegal(unittest.TestCase):
   route=read("apps/cooperative-management/app/api/internal/backend-ready/route.ts")
   self.assertIn('trustedPreviewApis=new Set',route)
   self.assertIn('"https://tto-api-preview-454wmjead-tajikinews-6739.vercel.app"',route)
+  self.assertIn('"https://tto-api-preview-cdkii5hx1-tajikinews-6739.vercel.app"',route)
   self.assertIn('trustedPreviewApis.has(base)',route)
   self.assertNotIn('includes("vercel.app")',route)
  def test_preview_login_routes_only_to_tenant_scoped_authentication(self):
