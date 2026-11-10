@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
 type Member={id:string;name:string;personType?:string;membershipStatus?:string;identifierMask?:string};
-type Officer={id:string;officeCode:string;memberDraftId:string|null;externalName:string|null;
+type Officer={id:string;version:number;officeCode:string;memberDraftId:string|null;externalName:string|null;
  ceoSource:string;signingAuthorized:boolean;signingScope:string;startDate:string;endDate:string;
  gazetteName:string;gazetteDate:string|null;gazetteIssue:string;noticeNumber:string;status:string};
 const offices=[
@@ -17,6 +17,9 @@ export function OfficersSettings({slug}:{slug:string}){
  const [members,setMembers]=useState<Member[]>([]);
  const [items,setItems]=useState<Officer[]>([]);
  const [form,setForm]=useState(empty);
+ const [editTarget,setEditTarget]=useState<{id:string;version:number}|null>(null);
+ const [historyId,setHistoryId]=useState("");
+ const [history,setHistory]=useState<{versionBefore:number;versionAfter:number;revisedAt:string;previous:Record<string,unknown>}[]>([]);
  const [search,setSearch]=useState("");
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
  const base="/api/commerce/nav02/officers";
@@ -37,6 +40,25 @@ export function OfficersSettings({slug}:{slug:string}){
  const candidates=members.filter(x=>(x.name+" "+(x.identifierMask||"")).toLocaleLowerCase("fa")
   .includes(search.toLocaleLowerCase("fa")));
  const labelFor=(code:string)=>offices.find(x=>x[0]===code)?.[1]||code;
+ function editItem(o:Officer){
+  setEditTarget({id:o.id,version:o.version});
+  setForm({officeCode:o.officeCode,ceoSource:o.ceoSource,memberDraftId:o.memberDraftId||"",
+   externalName:o.externalName||"",signingAuthorized:o.signingAuthorized,
+   signingScope:o.signingScope||"",startDate:o.startDate,endDate:o.endDate,
+   gazetteName:o.gazetteName||"",gazetteDate:o.gazetteDate||"",
+   gazetteIssue:o.gazetteIssue||"",noticeNumber:o.noticeNumber||""});
+  setError("");setMessage("در حال ویرایش نسخه "+o.version+" پیش‌نویس انتخاب‌شده هستید.");
+ }
+ async function showHistory(id:string){
+  setHistoryId(id);setHistory([]);setError("");
+  try{const r=await fetch(base+"/history?slug="+encodeURIComponent(slug)+"&id="+encodeURIComponent(id),
+    {credentials:"same-origin",cache:"no-store"});
+   if(!r.ok)throw Error("دریافت سوابق با دسترسی فعلی ممکن نیست.");
+   const d=await r.json() as {items?:typeof history};
+   if(!Array.isArray(d.items))throw Error("پاسخ سوابق معتبر نیست.");
+   setHistory(d.items);
+  }catch(e){setError(e instanceof Error?e.message:"خطای دریافت تاریخچه");}
+ }
  function update<K extends keyof typeof empty>(key:K,value:(typeof empty)[K]){
   setForm(old=>({...old,[key]:value}));
  }
@@ -44,18 +66,18 @@ export function OfficersSettings({slug}:{slug:string}){
   event.preventDefault();if(busy)return;
   setBusy(true);setError("");setMessage("");
   try{
-   const payload={slug,...form,ceoSource:external?"EXTERNAL":"MEMBER",
+   const payload={slug,...form,...(editTarget?{id:editTarget.id,version:editTarget.version}:{}),ceoSource:external?"EXTERNAL":"MEMBER",
     memberDraftId:external?null:form.memberDraftId,
     externalName:external?form.externalName:"",
     gazetteDate:form.gazetteDate||null};
-   const r=await fetch(base,{method:"POST",credentials:"same-origin",cache:"no-store",
+   const r=await fetch(base+(editTarget?"/edit":""),{method:"POST",credentials:"same-origin",cache:"no-store",
     headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-   if(!r.ok)throw Error(r.status===403?"انتخاب شخص یا مجوز ثبت برای این تعاونی معتبر نیست.":
+   if(!r.ok)throw Error(r.status===409?"پیش‌نویس توسط کاربر دیگری ویرایش شده است؛ فهرست را تازه‌سازی کنید.":r.status===403?"انتخاب شخص یا مجوز ثبت برای این تعاونی معتبر نیست.":
     r.status===400?"مشخصات سمت یا تاریخ‌ها معتبر نیست.":"پیش‌نویس سمت ذخیره نشد.");
    const data=await r.json() as {saved?:boolean;status?:string;legalPowerGranted?:boolean};
    if(data.saved!==true||data.status!=="DRAFT_ONLY"||data.legalPowerGranted!==false)
     throw Error("سرور وضعیت غیرعملیاتی پیش‌نویس را تأیید نکرد.");
-   setForm(empty);await load();setMessage("پیش‌نویس ثبت شد؛ این ثبت، اعتبار حقوقی سمت یا حق امضا ایجاد نمی‌کند.");
+   setForm(empty);setEditTarget(null);await load();setMessage("پیش‌نویس ذخیره شد؛ این ثبت، اعتبار حقوقی سمت یا حق امضا ایجاد نمی‌کند.");
   }catch(e){setError(e instanceof Error?e.message:"خطای ثبت");}
   finally{setBusy(false);}
  }
@@ -66,7 +88,7 @@ export function OfficersSettings({slug}:{slug:string}){
    <p>ثبت اطلاعات سمت و آگهی رسمی به‌صورت پیش‌نویس؛ اعتبار سمت و امضا پس از کنترل اسناد و مرجع صلاحیت‌دار تعیین می‌شود.</p>
   </div></header>
   <div className="tto-settings-card">
-   <h2>ثبت پیش‌نویس سمت</h2>
+   <h2>{editTarget?"ویرایش پیش‌نویس سمت":"ثبت پیش‌نویس سمت"}</h2>
    <p role="status">افراد هیئت‌مدیره و بازرسان از فهرست اعضای همین تعاونی انتخاب می‌شوند. مدیرعامل می‌تواند خارج از تعاونی باشد.</p>
    <form onSubmit={e=>void submit(e)} className="tto-nav02-form">
     <label>سمت <select value={form.officeCode} onChange={e=>{
@@ -115,7 +137,8 @@ export function OfficersSettings({slug}:{slug:string}){
      onChange={e=>update("noticeNumber",e.target.value)}/></label>
     <div className="tto-nav02-actions">
      <button disabled={busy||(!external&&!form.memberDraftId)} type="submit">
-      {busy?"در حال ثبت…":"ذخیره پیش‌نویس سمت"}</button>
+      {busy?"در حال ذخیره…":editTarget?"ثبت ویرایش نسخه "+editTarget.version:"ذخیره پیش‌نویس سمت"}</button>
+     {editTarget?<button type="button" onClick={()=>{setEditTarget(null);setForm(empty);setMessage("");}}>انصراف از ویرایش</button>:null}
     </div>
    </form>
    {error?<p role="alert">{error}</p>:null}{message?<p role="status">{message}</p>:null}
@@ -124,14 +147,24 @@ export function OfficersSettings({slug}:{slug:string}){
    <h2>پیش‌نویس‌های ثبت‌شده</h2>
    {items.length===0?<p>هنوز پیش‌نویسی ثبت نشده است.</p>:
     <div className="tto-nav02-table-scroll"><table className="tto-nav02-table"><thead><tr>
-     <th>سمت</th><th>شخص</th><th>امضا</th><th>شروع</th><th>پایان</th><th>شماره آگهی</th><th>وضعیت</th>
+     <th>سمت</th><th>شخص</th><th>امضا</th><th>شروع</th><th>پایان</th><th>شماره آگهی</th><th>نسخه</th><th>وضعیت و عملیات</th>
     </tr></thead><tbody>{items.map(item=><tr key={item.id}>
      <td>{labelFor(item.officeCode)}</td>
      <td>{item.externalName||members.find(x=>x.id===item.memberDraftId)?.name||"عضو ثبت‌شده"}</td>
      <td>{item.signingAuthorized?"اظهاری":"خیر"}</td>
      <td>{item.startDate}</td><td>{item.endDate}</td>
-     <td>{item.noticeNumber||"—"}</td><td>پیش‌نویس غیررسمی</td>
+     <td>{item.noticeNumber||"—"}</td><td>{item.version}</td><td>پیش‌نویس غیررسمی
+     <div><button type="button" onClick={()=>editItem(item)}>ویرایش</button>
+     <button type="button" onClick={()=>void showHistory(item.id)}>تاریخچه</button></div></td>
     </tr>)}</tbody></table></div>}
   </section>
+  {historyId?<section className="tto-settings-card"><h2>تاریخچه ویرایش پیش‌نویس</h2>
+    <button type="button" onClick={()=>{setHistoryId("");setHistory([]);}}>بستن تاریخچه</button>
+    {history.length===0?<p>ویرایشی ثبت نشده است.</p>:<ol>{history.map((h,i)=>
+     <li key={i}>نسخه {h.versionBefore} به {h.versionAfter}، {new Date(h.revisedAt).toLocaleString("fa-IR")}
+      <details><summary>مشاهده مقادیر پیش از تغییر</summary>
+       <pre dir="ltr">{JSON.stringify(h.previous,null,2)}</pre></details>
+     </li>)}</ol>}
+   </section>:null}
  </section>;
 }
