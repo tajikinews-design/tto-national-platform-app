@@ -40,6 +40,14 @@ function validIranianNationalId(value:string){
  return Number(value[9])===(remainder<2?remainder:11-remainder);
 }
 function faNumber(n:number){return n.toLocaleString("fa-IR")}
+function formattedShareNumber(raw:string){
+ const numeric=toLatinDigits(raw).replace(/[٬,\s]/g,"");
+ return numeric.replace(/\B(?=(\d{3})+(?!\d))/g,",");
+}
+function cleanShareInput(raw:string){
+ const normalized=toLatinDigits(raw).replace(/[٬,\s]/g,"");
+ return /^\d{0,17}$/.test(normalized)?normalized:null;
+}
 function Field({title,children,wide}:{title:string;children:React.ReactNode;wide?:boolean}){
  return <label className={"tto-nav02-field"+(wide?" wide":"")}><span>{title}</span>{children}</label>;
 }
@@ -376,7 +384,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        {key==="address"?<textarea value={profile.address} rows={3} maxLength={600}
         onChange={e=>change("address",e.target.value)}/>:
         key==="group"?<select value={profile.group} onChange={e=>change("group",e.target.value)}>
-         {[...new Set(["متقاضی عضویت","عضو مؤسس","عضو جدید","عضو سابق",profile.group])].map(g=>
+         {[...new Set(["متقاضی عضویت","عضو مؤسس","عضو جدید","عضو اولیه",profile.group==="عضو سابق"?"عضو اولیه":profile.group])].map(g=>
           <option key={g} value={g}>{g}</option>)}
         </select>:
         <input value={profile[key]} maxLength={max} required={required}
@@ -439,14 +447,14 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        {filtered.map(x=><option value={x.id} key={x.id}>{x.name} — {x.identifierMask}</option>)}
       </select></Field>
       {selected?<p className="tto-nav02-selected">پرونده: {selected.name} · {selected.state}</p>:null}
-      <Field title="تعداد سهام خریداری‌شده اولیه *"><input required type="number" min="0" step="1" value={capital.initialShares}
-       onChange={e=>setCapital(p=>({...p,initialShares:e.target.value}))}/></Field>
-      <Field title="تعداد سهام در تعهد *"><input required type="number" min="0" step="1" value={capital.subscribedShares}
-       onChange={e=>setCapital(p=>({...p,subscribedShares:e.target.value}))}/></Field>
-      <Field title="مبلغ اسمی هر سهم (ریال) *"><input required type="number" min="1" step="1" value={capital.nominalRial}
-       onChange={e=>setCapital(p=>({...p,nominalRial:e.target.value}))}/></Field>
-      <Field title="مبلغ پرداختی (ریال) *"><input required type="number" min="0" step="1" value={capital.paidRial}
-       onChange={e=>setCapital(p=>({...p,paidRial:e.target.value}))}/></Field>
+      <Field title="تعداد سهام خریداری‌شده اولیه *"><input required type="text" inputMode="numeric" pattern="[0-9۰-۹٠-٩,٬ ]*" dir="ltr" value={formattedShareNumber(capital.initialShares)}
+       onChange={e=>{const n=cleanShareInput(e.target.value);if(n!==null)setCapital(p=>({...p,initialShares:n}));}}/></Field>
+      <Field title="تعداد سهام در تعهد *"><input required type="text" inputMode="numeric" pattern="[0-9۰-۹٠-٩,٬ ]*" dir="ltr" value={formattedShareNumber(capital.subscribedShares)}
+       onChange={e=>{const n=cleanShareInput(e.target.value);if(n!==null)setCapital(p=>({...p,subscribedShares:n}));}}/></Field>
+      <Field title="مبلغ اسمی هر سهم (ریال) *"><input required type="text" inputMode="numeric" pattern="[0-9۰-۹٠-٩,٬ ]*" dir="ltr" value={formattedShareNumber(capital.nominalRial)}
+       onChange={e=>{const n=cleanShareInput(e.target.value);if(n!==null)setCapital(p=>({...p,nominalRial:n}));}}/></Field>
+      <Field title="مبلغ پرداختی (ریال) *"><input required type="text" inputMode="numeric" pattern="[0-9۰-۹٠-٩,٬ ]*" dir="ltr" value={formattedShareNumber(capital.paidRial)}
+       onChange={e=>{const n=cleanShareInput(e.target.value);if(n!==null)setCapital(p=>({...p,paidRial:n}));}}/></Field>
       <Field title="تاریخ پرداخت (شمسی)">
        <JalaliBirthDatePicker placeholder="انتخاب تاریخ پرداخت (شمسی)" defaultToToday
         value={gregorianISOToJalali(capital.paymentDate)}
