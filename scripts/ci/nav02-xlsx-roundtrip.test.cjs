@@ -43,3 +43,15 @@ test("NAV02 complete 25-column Persian worksheet has visible nonempty data",()=>
  assert.ok(xlsx.includes(Buffer.from("xl/styles.xml")));
  assert.ok(xlsx.includes(Buffer.from("xl/worksheets/sheet1.xml")));
 });
+
+test("NAV02 legacy cooperative prefix hides only for matching workspace without ledger rewrite",()=>{
+ const source=fs.readFileSync(resolve(ROOT,"apps/cooperative-management/lib/nav02-member-number.ts"),"utf8");
+ const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const helper={exports:{}};
+ new Function("require","module","exports",compiled)(require,helper,helper.exports);
+ const display=helper.exports.displayMemberNumber;
+ assert.equal(display("torghabeh","torghabeh-001003"),"001003");
+ assert.equal(display("torghabeh","001004"),"001004");
+ assert.equal(display("other","torghabeh-001003"),"torghabeh-001003");
+ assert.equal(display("torghabeh",null),null);
+});
