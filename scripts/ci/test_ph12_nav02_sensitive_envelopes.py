@@ -33,12 +33,13 @@ class Nav02SensitiveEncryption(unittest.TestCase):
   self.assertNotIn('console.log',block)
   self.assertNotIn('return {items:protectedRows}',block)
   self.assertIn('identifierMask:"***"',block)
- def test_preview_blocks_real_pii_and_browser_also_warns(self):
+ def test_real_member_intake_stays_fail_closed_without_signed_approval(self):
   ui=source("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
-  self.assertIn('testOnlyConfirmed',ui)
-  self.assertIn('ساختگی',ui)
-  self.assertIn('!/^([0-9])\\1+$/.test(id)',ui)
+  self.assertIn('personalDataConfirmed',ui)
+  for term in ("bornInCounty","residentInCounty","employedInCounty","validIranianNationalId"):
+   self.assertIn(term,ui)
   api=source("services/api/src/module.ts")
-  self.assertIn('SYNTHETIC_ONLY',api)
-  self.assertIn('process.env.VERCEL_ENV==="production"',api)
+  for term in ("TTO_NAV02_MEMBER_INTAKE_ENABLED","REAL_MEMBER_INTAKE_NOT_APPROVED",
+               "TTO_NAV02_REAL_PII_ENABLED","SYNTHETIC_ONLY",'process.env.VERCEL_ENV==="production"'):
+   self.assertIn(term,api)
 if __name__=="__main__":unittest.main()

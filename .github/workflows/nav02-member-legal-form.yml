@@ -1,0 +1,45 @@
+name: NAV02 member legal form validation (NO DEPLOY)
+on:
+  push:
+    branches: [feat/nav02-member-intake-legal-form-20261110]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  member-applicant-source-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      VERCEL: ""
+      NEXT_TELEMETRY_DISABLED: "1"
+      APIIR_TOKEN: ""
+      DATABASE_URL: ""
+      TTO_API_BASE_URL: ""
+      TTO_NAV02_MEMBER_INTAKE_ENABLED: "false"
+      TTO_NAV02_REAL_PII_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Validate source/crypto/role and county rules
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/test_nav02_member_legal_form.py -v
+          python3 scripts/ci/test_ph12_members_draft_forms.py -v
+          python3 scripts/ci/test_ph12_nav02_shareholder_intake.py -v
+          python3 scripts/ci/test_ph12_nav02_sensitive_envelopes.py -v
+          python3 scripts/ci/test_ph12_nav02_photo_quarantine.py -v
+          python3 scripts/ci/test_ph12_nav02_management_contract.py -v
+          echo "NAV02_MEMBER_SOURCE_PASS"
+      - name: Build and typecheck all portals and API
+        run: |
+          set -euo pipefail
+          npm install -g pnpm@10.18.0
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm check
+          echo "NAV02_MEMBER_TYPESCRIPT_BUILD_PASS"

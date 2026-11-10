@@ -35,7 +35,7 @@ class PhotoQuarantineContract(unittest.TestCase):
   self.assertIn('"/api/commerce/nav02/photo"',proxy)
  def test_photo_opt_in_and_partial_failure_not_duplicated(self):
   ui=read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
-  for term in ('testOnlyConfirmed','photoRetryId','quarantinePhoto(','"/api/commerce/nav02/photo"',
+  for term in ('personalDataConfirmed','photoRetryId','quarantinePhoto(','"/api/commerce/nav02/photo"',
    'تأیید می‌کنم','قرنطینه','URL.revokeObjectURL','file.size>716800',
    'هر دو',):
    # "هر دو" is not part of UI, all other statements are expected.

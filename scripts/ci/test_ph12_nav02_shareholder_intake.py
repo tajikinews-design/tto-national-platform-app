@@ -23,7 +23,7 @@ class Nav02IntakeContract(unittest.TestCase):
                "birthDate","birthPlace","telephone","mobile","postalCode","address",
                "initialShares","subscribedShares","nominalRial","paidRial","paymentDate","receiptRef"):
    self.assertIn(name,form)
-  for title in ("آقا","خانم","شرکت","سازمان","اداره"):
+  for title in ("آقا","خانم"):
    self.assertIn('"'+title+'"',form)
  def test_staging_db_never_mutates_legal_ledger(self):
   sql=src("database/migrations/9999t_ph12_nav02_shareholder_intake_drafts.sql")
@@ -59,9 +59,10 @@ class Nav02IntakeContract(unittest.TestCase):
   form=src("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
   self.assertIn("URL.createObjectURL(photo)",form)
   self.assertIn('quarantinePhoto(',form)
-  self.assertIn('testOnlyConfirmed',form)
+  self.assertIn('personalDataConfirmed',form)
   self.assertIn('photoRetryId',form)
   self.assertIn('"/api/commerce/nav02/photo"',form)
-  self.assertIn("فقط داده ساختگی مجاز است",form)
+  self.assertIn("حداقل یکی",form)
+  self.assertIn("validIranianNationalId",form)
   self.assertNotIn('FormData(',form)
 if __name__=="__main__":unittest.main()
