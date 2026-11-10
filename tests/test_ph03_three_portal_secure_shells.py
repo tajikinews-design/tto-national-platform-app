@@ -73,7 +73,7 @@ class ThreePortalBoundary(unittest.TestCase):
                     gate=(APPS/app/'app/c/[slug]/entry-gate.tsx').read_text(encoding="utf-8")
                     self.assertIn('fetch("/api/auth/password/session"',gate)
                     self.assertIn('managerSession.workspaceSlug===slug',gate)
-                    self.assertIn('fetch("/api/commerce/password-login"',gate)
+                    self.assertIn('"/api/auth/password/login":"/api/commerce/password-login"',gate)
                     self.assertIn('accountKind==="manager"',gate)
                     self.assertIn('"/api/auth/password/login":"/api/commerce/password-login"',gate)
                     self.assertIn('d?.authenticated===true&&d.workspaceSlug===slug&&d.surface==="cooperative"',gate)
