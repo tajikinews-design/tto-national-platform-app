@@ -14,7 +14,7 @@ class SettingsSubpages(unittest.TestCase):
   self.assertIn('view={tab==="collections"?"collections":"member-number"}',p)
   self.assertIn('moduleId="NAV-11"',p)
   self.assertIn('ownerSettings={content}',p)
-  self.assertIn('settingsSection={tab==="officers"?"users":tab}',p)
+  self.assertIn('settingsSection={tab}',p)
   self.assertIn('tab==="officers"?<OfficersSettings',p)
   old=src("apps/cooperative-management/app/c/[slug]/modules/[moduleId]/page.tsx")
   self.assertIn('if(activeId==="NAV-11")redirect(',old)
