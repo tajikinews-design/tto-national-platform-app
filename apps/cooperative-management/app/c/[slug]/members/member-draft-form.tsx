@@ -8,7 +8,6 @@ type RecordItem={id:string;name:string;title:string;group:string;identifierMask:
  state:string;initialShares?:number;subscribedShares?:number;nominalRial?:number;
  declaredPaidRial?:number;capitalState?:string};
 const TITLES=["آقا","خانم"] as const;
-const MEMBER_STATES=[["APPLICANT_UNVERIFIED","متقاضی"],["ACTIVE_REPORTED","عضو فعال (اظهاری)"],["FORMER_REPORTED","عضو سابق (اظهاری)"],["NON_MEMBER_REPORTED","غیرعضو"]] as const;
 const SHARE_STATES=[["NONE_UNVERIFIED","فاقد سهام"],["HOLDER_REPORTED","سهامدار (اظهاری)"],["TRANSFER_PENDING_REPORTED","انتقال در جریان (اظهاری)"]] as const;
 const initialProfile={title:"آقا",fullName:"",group:"متقاضی عضویت",nationalId:"",fatherName:"",
  birthCertificate:"",birthDate:"",birthPlace:"",telephone:"",mobile:"",postalCode:"",address:"",
@@ -410,11 +409,6 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
          value={profile.fullName} onChange={e=>change("fullName",e.target.value)}/></Field>
       </div>
       <div className="tto-nav02-name-row">
-       <Field title="وضعیت عضویت *"><select value={profile.membershipStatus}
-         onChange={e=>change("membershipStatus",e.target.value)}>
-        {MEMBER_STATES.filter(([key])=>profile.personType!=="LEGAL"||key==="NON_MEMBER_REPORTED")
-          .map(([key,label])=><option key={key} value={key}>{label}</option>)}
-       </select></Field>
        <Field title="وضعیت سهامداری *"><select value={profile.shareholdingStatus}
         onChange={e=>change("shareholdingStatus",e.target.value)}>
         {SHARE_STATES.map(([key,label])=><option key={key} value={key}>{label}</option>)}
