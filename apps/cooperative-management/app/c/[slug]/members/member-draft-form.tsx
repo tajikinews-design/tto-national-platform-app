@@ -68,8 +68,14 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   const url="/api/commerce/nav02/member-profile?slug="+encodeURIComponent(slug)+
     "&draftId="+encodeURIComponent(editId);
   void fetch(url,{credentials:"same-origin",cache:"no-store"}).then(async r=>{
-   if(!r.ok)throw Error(r.status===401?"نشست ورود منقضی شده است.":
-    r.status===403?"دسترسی ویرایش پرونده را ندارید.":"دریافت امن پرونده انجام نشد.");
+   if(!r.ok){
+    const payload=await r.json().catch(()=>null) as {code?:unknown}|null;
+    const code=typeof payload?.code==="string"?payload.code:"";
+    if(code==="IDENTITY_ENCRYPTION_UNAVAILABLE")
+     throw Error("بازیابی پرونده رمزنگاری‌شده در سرور ممکن نیست؛ تنظیمات کلید و نسخه API بررسی شود.");
+    throw Error(r.status===401?"نشست ورود منقضی شده است.":
+     r.status===403?"دسترسی ویرایش پرونده را ندارید.":"دریافت امن پرونده انجام نشد.");
+   }
    return r.json() as Promise<{profile?:Record<string,unknown>;version?:number;managementState?:string}>;
   }).then(result=>{
    if(!active)return;
