@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
     "https://tto-api-preview-feb8p8a9p-tajikinews-6739.vercel.app",
     "https://tto-api-preview-ct4e6hp5q-tajikinews-6739.vercel.app",
     "https://tto-api-preview-454wmjead-tajikinews-6739.vercel.app",
-    "https://tto-api-preview-cdkii5hx1-tajikinews-6739.vercel.app"
+    "https://tto-api-preview-cdkii5hx1-tajikinews-6739.vercel.app",
+    "https://tto-api-preview-peg9mw8l5-tajikinews-6739.vercel.app"
   ]);
   if (!base || !trustedPreviewApis.has(base)) {
     return NextResponse.json({ready:false},{status:503,headers});
