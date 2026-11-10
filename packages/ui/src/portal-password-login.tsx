@@ -7,6 +7,8 @@ export function PortalPasswordLogin({surface,workspaceSlug}:{surface:Surface;wor
  const [phase,setPhase]=useState<"checking"|"login"|"ready"|"error">("checking");
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
  const [method,setMethod]=useState<"password"|"otp">("otp");
+ const [selectedWorkspace,setSelectedWorkspace]=useState(workspaceSlug??"");
+ const validSelectedWorkspace=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(selectedWorkspace);
  const label=surface==="cooperative"?"مدیر تعاونی":"سهامدار";
  useEffect(()=>{
   let alive=true;
@@ -26,7 +28,7 @@ export function PortalPasswordLogin({surface,workspaceSlug}:{surface:Surface;wor
    });
    if(response.status===401){setNotice("نام کاربری یا رمز عبور معتبر نیست یا نیاز به فعال‌سازی مجدد دارد.");return}
    if(response.status===403){setNotice("اختیار دسترسی به این تعاونی تأیید نشد یا دفعات ورود بیش از حد است.");return}
-   if(response.status!==200){setNotice("ورود امن در محیط آزمایش هنوز فعال نشده است؛ ثبت هویت و تنظیمات امنیتی لازم است.");return}
+   if(response.status!==200){setNotice("حساب مستقل این پنل به هویت تأییدشده، نقش معتبر و تنظیمات امنیتی Preview نیاز دارد. ورود صاحب اشتراک آزمایشی مسیر جداگانه‌ای دارد.");return}
    const d=await response.json() as {authenticated?:boolean;workspaceSlug?:string};
    if(d.authenticated!==true||(workspaceSlug&&d.workspaceSlug!==workspaceSlug)){setNotice("تعاونی انتخابی با مجوز کاربر مطابقت ندارد.");return}
    setPassword("");setPhase("ready");
@@ -55,7 +57,16 @@ export function PortalPasswordLogin({surface,workspaceSlug}:{surface:Surface;wor
       <button disabled={busy} type="submit">{busy?"در حال بررسی امن…":"ورود به پنل "+label}</button>
     </form>}
    {notice?<p role="alert" className="tto-login-error">{notice}</p>:null}
-   {surface==="cooperative"?<div className="tto-auth-inline-links"><a href="/customer-login">ورود صاحب اشتراک</a><a href="/first-login">بازیابی مشخصات با OTP</a></div>:null}
+   {surface==="cooperative"?<div className="tto-auth-inline-links">
+     <label htmlFor="preview-workspace-slug">برای ورود صاحب اشتراک آزمایشی، شناسه تعاونی را مشخص کنید:</label>
+     <input id="preview-workspace-slug" type="text" dir="ltr" inputMode="text"
+      autoCapitalize="none" autoComplete="off" spellCheck={false}
+      pattern="[a-z0-9][a-z0-9-]{1,38}[a-z0-9]"
+      value={selectedWorkspace} onChange={e=>setSelectedWorkspace(e.target.value.toLowerCase().trim())}
+      placeholder="شناسه تعاونی ثبت‌شده"/>
+     {validSelectedWorkspace?<a href={"/c/"+encodeURIComponent(selectedWorkspace)}>
+       ورود صاحب اشتراک در فضای انتخاب‌شده</a>:<span>پس از واردکردن شناسه صحیح، مسیر ورود جداگانه فعال می‌شود.</span>}
+    </div>:null}
    {phase==="error"?<p role="alert">سرویس بررسی وضعیت نشست در دسترس نیست.</p>:null}
    <p className="tto-auth-muted-note">ورود، به‌تنهایی مجوز دسترسی به سهام یا اطلاعات سایر تعاونی‌ها نیست.</p>
  </section>;
