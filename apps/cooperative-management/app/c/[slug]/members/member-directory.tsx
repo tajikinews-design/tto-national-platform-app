@@ -4,12 +4,17 @@ import {useEffect,useMemo,useState} from "react";
 export type MemberRow={
  id:string;name:string;title:string;group:string;identifierMask:string;
  mobileMask?:string;membershipNumber?:string;collectionName?:string;occupation?:string;
- membershipStatus?:string|null;managementState?:string;state:string;version?:number;
+ membershipStatus?:string|null;shareholdingStatus?:string|null;personType?:string|null;
+ identityVerification?:string;managementState?:string;state:string;version?:number;
  photoState?:string;capitalState?:string;
 };
 type View="list"|"archive"|"collections";
+const membershipText=(v?:string|null)=>({APPLICANT_UNVERIFIED:"متقاضی",ACTIVE_REPORTED:"عضو فعال (اظهاری)",FORMER_REPORTED:"عضو سابق (اظهاری)",NON_MEMBER_REPORTED:"غیرعضو"} as Record<string,string>)[v??""]??"نامشخص";
+const sharesText=(v?:string|null)=>({NONE_UNVERIFIED:"فاقد سهام",HOLDER_REPORTED:"سهامدار (اظهاری)",TRANSFER_PENDING_REPORTED:"انتقال در جریان (اظهاری)"} as Record<string,string>)[v??""]??"نامشخص";
 const actions=[
  {key:"edit",glyph:"✎",label:"ویرایش کامل عضو",hint:"ویرایش در فرم ثبت عضو"},
+ {key:"identity",glyph:"♧",label:"احراز هویت",hint:"وضعیت احراز هویت و مدارک"},
+ {key:"termination",glyph:"⚖",label:"پایان عضویت قانونی",hint:"درخواست ثبت دلیل قانونی پایان عضویت"},
  {key:"suspend",glyph:"⏸",label:"تعلیق",hint:"تعلیق پرونده اولیه"},
  {key:"resume",glyph:"▶",label:"رفع تعلیق",hint:"رفع تعلیق پرونده اولیه"},
  {key:"archive",glyph:"▣",label:"بایگانی",hint:"انتقال به فهرست بایگانی"},
@@ -39,7 +44,7 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
    response.status===403?"مجوز دسترسی به پرونده‌های این تعاونی ندارید.":"سرویس فهرست اعضا در دسترس نیست.");
   const data=await response.json() as {items?:MemberRow[]};
   if(!Array.isArray(data.items))throw Error("پاسخ فهرست معتبر نیست.");
-  setRows(data.items.filter(x=>x.membershipStatus==="APPLICANT_UNVERIFIED"));
+  setRows(data.items);
  }
  useEffect(()=>{
   let live=true;
@@ -50,7 +55,8 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
  const baseRows=useMemo(()=>rows.filter(x=>view==="archive"?
   x.managementState==="ARCHIVED_DRAFT":x.managementState!=="ARCHIVED_DRAFT"),[rows,view]);
  const entries=useMemo(()=>baseRows.filter(x=>{
-  const text=[x.name,x.membershipNumber,x.collectionName,x.group,x.identifierMask,x.mobileMask]
+  const text=[x.name,x.membershipNumber,x.collectionName,x.group,x.identifierMask,x.mobileMask,x.personType,
+   membershipText(x.membershipStatus),sharesText(x.shareholdingStatus)]
    .filter(Boolean).join(" ").toLocaleLowerCase("fa-IR");
   return (!search||text.includes(search.toLocaleLowerCase("fa-IR"))) &&
    (filter==="all"||(filter==="suspended"&&x.managementState==="SUSPENDED_DRAFT")||
@@ -85,6 +91,8 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
  async function run(row:MemberRow,action:string){
   if(action==="edit"){window.location.assign(base+"add?edit="+encodeURIComponent(row.id));return}
   if(action==="audit"){window.location.assign(base+"profile/"+encodeURIComponent(row.id)+"?tab=system");return}
+  if(action==="identity"){window.location.assign(base+"profile/"+encodeURIComponent(row.id)+"?tab=identity");return}
+  if(action==="termination"){window.location.assign(base+"profile/"+encodeURIComponent(row.id)+"?tab=termination");return}
   if(action==="delete"){setConfirm(row);return}
   if(!["suspend","resume","archive","restore"].includes(action))return;
   if(!Number.isSafeInteger(row.version)||!row.version){setMessage("نسخه پرونده برای تغییر وضعیت تأیید نشده است.");return}
@@ -166,24 +174,29 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
    <div className="tto-nav02-table-scroll">
     <table className="tto-nav02-table tto-member-directory-table">
      <thead><tr>
-      <th>شماره عضویت</th><th>نام و نام خانوادگی</th><th>عضویت</th><th>مجموعه</th>
-      <th>گروه</th><th>شماره ملی</th><th>شماره همراه</th><th>عملیات حاکمیتی</th>
+      <th>عکس</th><th>شماره عضویت</th><th>نام / عنوان</th><th>نوع شخصیت</th>
+      <th>وضعیت عضویت</th><th>وضعیت سهام</th><th>احراز هویت</th><th>مجموعه</th>
+      <th>گروه</th><th>شناسه ملی</th><th>شماره همراه</th><th>عملیات حاکمیتی</th>
      </tr></thead>
      <tbody>{entries.map(row=><tr key={row.id}>
+      <td><span className="tto-member-photo-thumb" role="img" aria-label={row.photoState==="QUARANTINED"?"عکس در قرنطینه و غیرقابل نمایش است":"عکس تأییدشده موجود نیست"}>♙</span></td>
       <td className="tto-nav02-num">{row.membershipNumber||"در انتظار صدور"}</td>
       <td><Link className="tto-member-person-link" href={base+"profile/"+encodeURIComponent(row.id)}>
        {row.title} {row.name}</Link><small className="tto-nav02-row-mask">مشاهده پرونده عضویت</small></td>
+      <td><strong>{row.personType==="LEGAL"?"حقوقی":"حقیقی"}</strong></td>
       <td><span className={"tto-nav02-state "+(row.managementState==="SUSPENDED_DRAFT"?"suspended":"pending")}>
-       {row.managementState==="SUSPENDED_DRAFT"?"معلق":
-       row.membershipStatus==="APPLICANT_UNVERIFIED"?"متقاضی / در انتظار احراز":"تأیید قانونی نشده"}</span></td>
+       {membershipText(row.membershipStatus)}{row.managementState==="SUSPENDED_DRAFT"?" · معلق":""}</span></td>
+      <td>{sharesText(row.shareholdingStatus)}</td>
+      <td><span title="استعلام یا تطبیق اعلام‌شده، حق عضویت قانونی ایجاد نمی‌کند">{row.identityVerification==="SHAHKAR_CONFIRMED"?"✓ شاهکار":row.identityVerification==="REPRESENTATIVE_MOBILE_CONFIRMED"?"✓ موبایل نماینده":"نیازمند احراز"}</span></td>
       <td>{row.collectionName||"—"}</td>
       <td>{row.group||"—"}</td>
       <td dir="ltr">{row.identifierMask||"—"}</td>
       <td dir="ltr">{row.mobileMask||"پوشیده"}</td>
       <td><div className="tto-member-actions">
        {actions.map(a=>{
-        if(view==="archive"&&a.key!=="restore"&&a.key!=="audit"&&a.key!=="edit")return null;
+        if(view==="archive"&&a.key!=="restore"&&a.key!=="audit"&&a.key!=="edit"&&a.key!=="identity")return null;
         if(view!=="archive"&&a.key==="restore")return null;
+        if(a.key==="termination"&&(row.membershipStatus==="NON_MEMBER_REPORTED"||row.membershipStatus==="FORMER_REPORTED"))return null;
         if(a.key==="suspend"&&row.managementState==="SUSPENDED_DRAFT")return null;
         if(a.key==="resume"&&row.managementState!=="SUSPENDED_DRAFT")return null;
         return <button type="button" key={a.key} disabled={busy} title={a.label}
