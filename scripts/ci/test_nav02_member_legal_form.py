@@ -28,7 +28,7 @@ class MemberFormLegal(unittest.TestCase):
   directory=read("apps/cooperative-management/app/c/[slug]/members/shareholders-table.tsx")
   self.assertIn('membershipStatus!=="APPLICANT_UNVERIFIED"',directory)
   self.assertIn("شخص حقوقی در این فرم فقط به‌عنوان غیرعضو ثبت می‌شود",form)
-  self.assertIn('const MEMBER_STATES=',form)
+  self.assertNotIn('title="وضعیت عضویت *"',form)
   self.assertIn('const SHARE_STATES=',form)
   self.assertNotIn("فقط داده ساختگی مجاز است",form)
   self.assertNotIn("عکس پرسنلی ساختگی",form)
