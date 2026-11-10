@@ -26,6 +26,11 @@ export function MemberCase({slug,memberId}:{slug:string;memberId:string}){
  const [error,setError]=useState("");
  const [tab,setTab]=useState<string>("person");
  const [audit,setAudit]=useState<{action?:string;at?:string;version?:number}[]>([]);
+ const [endReason,setEndReason]=useState("RESIGNATION");
+ const [endEvidence,setEndEvidence]=useState("");
+ const [endDate,setEndDate]=useState("");
+ const [endMessage,setEndMessage]=useState("");
+ const [endBusy,setEndBusy]=useState(false);
  const base="/c/"+encodeURIComponent(slug)+"/members/";
  useEffect(()=>{const t=new URLSearchParams(window.location.search).get("tab");
   if(t==="system")setTab("audit");
@@ -126,9 +131,39 @@ export function MemberCase({slug,memberId}:{slug:string;memberId:string}){
       <p>احراز مالکیت سهام و تأیید قانونی عضویت در دفتر مستقل انجام می‌شود.</p>
      </div>:tab==="termination"?<div className="tto-member-case-panel">
       <h2>درخواست پایان عضویت براساس دلیل قانونی</h2>
-      <ul><li>استعفا و مستند دریافت درخواست</li><li>فوت و گواهی معتبر</li>
-       <li>اخراج قانونی همراه با رأی مرجع صالح</li><li>انتقال کامل سهام و تأیید دفتر رسمی نقل‌وانتقال</li></ul>
-      <p role="status">تا ایجاد پرونده مستند و تصویب قانونی، صرف انتخاب یک دلیل نباید عضویت یا سهام را تغییر دهد. این بخش وضعیت و الزامات را نمایش می‌دهد؛ ثبت تصمیم نهایی هنوز فعال نشده است.</p>
+      {member.membershipStatus==="NON_MEMBER_REPORTED"?<p role="status">این پرونده غیرعضو است؛ پایان عضویت برای آن مصداق ندارد.</p>:
+      <form className="tto-member-end-request" onSubmit={async e=>{
+       e.preventDefault();setEndBusy(true);setEndMessage("");
+       try{
+        const res=await fetch("/api/commerce/nav02/end-requests",{
+         method:"POST",credentials:"same-origin",cache:"no-store",
+         headers:{"Content-Type":"application/json"},
+         body:JSON.stringify({slug,draftId:member.id,reason:endReason,
+          evidenceReference:endEvidence.trim(),proposedDate:endDate})});
+        if(!res.ok)throw Error(res.status===409?"درخواست قبلی هنوز در انتظار بررسی قانونی است.":
+         "ثبت مستند پایان عضویت انجام نشد.");
+        const data=await res.json() as {saved?:boolean};
+        if(data.saved!==true)throw Error("تأیید سرور دریافت نشد.");
+        setEndMessage("درخواست مستند ثبت و برای بررسی قانونی نگهداری شد؛ وضعیت رسمی عضویت و سهام هنوز تغییر نکرده است.");
+        setEndEvidence("");setEndDate("");
+       }catch(err){setEndMessage(err instanceof Error?err.message:"ثبت ناموفق بود.");}
+       finally{setEndBusy(false);}
+      }}>
+       <label>دلیل قانونی پایان عضویت<select value={endReason} onChange={e=>setEndReason(e.target.value)}>
+        <option value="RESIGNATION">استعفا</option><option value="DEATH">فوت</option>
+        <option value="LEGAL_EXPULSION">اخراج قانونی</option>
+        <option value="FULL_SHARE_TRANSFER">انتقال کامل سهام</option>
+       </select></label>
+       <label>شماره / شناسه سند یا مصوبه *<input required minLength={5} maxLength={160}
+        value={endEvidence} onChange={e=>setEndEvidence(e.target.value)}
+        placeholder="شماره نامه، گواهی یا مصوبه مرجع صلاحیت‌دار"/></label>
+       <label>تاریخ پیشنهادی رویداد (میلادی، اختیاری)<input type="date" value={endDate}
+        onChange={e=>setEndDate(e.target.value)}/></label>
+       <button disabled={endBusy||endEvidence.trim().length<5} type="submit">
+        {endBusy?"در حال ثبت…":"ثبت درخواست بررسی قانونی"}</button>
+       {endMessage?<p role="status">{endMessage}</p>:null}
+      </form>}
+      <p role="status">ثبت درخواست با خاتمه رسمی عضویت تفاوت دارد؛ ماده ۱۲ تا ۱۵ قانون بخش تعاونی، مصوبه‌ها و دفتر CHILD-07 باید مستقل بررسی شوند.</p>
      </div>:tab==="audit"?<div className="tto-member-case-panel">
       <h2>سوابق سیستمی</h2>
       {audit.length?audit.map((ev,i)=><p key={i}>
