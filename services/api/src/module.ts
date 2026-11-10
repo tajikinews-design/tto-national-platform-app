@@ -539,26 +539,29 @@ export class FoundationCommandsController {
         original=JSON.parse(decrypted.toString("utf8")) as Record<string,unknown>;
         decrypted.fill(0);
       }catch{throw new ServiceUnavailableException("PRIVATE_MEMBER_PROFILE_UNAVAILABLE")}
-      if(original.personType!==f.personType||
-         original.nationalId!==f.nationalId||
-         (isLegal&&(original.representativeNationalId!==f.representativeNationalId)))
-        throw new ForbiddenException("IMMUTABLE_IDENTITY_REQUIRES_REVERIFICATION");
-      // A changed mobile must be matched against the immutable national code.
-      // A Shahkar rejection/outage rolls back the database transaction.
-      if(isLegal?original.representativeMobile!==f.representativeMobile:
-         original.mobile!==f.mobile)
-        await this.checkNav02Shahkar(String(isLegal?f.representativeNationalId:f.nationalId),
-         String(isLegal?f.representativeMobile:f.mobile));
+      // All draft fields are editable. Identity corrections invalidate the prior
+      // match; they NEVER grant legal admission, shareholder ownership or votes.
+      // Reverification is separate and must not block saving an unverified draft.
+      const identityChanged=original.personType!==f.personType||
+       original.nationalId!==f.nationalId||
+       original.representativeNationalId!==f.representativeNationalId||
+       original.representativeMobile!==f.representativeMobile||
+       original.mobile!==f.mobile;
+      const identityVerification=identityChanged?"UNVERIFIED":
+       (typeof original.identityVerification==="string"?original.identityVerification:"UNVERIFIED");
+      const hmacKey=createHmac("sha256",key).update("TTO-NAV02-ID-FINGERPRINT-V1").digest();
+      const digest=createHmac("sha256",hmacKey).update(String(f.nationalId)).digest();
       const cipherIv=randomBytes(12),cipher=createCipheriv("aes-256-gcm",key,cipherIv);
       cipher.setAAD(Buffer.from(slug+":profile:v1","utf8"));
-      const encrypted=Buffer.concat([cipher.update(Buffer.from(JSON.stringify({...f,identityVerification:original.identityVerification??"UNVERIFIED"}),"utf8")),cipher.final()]);
+      const encrypted=Buffer.concat([cipher.update(Buffer.from(JSON.stringify({...f,identityVerification}),"utf8")),cipher.final()]);
       const tag=cipher.getAuthTag();
       try{
         const row=await c.query<{record:unknown}>(
-          "SELECT tto.commerce_demo_nav02_edit_profile_secure($1,$2::uuid,$3,$4,$5,$6,$7) AS record",
-          [slug,draftId,version,f.title,cipherIv,tag,encrypted]);
+          "SELECT tto.nav02_member_edit_all_fields($1,$2::uuid,$3,$4,$5,$6,$7,$8) AS record",
+          [slug,draftId,version,f.title,digest,cipherIv,tag,encrypted]);
         return {saved:true,record:row.rows[0]?.record};
       }catch(e){
+        if((e as {code?:string}).code==="23505")throw new ConflictException("MEMBER_IDENTIFIER_DUPLICATE");
         if((e as {code?:string}).code==="40001")throw new ConflictException("STALE_MEMBER_VERSION");
         if((e as {code?:string}).code==="42501")throw new ForbiddenException("MEMBER_EDIT_NOT_AUTHORIZED");
         throw e;
@@ -623,19 +626,15 @@ export class FoundationCommandsController {
         const a=r as Record<string,unknown>;
         return !!a&&typeof a.draftId==="string"&&typeof a.membershipNumber==="string";
       }).map(x=>[x.draftId,x.membershipNumber]));
-      // Photo release must remain disabled until the independent scanner,
-      // SQL migration and disclosure review have been approved for this environment.
-      let photoReady:unknown[]=[];
-      if(process.env.TTO_NAV02_PRIVATE_PHOTO_RELEASE_ENABLED==="true"){
-        const result=await this.db.withActor(actor,async c=>{
-          const r=await c.query<{ids:unknown}>(
-            "SELECT tto.nav02_photo_ready_for_owner($1) AS ids",[slug]);
-          return r.rows[0]?.ids;
-        });
-        if(!Array.isArray(result))
-          throw new ServiceUnavailableException("PRIVATE_PHOTO_STATUS_UNAVAILABLE");
-        photoReady=result;
-      }
+      // Only authenticated tenant owners receive a private image availability bit.
+      // Validated raster photos require no asynchronous scanner or quarantine step.
+      const photoReady=await this.db.withActor(actor,async c=>{
+        const r=await c.query<{ids:unknown}>(
+          "SELECT tto.nav02_photo_ready_for_owner($1) AS ids",[slug]);
+        return r.rows[0]?.ids;
+      });
+      if(!Array.isArray(photoReady))
+        throw new ServiceUnavailableException("PRIVATE_PHOTO_STATUS_UNAVAILABLE");
       const safePhotos=new Set(photoReady.filter((x:unknown):x is string=>typeof x==="string"));
       return {items:items.map(x=>({...x,membershipNumber:lookup.get(String(x.id))??null,
        photoState:safePhotos.has(String(x.id))?"READY_PRIVATE":x.photoState}))};
@@ -1139,15 +1138,13 @@ export class FoundationCommandsController {
     if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
        typeof draftId!=="string"||!uuidPattern.test(draftId))
       throw new BadRequestException("INVALID_PRIVATE_PHOTO_REQUEST");
-    if(process.env.TTO_NAV02_PRIVATE_PHOTO_RELEASE_ENABLED!=="true")
-      throw new ServiceUnavailableException("PRIVATE_PHOTO_RELEASE_DISABLED");
     const actor=await this.db.sessionActor(auth);
     const result=await this.db.withActor(actor,async c=>{
       const r=await c.query<{payload:Record<string,unknown>|null}>(
        "SELECT tto.nav02_photo_payload_for_owner($1,$2::uuid) AS payload",[slug,draftId]);
       return r.rows[0]?.payload;
     });
-    if(!result)throw new ForbiddenException("PHOTO_NOT_SCANNED_OR_OWNER_DENIED");
+    if(!result)throw new ForbiddenException("PHOTO_NOT_AVAILABLE_OR_OWNER_DENIED");
     if(!["image/png","image/jpeg","image/webp"].includes(String(result.mime))||
        typeof result.cipher!=="string"||typeof result.iv!=="string"||
        typeof result.tag!=="string"||typeof result.sha!=="string"||
@@ -1210,14 +1207,14 @@ export class FoundationCommandsController {
     return this.db.withActor(actor,async c=>{
       try{
         const result=await c.query<{record:Record<string,unknown>}>(
-          "SELECT tto.commerce_demo_nav02_quarantine_photo($1,$2::uuid,$3,$4,$5,$6,$7,$8) AS record",
+          "SELECT tto.nav02_member_photo_save($1,$2::uuid,$3,$4,$5,$6,$7,$8) AS record",
           [slug,draftId,mime,encrypted.length,sha,iv,tag,encrypted]);
-        return {saved:true,quarantine:result.rows[0]?.record??null};
+        return {saved:true,photo:result.rows[0]?.record??null};
       }catch(e){
         const code=(e as {code?:string}).code;
-        if(code==="23505")throw new ConflictException("PHOTO_ALREADY_QUARANTINED");
+        if(code==="23505")throw new ConflictException("PHOTO_DUPLICATE");
         if(code==="42501")throw new ForbiddenException("NAV02_OWNER_REQUIRED");
-        if(code==="22023"||code==="23514")throw new BadRequestException("INVALID_QUARANTINE");
+        if(code==="22023"||code==="23514")throw new BadRequestException("INVALID_PHOTO_CONTENT");
         throw e;
       }
     });
