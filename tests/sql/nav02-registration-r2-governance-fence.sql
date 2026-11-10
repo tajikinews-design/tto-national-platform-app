@@ -105,4 +105,50 @@ BEGIN
  IF (SELECT count(*) FROM tto.nav02_member_end_requests WHERE reason='RESIGNATION')<>1
  THEN RAISE EXCEPTION 'LEGAL_REQUEST_NOT_PERSISTED';END IF;
 END $check_history$;
+-- R3 owner-scoped full edits and replaceable encrypted raster image. Synthetic bytes only.
+SET LOCAL ROLE tto_app;
+SELECT set_config('tto.actor_id','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
+DO $photo_r3$
+DECLARE v jsonb;v_draft uuid:='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+BEGIN
+ SELECT tto.nav02_member_edit_all_fields('ci-nav02a',v_draft,1,'شرکت',
+  decode(repeat('12',32),'hex'),decode(repeat('13',12),'hex'),
+  decode(repeat('14',16),'hex'),decode(repeat('15',100),'hex')) INTO v;
+ IF (v->>'version')::int<>2 THEN RAISE EXCEPTION 'EDIT_ALL_FIELDS_NOT_VERSIONED';END IF;
+ SELECT tto.nav02_member_photo_save('ci-nav02a',v_draft,'image/jpeg',100,
+  decode(repeat('20',32),'hex'),decode(repeat('21',12),'hex'),
+  decode(repeat('22',16),'hex'),decode(repeat('23',100),'hex')) INTO v;
+ IF v->>'display'<>'OWNER_PRIVATE' THEN RAISE EXCEPTION 'FIRST_PHOTO_NOT_PRIVATE';END IF;
+ SELECT tto.nav02_photo_ready_for_owner('ci-nav02a') INTO v;
+ IF jsonb_array_length(v)<>1 THEN RAISE EXCEPTION 'PRIVATE_PHOTO_NOT_LISTED';END IF;
+ SELECT tto.nav02_member_photo_save('ci-nav02a',v_draft,'image/png',101,
+  decode(repeat('30',32),'hex'),decode(repeat('31',12),'hex'),
+  decode(repeat('32',16),'hex'),decode(repeat('33',101),'hex')) INTO v;
+ SELECT tto.nav02_photo_payload_for_owner('ci-nav02a',v_draft) INTO v;
+ IF v->>'mime'<>'image/png' OR (v->>'size')::int<>101 THEN
+   RAISE EXCEPTION 'PHOTO_REPLACE_NOT_VISIBLE';END IF;
+ PERFORM set_config('tto.actor_id','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',true);
+ BEGIN
+  PERFORM tto.nav02_member_photo_save('ci-nav02a',v_draft,'image/png',101,
+   decode(repeat('40',32),'hex'),decode(repeat('41',12),'hex'),
+   decode(repeat('42',16),'hex'),decode(repeat('43',101),'hex'));
+  RAISE EXCEPTION 'CROSS_TENANT_PHOTO_REPLACE_ALLOWED';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
+ BEGIN
+  PERFORM tto.nav02_photo_payload_for_owner('ci-nav02a',v_draft);
+  RAISE EXCEPTION 'CROSS_TENANT_PHOTO_READ_ALLOWED';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
+ RAISE NOTICE 'NAV02_R3_EDIT_AND_PRIVATE_PHOTO_REPLACE_PASS';
+END $photo_r3$;
+RESET ROLE;
+DO $r3_audit$
+BEGIN
+ IF (SELECT count(*) FROM tto.commerce_demo_nav02_management_audit WHERE action='PROFILE_EDITED')<>1
+ THEN RAISE EXCEPTION 'FULL_EDIT_AUDIT_MISSING';END IF;
+ IF (SELECT count(*) FROM tto.commerce_demo_nav02_photo_quarantine
+ WHERE draft_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd')<>1
+ THEN RAISE EXCEPTION 'PHOTO_UPSERT_DUPLICATE';END IF;
+END $r3_audit$;
 ROLLBACK;
