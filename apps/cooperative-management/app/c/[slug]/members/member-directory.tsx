@@ -10,7 +10,6 @@ export type MemberRow={
  photoState?:string;capitalState?:string;
 };
 type View="list"|"archive"|"collections"|"member-number";
-const membershipText=(v?:string|null)=>({APPLICANT_UNVERIFIED:"متقاضی",ACTIVE_REPORTED:"عضو فعال (اظهاری)",FORMER_REPORTED:"عضو سابق (اظهاری)",NON_MEMBER_REPORTED:"غیرعضو"} as Record<string,string>)[v??""]??"نامشخص";
 const sharesText=(v?:string|null)=>({NONE_UNVERIFIED:"فاقد سهام",HOLDER_REPORTED:"سهامدار (اظهاری)",TRANSFER_PENDING_REPORTED:"انتقال در جریان (اظهاری)"} as Record<string,string>)[v??""]??"نامشخص";
 const actions=[
  {key:"edit",glyph:"✎",label:"ویرایش کامل عضو",hint:"ویرایش در فرم ثبت عضو"},
@@ -62,7 +61,7 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
   x.managementState==="ARCHIVED_DRAFT":x.managementState!=="ARCHIVED_DRAFT"),[rows,view]);
  const entries=useMemo(()=>baseRows.filter(x=>{
   const text=[x.name,x.membershipNumber,x.collectionName,x.group,x.identifierMask,x.mobileMask,x.personType,
-   membershipText(x.membershipStatus),sharesText(x.shareholdingStatus)]
+   sharesText(x.shareholdingStatus)]
    .filter(Boolean).join(" ").toLocaleLowerCase("fa-IR");
   return (!search||text.includes(search.toLocaleLowerCase("fa-IR"))) &&
    (filter==="all"||(filter==="suspended"&&x.managementState==="SUSPENDED_DRAFT")||
@@ -240,7 +239,7 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
     <table className="tto-nav02-table tto-member-directory-table">
      <thead><tr>
       <th>عکس</th><th>شماره عضویت</th><th>نام / عنوان</th><th>نوع شخصیت</th>
-      <th>وضعیت عضویت</th><th>وضعیت سهام</th><th>احراز هویت</th><th>مجموعه</th>
+      <th>وضعیت سهام</th><th>احراز هویت</th><th>مجموعه</th>
       <th>گروه</th><th>شناسه ملی</th><th>شماره همراه</th><th>عملیات حاکمیتی</th>
      </tr></thead>
      <tbody>{entries.map(row=><tr key={row.id}>
@@ -252,8 +251,6 @@ export function MemberDirectory({slug,view}:{slug:string;view:View}){
       <td><Link className="tto-member-person-link" href={base+"profile/"+encodeURIComponent(row.id)}>
        {row.title} {row.name}</Link><small className="tto-nav02-row-mask">مشاهده پرونده عضویت</small></td>
       <td><strong>{row.personType==="LEGAL"?"حقوقی":"حقیقی"}</strong></td>
-      <td><span className={"tto-nav02-state "+(row.managementState==="SUSPENDED_DRAFT"?"suspended":"pending")}>
-       {membershipText(row.membershipStatus)}{row.managementState==="SUSPENDED_DRAFT"?" · معلق":""}</span></td>
       <td>{sharesText(row.shareholdingStatus)}</td>
       <td><span title="استعلام یا تطبیق اعلام‌شده، حق عضویت قانونی ایجاد نمی‌کند">{row.identityVerification==="SHAHKAR_CONFIRMED"?"✓ شاهکار":row.identityVerification==="REPRESENTATIVE_MOBILE_CONFIRMED"?"✓ موبایل نماینده":"نیازمند احراز"}</span></td>
       <td>{row.collectionName||"—"}</td>
