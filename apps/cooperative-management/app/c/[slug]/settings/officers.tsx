@@ -115,11 +115,11 @@ export function OfficersSettings({slug}:{slug:string}){
   if(d.saved!==true||d.status!=="PRIVATE_READY")
    throw Error("ذخیره و اسکن امن سند تأیید نشد.");
  }
- async function downloadDocument(officeId:string,document:OfficerDocument){
+ async function downloadDocument(officeId:string,doc:OfficerDocument){
   setError("");
   try{
    const url=base+"/documents/download?slug="+encodeURIComponent(slug)+
-    "&officeId="+encodeURIComponent(officeId)+"&id="+encodeURIComponent(document.id);
+    "&officeId="+encodeURIComponent(officeId)+"&id="+encodeURIComponent(doc.id);
    const r=await fetch(url,{credentials:"same-origin",cache:"no-store"});
    if(!r.ok)throw Error("دریافت سند خصوصی ممکن نیست؛ دسترسی یا سرویس ذخیره‌سازی بررسی شود.");
    if(!r.headers.get("content-type")?.includes("application/octet-stream"))
@@ -127,7 +127,7 @@ export function OfficersSettings({slug}:{slug:string}){
    const bytes=await r.blob();
    if(!bytes.size||bytes.size>524288)throw Error("اندازه سند دریافتی نامعتبر است.");
    const u=URL.createObjectURL(bytes),a=document.createElement("a");
-   a.href=u;a.download=document.filename;a.style.display="none";
+   a.href=u;a.download=doc.filename;a.style.display="none";
    document.body.appendChild(a);a.click();a.remove();
    window.setTimeout(()=>URL.revokeObjectURL(u),3000);
   }catch(e){setError(e instanceof Error?e.message:"خطای دریافت سند")}
