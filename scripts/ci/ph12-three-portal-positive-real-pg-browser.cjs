@@ -53,7 +53,22 @@ async function check(){
         buttons:[...g.querySelectorAll("[role=tab]")].map(b=>({selected:b.getAttribute("aria-selected"),password:b.textContent?.includes("نام کاربری")===true,visible:!!b.getClientRects().length}))
       })));
       console.log("TTO_PH12_PASSWORD_TAB_GROUP_STRUCTURE",p.surface,JSON.stringify(groups));
-      await tab.waitFor({state:"visible",timeout:12000});
+      try{
+        await tab.waitFor({state:"visible",timeout:12000});
+      }catch{
+        const diagnostic=await page.evaluate(()=>({
+          locationPath:location.pathname,
+          title:document.title,
+          headings:[...document.querySelectorAll("h1")].map(x=>x.textContent?.slice(0,75)),
+          loginFormSections:document.querySelectorAll("section.tto-auth-controls").length,
+          tabGroups:[...document.querySelectorAll('[role="tablist"]')].map(g=>({label:g.getAttribute("aria-label"),visible:!!g.getClientRects().length,tabs:g.querySelectorAll('[role="tab"]').length})),
+          bodySize:document.body.innerText.length,
+          isNextError:!!document.querySelector("next-error-h1"),
+          hasSuspense:!!document.querySelector('[data-nextjs-dialog]')
+        }));
+        console.error("TTO_PH12_PASSWORD_TAB_MISSING_DOM",p.surface,JSON.stringify(diagnostic),JSON.stringify(authStatus.slice(-12)),JSON.stringify(errors.slice(-4)));
+        throw Error("PH12_PRIMARY_PASSWORD_TAB_MISSING_"+p.surface);
+      }
       // Next may SSR the tab before its client-side click handler is hydrated.
       // A real selected state must be observed, not assumed after one click.
       let usable=false;
