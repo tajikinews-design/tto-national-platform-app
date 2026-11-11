@@ -155,3 +155,33 @@ export function reviewOfficialRegisterFinalization(facts: FinalizationEvidenceFa
   // command may mirror a verified official register event atomically.
   return report(blockers);
 }
+
+/** Share Market v3 §51: all eight RelistGuard predicates are conjunctive.
+ * This is a source-verification checklist ONLY; no transition is performed.
+ * Unknown/missing/stale authority facts must fail closed. Payment disputes
+ * preserve share locks and prevent re-publication until legally resolved.
+ */
+export interface RelistGuardFacts {
+  readonly noUnresolvedPaymentClaim: boolean;
+  readonly noOpenDispute: boolean;
+  readonly noLegalHold: boolean;
+  readonly reservationReleasedSafely: boolean;
+  readonly offerStillValid: boolean;
+  readonly pricingRuleValid: boolean;
+  readonly sellerContinuationOrRelistPermissionValid: boolean;
+  readonly marketPolicyAllows: boolean;
+}
+
+export function reviewRelistGuard(facts: RelistGuardFacts): PreflightReport {
+  const blockers: string[] = [];
+  if (facts?.noUnresolvedPaymentClaim !== true) blockers.push("UNRESOLVED_PAYMENT_CLAIM");
+  if (facts?.noOpenDispute !== true) blockers.push("OPEN_DISPUTE_OR_UNKNOWN");
+  if (facts?.noLegalHold !== true) blockers.push("LEGAL_HOLD_OR_UNKNOWN");
+  if (facts?.reservationReleasedSafely !== true) blockers.push("RESERVATION_NOT_SAFELY_RELEASED");
+  if (facts?.offerStillValid !== true) blockers.push("OFFER_INVALID_OR_EXPIRED");
+  if (facts?.pricingRuleValid !== true) blockers.push("ACTIVE_PRICING_RULE_NOT_VALID");
+  if (facts?.sellerContinuationOrRelistPermissionValid !== true) blockers.push("SELLER_RELIST_PERMISSION_NOT_VALID");
+  if (facts?.marketPolicyAllows !== true) blockers.push("MARKET_RELIST_POLICY_NOT_VALID");
+  // Not an order mutation, nor permission to relist in production.
+  return report(blockers);
+}
