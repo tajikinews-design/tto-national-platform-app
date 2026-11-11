@@ -730,10 +730,10 @@ export class FoundationCommandsController {
        String(body.signingScope).length>1000||String(body.gazetteName).length>160||
        String(body.gazetteIssue).length>80||String(body.noticeNumber).length>100||
        typeof body.startDate!=="string"||typeof body.endDate!=="string"||
-       !/^\\d{4}-\\d{2}-\\d{2}$/.test(body.startDate)||
-       !/^\\d{4}-\\d{2}-\\d{2}$/.test(body.endDate)||
+       !/^\d{4}-\d{2}-\d{2}$/.test(body.startDate)||
+       !/^\d{4}-\d{2}-\d{2}$/.test(body.endDate)||
        !(body.gazetteDate===null||body.gazetteDate===""||
-         typeof body.gazetteDate==="string"&&/^\\d{4}-\\d{2}-\\d{2}$/.test(body.gazetteDate)))
+         typeof body.gazetteDate==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(body.gazetteDate)))
       throw new BadRequestException("INVALID_DUAL_OFFICER_DRAFT");
     const d0=new Date(body.startDate+"T00:00:00Z");
     const d1=new Date(body.endDate+"T00:00:00Z");
