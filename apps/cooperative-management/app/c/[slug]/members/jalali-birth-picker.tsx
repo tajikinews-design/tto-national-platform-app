@@ -1,5 +1,5 @@
 "use client";
-import {useMemo,useState} from "react";
+import {useEffect,useMemo,useState} from "react";
 
 // Persian calendar supplied by ICU/Intl; no Gregorian date input is exposed.
 // The chosen date is stored as YYYY/MM/DD in the Jalali calendar.
@@ -45,7 +45,7 @@ export function jalaliToGregorianISO(value:string):string{
  return new Date(firstDay(j.y)+elapsed*oneDay).toISOString().slice(0,10);
 }
 export function gregorianISOToJalali(value:string):string{
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(value))return "";
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return "";
  const date=new Date(value+"T00:00:00.000Z");
  if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==value)return "";
  const p=parts(date);
@@ -53,14 +53,17 @@ export function gregorianISOToJalali(value:string):string{
   String(p.d).padStart(2,"0")].join("/");
 }
 export function JalaliBirthDatePicker({value,onChange,placeholder="انتخاب تاریخ تولد (شمسی)",
- defaultToToday=false}:{
- value:string;onChange:(value:string)=>void;placeholder?:string;defaultToToday?:boolean
+ defaultToToday=false,allowFuture=false,minDate="",maxDate=""}:{
+ value:string;onChange:(value:string)=>void;placeholder?:string;defaultToToday?:boolean;
+ allowFuture?:boolean;minDate?:string;maxDate?:string
 }){
  const today=parts(new Date());
  const selected=canonical(value);
+ const maxYear=allowFuture?Math.min(1599,Math.max(today.y+80,selected?.y??0)):today.y;
  const [open,setOpen]=useState(false);
  const [view,setView]=useState(()=>({y:selected?.y??(defaultToToday?today.y:Math.max(1250,today.y-25)),
   m:selected?.m??(defaultToToday?today.m:1)}));
+ useEffect(()=>{const date=canonical(value);if(date)setView({y:date.y,m:date.m});},[value]);
  const days=useMemo(()=>{
   try{
    const count=lengthOfMonth(view.y,view.m);
@@ -75,19 +78,30 @@ export function JalaliBirthDatePicker({value,onChange,placeholder="انتخاب 
   setView(v=>{
    const whole=(v.y*12)+(v.m-1)+delta;
    const y=Math.floor(whole/12),m=whole%12+1;
-   return y>=1250&&y<=today.y?{y,m}:v;
+   return y>=1250&&y<=maxYear?{y,m}:v;
   });
  }
+ function candidate(day:number){
+  return String(view.y).padStart(4,"0")+"/"+String(view.m).padStart(2,"0")+
+    "/"+String(day).padStart(2,"0");
+ }
+ function outsideRange(day:number){
+  const date=candidate(day);
+  const todayValue=String(today.y).padStart(4,"0")+"/"+String(today.m).padStart(2,"0")+
+   "/"+String(today.d).padStart(2,"0");
+  return (!allowFuture&&date>todayValue)||Boolean(minDate&&date<minDate)||
+   Boolean(maxDate&&date>maxDate);
+ }
  function choose(day:number){
-  if(view.y===today.y&&(view.m>today.m||(view.m===today.m&&day>today.d)))return;
-  onChange(String(view.y).padStart(4,"0")+"/"+String(view.m).padStart(2,"0")+
-   "/"+String(day).padStart(2,"0"));
+  if(outsideRange(day))return;
+  onChange(candidate(day));
   setOpen(false);
  }
  return <div className="tto-nav02-jalali" dir="rtl">
   <button className="tto-nav02-calendar-trigger" type="button"
    aria-haspopup="dialog" aria-expanded={open} onClick={()=>setOpen(x=>!x)}>
-   <span>{selected?`${selected.y}/${String(selected.m).padStart(2,"0")}/${String(selected.d).padStart(2,"0")}`:placeholder}</span>
+   <span>{selected?[selected.y,selected.m,selected.d].map((n,i)=>String(n).padStart(i===0?4:2,"0"))
+    .map(x=>Number(x).toLocaleString("fa-IR",{useGrouping:false})).join("/"):placeholder}</span>
    <span aria-hidden="true">▦</span>
   </button>
   {open?<div className="tto-nav02-calendar-pop" role="dialog" aria-label={placeholder}>
@@ -97,7 +111,7 @@ export function JalaliBirthDatePicker({value,onChange,placeholder="انتخاب 
      {months.map((m,i)=><option value={i+1} key={m}>{m}</option>)}
     </select>
     <select aria-label="سال شمسی" value={view.y} onChange={e=>setView(v=>({...v,y:Number(e.target.value)}))}>
-     {Array.from({length:today.y-1249},(_,i)=>today.y-i).map(y=>
+     {Array.from({length:maxYear-1249},(_,i)=>maxYear-i).map(y=>
       <option value={y} key={y}>{y.toLocaleString("fa-IR",{useGrouping:false})}</option>)}
     </select>
     <button type="button" onClick={()=>go(1)} aria-label="ماه بعد">›</button>
@@ -106,7 +120,7 @@ export function JalaliBirthDatePicker({value,onChange,placeholder="انتخاب 
     {weekdays.map((w,i)=><span key={i} className="tto-nav02-weekday">{w}</span>)}
     {Array.from({length:days.offset},(_,i)=><span key={"empty"+i}/>)}
     {Array.from({length:days.count},(_,i)=>i+1).map(day=>{
-     const future=view.y===today.y&&(view.m>today.m||(view.m===today.m&&day>today.d));
+     const future=outsideRange(day);
      const active=selected?.y===view.y&&selected.m===view.m&&selected.d===day;
      return <button key={day} type="button" disabled={future} aria-pressed={active}
       aria-label={`${day} ${months[view.m-1]} ${view.y}`} onClick={()=>choose(day)}>
@@ -119,4 +133,11 @@ export function JalaliBirthDatePicker({value,onChange,placeholder="انتخاب 
    </div>
   </div>:null}
  </div>;
+}
+
+/** Standard event/appointment calendar. Birth dates still disallow future dates.
+ * Storage conversion is explicitly performed by callers via ISO boundaries. */
+export function JalaliDatePicker(props:{value:string;onChange:(value:string)=>void;
+ placeholder?:string;minDate?:string;maxDate?:string}){
+ return <JalaliBirthDatePicker {...props} defaultToToday allowFuture/>;
 }
