@@ -606,7 +606,7 @@ export class FoundationCommandsController {
   async nav02OfficerMemberSearch(@Headers("authorization") auth:string|undefined,
     @Query("slug") slug:string,@Query("q") q:string=""){
     if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
-      typeof q!=="string"||q.length>60||/[\\x00-\\x1f]/.test(q))
+      typeof q!=="string"||q.length>60||/[\x00-\x1f]/.test(q))
       throw new BadRequestException("INVALID_OFFICER_MEMBER_QUERY");
     const normalized=q.trim().replace(/ي/g,"ی").replace(/ك/g,"ک").toLocaleLowerCase("fa-IR");
     if(normalized.length===1)return {items:[],more:false};
@@ -854,7 +854,7 @@ export class FoundationCommandsController {
        bytes.subarray(0,5).toString("ascii")==="%PDF-")||
       (mime==="image/png"&&filename.endsWith(".png")&&
        bytes.subarray(0,8).equals(Buffer.from("89504e470d0a1a0a","hex")))||
-      (mime==="image/jpeg"&&/\\.(jpg|jpeg)$/.test(filename)&&
+      (mime==="image/jpeg"&&/\.(jpg|jpeg)$/.test(filename)&&
        bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff&&
        bytes[bytes.length-2]===0xff&&bytes[bytes.length-1]===0xd9)||
       (mime==="application/vnd.openxmlformats-officedocument.wordprocessingml.document"&&
