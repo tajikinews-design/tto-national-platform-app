@@ -55,8 +55,25 @@ async function check(){
       if(await tab.getAttribute("aria-selected")!=="true")
        throw Error("PH12_PASSWORD_TAB_NOT_HYDRATED_"+p.surface);
     }
-    await page.locator(p.user).waitFor({state:"visible",timeout:11000});
-    await page.locator(p.pass).waitFor({state:"visible",timeout:11000});
+    try{
+      await page.locator(p.user).waitFor({state:"visible",timeout:11000});
+      await page.locator(p.pass).waitFor({state:"visible",timeout:11000});
+    }catch{
+      const safe=await page.evaluate(async()=>{
+       const response=await fetch("/api/auth/password/session",{cache:"no-store"}).catch(()=>null);
+       const data=response?await response.json().catch(()=>({})):null;
+       return {
+        status:response?.status??0,authenticated:data?.authenticated===true,
+        checking:document.body.textContent?.includes("در حال بررسی نشست")===true,
+        ready:document.body.textContent?.includes("نشست شما معتبر است")===true,
+        error:document.body.textContent?.includes("سرویس بررسی وضعیت نشست در دسترس نیست")===true,
+        userInputs:document.querySelectorAll("#portal-user").length
+       };
+      });
+      console.error("TTO_PH12_BROWSER_FORM_PHASE_DIAGNOSTIC",p.surface,
+        JSON.stringify(safe),JSON.stringify(authStatus.slice(-8)));
+      throw Error("PH12_ROLE_PASSWORD_FORM_NOT_VISIBLE_"+p.surface);
+    }
     await page.locator(p.user).fill(p.username);
     await page.locator(p.pass).fill(p.password);
     const submit=page.getByRole("button",{name:p.surface==="national"?/ورود به (سامانه|پنل|مدیریت)/:"ورود به پنل "+(p.surface==="cooperative"?"مدیر تعاونی":"سهامدار")});
