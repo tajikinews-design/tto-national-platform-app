@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
+import {JalaliDatePicker,gregorianISOToJalali,jalaliToGregorianISO} from "../members/jalali-birth-picker";
 type Member={id:string;name:string;personType?:string|null;identifierMask?:string};
 type Officer={id:string;version:number;officeCode:string;memberDraftId:string|null;externalName:string|null;
  ceoSource:string;signingAuthorized:boolean;signingScope:string;startDate:string;endDate:string;
@@ -10,6 +11,14 @@ const offices=[
  ["BOARD_SECRETARY","منشی هیئت‌مدیره"],["AUDITOR_PRIMARY","بازرس اصلی"],
  ["AUDITOR_ALT1","بازرس علی‌البدل اول"],["AUDITOR_ALT2","بازرس علی‌البدل دوم"]
 ] as const;
+function fromApiDate(value:string|null|undefined):string{
+ if(!value)return "";
+ return gregorianISOToJalali(value.slice(0,10));
+}
+function displayJalaliDate(value:string|null|undefined):string{
+ const jalali=fromApiDate(value);
+ return jalali?jalali.replace(/[0-9]/g,d=>Number(d).toLocaleString("fa-IR")):"—";
+}
 const empty={officeCode:"BOARD_CHAIR",ceoSource:"MEMBER",memberDraftId:"",
  externalName:"",signingAuthorized:false,signingScope:"",startDate:"",
  endDate:"",gazetteName:"",gazetteDate:"",gazetteIssue:"",noticeNumber:""};
@@ -53,8 +62,8 @@ export function OfficersSettings({slug}:{slug:string}){
   setEditTarget({id:o.id,version:o.version});
   setForm({officeCode:o.officeCode,ceoSource:o.ceoSource,memberDraftId:o.memberDraftId||"",
    externalName:o.externalName||"",signingAuthorized:o.signingAuthorized,
-   signingScope:o.signingScope||"",startDate:o.startDate,endDate:o.endDate,
-   gazetteName:o.gazetteName||"",gazetteDate:o.gazetteDate||"",
+   signingScope:o.signingScope||"",startDate:fromApiDate(o.startDate),endDate:fromApiDate(o.endDate),
+   gazetteName:o.gazetteName||"",gazetteDate:fromApiDate(o.gazetteDate),
    gazetteIssue:o.gazetteIssue||"",noticeNumber:o.noticeNumber||""});
   setError("");setMessage("در حال ویرایش نسخه "+o.version+" پیش‌نویس انتخاب‌شده هستید.");
  }
@@ -73,12 +82,22 @@ export function OfficersSettings({slug}:{slug:string}){
  }
  async function submit(event:FormEvent<HTMLFormElement>){
   event.preventDefault();if(busy)return;
+  const startDate=jalaliToGregorianISO(form.startDate);
+  const endDate=jalaliToGregorianISO(form.endDate);
+  const gazetteDate=form.gazetteDate?jalaliToGregorianISO(form.gazetteDate):null;
+  if(!startDate||!endDate||endDate<startDate||
+     (form.gazetteDate&&!gazetteDate)){
+   setError("تاریخ‌های شمسی معتبر نیستند یا پایان سمت پیش از شروع آن قرار گرفته است.");
+   return;
+  }
   setBusy(true);setError("");setMessage("");
   try{
-   const payload={slug,...form,...(editTarget?{id:editTarget.id,version:editTarget.version}:{}),ceoSource:external?"EXTERNAL":"MEMBER",
+   // API continues to store ISO calendar dates; no Gregorian picker is exposed.
+   const payload={slug,...form,startDate,endDate,gazetteDate,
+    ...(editTarget?{id:editTarget.id,version:editTarget.version}:{}),
+    ceoSource:external?"EXTERNAL":"MEMBER",
     memberDraftId:external?null:form.memberDraftId,
-    externalName:external?form.externalName:"",
-    gazetteDate:form.gazetteDate||null};
+    externalName:external?form.externalName:""};
    const r=await fetch(base+(editTarget?"/edit":""),{method:"POST",credentials:"same-origin",cache:"no-store",
     headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
    if(!r.ok)throw Error(r.status===409?"پیش‌نویس توسط کاربر دیگری ویرایش شده است؛ فهرست را تازه‌سازی کنید.":r.status===403?"انتخاب شخص یا مجوز ثبت برای این تعاونی معتبر نیست.":
@@ -138,15 +157,20 @@ export function OfficersSettings({slug}:{slug:string}){
     <label className="tto-officer-wide">شرح حدود اختیارات و ترکیب امضا
       <textarea maxLength={1000} value={form.signingScope}
        onChange={e=>update("signingScope",e.target.value)} rows={2}/></label>
-    <label>تاریخ شروع سمت (میلادی موقت) <input required type="date" value={form.startDate}
-     onChange={e=>update("startDate",e.target.value)}/></label>
-    <label>تاریخ پایان سمت (میلادی موقت) <input required type="date" min={form.startDate||undefined}
-     value={form.endDate} onChange={e=>update("endDate",e.target.value)}/></label>
+    <div className="tto-officer-date-field"><span>تاریخ شروع سمت (شمسی) *</span>
+     <JalaliDatePicker value={form.startDate} placeholder="انتخاب تاریخ شروع سمت (شمسی)"
+      onChange={value=>setForm(x=>({...x,startDate:value,
+       endDate:value&&x.endDate&&x.endDate<value?"":x.endDate}))}/></div>
+    <div className="tto-officer-date-field"><span>تاریخ پایان سمت (شمسی) *</span>
+     <JalaliDatePicker value={form.endDate} minDate={form.startDate}
+      placeholder="انتخاب تاریخ پایان سمت (شمسی)"
+      onChange={value=>update("endDate",value)}/></div>
     <h3 className="tto-officer-section-title">۳. مستندات و اطلاعات آگهی</h3>
     <label>روزنامه انتشار آگهی <input maxLength={160} value={form.gazetteName}
      onChange={e=>update("gazetteName",e.target.value)}/></label>
-    <label>تاریخ انتشار آگهی (میلادی موقت) <input type="date" value={form.gazetteDate}
-     onChange={e=>update("gazetteDate",e.target.value)}/></label>
+    <div className="tto-officer-date-field"><span>تاریخ انتشار آگهی (شمسی)</span>
+     <JalaliDatePicker value={form.gazetteDate} placeholder="انتخاب تاریخ انتشار آگهی (شمسی)"
+      onChange={value=>update("gazetteDate",value)}/></div>
     <label>شماره روزنامه <input maxLength={80} value={form.gazetteIssue}
      onChange={e=>update("gazetteIssue",e.target.value)}/></label>
     <label>شماره آگهی <input maxLength={100} value={form.noticeNumber}
@@ -168,7 +192,7 @@ export function OfficersSettings({slug}:{slug:string}){
      <td>{labelFor(item.officeCode)}</td>
      <td>{item.externalName||members.find(x=>x.id===item.memberDraftId)?.name||"عضو ثبت‌شده"}</td>
      <td>{item.signingAuthorized?"اظهاری":"خیر"}</td>
-     <td>{item.startDate}</td><td>{item.endDate}</td>
+     <td>{displayJalaliDate(item.startDate)}</td><td>{displayJalaliDate(item.endDate)}</td>
      <td>{item.noticeNumber||"—"}</td><td>{item.version}</td><td>پیش‌نویس غیررسمی
      <div><button type="button" onClick={()=>editItem(item)}>ویرایش</button>
      <button type="button" onClick={()=>void showHistory(item.id)}>تاریخچه</button></div></td>
