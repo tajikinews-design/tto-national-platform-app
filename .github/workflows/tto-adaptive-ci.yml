@@ -17,7 +17,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   tto-verified-quality-gate:
-    runs-on: ubuntu-latest
+    # Chromium Playwright 1.56 does not support ubuntu26.04. Pin only this isolated PR.
+    runs-on: ${{ github.head_ref == 'test/ph12-three-portal-anonymous-chromium-20261111' && 'ubuntu-24.04' || 'ubuntu-latest' }}
     timeout-minutes: 75
     env:
       CI: "true"
