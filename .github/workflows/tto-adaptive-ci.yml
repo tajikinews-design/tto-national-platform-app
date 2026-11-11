@@ -18,7 +18,7 @@ concurrency:
 jobs:
   tto-verified-quality-gate:
     # Chromium Playwright 1.56 does not support ubuntu26.04. Pin only this isolated PR.
-    runs-on: ${{ github.head_ref == 'test/ph12-three-portal-anonymous-chromium-20261111' && 'ubuntu-24.04' || 'ubuntu-latest' }}
+    runs-on: ${{ (github.head_ref == 'test/ph12-three-portal-anonymous-chromium-20261111' || github.head_ref == 'test/ph12-positive-three-portal-and-register-authority-hold-20261111') && 'ubuntu-24.04' || 'ubuntu-latest' }}
     timeout-minutes: 75
     env:
       CI: "true"
@@ -509,10 +509,10 @@ jobs:
           # foundation 0001-0010. Its real CF02 E2E now exercises PH12 DRAFT
           # persistence, so load only the isolated additive migration 0047.
           # No hosted database, deployment, financial operation or promotion.
-          if [ "${GITHUB_HEAD_REF}" = "feat/ph12-child06-child07-canonical-failclosed-20261106" ] || [ "${GITHUB_HEAD_REF}" = "feat/ph12-board-legal-gate-hold-20261107" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-original-pdf-escrow-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-three-external-gates-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-coop-two-person-attestation-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/ph12-portal-preview-modules-api-navigation-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/ph12-approved-dashboards-separated-logins-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-shareholder-intake-draft-20261109" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-member-intake-legal-form-20261110" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-member-registration-r2-20261110" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-issue185-member-ux-20261110" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-ux-shahkar-breadcrumb-sidebar-20261111" ] || [ "${GITHUB_HEAD_REF}" = "feat/share-market-relist-guard-r1-20261111" ] || [ "${GITHUB_HEAD_REF}" = "feat/share-market-relist-pg17-review-lab-20261111" ] || [ "${GITHUB_HEAD_REF}" = "feat/share-register-reconciliation-review-only-20261111" ] || [ "${GITHUB_HEAD_REF}" = "test/ph12-three-portal-anonymous-chromium-20261111" ]; then
+          if [ "${GITHUB_HEAD_REF}" = "feat/ph12-child06-child07-canonical-failclosed-20261106" ] || [ "${GITHUB_HEAD_REF}" = "feat/ph12-board-legal-gate-hold-20261107" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-original-pdf-escrow-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-three-external-gates-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-coop-two-person-attestation-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/ph12-portal-preview-modules-api-navigation-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/ph12-approved-dashboards-separated-logins-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-shareholder-intake-draft-20261109" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-member-intake-legal-form-20261110" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-member-registration-r2-20261110" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-issue185-member-ux-20261110" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-ux-shahkar-breadcrumb-sidebar-20261111" ] || [ "${GITHUB_HEAD_REF}" = "feat/share-market-relist-guard-r1-20261111" ] || [ "${GITHUB_HEAD_REF}" = "feat/share-market-relist-pg17-review-lab-20261111" ] || [ "${GITHUB_HEAD_REF}" = "feat/share-register-reconciliation-review-only-20261111" ] || [ "${GITHUB_HEAD_REF}" = "test/ph12-three-portal-anonymous-chromium-20261111" ] || [ "${GITHUB_HEAD_REF}" = "test/ph12-positive-three-portal-and-register-authority-hold-20261111" ]; then
             docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0047_ph12_tariff_drafts_private.sql
             docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0048_ph12_tariff_board_document_review.sql
-            if [ "${GITHUB_HEAD_REF}" = "feat/ph12-board-legal-gate-hold-20261107" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-original-pdf-escrow-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-three-external-gates-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-coop-two-person-attestation-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/ph12-portal-preview-modules-api-navigation-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/ph12-approved-dashboards-separated-logins-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-shareholder-intake-draft-20261109" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-member-intake-legal-form-20261110" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-member-registration-r2-20261110" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-issue185-member-ux-20261110" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-ux-shahkar-breadcrumb-sidebar-20261111" ] || [ "${GITHUB_HEAD_REF}" = "feat/share-market-relist-guard-r1-20261111" ] || [ "${GITHUB_HEAD_REF}" = "feat/share-market-relist-pg17-review-lab-20261111" ] || [ "${GITHUB_HEAD_REF}" = "feat/share-register-reconciliation-review-only-20261111" ] || [ "${GITHUB_HEAD_REF}" = "test/ph12-three-portal-anonymous-chromium-20261111" ]; then
+            if [ "${GITHUB_HEAD_REF}" = "feat/ph12-board-legal-gate-hold-20261107" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-original-pdf-escrow-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-pdf-provenance-scan-keyrecovery-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-three-external-gates-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/child06-coop-two-person-attestation-hold-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/ph12-portal-preview-modules-api-navigation-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/ph12-approved-dashboards-separated-logins-20261108" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-shareholder-intake-draft-20261109" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-member-intake-legal-form-20261110" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-member-registration-r2-20261110" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-issue185-member-ux-20261110" ] || [ "${GITHUB_HEAD_REF}" = "feat/nav02-ux-shahkar-breadcrumb-sidebar-20261111" ] || [ "${GITHUB_HEAD_REF}" = "feat/share-market-relist-guard-r1-20261111" ] || [ "${GITHUB_HEAD_REF}" = "feat/share-market-relist-pg17-review-lab-20261111" ] || [ "${GITHUB_HEAD_REF}" = "feat/share-register-reconciliation-review-only-20261111" ] || [ "${GITHUB_HEAD_REF}" = "test/ph12-three-portal-anonymous-chromium-20261111" ] || [ "${GITHUB_HEAD_REF}" = "test/ph12-positive-three-portal-and-register-authority-hold-20261111" ]; then
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0049_ph12_board_legal_source_checks_hold.sql
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0050_ph12_record_board_legal_source_check.sql
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0051_ph12_independent_legal_disposition_hold.sql
@@ -527,6 +527,13 @@ jobs:
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0060_child06_external_vault_dek_envelope_hold.sql
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0061_child06_cooperative_dual_internal_attestation_hold.sql
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < database/migrations/0062_ph12_separate_cooperative_shareholder_password_credentials.sql
+              # Isolated post-rotation national password principal used only in this
+              # branch's disposable PG17, never shipped to Preview/Production.
+              if [ "${GITHUB_HEAD_REF}" = "test/ph12-positive-three-portal-and-register-authority-hold-20261111" ]; then
+                for f in database/migrations/9994_ph10_national_root_auth.sql database/migrations/9995_ph10_national_root_first_login_rotation.sql database/migrations/9996_ph10_national_root_rotation_cas.sql database/migrations/9999k_ph10_national_root_remember_browser.sql; do
+                  docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < "$f"
+                done
+              fi
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/ph12_separate_portal_password_login_fence.sql
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/child06_cooperative_dual_attestation_fence.sql
               docker exec -i tto-adaptive-postgres psql -U postgres -d tto -v ON_ERROR_STOP=1 < tests/sql/child06_pdf_scan_source_key_version_fence.sql
@@ -572,7 +579,15 @@ jobs:
             node /tmp/tto-pcs014-browser/node_modules/playwright/cli.js install --with-deps chromium
             export TTO_PCS014_BROWSER=1
           fi
-          timeout --signal=TERM --kill-after=5s 220s node scripts/e2e-cf02-identity-authority.cjs
+          if [ "$GITHUB_HEAD_REF" = "test/ph12-positive-three-portal-and-register-authority-hold-20261111" ]; then
+            npm install --prefix /tmp/tto-ph12-positive-browser --no-audit --no-fund playwright@1.56.1
+            # Avoid apt mirror DNS failures on GitHub ubuntu-24.04; Chromium is still mandatory.
+            node /tmp/tto-ph12-positive-browser/node_modules/playwright/cli.js install chromium
+            export TTO_PH12_POSITIVE_BROWSER=1
+            timeout --signal=TERM --kill-after=5s 330s node scripts/e2e-cf02-identity-authority.cjs
+          else
+            timeout --signal=TERM --kill-after=5s 220s node scripts/e2e-cf02-identity-authority.cjs
+          fi
       - name: Share Market §51 relist review-only HTTP and PostgreSQL17 state test
         if: github.event_name == 'pull_request' && github.head_ref == 'feat/share-market-relist-pg17-review-lab-20261111' && steps.scope.outputs.suite != 'lite'
         env:
