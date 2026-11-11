@@ -117,3 +117,46 @@
  .tto-approved-shell .tto-animated-tree.is-expanded{grid-row:span 2}
 }
 @media(max-width:480px){.tto-approved-shell .nav-area nav{grid-template-columns:minmax(0,1fr)}}
+
+/* PH12 user acceptance: an expanded accordion must INCREASE the physical
+   height of its parent and push every following navigation item down.
+   The previous grid-template-rows transition and mobile flex row allowed
+   adjacent controls to visually occupy the same vertical band. Restrict
+   this rule to the nav containing animated groups; other portals unchanged.
+   Deliberately animate the chevron/colors, not the layout height. */
+.tto-approved-shell .nav-area nav:has(> .tto-animated-tree){
+ display:flex!important;flex-direction:column!important;flex-wrap:nowrap!important;
+ align-items:stretch!important;justify-content:flex-start!important;
+ gap:4px!important;overflow:visible!important;min-width:0;
+}
+.tto-approved-shell .nav-area nav:has(> .tto-animated-tree)>*{
+ display:block;flex:0 0 auto!important;width:100%;min-width:0;max-width:100%;
+ height:auto;min-height:0;position:relative;
+}
+.tto-approved-shell .tto-animated-tree{
+ display:block;flex:0 0 auto;height:auto!important;overflow:visible!important;
+ grid-row:auto!important;transform:none!important;
+}
+.tto-approved-shell .tto-submenu-motion{
+ display:none!important;position:static!important;visibility:hidden;
+ transform:none!important;opacity:1!important;
+ grid-template-rows:none!important;height:auto!important;max-height:none!important;
+ overflow:visible!important;transition:none!important;
+}
+.tto-approved-shell .tto-submenu-motion[hidden]{display:none!important}
+.tto-approved-shell .tto-animated-tree.is-expanded .tto-submenu-motion:not([hidden]){
+ display:block!important;visibility:visible;opacity:1!important;
+ height:auto!important;max-height:none!important;
+}
+.tto-approved-shell .tto-submenu-motion-inner{
+ display:block;overflow:visible!important;min-height:0;height:auto;
+}
+.tto-approved-shell .tto-animated-tree .tto-settings-submenu{
+ display:grid;position:static;min-width:0;width:auto;max-width:100%;
+ margin:6px 7px 12px;box-sizing:border-box;
+}
+@media(max-width:770px){
+ .tto-approved-shell .nav-area nav:has(> .tto-animated-tree){display:flex!important;overflow:visible!important}
+ .tto-approved-shell .tto-animated-tree.is-expanded{grid-row:auto!important}
+ .tto-approved-shell .tto-accordion-trigger{white-space:normal}
+}
