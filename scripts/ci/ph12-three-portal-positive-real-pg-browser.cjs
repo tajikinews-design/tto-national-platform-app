@@ -57,8 +57,22 @@ async function check(){
           await page.locator(p.user).isVisible()&&
           await page.locator(p.pass).isVisible()){usable=true;break;}
       }
-      if(!usable)
+      if(!usable){
+       const diagnostic=await page.evaluate(()=>({
+        route:location.pathname,
+        tabStates:[...document.querySelectorAll(".tto-auth-method-tabs [role=tab]")]
+          .map(el=>({selected:el.getAttribute("aria-selected"),password:el.textContent?.includes("نام کاربری")===true})),
+        waiting:document.body.textContent?.includes("در حال بررسی نشست")===true,
+        ready:document.body.textContent?.includes("نشست شما معتبر است")===true,
+        formCount:document.querySelectorAll(".tto-auth-controls form").length,
+        authControls:document.querySelectorAll(".tto-auth-controls").length,
+        otpFieldVisible:document.querySelector("#tto-mobile")?.getBoundingClientRect().height>0,
+        inputCount:document.querySelectorAll("#portal-user").length
+       }));
+       console.error("TTO_PH12_PASSWORD_TAB_STATE",p.surface,JSON.stringify(diagnostic),
+         JSON.stringify(authStatus.slice(-8)));
        throw Error("PH12_PASSWORD_TAB_DID_NOT_OPEN_REAL_FORM_"+p.surface);
+      }
     }
     try{
       await page.locator(p.user).waitFor({state:"visible",timeout:11000});
