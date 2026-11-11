@@ -36,7 +36,7 @@ INSERT INTO tto.commerce_demo_nav02_sensitive_profiles(
  decode(repeat('a2',32),'hex'),decode(repeat('b2',12),'hex'),decode(repeat('c2',16),'hex'),decode(repeat('d2',100),'hex'));
 SET LOCAL ROLE tto_app;
 DO $test$
-DECLARE a text;b text;ra uuid;rb uuid;doc_id uuid;archived jsonb;v jsonb;
+DECLARE a text;b text;ra uuid;rb uuid;doc_id uuid;archived jsonb;v jsonb;dual jsonb;board_id uuid;ceo_id uuid;
 BEGIN
  PERFORM set_config('tto.actor_id','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
  PERFORM tto.nav02_member_number_policy_set('ci-nav02a',123,'','');
@@ -99,6 +99,54 @@ BEGIN
  IF archived->>'archived'<>'true' THEN RAISE EXCEPTION 'OFFICER_ARCHIVE_FAILED';END IF;
  v:=tto.nav02_office_holder_drafts_list('ci-nav02a');
  IF jsonb_array_length(v)<>1 THEN RAISE EXCEPTION 'ARCHIVED_OFFICER_STILL_LISTED';END IF;
+ -- The same member can be BOARD_MEMBER and CEO simultaneously, created
+ -- atomically. CEO does not inherit signing authority from board appointment.
+ dual:=tto.nav02_office_holder_dual_draft_create('ci-nav02a',
+  'dddddddd-dddd-4ddd-8ddd-ddddddddddda','BOARD_MEMBER',
+  true,'One board signature only','2026-01-01','2028-01-01',
+  'Synthetic Gazette','2026-02-01','55','NA-90');
+ IF dual->>'saved'<>'true' OR jsonb_array_length(dual->'ids')<>2 OR
+    dual->>'legalPowerGranted'<>'false'
+ THEN RAISE EXCEPTION 'DUAL_ROLE_TRANSACTION_FAILED';END IF;
+ board_id:=(dual->'ids'->>0)::uuid;ceo_id:=(dual->'ids'->>1)::uuid;
+ IF board_id=ceo_id THEN RAISE EXCEPTION 'ROLE_IDS_NOT_SEPARATE';END IF;
+ v:=tto.nav02_office_holder_drafts_list('ci-nav02a');
+ IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(v) x WHERE
+   x->>'id'=board_id::text AND x->>'memberDraftId'='dddddddd-dddd-4ddd-8ddd-ddddddddddda'
+    AND x->>'officeCode'='BOARD_MEMBER' AND x->>'signingAuthorized'='true') OR
+    NOT EXISTS(SELECT 1 FROM jsonb_array_elements(v) x WHERE
+   x->>'id'=ceo_id::text AND x->>'memberDraftId'='dddddddd-dddd-4ddd-8ddd-ddddddddddda'
+    AND x->>'officeCode'='CEO' AND x->>'signingAuthorized'='false')
+ THEN RAISE EXCEPTION 'DUAL_ROLES_NOT_INDEPENDENT_OR_PERSON_CHANGED';END IF;
+ BEGIN
+  PERFORM tto.nav02_office_holder_dual_draft_create('ci-nav02a',
+   'dddddddd-dddd-4ddd-8ddd-ddddddddddda','BOARD_MEMBER',
+   true,'Duplicate not allowed','2026-02-01','2028-01-01',
+   '',null,'','');
+  RAISE EXCEPTION 'DUPLICATE_OVERLAPPING_DUAL_ROLE_ACCEPTED';
+ EXCEPTION WHEN unique_violation THEN NULL;END;
+ IF jsonb_array_length(tto.nav02_office_holder_drafts_list('ci-nav02a'))<>3
+ THEN RAISE EXCEPTION 'DUPLICATE_DUAL_ROLE_LEFT_PARTIAL_RECORDS';END IF;
+ BEGIN
+  PERFORM tto.nav02_office_holder_dual_draft_create('ci-nav02a',
+   'dddddddd-dddd-4ddd-8ddd-ddddddddddda','AUDITOR_PRIMARY',
+   false,'Invalid board role','2026-01-01','2028-01-01',
+   '',null,'','');
+  RAISE EXCEPTION 'AUDITOR_CEO_INVALID_COMBINATION_ACCEPTED';
+ EXCEPTION WHEN invalid_parameter_value THEN NULL;END;
+ -- Independence: editing CEO does not alter board appointment.
+ IF tto.nav02_office_holder_draft_edit('ci-nav02a',ceo_id,1,
+   'dddddddd-dddd-4ddd-8ddd-ddddddddddda',null,'MEMBER','CEO',false,
+   'Separate CEO scope','2026-01-01','2028-01-01',
+   'Synthetic Gazette',null,'55','NA-90')<>2
+ THEN RAISE EXCEPTION 'DUAL_CEO_INDEPENDENT_EDIT_FAILED';END IF;
+ v:=tto.nav02_office_holder_drafts_list('ci-nav02a');
+ IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(v) x WHERE
+    x->>'id'=board_id::text AND x->>'version'='1') OR
+    NOT EXISTS(SELECT 1 FROM jsonb_array_elements(v) x WHERE
+    x->>'id'=ceo_id::text AND x->>'version'='2')
+ THEN RAISE EXCEPTION 'DUAL_CEO_EDIT_TOUCHED_BOARD_RECORD';END IF;
+
  BEGIN
   PERFORM tto.nav02_office_holder_draft_edit('ci-nav02a',ra,2,
    null,'Synthetic External CEO','EXTERNAL','CEO',false,'',
