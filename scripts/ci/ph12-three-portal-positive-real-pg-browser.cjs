@@ -43,7 +43,16 @@ async function check(){
     const login=await page.goto(origin+(p.path||"/login"),{waitUntil:"domcontentloaded",timeout:25000});
     assert.equal(login.status(),200,p.surface+" dedicated login route");
     if(p.tab){
-      const tab=page.locator(".tto-auth-method-tabs:visible").first().getByRole("tab",{name:p.tab});
+      // Scope the control to the actual PortalPasswordLogin component. Other
+      // tablists can exist elsewhere in a concurrent Next.js render tree.
+      const tab=page.locator('section.tto-auth-controls > div[role="tablist"][aria-label="انتخاب روش ورود"] > button.tto-auth-tab').filter({hasText:p.tab});
+      const groups=await page.evaluate(()=>[...document.querySelectorAll(".tto-auth-method-tabs")].map(g=>({
+        parent:g.parentElement?.className||g.parentElement?.tagName,
+        insidePasswordComponent:!!g.closest("section.tto-auth-controls"),
+        visible:!!g.getClientRects().length,
+        buttons:[...g.querySelectorAll("[role=tab]")].map(b=>({selected:b.getAttribute("aria-selected"),password:b.textContent?.includes("نام کاربری")===true,visible:!!b.getClientRects().length}))
+      })));
+      console.log("TTO_PH12_PASSWORD_TAB_GROUP_STRUCTURE",p.surface,JSON.stringify(groups));
       await tab.waitFor({state:"visible",timeout:12000});
       // Next may SSR the tab before its client-side click handler is hydrated.
       // A real selected state must be observed, not assumed after one click.
