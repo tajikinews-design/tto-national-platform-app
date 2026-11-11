@@ -36,7 +36,7 @@ INSERT INTO tto.commerce_demo_nav02_sensitive_profiles(
  decode(repeat('a2',32),'hex'),decode(repeat('b2',12),'hex'),decode(repeat('c2',16),'hex'),decode(repeat('d2',100),'hex'));
 SET LOCAL ROLE tto_app;
 DO $test$
-DECLARE a text;b text;ra uuid;rb uuid;v jsonb;
+DECLARE a text;b text;ra uuid;rb uuid;doc_id uuid;archived jsonb;v jsonb;
 BEGIN
  PERFORM set_config('tto.actor_id','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
  PERFORM tto.nav02_member_number_policy_set('ci-nav02a',123,'','');
@@ -79,7 +79,45 @@ BEGIN
  IF jsonb_array_length(v)<>2 OR EXISTS(
    SELECT 1 FROM jsonb_array_elements(v) item WHERE item->>'status'<>'DRAFT_ONLY')
  THEN RAISE EXCEPTION 'OFFICE_DRAFT_LIST_FAIL';END IF;
+
+ -- Synthetic metadata/cipher only; API scanner + AES-GCM validation are
+ -- independently required before any true user document reaches this RPC.
+ doc_id:=tto.nav02_officer_document_save('ci-nav02a',ra,
+   'Synthetic Gazette PDF','application/pdf','gazette.pdf',80,
+   decode(repeat('a8',32),'hex'),decode(repeat('b8',12),'hex'),
+   decode(repeat('c8',16),'hex'),decode(repeat('d8',80),'hex'),
+   'ClamAV synthetic CI verdict');
+ IF doc_id IS NULL THEN RAISE EXCEPTION 'OFFICER_DOCUMENT_INSERT_FAILED';END IF;
+ v:=tto.nav02_office_holder_drafts_list('ci-nav02a');
+ IF (SELECT jsonb_array_length(o->'documents') FROM jsonb_array_elements(v) o
+      WHERE o->>'id'=ra::text)<>1
+ THEN RAISE EXCEPTION 'OFFICER_DOCUMENT_LIST_MISSING';END IF;
+ IF NOT EXISTS(SELECT 1 FROM tto.nav02_officer_document_fetch_owner('ci-nav02a',ra,doc_id))
+ THEN RAISE EXCEPTION 'OFFICER_DOCUMENT_DOWNLOAD_MISSING';END IF;
+ archived:=tto.nav02_office_holder_draft_archive('ci-nav02a',ra,1,
+    'ARCHIVE_DRAFT_WITH_AUDIT_ACKNOWLEDGED');
+ IF archived->>'archived'<>'true' THEN RAISE EXCEPTION 'OFFICER_ARCHIVE_FAILED';END IF;
+ v:=tto.nav02_office_holder_drafts_list('ci-nav02a');
+ IF jsonb_array_length(v)<>1 THEN RAISE EXCEPTION 'ARCHIVED_OFFICER_STILL_LISTED';END IF;
+ BEGIN
+  PERFORM tto.nav02_office_holder_draft_edit('ci-nav02a',ra,2,
+   null,'Synthetic External CEO','EXTERNAL','CEO',false,'',
+   '2026-01-01','2027-01-01','',null,'','');
+  RAISE EXCEPTION 'ARCHIVED_OFFICER_MUTABLE';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ IF (SELECT count(*) FROM tto.nav02_office_holder_revision_audit WHERE office_id=ra)<>1
+ THEN RAISE EXCEPTION 'ARCHIVE_REVISION_NOT_PRESERVED';END IF;
  PERFORM set_config('tto.actor_id','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',true);
+ BEGIN
+  PERFORM tto.nav02_office_holder_draft_archive('ci-nav02a',ra,2,
+    'ARCHIVE_DRAFT_WITH_AUDIT_ACKNOWLEDGED');
+  RAISE EXCEPTION 'CROSS_TENANT_ARCHIVE_ALLOWED';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ BEGIN
+  PERFORM * FROM tto.nav02_officer_document_fetch_owner('ci-nav02a',ra,doc_id);
+  RAISE EXCEPTION 'CROSS_TENANT_OFFICER_DOCUMENT_ALLOWED';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+
  PERFORM tto.nav02_member_number_policy_set('ci-nav02b',123,'','');
  b:=tto.nav02_member_number_issue('ci-nav02b','dddddddd-dddd-4ddd-8ddd-dddddddddddb');
  IF a<>b THEN RAISE EXCEPTION 'CROSS_COOPERATIVE_IDENTICAL_NUMBER_REJECTED:%/%',a,b;END IF;
