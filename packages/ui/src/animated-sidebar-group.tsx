@@ -19,7 +19,7 @@ export function AnimatedSidebarGroup({
    <span className="tto-settings-chevron" aria-hidden="true">⌄</span>
   </button>
   <div id={id} className="tto-submenu-motion" aria-hidden={!expanded}
-   inert={!expanded}>
+   hidden={!expanded} inert={!expanded}>
    <div className="tto-submenu-motion-inner">
     <div className="tto-settings-submenu" aria-label={"زیرمنوهای "+name}>{children}</div>
    </div>
