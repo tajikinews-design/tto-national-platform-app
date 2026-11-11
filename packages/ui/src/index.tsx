@@ -175,8 +175,7 @@ export function PortalShell({
        <div className="tto-top-search"><span aria-hidden="true">⌕</span><span>جست‌وجوی پرونده‌ها، گزارش‌ها، خدمات و ...</span></div>
        <div className="tto-top-meta"><span>اعلان‌ها ♧</span><strong>{demoOnly?"پیش‌نمایش مدیریت تعاونی":cfg.title}</strong></div>
       </div>
-      {demoOnly&&memberSection!=="add"?<section className="tto-login-scope" role="status" style={{marginBottom:16}}>پیش‌نمایش مدیریت تعاونی · عملیات رسمی و مالی تا احراز اختیار قانونی مدیر غیرفعال است.</section>:null}
-      {!home&&<div className="breadcrumb"><InternalLink href={basePath||"/"}>داشبورد</InternalLink><span>‹</span><span>{currentTitle}</span></div>}
+      {!home&&<nav className="breadcrumb" aria-label="مسیر صفحه"><InternalLink href={basePath||"/"}>داشبورد</InternalLink><span aria-hidden="true">‹</span><span aria-current="page">{currentTitle}</span></nav>}
       {home?<ApprovedDashboardHome surface={surface} demoOnly={demoOnly}>{children}</ApprovedDashboardHome>:
       <>
        {!settingsSection&&!memberSection?<section className="hero"><h1>{currentTitle}</h1><p>{cfg.sectionDescriptions[selection]}</p></section>:null}
