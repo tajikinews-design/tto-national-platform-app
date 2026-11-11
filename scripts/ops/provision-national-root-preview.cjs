@@ -43,6 +43,9 @@ async function main(){
    throw Error("OWNER_BOOTSTRAP_PREVIEW_APPROVAL_GATE_CLOSED");
  const url=process.env.TTO_PREVIEW_DATABASE_URL;
  if(!url||!/^postgres(?:ql)?:\/\//.test(url))throw Error("PRIVATE_PREVIEW_DATABASE_CONNECTION_REQUIRED");
+ const urlHost=new URL(url).hostname;
+ if(urlHost!=="localhost"&&urlHost!=="127.0.0.1"&&process.env.TTO_PREVIEW_DB_SSL!=="required")
+  throw Error("REMOTE_PREVIEW_DATABASE_TLS_REQUIRED");
  const input=await readPrivateInput();
  // Validate and hash entirely in memory; never print the identifiers.
  const credential=createNationalRootInitialScrypt(input);
