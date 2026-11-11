@@ -30,6 +30,8 @@ BEGIN
   OR octet_length(p_mobile_hmac)<>32 OR octet_length(p_national_hmac)<>32
   OR octet_length(p_verifier)<>32
   OR p_expiry<=clock_timestamp() OR p_expiry>clock_timestamp()+interval '65 seconds'
+  OR NOT EXISTS (SELECT 1 FROM tto.auth_policy
+    WHERE policy_key='SESSION_CHALLENGE' AND max_attempts BETWEEN 1 AND 20)
  THEN RETURN false; END IF;
  -- All root recovery challenges serialized against root credential rotation.
  SELECT r.user_id INTO v_root
