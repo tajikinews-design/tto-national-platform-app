@@ -466,17 +466,16 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
           <option key={g} value={g}>{g}</option>)}
         </select>:
         <input value={profile[key]} maxLength={max} required={required}
-         aria-invalid={key==="nationalId"?Boolean(nationalIdError):key==="mobile"?Boolean(mobileError):undefined}
-         inputMode={key==="nationalId"||key==="postalCode"||key==="mobile"||key==="telephone"?"numeric":"text"}
+         aria-invalid={key==="nationalId"?Boolean(nationalIdError):undefined}
+         inputMode={key==="nationalId"||key==="postalCode"||key==="telephone"?"numeric":"text"}
          dir={key==="nationalId"?"ltr":undefined}
          autoComplete={key==="nationalId"?"off":undefined}
-         pattern={key==="nationalId"?"[0-9]{10}":key==="mobile"?"09[0-9]{9}":undefined}
+         pattern={key==="nationalId"?"[0-9]{10}":undefined}
          onChange={e=>change(key,e.target.value)}/>}
        {key==="nationalId"?<>
         {nationalIdError?<small role="alert" className="tto-nav02-field-error">{nationalIdError}</small>:
         profile.nationalId.length===10?<small className="tto-nav02-checksum-ok">رقم کنترل کد ملی صحیح است؛ تطبیق هویت نیازمند استعلام است.</small>:null}
        </>:null}
-       {key==="mobile"&&mobileError?<small role="alert" className="tto-nav02-field-error">{mobileError}</small>:null}
       </Field>)}
       {profile.personType==="NATURAL"&&profile.membershipStatus!=="NON_MEMBER_REPORTED"?<fieldset className="tto-nav02-eligibility">
        <legend>شرایط ارتباط با شهرستان طبق ماده ۲ قانون تأسیس (حداقل یکی)</legend>
