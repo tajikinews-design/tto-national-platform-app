@@ -47,13 +47,18 @@ async function check(){
       await tab.waitFor({state:"visible",timeout:12000});
       // Next may SSR the tab before its client-side click handler is hydrated.
       // A real selected state must be observed, not assumed after one click.
-      for(let attempt=0;attempt<5;attempt++){
+      let usable=false;
+      for(let attempt=0;attempt<7;attempt++){
        await tab.click();
-       if(await tab.getAttribute("aria-selected")==="true")break;
-       await page.waitForTimeout(250);
+       await page.waitForTimeout(350);
+       // Wait for the associated password *form*, not merely a transient
+       // aria-selected toggle during Next hydration/route transitions.
+       if(await tab.getAttribute("aria-selected")==="true"&&
+          await page.locator(p.user).isVisible()&&
+          await page.locator(p.pass).isVisible()){usable=true;break;}
       }
-      if(await tab.getAttribute("aria-selected")!=="true")
-       throw Error("PH12_PASSWORD_TAB_NOT_HYDRATED_"+p.surface);
+      if(!usable)
+       throw Error("PH12_PASSWORD_TAB_DID_NOT_OPEN_REAL_FORM_"+p.surface);
     }
     try{
       await page.locator(p.user).waitFor({state:"visible",timeout:11000});
