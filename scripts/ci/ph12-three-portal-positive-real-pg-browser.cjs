@@ -14,7 +14,9 @@ const PORTALS=[
  {surface:"cooperative",port:32722,username:"ci-manager",password:"CI-Synthetic-Strong-Only-2026#",user:"#portal-user",pass:"#portal-pass",tab:"نام کاربری و رمز",path:"/login?workspace=ci-legal-a"},
  {surface:"shareholder",port:32721,username:"ci-member",password:"CI-Synthetic-Strong-Only-2026#",user:"#portal-user",pass:"#portal-pass",tab:"نام کاربری و رمز"}
 ];
-const BASE_HOST="http://127.0.0.1";
+// Same isolated loopback, but the Next BFF normalizes its Origin to localhost.
+// localhost also permits Secure session cookies in Chromium without lowering flags.
+const BASE_HOST="http://localhost";
 async function check(){
  if(process.env.CI!=="true"||process.env.TTO_PH12_POSITIVE_BROWSER!=="1"||
     process.env.APIIR_TOKEN||process.env.VERCEL||
