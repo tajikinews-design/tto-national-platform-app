@@ -114,11 +114,11 @@ export default function NationalRootLogin(){
     </form>
    </div>:
    <form onSubmit={login}>
-    <label htmlFor="national-username" >نام کاربری (کد ملی مدیر ملی)</label>
-    <input id="national-username" dir="ltr" autoComplete="username" inputMode="numeric" type="text" value={username}
+    <label htmlFor="national-username" >نام کاربری مدیر اصلی</label>
+    <input id="national-username" dir="ltr" autoComplete="username" type="text" value={username}
      onChange={e=>setUsername(e.target.value)} minLength={2} maxLength={64} required disabled={busy} />
-    <label htmlFor="national-password" >رمز عبور اولیه (شماره موبایل تأییدشده)</label>
-    <input id="national-password" dir="ltr" type="password" inputMode="numeric" autoComplete="current-password" value={password}
+    <label htmlFor="national-password" >رمز عبور</label>
+    <input id="national-password" dir="ltr" type="password" autoComplete="current-password" value={password}
      onChange={e=>setPassword(e.target.value)} minLength={1} maxLength={128} required disabled={busy} />
     <label className="tto-auth-remember">
      <input type="checkbox" checked={rememberDevice} disabled={busy}
