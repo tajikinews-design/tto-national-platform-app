@@ -43,7 +43,7 @@ async function check(){
     const login=await page.goto(origin+(p.path||"/login"),{waitUntil:"domcontentloaded",timeout:25000});
     assert.equal(login.status(),200,p.surface+" dedicated login route");
     if(p.tab){
-      const tab=page.getByRole("tab",{name:p.tab});
+      const tab=page.locator(".tto-auth-controls > .tto-auth-method-tabs").getByRole("tab",{name:p.tab});
       await tab.waitFor({state:"visible",timeout:12000});
       // Next may SSR the tab before its client-side click handler is hydrated.
       // A real selected state must be observed, not assumed after one click.
