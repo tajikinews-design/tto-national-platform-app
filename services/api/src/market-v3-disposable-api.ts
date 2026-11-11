@@ -138,8 +138,14 @@ export function createDisposableMarketApi(){
           const row=sources.rows[0];
           if(!row||row.source_kind!=="SYNTHETIC_PG17_REVIEW_ONLY"||
              !Number.isInteger(row.source_version)||
-             !(row.valid_until instanceof Date)||row.valid_until.getTime()<=Date.now())
+             !(row.valid_until instanceof Date)||row.valid_until.getTime()<=Date.now()){
+            // A previously green review is revoked as soon as its source expires.
+            if(row?.review_state==="READY_FOR_INDEPENDENT_REVIEW")
+              await c.query(`UPDATE ${LAB}.lab_relist_review
+                SET review_state='PENDING_REVIEW',reviewed_by=NULL,reviewed_at=NULL
+                WHERE tenant_id=$1 AND offer_id=$2`,[tenant,offerId]);
             return {httpStatus:409,code:"RELIST_VERIFIED_SOURCE_MISSING_OR_EXPIRED"};
+          }
           const report=reviewRelistGuard({
             noUnresolvedPaymentClaim:row.no_unresolved_payment_claim,
             noOpenDispute:row.no_open_dispute,
@@ -150,8 +156,13 @@ export function createDisposableMarketApi(){
             sellerContinuationOrRelistPermissionValid:row.seller_relist_permission_valid,
             marketPolicyAllows:row.market_policy_allows
           });
-          if(!report.prerequisitesSatisfied)
+          if(!report.prerequisitesSatisfied){
+            if(row.review_state==="READY_FOR_INDEPENDENT_REVIEW")
+              await c.query(`UPDATE ${LAB}.lab_relist_review
+                SET review_state='PENDING_REVIEW',reviewed_by=NULL,reviewed_at=NULL
+                WHERE tenant_id=$1 AND offer_id=$2`,[tenant,offerId]);
             return {httpStatus:409,code:"RELIST_GUARD_BLOCKED",blockers:report.blockers};
+          }
           if(row.review_state==="READY_FOR_INDEPENDENT_REVIEW")
             return {httpStatus:200,reviewState:row.review_state,idempotent:true,offerStatus:previousOfferStatus};
           if(row.review_state!=="PENDING_REVIEW")
