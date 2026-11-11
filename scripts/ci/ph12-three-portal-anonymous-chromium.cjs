@@ -61,8 +61,10 @@ async function run(){
      }
      await page.locator(p.user).waitFor({state:"visible",timeout:13000});
      await page.locator(p.password).waitFor({state:"visible",timeout:13000});
-     const formSurface=await page.locator("[data-tto-auth-surface]").getAttribute("data-tto-auth-surface").catch(()=>null);
-     if(p.kind!=="national")assert.equal(formSurface,p.kind);
+     if(p.kind!=="national"){
+      const label=p.kind==="cooperative"?"مدیر تعاونی":"سهامدار";
+      await page.getByRole("button",{name:"ورود به پنل "+label}).waitFor({state:"visible",timeout:10000});
+     }
      assert.equal(await page.locator(p.user).inputValue(),"","username prefilled");
      assert.equal(await page.locator(p.password).inputValue(),"","password prefilled");
      const absent=await page.evaluate(async u=>{
