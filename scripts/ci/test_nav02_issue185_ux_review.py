@@ -111,4 +111,21 @@ class Nav02Review(unittest.TestCase):
   self.assertIn("downloadDocument(item.id,doc)",OFFICER)
   self.assertIn("archiveTarget",OFFICER)
 
+ def test_inline_shahkar_and_no_global_preview_banner(self):
+  nav=src("packages/ui/src/index.tsx")
+  motion=src("packages/ui/src/animated-sidebar-group.tsx")
+  style=src("apps/cooperative-management/app/member-intake.css")
+  self.assertNotIn("استعلام شاهکار در فرم ثبت عضو",FORM)
+  self.assertNotIn("پس از واردکردن کد ملی و شماره همراه",FORM)
+  self.assertEqual(FORM.count('className="tto-shahkar-inline"'),2)
+  self.assertIn('aria-label={identityChecking?',FORM)
+  self.assertIn('onClick={()=>void verifyIdentity()}',FORM)
+  self.assertIn('identityVerified||identityChecking',FORM)
+  self.assertIn(".tto-shahkar-inline>.tto-shahkar-icon:focus-visible",style)
+  self.assertNotIn("عملیات رسمی و مالی تا احراز اختیار قانونی مدیر غیرفعال است.",nav)
+  self.assertIn('aria-label="مسیر صفحه"',nav)
+  self.assertIn("setExpanded(active)",motion)
+  self.assertIn("setExpanded(v=>!v)",motion)
+  self.assertIn('e.key==="Escape"',motion)
+
 if __name__=="__main__":unittest.main()
