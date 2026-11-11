@@ -37,6 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/ci/test_nav02_issue185_governance_number_contract.py -v
+          python3 scripts/ci/test_nav02_dual_officer_contract.py -v
       - name: Apply NAV02 migrations to disposable PG17
         run: |
           set -euo pipefail
