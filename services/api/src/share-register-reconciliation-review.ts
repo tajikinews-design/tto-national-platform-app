@@ -94,8 +94,8 @@ export function reviewOfficialRegisterReconciliation(
      official.treasuryShares!==projection.treasuryShares)fail("TREASURY_SHARE_TOTAL_MISMATCH");
 
   function mapPositions(entries:readonly RegisterPosition[],kind:"REGISTER"|"PROJECTION"):
-    {map:Map<string,bigint>,sum:bigint} {
-    const map=new Map<string,bigint>();let sum=0n;
+    {map:Map<string,{quantity:bigint,sourceEntryRef:string}>,sum:bigint} {
+    const map=new Map<string,{quantity:bigint,sourceEntryRef:string}>();let sum=0n;
     if(!Array.isArray(entries)){fail(kind+"_ENTRIES_MISSING");return {map,sum};}
     for(const entry of entries){
       if(!entry||!UUID.test(entry.tenantId)||entry.tenantId!==official!.tenantId||
@@ -103,7 +103,7 @@ export function reviewOfficialRegisterReconciliation(
       if(map.has(entry.accountId)){fail(kind+"_DUPLICATE_ACCOUNT");continue;}
       if(!isQty(entry.quantity)){fail(kind+"_UNKNOWN_QUANTITY");continue;}
       if(!isRef(entry.sourceEntryRef)) {fail(kind+"_SOURCE_REFERENCE_MISSING");continue;}
-      map.set(entry.accountId,entry.quantity);sum+=entry.quantity;
+      map.set(entry.accountId,{quantity:entry.quantity,sourceEntryRef:entry.sourceEntryRef});sum+=entry.quantity;
     }
     return {map,sum};
   }
@@ -113,8 +113,13 @@ export function reviewOfficialRegisterReconciliation(
   for(const account of allAccounts){
     if(!a.map.has(account)||!b.map.has(account))
       fail("ACCOUNT_MISSING_FROM_SOURCE_OR_PROJECTION");
-    else if(a.map.get(account)!==b.map.get(account))
-      fail("ACCOUNT_SHARE_QUANTITY_MISMATCH");
+    else {
+      const left=a.map.get(account)!;
+      const right=b.map.get(account)!;
+      if(left.quantity!==right.quantity)fail("ACCOUNT_SHARE_QUANTITY_MISMATCH");
+      if(left.sourceEntryRef!==right.sourceEntryRef)
+        fail("ACCOUNT_SOURCE_ENTRY_REFERENCE_MISMATCH");
+    }
   }
   if(isQty(official.issuedShares)&&isQty(official.treasuryShares)&&
      a.sum+official.treasuryShares!==official.issuedShares)
