@@ -33,10 +33,11 @@ function signedReceipt(snapshot=official(),mutation={}){
    expiresAt:date(NOW+100000),...mutation};
  return {...fields,signatureBase64:sign(null,signingBytesForCustodianProof(fields),keys.privateKey).toString("base64")};
 }
-function review(args={}){return reviewCandidateCustodianProof(
- args.official===undefined?official():args.official,args.projection===undefined?projection():args.projection,
- args.receipt===undefined?signedReceipt():args.receipt,args.pinned===undefined?pinned():args.pinned,
- args.nonce===undefined?NONCE:args.nonce,NOW);
+function review(args={}){
+ const value=(k,fallback)=>Object.prototype.hasOwnProperty.call(args,k)?args[k]:fallback();
+ return reviewCandidateCustodianProof(
+  value("official",official),value("projection",projection),
+  value("receipt",signedReceipt),value("pinned",pinned),value("nonce",()=>NONCE),NOW);
 }
 function hold(r){assert.equal(r.formalCustodianAcceptance,false);assert.equal(r.officialSourceAccepted,false);
  assert.equal(r.legallyAdmittedSource,false);assert.equal(r.officialOwnershipTransferAuthorized,false);
