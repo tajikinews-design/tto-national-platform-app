@@ -11,8 +11,10 @@ const assert=require("node:assert/strict");
 const {chromium}=require("/tmp/tto-ph12-positive-browser/node_modules/playwright");
 const PORTALS=[
  {surface:"national",port:32723,username:"ci-national-root",password:"CI-National-Root-Synthetic-2026#",user:"#national-username",pass:"#national-password",tab:null},
- {surface:"cooperative",port:32722,username:"ci-manager",password:"CI-Synthetic-Strong-Only-2026#",user:"#portal-user",pass:"#portal-pass",tab:"نام کاربری و رمز",path:"/login?workspace=ci-legal-a"},
- {surface:"shareholder",port:32721,username:"ci-member",password:"CI-Synthetic-Strong-Only-2026#",user:"#portal-user",pass:"#portal-pass",tab:"نام کاربری و رمز"}
+ // The cooperative proxy deliberately rewrites /login?workspace=... to the
+ // workspace gate. Choose the REAL manager account tab, not PortalPasswordLogin.
+ {surface:"cooperative",port:32722,username:"ci-manager",password:"CI-Synthetic-Strong-Only-2026#",user:"#workspace-username",pass:"#workspace-password",tab:"مدیر رسمی تعاونی",tabGroup:"نوع حساب",path:"/login?workspace=ci-legal-a"},
+ {surface:"shareholder",port:32721,username:"ci-member",password:"CI-Synthetic-Strong-Only-2026#",user:"#portal-user",pass:"#portal-pass",tab:"نام کاربری و رمز",tabGroup:"انتخاب روش ورود"}
 ];
 // Same isolated loopback, but the Next BFF normalizes its Origin to localhost.
 // localhost also permits Secure session cookies in Chromium without lowering flags.
@@ -45,7 +47,7 @@ async function check(){
     if(p.tab){
       // Scope the control to the actual PortalPasswordLogin component. Other
       // tablists can exist elsewhere in a concurrent Next.js render tree.
-      const tab=page.locator('section.tto-auth-controls > div[role="tablist"][aria-label="انتخاب روش ورود"] > button.tto-auth-tab').filter({hasText:p.tab});
+      const tab=page.getByRole("tablist",{name:p.tabGroup}).getByRole("tab",{name:p.tab,exact:true});
       const groups=await page.evaluate(()=>[...document.querySelectorAll(".tto-auth-method-tabs")].map(g=>({
         parent:g.parentElement?.className||g.parentElement?.tagName,
         insidePasswordComponent:!!g.closest("section.tto-auth-controls"),
@@ -125,7 +127,7 @@ async function check(){
     }
     await page.locator(p.user).fill(p.username);
     await page.locator(p.pass).fill(p.password);
-    const submit=page.getByRole("button",{name:p.surface==="national"?/ورود به (سامانه|پنل|مدیریت)/:"ورود به پنل "+(p.surface==="cooperative"?"مدیر تعاونی":"سهامدار")});
+    const submit=page.getByRole("button",{name:p.surface==="national"?/ورود به (سامانه|پنل|مدیریت)/:p.surface==="cooperative"?"ورود به فضای تعاونی":"ورود به پنل سهامدار",exact:p.surface!=="national"});
     if(p.surface==="national"){
       // Use the actual national root form; no direct API injection into browser.
       await page.locator("form").filter({has:page.locator(p.user)}).locator('button[type="submit"]').click();
