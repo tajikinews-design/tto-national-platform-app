@@ -13,6 +13,7 @@ import {handleFeeEvidenceLab} from "./market-v3-disposable-fees";
 import {handleMultiFeeLab} from "./market-v3-disposable-fee-review";
 import {handleTariffAdminLab} from "./market-v3-disposable-tariff-admin";
 import {calculateDisposableFee} from "./market-v3-disposable-fee-calculator";
+import {reviewRelistGuard} from "./share-market-v3-preflight";
 
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const LAB="market_v3_disposable";
@@ -118,6 +119,55 @@ export function createDisposableMarketApi(){
       if(parts[0]!=="lab"||parts[1]!=="tenants"||!uuid.test(parts[2]??""))deny(404,"LAB_ROUTE_NOT_FOUND");
       const tenant=parts[2];const key=req.method==="POST"?idemKey(req):null;
       // Every route is explicitly enumerated; NO payment, registry or transfer endpoints.
+      // PG17 isolated review state machine ONLY. A green review is not publication.
+      // Facts are read from test-only SQL source rows, never accepted from request body.
+      if(req.method==="POST"&&parts.length===6&&parts[3]==="offers"&&
+         uuid.test(parts[4])&&parts[5]==="relist-review"){
+        const offerId=parts[4];
+        const result=await transaction(pool,async c=>{
+          await actor(c,tenant,actorId,"COOP_MARKET_MANAGER");
+          await serialize(c,`relist-review:${tenant}:${offerId}`);
+          const offer=await c.query(`SELECT status FROM ${LAB}.offers
+            WHERE tenant_id=$1 AND offer_id=$2 FOR UPDATE`,[tenant,offerId]);
+          if(!offer.rows[0])return {httpStatus:404,code:"OFFER_NOT_FOUND"};
+          const previousOfferStatus=offer.rows[0].status as string;
+          if(previousOfferStatus!=="RESERVED"&&previousOfferStatus!=="COOP_REVIEWED")
+            return {httpStatus:409,code:"RELIST_WRONG_OFFER_STATE"};
+          const sources=await c.query(`SELECT * FROM ${LAB}.lab_relist_review
+            WHERE tenant_id=$1 AND offer_id=$2 FOR UPDATE`,[tenant,offerId]);
+          const row=sources.rows[0];
+          if(!row||row.source_kind!=="SYNTHETIC_PG17_REVIEW_ONLY"||
+             !Number.isInteger(row.source_version)||
+             !(row.valid_until instanceof Date)||row.valid_until.getTime()<=Date.now())
+            return {httpStatus:409,code:"RELIST_VERIFIED_SOURCE_MISSING_OR_EXPIRED"};
+          const report=reviewRelistGuard({
+            noUnresolvedPaymentClaim:row.no_unresolved_payment_claim,
+            noOpenDispute:row.no_open_dispute,
+            noLegalHold:row.no_legal_hold,
+            reservationReleasedSafely:row.reservation_released_safely,
+            offerStillValid:row.offer_still_valid,
+            pricingRuleValid:row.pricing_rule_valid,
+            sellerContinuationOrRelistPermissionValid:row.seller_relist_permission_valid,
+            marketPolicyAllows:row.market_policy_allows
+          });
+          if(!report.prerequisitesSatisfied)
+            return {httpStatus:409,code:"RELIST_GUARD_BLOCKED",blockers:report.blockers};
+          if(row.review_state==="READY_FOR_INDEPENDENT_REVIEW")
+            return {httpStatus:200,reviewState:row.review_state,idempotent:true,offerStatus:previousOfferStatus};
+          if(row.review_state!=="PENDING_REVIEW")
+            return {httpStatus:409,code:"RELIST_REVIEW_STATE_INVALID"};
+          await c.query(`UPDATE ${LAB}.lab_relist_review
+            SET review_state='READY_FOR_INDEPENDENT_REVIEW',reviewed_by=$3,reviewed_at=clock_timestamp()
+            WHERE tenant_id=$1 AND offer_id=$2 AND review_state='PENDING_REVIEW'`,
+            [tenant,offerId,actorId]);
+          return {httpStatus:200,reviewState:"READY_FOR_INDEPENDENT_REVIEW",
+            idempotent:false,offerStatus:previousOfferStatus};
+        });
+        const {httpStatus,...payload}=result;
+        return json(res,httpStatus,{...payload,listingAuthorized:false,
+          legalOwnershipChanged:false,sharesUnlocked:false,financialTransaction:false});
+      }
+
       if(req.method==="POST"&&parts.length===4&&parts[3]==="sell-orders"){
         const input=await body(req);const qty=integer(input.quantity);
         if(input.saleMode!=="FULL_OFFER")deny(422,"MVP_FULL_OFFER_ONLY");
