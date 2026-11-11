@@ -46,6 +46,9 @@ async function check(){
       // Use the actual national root form; no direct API injection into browser.
       await page.locator("form").filter({has:page.locator(p.user)}).locator('button[type="submit"]').click();
     }else await submit.click();
+    // Wait for the successful login navigation to finish before asserting the
+    // cookie. A React-side replace() can race a second fetch on /login.
+    await page.waitForURL(url=>url.pathname===(p.surface==="cooperative"?"/c/ci-legal-a":"/"),{timeout:14000});
     const sessionRoute=p.surface==="national"?"/api/auth/session":"/api/auth/password/session";
     await page.waitForFunction(async url=>{
       try{const r=await fetch(url,{credentials:"same-origin",cache:"no-store"});if(!r.ok)return false;
