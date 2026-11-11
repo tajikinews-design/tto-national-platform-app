@@ -631,6 +631,16 @@ export class FoundationCommandsController {
       const r=await c.query<{items:unknown}>("SELECT tto.nav02_office_holder_drafts_list($1) AS items",[slug]);
       if(!Array.isArray(r.rows[0]?.items))throw new ServiceUnavailableException("OFFICERS_DRAFT_UNAVAILABLE");
       return {items:r.rows[0].items};
+    }).then(async result=>{
+      // Resolve confidential person names only after verifying the same owner.
+      // No separate unscoped members request is needed from the browser.
+      const members=await this.nav02IntakeList(auth,slug);
+      const names=new Map((members.items as Array<Record<string,unknown>>)
+        .filter(x=>typeof x.id==="string"&&typeof x.name==="string")
+        .map(x=>[String(x.id),String(x.name)]));
+      return {items:(result.items as Array<Record<string,unknown>>).map(o=>({
+        ...o,memberName:typeof o.memberDraftId==="string"?names.get(o.memberDraftId)??null:null
+      }))};
     });
   }
 
@@ -778,6 +788,145 @@ export class FoundationCommandsController {
         throw e;
       }
     });
+  }
+
+
+  @Post("commerce/demo/nav02/officers/archive")
+  @HttpCode(200)
+  async nav02OfficerArchive(@Headers("authorization") auth:string|undefined,
+    @Body() body:Record<string,unknown>){
+    if(!body||typeof body!=="object"||Array.isArray(body)||
+      Object.keys(body).some(k=>!["slug","id","version","acknowledgement"].includes(k))||
+      typeof body.slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(body.slug)||
+      typeof body.id!=="string"||!uuidPattern.test(body.id)||
+      !Number.isSafeInteger(body.version)||Number(body.version)<1||
+      body.acknowledgement!=="ARCHIVE_DRAFT_WITH_AUDIT_ACKNOWLEDGED")
+      throw new BadRequestException("OFFICER_ARCHIVE_CONFIRMATION_REQUIRED");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      try{
+       const r=await c.query<{result:unknown}>(
+        "SELECT tto.nav02_office_holder_draft_archive($1,$2::uuid,$3,$4) AS result",
+        [body.slug,body.id,body.version,body.acknowledgement]);
+       const result=r.rows[0]?.result as {archived?:boolean;legalPowerGranted?:boolean}|undefined;
+       if(result?.archived!==true||result.legalPowerGranted!==false)
+        throw new ServiceUnavailableException("OFFICER_ARCHIVE_NOT_COMMITTED");
+       return {archived:true,legalPowerGranted:false};
+      }catch(e){
+       if((e as {code?:string}).code==="40001")throw new ConflictException("OFFICER_STALE_VERSION");
+       if((e as {code?:string}).code==="42501")throw new ForbiddenException("OFFICER_SCOPE_DENIED");
+       throw e;
+      }
+    });
+  }
+
+  @Post("commerce/demo/nav02/officers/documents")
+  @HttpCode(200)
+  async nav02OfficerDocumentUpload(@Headers("authorization") auth:string|undefined,
+    @Body() body:Record<string,unknown>){
+    const allowed=new Set(["application/pdf","image/png","image/jpeg",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]);
+    if(!body||typeof body!=="object"||Array.isArray(body)||
+      Object.keys(body).some(k=>!["slug","officeId","subject","mime","filename","dataBase64"].includes(k))||
+      typeof body.slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(body.slug)||
+      typeof body.officeId!=="string"||!uuidPattern.test(body.officeId)||
+      typeof body.subject!=="string"||body.subject.trim().length<3||body.subject.length>160||
+      typeof body.filename!=="string"||body.filename.length<1||body.filename.length>180||
+      /[\\/\x00-\x1f]/.test(body.filename)||!allowed.has(String(body.mime))||
+      typeof body.dataBase64!=="string"||body.dataBase64.length<92||
+      body.dataBase64.length>699052||!/^[A-Za-z0-9+/]+={0,2}$/.test(body.dataBase64))
+      throw new BadRequestException("INVALID_OFFICER_DOCUMENT");
+    const slug=String(body.slug),officeId=String(body.officeId),mime=String(body.mime);
+    const actor=await this.db.sessionActor(auth);
+    // Owner+office scope is verified BEFORE reading/scanning private bytes.
+    await this.db.withActor(actor,async c=>{
+      const check=await c.query<{items:unknown}>(
+       "SELECT tto.nav02_office_holder_drafts_list($1) AS items",[slug]);
+      if(!Array.isArray(check.rows[0]?.items)||
+        !(check.rows[0].items as Array<Record<string,unknown>>).some(x=>x.id===officeId))
+       throw new ForbiddenException("OFFICER_DOCUMENT_SCOPE_DENIED");
+    });
+    const bytes=Buffer.from(body.dataBase64,"base64");
+    if(bytes.length<68||bytes.length>524288||bytes.toString("base64")!==body.dataBase64)
+      throw new BadRequestException("INVALID_OFFICER_DOCUMENT_SIZE");
+    const filename=String(body.filename).toLowerCase();
+    const signature=(mime==="application/pdf"&&filename.endsWith(".pdf")&&
+       bytes.subarray(0,5).toString("ascii")==="%PDF-")||
+      (mime==="image/png"&&filename.endsWith(".png")&&
+       bytes.subarray(0,8).equals(Buffer.from("89504e470d0a1a0a","hex")))||
+      (mime==="image/jpeg"&&/\\.(jpg|jpeg)$/.test(filename)&&
+       bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff&&
+       bytes[bytes.length-2]===0xff&&bytes[bytes.length-1]===0xd9)||
+      (mime==="application/vnd.openxmlformats-officedocument.wordprocessingml.document"&&
+       filename.endsWith(".docx")&&bytes.subarray(0,4).equals(Buffer.from("504b0304","hex"))&&
+       bytes.includes(Buffer.from("[Content_Types].xml"))&&
+       bytes.includes(Buffer.from("word/document.xml"))&&
+       !bytes.includes(Buffer.from("vbaProject.bin")));
+    if(!signature){bytes.fill(0);throw new BadRequestException("INVALID_OFFICER_DOCUMENT_SIGNATURE")}
+    let scan;
+    try{scan=await scanQuarantineBytes(bytes)}
+    catch{bytes.fill(0);throw new ServiceUnavailableException("OFFICER_DOCUMENT_SCANNER_UNAVAILABLE")}
+    if(scan.verdict!=="CLEAN"){
+      bytes.fill(0);throw new UnprocessableEntityException("OFFICER_DOCUMENT_MALWARE_REJECTED");
+    }
+    const encodedKey=process.env.TTO_NAV02_ATTACHMENT_KEY??"";
+    const key=Buffer.from(encodedKey,"base64");
+    if(key.length!==32||key.toString("base64")!==encodedKey){
+      bytes.fill(0);throw new ServiceUnavailableException("OFFICER_DOCUMENT_KEY_UNAVAILABLE");
+    }
+    const hash=createHash("sha256").update(bytes).digest();
+    const iv=randomBytes(12),cipher=createCipheriv("aes-256-gcm",key,iv);
+    cipher.setAAD(Buffer.from(slug+":"+officeId+":"+mime+":"+hash.toString("hex")));
+    const encrypted=Buffer.concat([cipher.update(bytes),cipher.final()]);
+    const tag=cipher.getAuthTag(),size=bytes.length;bytes.fill(0);key.fill(0);
+    return this.db.withActor(actor,async c=>{
+      try{
+       const r=await c.query<{id:string}>(
+        "SELECT tto.nav02_officer_document_save($1,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10,$11) AS id",
+        [slug,officeId,body.subject,mime,body.filename,size,hash,iv,tag,encrypted,scan.engine]);
+       return {saved:true,id:r.rows[0]?.id,status:"PRIVATE_READY",legalEvidence:false};
+      }catch(e){
+       if((e as {code?:string}).code==="42501")throw new ForbiddenException("OFFICER_DOCUMENT_SCOPE_DENIED");
+       if((e as {code?:string}).code==="23514")throw new BadRequestException("OFFICER_DOCUMENT_CONSTRAINT");
+       throw e;
+      }
+    });
+  }
+
+  @Get("commerce/demo/nav02/officers/documents/download")
+  async nav02OfficerDocumentDownload(@Headers("authorization") auth:string|undefined,
+    @Query("slug") slug:string,@Query("officeId") officeId:string,@Query("id") id:string){
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+      typeof officeId!=="string"||!uuidPattern.test(officeId)||
+      typeof id!=="string"||!uuidPattern.test(id))
+      throw new BadRequestException("INVALID_OFFICER_DOCUMENT_QUERY");
+    const actor=await this.db.sessionActor(auth);
+    const item=await this.db.withActor(actor,async c=>{
+      const r=await c.query<{mime:string;filename:string;byte_count:number;sha:Buffer;
+        iv:Buffer;tag:Buffer;cipher:Buffer}>(
+        "SELECT * FROM tto.nav02_officer_document_fetch_owner($1,$2::uuid,$3::uuid)",
+        [slug,officeId,id]);
+      return r.rows[0];
+    });
+    if(!item)throw new ForbiddenException("OFFICER_DOCUMENT_NOT_AVAILABLE");
+    const encoded=process.env.TTO_NAV02_ATTACHMENT_KEY??"";
+    const key=Buffer.from(encoded,"base64");
+    if(key.length!==32||key.toString("base64")!==encoded)
+      throw new ServiceUnavailableException("OFFICER_DOCUMENT_KEY_UNAVAILABLE");
+    let raw:Buffer;
+    try{
+      const decrypt=createDecipheriv("aes-256-gcm",key,item.iv);
+      decrypt.setAAD(Buffer.from(slug+":"+officeId+":"+item.mime+":"+item.sha.toString("hex")));
+      decrypt.setAuthTag(item.tag);
+      raw=Buffer.concat([decrypt.update(item.cipher),decrypt.final()]);
+    }catch{throw new ServiceUnavailableException("OFFICER_DOCUMENT_INTEGRITY_INVALID")}
+    finally{key.fill(0)}
+    const actual=createHash("sha256").update(raw).digest();
+    if(raw.length!==item.byte_count||!timingSafeEqual(actual,item.sha)){
+      raw.fill(0);throw new ServiceUnavailableException("OFFICER_DOCUMENT_INTEGRITY_INVALID");
+    }
+    const dataBase64=raw.toString("base64");raw.fill(0);
+    return {mime:item.mime,filename:item.filename,dataBase64};
   }
 
   @Get("commerce/demo/nav02")
