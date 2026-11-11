@@ -119,8 +119,11 @@ export function reviewCandidateCustodianProof(
    stop("CUSTODIAN_SOURCE_VERSION_MISMATCH");
  if(!NONCE.test(receipt.challengeNonce)||receipt.challengeNonce!==expectedNonce)
    stop("CUSTODIAN_CHALLENGE_NONCE_UNBOUND");
- if(!HEX.test(receipt.snapshotSha256)||
-    receipt.snapshotSha256!==fingerprintRegisterCandidateSnapshot(official))
+ let sourceFingerprint:string|null=null;
+ try{sourceFingerprint=fingerprintRegisterCandidateSnapshot(official)}
+ catch{stop("CUSTODIAN_SNAPSHOT_MALFORMED")}
+ if(!HEX.test(receipt.snapshotSha256)||sourceFingerprint===null||
+    receipt.snapshotSha256!==sourceFingerprint)
    stop("CUSTODIAN_SIGNED_SNAPSHOT_MISMATCH");
  const issued=Date.parse(receipt.issuedAt),expires=Date.parse(receipt.expiresAt),
        mandateFrom=Date.parse(pinned.validFrom),mandateUntil=Date.parse(pinned.validUntil);
