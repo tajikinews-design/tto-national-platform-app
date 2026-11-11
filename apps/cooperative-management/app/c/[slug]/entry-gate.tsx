@@ -116,7 +116,7 @@ function InlineFirstCredentials({workspace}:{workspace:Workspace}){
  </div>;
 }
 export function CooperativeEntryGate({slug,manager,moduleId="NAV-01",ownerSettings,settingsSection,nav02Content,memberSection}:
- {slug:string;manager:ReactNode;moduleId?:string;ownerSettings?:ReactNode;settingsSection?:"credentials"|"users"|"collections"|"member-number";nav02Content?:ReactNode;memberSection?:"add"|"shares"|"shareholders"|"list"|"archive"|"collections"|"profile"}){
+ {slug:string;manager:ReactNode;moduleId?:string;ownerSettings?:ReactNode;settingsSection?:"credentials"|"users"|"collections"|"member-number"|"officers";nav02Content?:ReactNode;memberSection?:"add"|"shares"|"shareholders"|"list"|"archive"|"collections"|"profile"}){
  const [phase,setPhase]=useState<"checking"|"manager"|"demo"|"login"|"denied"|"unavailable">(
   ()=>verifiedWorkspaceBySlug.get(slug)?.kind??"checking");
  const [workspace,setWorkspace]=useState<Workspace|null>(

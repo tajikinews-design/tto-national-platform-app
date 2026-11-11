@@ -4,16 +4,18 @@ import {PortalSessionGate,PortalShell} from "@tto/ui";
 import {CooperativeEntryGate} from "../../entry-gate";
 import {CredentialsSettings} from "../credentials";
 import {UsersSettings} from "../users";
+import {OfficersSettings} from "../officers";
 import {MemberDirectory} from "../../members/member-directory";
 export const dynamic="force-dynamic";
 export default async function CooperativeSettingsSubpage({params}:
  {params:Promise<{slug:string;section:string}>}){
  const {slug,section}=await params;
  if(!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
-    !["credentials","users","collections","member-number"].includes(section))notFound();
- const tab=section as "credentials"|"users"|"collections"|"member-number";
+    !["credentials","users","collections","member-number","officers"].includes(section))notFound();
+ const tab=section as "credentials"|"users"|"collections"|"member-number"|"officers";
  const content=tab==="credentials"?<CredentialsSettings slug={slug}/>:
   tab==="users"?<UsersSettings slug={slug}/>:
+  tab==="officers"?<OfficersSettings slug={slug}/>:
   <MemberDirectory slug={slug} view={tab==="collections"?"collections":"member-number"}/>;
  return <CooperativeEntryGate slug={slug} moduleId="NAV-11" settingsSection={tab}
   ownerSettings={content}

@@ -8,21 +8,27 @@ def src(path):return (R/path).read_text(encoding="utf-8")
 class SettingsSubpages(unittest.TestCase):
  def test_two_owner_scoped_settings_routes(self):
   p=src("apps/cooperative-management/app/c/[slug]/settings/[section]/page.tsx")
-  self.assertIn('["credentials","users","collections","member-number"].includes(section)',p)
+  self.assertIn('["credentials","users","collections","member-number","officers"].includes(section)',p)
   self.assertIn('ownerSettings={content}',p)
   self.assertIn('tab==="users"?<UsersSettings',p)
   self.assertIn('view={tab==="collections"?"collections":"member-number"}',p)
   self.assertIn('moduleId="NAV-11"',p)
   self.assertIn('ownerSettings={content}',p)
   self.assertIn('settingsSection={tab}',p)
+  self.assertIn('tab==="officers"?<OfficersSettings',p)
   old=src("apps/cooperative-management/app/c/[slug]/modules/[moduleId]/page.tsx")
   self.assertIn('if(activeId==="NAV-11")redirect(',old)
   self.assertNotIn('CooperativeSecuritySettings',old)
  def test_expanded_submenu_is_only_for_scoped_owner(self):
   shell=src("packages/ui/src/index.tsx")
-  for item in ('canManageSettings','tto-settings-tree','href={basePath+"/settings/credentials"}',
-               'href={basePath+"/settings/users"}','surface==="cooperative"','settingsSection'):
+  animated=src("packages/ui/src/animated-sidebar-group.tsx")
+  for item in ('canManageSettings','href={basePath+"/settings/credentials"}',
+               'href={basePath+"/settings/users"}','surface==="cooperative"','settingsSection',
+               'AnimatedSidebarGroup'):
    self.assertIn(item,shell)
+  self.assertIn('tto-settings-tree',animated)
+  self.assertIn('aria-expanded={expanded}',animated)
+  self.assertIn('inert={!expanded}',animated)
   gate=src("apps/cooperative-management/app/c/[slug]/entry-gate.tsx")
   self.assertIn('settingsSection!==undefined',gate)
   self.assertIn('canManageSettings={workspace.staff!==true}',gate)
@@ -47,6 +53,8 @@ class SettingsSubpages(unittest.TestCase):
   proxy=src("apps/cooperative-management/proxy.ts")
   self.assertIn('path==="/c/"+slug+"/settings/credentials"',proxy)
   self.assertIn('path==="/c/"+slug+"/settings/users"',proxy)
+  self.assertIn('path==="/c/"+slug+"/settings/officers"',proxy)
+  self.assertIn('"/api/commerce/nav02/officers"',proxy)
   shared=src("packages/ui/src/control-system.css")
   self.assertIn('--tto-field-height:44px',shared)
   self.assertIn('input:not([type="checkbox"])',shared)

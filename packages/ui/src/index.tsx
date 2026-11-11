@@ -1,4 +1,5 @@
 import type { ReactNode, ComponentType } from "react";
+import {AnimatedSidebarGroup} from "./animated-sidebar-group";
 import {shareholderNavigation} from "./shareholder-navigation";
 import {PortalModuleWorkbench} from "./portal-module-workbench";
 import {ApprovedDashboardHome} from "./approved-dashboard";
@@ -96,11 +97,11 @@ function navHref(i: number, basePath = "") {
 
 export function PortalShell({
   surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, allowedModules, canManageSettings = false, settingsSection, memberSection, NavigationLink
-}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users"|"collections"|"member-number";memberSection?:"add"|"shares"|"shareholders"|"list"|"archive"|"collections"|"profile";NavigationLink?:ComponentType<{href:string;children:ReactNode;className?:string;"aria-current"?: "page";"aria-label"?:string}>}) {
+}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users"|"collections"|"member-number"|"officers";memberSection?:"add"|"shares"|"shareholders"|"list"|"archive"|"collections"|"profile";NavigationLink?:ComponentType<{href:string;children:ReactNode;className?:string;"aria-current"?: "page";"aria-label"?:string}>}) {
  const cfg=surfaces[surface],selection=Math.max(NAV_IDS.indexOf(activeId),0);
  const InternalLink=NavigationLink??"a";
  const home=selection===0,currentTitle=settingsSection==="credentials"?"تغییر نام کاربری و رمز عبور":
-  settingsSection==="users"?"کاربران و سطح دسترسی":settingsSection==="collections"?"مدیریت مجموعه‌ها":settingsSection==="member-number"?"تنظیم شماره عضویت":memberSection==="add"?"ثبت عضو":memberSection==="shares"?"ثبت سهام":memberSection==="list"?"لیست اعضا":memberSection==="archive"?"بایگانی اعضا":memberSection==="collections"?"مجموعه‌ها":memberSection==="profile"?"پرونده عضویت":memberSection==="shareholders"?"سهامداران":home?cfg.title:cfg.navigation[selection];
+  settingsSection==="users"?"کاربران و سطح دسترسی":settingsSection==="officers"?"هیئت‌مدیره و صاحبان امضا":settingsSection==="collections"?"مدیریت مجموعه‌ها":settingsSection==="member-number"?"تنظیم شماره عضویت":memberSection==="add"?"ثبت عضو":memberSection==="shares"?"ثبت سهام":memberSection==="list"?"لیست اعضا":memberSection==="archive"?"بایگانی اعضا":memberSection==="collections"?"مجموعه‌ها":memberSection==="profile"?"پرونده عضویت":memberSection==="shareholders"?"سهامداران":home?cfg.title:cfg.navigation[selection];
  return <div className="shell tto-approved-shell" lang="fa" dir="rtl" data-tto-demo-only={demoOnly?"true":undefined}>
    <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
    <aside className="nav-area">
@@ -110,12 +111,7 @@ export function PortalShell({
        if(allowedModules&&!allowedModules.includes(NAV_IDS[i]))return null;
        const active=i===selection;
        if(surface==="cooperative"&&i===1&&basePath.startsWith("/c/")){
-        return <details key="cooperative-members" className="tto-settings-tree" open={active}>
-         <summary className={active?"nav-link current":"nav-link"} aria-label="بازکردن زیرمنوی اعضا و سهام">
-          <span aria-hidden="true" className="tto-nav-symbol">♙</span><span>{name}</span>
-          <span className="tto-settings-chevron" aria-hidden="true">⌄</span>
-         </summary>
-         <div className="tto-settings-submenu" aria-label="زیرمنوهای اعضا و سهام">
+        return <AnimatedSidebarGroup key="cooperative-members" name={name} symbol="♙" active={active}>
           <InternalLink className={memberSection==="add"?"tto-settings-sublink selected":"tto-settings-sublink"}
            href={basePath+"/members/add"} aria-current={memberSection==="add"?"page":undefined}>
            <span aria-hidden="true">♙</span> ثبت عضو
@@ -140,16 +136,10 @@ export function PortalShell({
            href={basePath+"/members/shareholders"} aria-current={memberSection==="shareholders"?"page":undefined}>
            <span aria-hidden="true">♧</span> سهامداران
           </InternalLink>
-         </div>
-        </details>;
+        </AnimatedSidebarGroup>;
        }
        if(surface==="cooperative"&&i===10&&basePath.startsWith("/c/")&&canManageSettings){
-        return <details key="cooperative-settings" className="tto-settings-tree" open={active}>
-         <summary className={active?"nav-link current":"nav-link"} aria-label="بازکردن زیرمنوی تنظیمات">
-          <span aria-hidden="true" className="tto-nav-symbol">⚙</span><span>{name}</span>
-          <span className="tto-settings-chevron" aria-hidden="true">⌄</span>
-         </summary>
-         <div className="tto-settings-submenu" aria-label="زیرمنوهای تنظیمات">
+        return <AnimatedSidebarGroup key="cooperative-settings" name={name} symbol="⚙" active={active}>
           <InternalLink className={settingsSection==="credentials"?"tto-settings-sublink selected":"tto-settings-sublink"}
            href={basePath+"/settings/credentials"} aria-current={settingsSection==="credentials"?"page":undefined}>
             <span aria-hidden="true">◇</span> تغییر نام کاربری و رمز عبور
@@ -166,8 +156,11 @@ export function PortalShell({
            href={basePath+"/settings/member-number"} aria-current={settingsSection==="member-number"?"page":undefined}>
             <span aria-hidden="true">▥</span> تنظیم ساختار شماره عضویت
           </InternalLink>
-         </div>
-        </details>;
+          <InternalLink className={settingsSection==="officers"?"tto-settings-sublink selected":"tto-settings-sublink"}
+           href={basePath+"/settings/officers"} aria-current={settingsSection==="officers"?"page":undefined}>
+            <span aria-hidden="true">♜</span> هیئت‌مدیره و صاحبان امضا
+          </InternalLink>
+        </AnimatedSidebarGroup>;
        }
        return <InternalLink href={navHref(i,basePath)} key={NAV_IDS[i]}
         aria-current={i===selection?"page":undefined} className={active?"nav-link current":"nav-link"}>

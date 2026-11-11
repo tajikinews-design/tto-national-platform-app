@@ -29,6 +29,7 @@ export function SettingsPageFrame({slug,section,children}:{slug:string;section:S
   <nav className="tto-settings-switcher" aria-label="صفحات تنظیمات">
    <Link prefetch={true} href={"/c/"+slug+"/settings/credentials"} aria-current={credentials?"page":undefined}>◇ تغییر نام کاربری و رمز عبور</Link>
    <Link prefetch={true} href={"/c/"+slug+"/settings/users"} aria-current={!credentials?"page":undefined}>♧ کاربران و سطح دسترسی</Link>
+   <Link href={"/c/"+slug+"/settings/officers"}>♜ هیئت‌مدیره، مدیرعامل، بازرسان و صاحبان امضا</Link>
   </nav>
   {children}
  </div>;

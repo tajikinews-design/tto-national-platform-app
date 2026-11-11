@@ -328,3 +328,30 @@
 @media(max-width:480px){
  .tto-nav02-member-layout .tto-nav02-form{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Excel interchange belongs to list tools, not to a giant card above the table. */
+.tto-excel-toolbar{display:flex;gap:7px;align-items:center;align-self:end;flex-wrap:wrap;min-width:0}
+.tto-nav02-directory-tools .tto-excel-icon{display:inline-flex;justify-content:center;align-items:center;flex:0 0 39px;
+ width:39px;height:39px;padding:7px;border:1px solid #bad7e4;border-radius:10px;
+ background:#e9f6fa;color:#176b86;text-decoration:none;cursor:pointer}
+.tto-nav02-directory-tools .tto-excel-icon:hover,.tto-nav02-directory-tools .tto-excel-icon:focus-visible{
+ outline:2px solid #8cc8d9;outline-offset:1px;background:#d7eff5}
+.tto-excel-icon svg{width:22px;height:22px;display:block}
+.tto-excel-icon.tto-excel-template{background:#f3f6fa;border-color:#cfdce5;color:#496a82}
+.tto-excel-file{display:none}
+.tto-excel-message{margin:0;flex:1 1 100%;font-size:11px;color:#8b4e31;line-height:1.8}
+.tto-excel-review-mask{position:fixed;inset:0;z-index:1200;padding:24px;background:#152f48aa;
+ display:grid;place-items:center}
+.tto-excel-review-panel{width:min(100%,960px);max-height:min(90dvh,900px);overflow:auto;
+ padding:23px;border-radius:18px;background:#fff;box-shadow:0 20px 70px #081c3666;display:grid;gap:15px}
+.tto-excel-review-panel>header{display:flex;justify-content:space-between;align-items:center;gap:15px}
+.tto-excel-review-panel>header h2{margin:0;font-size:16px;color:#184b6c}
+.tto-excel-review-panel>header button{font-size:23px;border:0;background:#eff5f8;color:#24516d;border-radius:8px;cursor:pointer}
+.tto-excel-review-panel .tto-nav02-table{min-width:650px}
+.tto-excel-consent{display:flex;align-items:center;gap:9px;line-height:2;color:#335d72}
+.tto-excel-review-actions{display:flex;flex-wrap:wrap;gap:10px;padding:0}
+.tto-excel-review-actions button{border:0;background:#157592;color:#fff;padding:10px 17px;border-radius:9px;cursor:pointer}
+.tto-excel-review-actions button:disabled{opacity:.45;cursor:not-allowed}
+.tto-excel-review-panel small{font-size:11px;line-height:1.9;color:#72869a}
+@media(max-width:620px){.tto-excel-toolbar{width:100%;justify-content:flex-start}
+ .tto-excel-review-mask{padding:10px}.tto-excel-review-panel{padding:14px}}

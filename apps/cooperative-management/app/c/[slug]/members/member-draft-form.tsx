@@ -8,7 +8,6 @@ type RecordItem={id:string;name:string;title:string;group:string;identifierMask:
  state:string;initialShares?:number;subscribedShares?:number;nominalRial?:number;
  declaredPaidRial?:number;capitalState?:string};
 const TITLES=["آقا","خانم"] as const;
-const MEMBER_STATES=[["APPLICANT_UNVERIFIED","متقاضی"],["ACTIVE_REPORTED","عضو فعال (اظهاری)"],["FORMER_REPORTED","عضو سابق (اظهاری)"],["NON_MEMBER_REPORTED","غیرعضو"]] as const;
 const SHARE_STATES=[["NONE_UNVERIFIED","فاقد سهام"],["HOLDER_REPORTED","سهامدار (اظهاری)"],["TRANSFER_PENDING_REPORTED","انتقال در جریان (اظهاری)"]] as const;
 const initialProfile={title:"آقا",fullName:"",group:"متقاضی عضویت",nationalId:"",fatherName:"",
  birthCertificate:"",birthDate:"",birthPlace:"",telephone:"",mobile:"",postalCode:"",address:"",
@@ -40,6 +39,14 @@ function validIranianNationalId(value:string){
  return Number(value[9])===(remainder<2?remainder:11-remainder);
 }
 function faNumber(n:number){return n.toLocaleString("fa-IR")}
+function formattedShareNumber(raw:string){
+ const numeric=toLatinDigits(raw).replace(/[٬,\s]/g,"");
+ return numeric.replace(/\B(?=(\d{3})+(?!\d))/g,",");
+}
+function cleanShareInput(raw:string){
+ const normalized=toLatinDigits(raw).replace(/[٬,\s]/g,"");
+ return /^\d{0,17}$/.test(normalized)?normalized:null;
+}
 function Field({title,children,wide}:{title:string;children:React.ReactNode;wide?:boolean}){
  return <label className={"tto-nav02-field"+(wide?" wide":"")}><span>{title}</span>{children}</label>;
 }
@@ -56,6 +63,9 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
  const [editVersion,setEditVersion]=useState<number|null>(null);
  const [editLoading,setEditLoading]=useState(false);
  const [personalDataConfirmed,setPersonalDataConfirmed]=useState(false);
+ const [verifiedIdentityKey,setVerifiedIdentityKey]=useState("");
+ const [identityChecking,setIdentityChecking]=useState(false);
+ const [identityMessage,setIdentityMessage]=useState("");
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [notice,setNotice]=useState(""),[error,setError]=useState(false);
  const base="/c/"+encodeURIComponent(slug)+"/members/";
@@ -140,6 +150,36 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   !/^[0-9]{0,10}$/.test(profile.nationalId)?"کد ملی باید فقط ۱۰ رقم باشد.":
   profile.nationalId.length===10&&!validIranianNationalId(profile.nationalId)?
   "کد ملی معتبر نیست؛ رقم کنترل را بررسی کنید.":"";
+ const identityNationalCode=profile.personType==="LEGAL"?profile.representativeNationalId:profile.nationalId;
+ const identityMobile=profile.personType==="LEGAL"?profile.representativeMobile:profile.mobile;
+ const currentIdentityKey=slug+"|"+profile.personType+"|"+identityNationalCode+"|"+identityMobile;
+ const identityVerified=verifiedIdentityKey===currentIdentityKey;
+ async function verifyIdentity(){
+  if(!validIranianNationalId(identityNationalCode)||!/^09[0-9]{9}$/.test(identityMobile)){
+   setIdentityMessage("ابتدا کد ملی و شماره همراه معتبر را وارد کنید.");return;
+  }
+  setIdentityChecking(true);setIdentityMessage("");setVerifiedIdentityKey("");
+  const keyAtRequest=currentIdentityKey;
+  try{
+   const r=await fetch("/api/commerce/nav02/shahkar-preflight",{
+    method:"POST",credentials:"same-origin",cache:"no-store",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({slug,nationalCode:identityNationalCode,mobile:identityMobile})
+   });
+   if(!r.ok){
+    const p=await r.json().catch(()=>null) as {code?:unknown}|null;
+    throw Error(r.status===422?"شماره همراه با کد ملی مطابقت ندارد؛ ادامه ثبت مجاز نیست.":
+     r.status===403?"مجوز استعلام هویت در این تعاونی وجود ندارد.":
+     p?.code==="SHAHKAR_NOT_CONFIGURED"?"سرویس شاهکار پیکربندی نشده است؛ ثبت مجاز نیست.":
+     "استعلام شاهکار ناموفق یا در دسترس نیست؛ ثبت مجاز نیست.");
+   }
+   const data=await r.json() as {verified?:unknown};
+   if(data.verified!==true)throw Error("نتیجه مثبت معتبر دریافت نشد.");
+   setVerifiedIdentityKey(keyAtRequest);
+   setIdentityMessage("تطبیق شماره همراه و کد ملی در شاهکار تأیید شد.");
+  }catch(e){setIdentityMessage(e instanceof Error?e.message:"استعلام انجام نشد.");}
+  finally{setIdentityChecking(false);}
+ }
  const countyCondition=profile.bornInCounty==="yes"||profile.residentInCounty==="yes"||
   profile.employedInCounty==="yes";
  async function savePhoto(file:File,id:string){
@@ -181,13 +221,41 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
   if(result.saved!==true||result.status!=="READY_PRIVATE"||result.visible!==true)
    throw Error("سرور آماده‌بودن تصویر خصوصی را تأیید نکرد.");
  }
+ async function saveAttachment(file:File,subject:string,id:string){
+  if(!["image/jpeg","image/png","application/pdf"].includes(file.type)||
+     file.size<68||file.size>524288)
+   throw Error("فقط PDF، JPEG و PNG تا سقف ۵۱۲ کیلوبایت پذیرفته می‌شود.");
+  if(subject.trim().length<3||subject.length>160)
+   throw Error("موضوع ضمیمه باید حداقل سه حرف داشته باشد.");
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  let bin="";
+  for(let i=0;i<bytes.length;i+=8192)
+   bin+=String.fromCharCode(...bytes.subarray(i,i+8192));
+  const r=await fetch("/api/commerce/nav02/attachments",{
+   method:"POST",credentials:"same-origin",cache:"no-store",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({slug,draftId:id,subject:subject.trim(),
+    mime:file.type,filename:file.name,dataBase64:btoa(bin)})
+  });
+  bin="";
+  if(!r.ok)throw Error(r.status===422?"اسکن امنیتی، ضمیمه را رد کرد.":
+   r.status===403?"مجوز بارگذاری برای این تعاونی وجود ندارد.":
+   "ذخیره ضمیمه انجام نشد؛ وضعیت اسکن ClamAV و کلید رمزنگاری سرور بررسی شود.");
+  const data=await r.json() as {saved?:boolean;status?:string};
+  if(data.saved!==true||data.status!=="PRIVATE_READY")
+   throw Error("تأیید ذخیره خصوصی و اسکن‌شده ضمیمه دریافت نشد.");
+ }
  async function submit(e:FormEvent<HTMLFormElement>){
   e.preventDefault();if(busy)return;setError(false);setNotice("");
   if(section==="add"){
+   if(!identityVerified||identityChecking){setError(true);setNotice("ابتدا تطبیق مثبت کد ملی و موبایل در شاهکار را در همین فرم دریافت کنید.");return}
    if(!personalDataConfirmed){setError(true);setNotice("تأیید صحت اطلاعات و مجوز ثبت آن لازم است.");return}
    if(photoRetryId){setError(true);setNotice("آپلود عکس پرونده قبلی را تکمیل یا لغو کنید.");return}
    if(editId&&editVersion===null){setError(true);setNotice("تا دریافت امن پرونده، ویرایش امکان ثبت ندارد.");return}
-   if(attachment){setError(true);setNotice("ضمیمه انتخاب شده اما سرویس قرنطینه مدارک هنوز متصل نیست؛ برای جلوگیری از ثبت ناقص، فایل را حذف کنید یا منتظر فعال‌سازی امن ضمائم بمانید.");return}
+   if(attachment&&(!attachmentSubject.trim()||attachment.size>524288||
+    !["application/pdf","image/png","image/jpeg"].includes(attachment.type))){
+    setError(true);setNotice("برای ضمیمه، موضوع و فایل معتبر PDF/JPEG/PNG تا سقف ۵۱۲ کیلوبایت لازم است.");return;
+   }
    if(profile.personType==="NATURAL"&&!/^09[0-9]{9}$/.test(profile.mobile)){
     setError(true);setNotice("شماره همراه معتبر نیست؛ شماره ۱۱ رقمی متعلق به صاحب کد ملی را وارد کنید.");return;
    }
@@ -254,26 +322,33 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
      catch(err){await refresh();throw Error("اطلاعات ویرایش شد؛ "+
       (err instanceof Error?err.message:"ذخیره عکس انجام نشد."));}
     }
+    if(attachment){
+     try{await saveAttachment(attachment,attachmentSubject,editId);
+      setAttachment(null);setAttachmentSubject("");}
+     catch(err){await refresh();throw Error("اطلاعات ویرایش شد اما ضمیمه ذخیره نشد؛ "+
+      (err instanceof Error?err.message:"خطای ضمیمه"));}
+    }
     await refresh();
     setError(false);setNotice("تمام اطلاعات و تصویر انتخابی (در صورت وجود) ذخیره شدند؛ تغییر هویت برای احراز مجدد علامت‌گذاری می‌شود.");
     return;
    }
-   // The profile commit is separate. Never retry the profile on a photo error.
-   if(section==="add"&&photo){
+   // A saved member is never retried automatically after an attachment error.
+   if(section==="add"&&(photo||attachment)){
     const id=d.record?.id;
-    if(typeof id!=="string"){setError(true);setNotice("پرونده ثبت شد ولی شناسه عکس معتبر نیست.");return}
-    setPhotoRetryId(id);
+    if(typeof id!=="string"){setError(true);setNotice("پرونده ثبت شد اما شناسه ضمائم معتبر نیست.");return}
     try{
-     await savePhoto(photo,id);
-     setPhotoRetryId("");setPhoto(null);setPersonalDataConfirmed(false);
-     setProfile(initialProfile);
-     await refresh();
+     if(photo){await savePhoto(photo,id);setPhoto(null);}
+     if(attachment){await saveAttachment(attachment,attachmentSubject,id);
+      setAttachment(null);setAttachmentSubject("");}
+     setProfile(initialProfile);setPersonalDataConfirmed(false);await refresh();
      setError(false);
-     setNotice("پرونده و عکس به‌صورت خصوصی ثبت شد؛ عکس در فهرست و سوابق قابل مشاهده است.");
+     setNotice("پرونده و فایل‌های انتخابی با کنترل خصوصی ثبت شدند.");
     }catch(err){
-     await refresh();
-     setError(true);
-     setNotice(err instanceof Error?err.message:"پرونده ذخیره شد ولی عکس هنوز بارگذاری نشده است؛ دوباره تلاش کنید.");
+     // Switch into secure edit flow, never duplicate the created member.
+     setEditId(id);setEditVersion(null);await refresh();
+     setError(true);setNotice("پرونده عضو ذخیره شده است اما ضمیمه/عکس کامل نشد؛ "+
+      (err instanceof Error?err.message:"خطای بارگذاری")+
+      " فایل ناموفق را از حالت ویرایش همین پرونده دوباره ارسال کنید.");
     }
     return;
    }
@@ -334,11 +409,6 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
          value={profile.fullName} onChange={e=>change("fullName",e.target.value)}/></Field>
       </div>
       <div className="tto-nav02-name-row">
-       <Field title="وضعیت عضویت *"><select value={profile.membershipStatus}
-         onChange={e=>change("membershipStatus",e.target.value)}>
-        {MEMBER_STATES.filter(([key])=>profile.personType!=="LEGAL"||key==="NON_MEMBER_REPORTED")
-          .map(([key,label])=><option key={key} value={key}>{label}</option>)}
-       </select></Field>
        <Field title="وضعیت سهامداری *"><select value={profile.shareholdingStatus}
         onChange={e=>change("shareholdingStatus",e.target.value)}>
         {SHARE_STATES.map(([key,label])=><option key={key} value={key}>{label}</option>)}
@@ -376,7 +446,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        {key==="address"?<textarea value={profile.address} rows={3} maxLength={600}
         onChange={e=>change("address",e.target.value)}/>:
         key==="group"?<select value={profile.group} onChange={e=>change("group",e.target.value)}>
-         {[...new Set(["متقاضی عضویت","عضو مؤسس","عضو جدید","عضو سابق",profile.group])].map(g=>
+         {[...new Set(["متقاضی عضویت","عضو مؤسس","عضو جدید","عضو اولیه",profile.group==="عضو سابق"?"عضو اولیه":profile.group])].map(g=>
           <option key={g} value={g}>{g}</option>)}
         </select>:
         <input value={profile[key]} maxLength={max} required={required}
@@ -392,6 +462,13 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        </>:null}
        {key==="mobile"&&mobileError?<small role="alert" className="tto-nav02-field-error">{mobileError}</small>:null}
       </Field>)}
+      <div className="tto-nav02-warning" role="group" aria-label="تأیید شماره همراه با شاهکار">
+       <strong>استعلام شاهکار در فرم ثبت عضو</strong>
+       <p>پس از واردکردن کد ملی و شماره همراه، استعلام را انجام دهید. تا زمان پاسخ مثبت، ثبت پرونده غیرفعال است. تغییر هرکدام از این دو مقدار، تأیید قبلی را باطل می‌کند.</p>
+       <button type="button" disabled={identityChecking||busy||!validIranianNationalId(identityNationalCode)||!/^09[0-9]{9}$/.test(identityMobile)}
+        onClick={()=>void verifyIdentity()}>{identityChecking?"در حال استعلام…":"استعلام و تطبیق شاهکار"}</button>
+       <p role="status">{identityVerified?"✓ تطبیق مثبت دریافت شده است":identityMessage||"هنوز تطبیق مثبت دریافت نشده است."}</p>
+      </div>
       {profile.personType==="NATURAL"&&profile.membershipStatus!=="NON_MEMBER_REPORTED"?<fieldset className="tto-nav02-eligibility">
        <legend>شرایط ارتباط با شهرستان طبق ماده ۲ قانون تأسیس (حداقل یکی)</legend>
        <label><input type="checkbox" checked={profile.bornInCounty==="yes"}
@@ -439,14 +516,14 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        {filtered.map(x=><option value={x.id} key={x.id}>{x.name} — {x.identifierMask}</option>)}
       </select></Field>
       {selected?<p className="tto-nav02-selected">پرونده: {selected.name} · {selected.state}</p>:null}
-      <Field title="تعداد سهام خریداری‌شده اولیه *"><input required type="number" min="0" step="1" value={capital.initialShares}
-       onChange={e=>setCapital(p=>({...p,initialShares:e.target.value}))}/></Field>
-      <Field title="تعداد سهام در تعهد *"><input required type="number" min="0" step="1" value={capital.subscribedShares}
-       onChange={e=>setCapital(p=>({...p,subscribedShares:e.target.value}))}/></Field>
-      <Field title="مبلغ اسمی هر سهم (ریال) *"><input required type="number" min="1" step="1" value={capital.nominalRial}
-       onChange={e=>setCapital(p=>({...p,nominalRial:e.target.value}))}/></Field>
-      <Field title="مبلغ پرداختی (ریال) *"><input required type="number" min="0" step="1" value={capital.paidRial}
-       onChange={e=>setCapital(p=>({...p,paidRial:e.target.value}))}/></Field>
+      <Field title="تعداد سهام خریداری‌شده اولیه *"><input required type="text" inputMode="numeric" pattern="[0-9۰-۹٠-٩,٬ ]*" dir="ltr" value={formattedShareNumber(capital.initialShares)}
+       onChange={e=>{const n=cleanShareInput(e.target.value);if(n!==null)setCapital(p=>({...p,initialShares:n}));}}/></Field>
+      <Field title="تعداد سهام در تعهد *"><input required type="text" inputMode="numeric" pattern="[0-9۰-۹٠-٩,٬ ]*" dir="ltr" value={formattedShareNumber(capital.subscribedShares)}
+       onChange={e=>{const n=cleanShareInput(e.target.value);if(n!==null)setCapital(p=>({...p,subscribedShares:n}));}}/></Field>
+      <Field title="مبلغ اسمی هر سهم (ریال) *"><input required type="text" inputMode="numeric" pattern="[0-9۰-۹٠-٩,٬ ]*" dir="ltr" value={formattedShareNumber(capital.nominalRial)}
+       onChange={e=>{const n=cleanShareInput(e.target.value);if(n!==null)setCapital(p=>({...p,nominalRial:n}));}}/></Field>
+      <Field title="مبلغ پرداختی (ریال) *"><input required type="text" inputMode="numeric" pattern="[0-9۰-۹٠-٩,٬ ]*" dir="ltr" value={formattedShareNumber(capital.paidRial)}
+       onChange={e=>{const n=cleanShareInput(e.target.value);if(n!==null)setCapital(p=>({...p,paidRial:n}));}}/></Field>
       <Field title="تاریخ پرداخت (شمسی)">
        <JalaliBirthDatePicker placeholder="انتخاب تاریخ پرداخت (شمسی)" defaultToToday
         value={gregorianISOToJalali(capital.paymentDate)}
@@ -456,7 +533,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
        onChange={e=>setCapital(p=>({...p,receiptRef:e.target.value}))}/></Field>
       <p className="tto-nav02-summary">کل ارزش اسمی اظهارشده: <strong>{faNumber(Number(subtotal))} ریال</strong></p>
      </>}
-     <div className="tto-nav02-actions"><button type="submit" disabled={busy||loading||editLoading||Boolean(photoRetryId)||(Boolean(editId)&&editVersion===null)||(section==="add"&&(!personalDataConfirmed||Boolean(nationalIdError)||
+     <div className="tto-nav02-actions"><button type="submit" disabled={busy||loading||editLoading||Boolean(photoRetryId)||(Boolean(editId)&&editVersion===null)||(section==="add"&&(!identityVerified||identityChecking||!personalDataConfirmed||Boolean(nationalIdError)||
      (profile.personType==="NATURAL"&&((profile.membershipStatus!=="NON_MEMBER_REPORTED"&&!countyCondition)||Boolean(mobileError)||!profile.mobile))||
      (profile.personType==="LEGAL"&&(!profile.registrationNumber||!profile.economicCode||!profile.representativeName||!profile.representativeNationalId||!profile.representativeMobile))))}>
       {busy?"در حال ثبت پرونده…":section==="add"?(editId?"ذخیره ویرایش پرونده":"ثبت درخواست عضویت"):"ثبت اطلاعات اظهارشده سهام"}
@@ -464,7 +541,7 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
     </form>
     {notice?<div role={error?"alert":"status"} className={"tto-nav02-message"+(error?" error":"")}>{notice}</div>:null}
    </section>
-   {section==="add"?<MemberSidebar slug={slug} photo={photo} photoUrl={photoUrl||(
+   {section==="add"?<MemberSidebar slug={slug} draftId={editId||undefined} photo={photo} photoUrl={photoUrl||(
     editId&&items.find(x=>x.id===editId&&((x as RecordItem & {photoState?:string}).photoState==="READY_PRIVATE"))?
     "/api/commerce/nav02/photo/view?slug="+encodeURIComponent(slug)+"&draftId="+encodeURIComponent(editId):""
    )}
