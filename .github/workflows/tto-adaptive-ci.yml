@@ -581,7 +581,8 @@ jobs:
           fi
           if [ "$GITHUB_HEAD_REF" = "test/ph12-positive-three-portal-and-register-authority-hold-20261111" ]; then
             npm install --prefix /tmp/tto-ph12-positive-browser --no-audit --no-fund playwright@1.56.1
-            node /tmp/tto-ph12-positive-browser/node_modules/playwright/cli.js install --with-deps chromium
+            # Avoid apt mirror DNS failures on GitHub ubuntu-24.04; Chromium is still mandatory.
+            node /tmp/tto-ph12-positive-browser/node_modules/playwright/cli.js install chromium
             export TTO_PH12_POSITIVE_BROWSER=1
             timeout --signal=TERM --kill-after=5s 330s node scripts/e2e-cf02-identity-authority.cjs
           else
