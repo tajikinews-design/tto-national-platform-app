@@ -93,6 +93,14 @@ test("wrong private key cannot forge a valid receipt",()=>{
  const wrong={...r,signatureBase64:sign(null,signingBytesForCustodianProof(signed),other.privateKey).toString("base64")};
  const check=review({receipt:wrong});assert.ok(check.blockers.includes("CUSTODIAN_SIGNATURE_VERIFICATION_FAILED"));hold(check);
 });
+test("malformed candidate register source fails closed without throwing",()=>{
+ const malformed={...official(),positions:null};
+ const r=review({official:malformed});
+ assert.equal(r.status,"BLOCKED");
+ assert.ok(r.blockers.includes("CHILD07_REGISTER_PARITY_NOT_VERIFIED"));
+ assert.ok(r.blockers.includes("CUSTODIAN_SNAPSHOT_MALFORMED"));
+ hold(r);
+});
 test("no CI-only flag means receipt is unusable in runtime",()=>{
  const before=process.env.TTO_CHILD07_CUSTODIAN_LAB;
  delete process.env.TTO_CHILD07_CUSTODIAN_LAB;
