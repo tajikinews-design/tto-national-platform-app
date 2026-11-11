@@ -26,7 +26,7 @@ function displayJalaliDate(value:string|null|undefined):string{
  const j=fromApiDate(value);
  return j?j.replace(/[0-9]/g,d=>Number(d).toLocaleString("fa-IR")):"—";
 }
-function Icon({name}:{name:"edit"|"history"|"delete"|"download"}){
+function Icon({name}:{name:"edit"|"history"|"delete"|"download"|"add-ceo"}){
  const p={width:17,height:17,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",
   strokeWidth:1.8,strokeLinecap:"round" as const,strokeLinejoin:"round" as const,"aria-hidden":true as const};
  return <svg {...p}>
@@ -34,6 +34,7 @@ function Icon({name}:{name:"edit"|"history"|"delete"|"download"}){
   {name==="history"?<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 3M3 3v5h5"/></>:null}
   {name==="delete"?<><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7m4-7v7"/></>:null}
   {name==="download"?<><path d="M12 3v12m0 0-5-5m5 5 5-5M4 17v4h16v-4"/></>:null}
+  {name==="add-ceo"?<><circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/></>:null}
  </svg>;
 }
 export function OfficersSettings({slug}:{slug:string}){
@@ -75,6 +76,17 @@ export function OfficersSettings({slug}:{slug:string}){
    gazetteName:o.gazetteName||"",gazetteDate:fromApiDate(o.gazetteDate),
    gazetteIssue:o.gazetteIssue||"",noticeNumber:o.noticeNumber||""});
   setFile(null);setError("");setMessage("ویرایش نسخه "+o.version+" پیش‌نویس انتخاب‌شده");
+  window.scrollTo({top:0,behavior:"smooth"});
+ }
+ function prepareAdditionalCeo(o:Officer){
+  if(!o.memberDraftId||!boardCeoEligibleRoles.has(o.officeCode))return;
+  setEditTarget(null);setAlsoCeo(false);setFile(null);setMemberLabel(o.memberName||"");
+  setForm({officeCode:"CEO",ceoSource:"MEMBER",memberDraftId:o.memberDraftId,
+   externalName:"",signingAuthorized:false,signingScope:"",
+   startDate:fromApiDate(o.startDate),endDate:fromApiDate(o.endDate),
+   gazetteName:o.gazetteName||"",gazetteDate:fromApiDate(o.gazetteDate),
+   gazetteIssue:o.gazetteIssue||"",noticeNumber:o.noticeNumber||""});
+  setError("");setMessage("مدیرعامل برای همین عضو به‌صورت سمت مستقل اضافه می‌شود؛ سمت قبلی بدون تغییر باقی می‌ماند.");
   window.scrollTo({top:0,behavior:"smooth"});
  }
  function reset(){
@@ -342,6 +354,11 @@ export function OfficersSettings({slug}:{slug:string}){
        <td><div className="tto-officer-governance-actions">
         <button type="button" className="tto-officer-icon" aria-label={"ویرایش سمت "+labelFor(item.officeCode)}
          title="ویرایش" onClick={()=>editItem(item)}><Icon name="edit"/></button>
+        {item.memberDraftId&&boardCeoEligibleRoles.has(item.officeCode)&&
+         !items.some(o=>o.officeCode==="CEO"&&o.memberDraftId===item.memberDraftId)?
+         <button type="button" className="tto-officer-icon" title="افزودن سمت مدیرعامل برای همین عضو"
+          aria-label="افزودن سمت مدیرعامل برای همین عضو" onClick={()=>prepareAdditionalCeo(item)}>
+          <Icon name="add-ceo"/></button>:null}
         <button type="button" className="tto-officer-icon" aria-label="مشاهده تاریخچه ویرایش"
          title="تاریخچه تغییرات" onClick={()=>void showHistory(item.id)}><Icon name="history"/></button>
         <button type="button" className="tto-officer-icon danger" aria-label="حذف پیش‌نویس از فهرست فعال"
