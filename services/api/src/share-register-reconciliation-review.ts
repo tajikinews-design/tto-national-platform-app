@@ -74,10 +74,10 @@ export function reviewOfficialRegisterReconciliation(
      official.tenantId!==projection.tenantId)fail("TENANT_SOURCE_MISMATCH");
   if(!isRef(official.registerId)||!isRef(official.custodianSourceRef))
     fail("OFFICIAL_CUSTODIAN_SOURCE_UNVERIFIED");
-  if(!Number.isSafeInteger(official.sourceVersion)||official.sourceVersion===null||
+  if(typeof official.sourceVersion!=="number"||!Number.isSafeInteger(official.sourceVersion)||
      official.sourceVersion<1 ||
-     !Number.isSafeInteger(projection.registerSourceVersion)||
-     projection.registerSourceVersion===null||projection.registerSourceVersion<1)
+     typeof projection.registerSourceVersion!=="number"||!Number.isSafeInteger(projection.registerSourceVersion)||
+     projection.registerSourceVersion<1)
     fail("REGISTER_SOURCE_VERSION_MISSING");
   else if(official.sourceVersion!==projection.registerSourceVersion)
     fail("REGISTER_SOURCE_VERSION_MISMATCH");
