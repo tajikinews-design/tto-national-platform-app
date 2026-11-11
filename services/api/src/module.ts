@@ -707,6 +707,82 @@ export class FoundationCommandsController {
     });
   }
 
+  /** A single authorized transaction issues two independently versioned
+   * preview appointments to the same natural-person member.
+   * Either both exist, or the transaction rolls back entirely.
+   */
+  @Post("commerce/demo/nav02/officers/multi")
+  @HttpCode(200)
+  async nav02OfficerMultiDraftCreate(@Headers("authorization") auth:string|undefined,
+    @Body() body:Record<string,unknown>){
+    const fields=["slug","memberDraftId","externalName","ceoSource","officeCode",
+      "signingAuthorized","signingScope","startDate","endDate","gazetteName",
+      "gazetteDate","gazetteIssue","noticeNumber","alsoCeo"];
+    if(!body||typeof body!=="object"||Array.isArray(body)||
+       Object.keys(body).some(k=>!fields.includes(k))||
+       body.alsoCeo!==true||
+       typeof body.slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(body.slug)||
+       typeof body.memberDraftId!=="string"||!uuidPattern.test(body.memberDraftId)||
+       body.ceoSource!=="MEMBER"||body.externalName!==""||
+       !["BOARD_CHAIR","BOARD_VICE_CHAIR","BOARD_MEMBER"].includes(String(body.officeCode))||
+       typeof body.signingAuthorized!=="boolean"||
+       !["signingScope","gazetteName","gazetteIssue","noticeNumber"].every(k=>typeof body[k]==="string")||
+       String(body.signingScope).length>1000||String(body.gazetteName).length>160||
+       String(body.gazetteIssue).length>80||String(body.noticeNumber).length>100||
+       typeof body.startDate!=="string"||typeof body.endDate!=="string"||
+       !/^\\d{4}-\\d{2}-\\d{2}$/.test(body.startDate)||
+       !/^\\d{4}-\\d{2}-\\d{2}$/.test(body.endDate)||
+       !(body.gazetteDate===null||body.gazetteDate===""||
+         typeof body.gazetteDate==="string"&&/^\\d{4}-\\d{2}-\\d{2}$/.test(body.gazetteDate)))
+      throw new BadRequestException("INVALID_DUAL_OFFICER_DRAFT");
+    const d0=new Date(body.startDate+"T00:00:00Z");
+    const d1=new Date(body.endDate+"T00:00:00Z");
+    if(!Number.isFinite(d0.getTime())||!Number.isFinite(d1.getTime())||d1<d0||
+       d0.toISOString().slice(0,10)!==body.startDate||
+       d1.toISOString().slice(0,10)!==body.endDate)
+      throw new BadRequestException("INVALID_DUAL_ROLE_DATES");
+    if(typeof body.gazetteDate==="string"&&body.gazetteDate!==""){
+      const noticeDate=new Date(body.gazetteDate+"T00:00:00Z");
+      if(!Number.isFinite(noticeDate.getTime())||
+         noticeDate.toISOString().slice(0,10)!==body.gazetteDate)
+        throw new BadRequestException("INVALID_GAZETTE_DATE");
+    }
+    // Same member eligibility check as ordinary single-role creation.
+    const list=await this.nav02IntakeList(auth,body.slug);
+    const member=(list.items as Array<Record<string,unknown>>)
+      .find(m=>m.id===body.memberDraftId);
+    if(!member||member.personType!=="NATURAL"||
+       member.managementState!=="ACTIVE_DRAFT"||
+       member.membershipStatus==="NON_MEMBER_REPORTED")
+      throw new ForbiddenException("DUAL_ROLE_MEMBER_NOT_ELIGIBLE");
+    const actor=await this.db.sessionActor(auth);
+    return this.db.withActor(actor,async c=>{
+      try{
+        const r=await c.query<{draft:unknown}>(
+          "SELECT tto.nav02_office_holder_dual_draft_create($1,$2::uuid,$3,$4,$5,$6::date,$7::date,$8,$9::date,$10,$11) AS draft",
+          [body.slug,body.memberDraftId,body.officeCode,body.signingAuthorized,
+           body.signingScope,body.startDate,body.endDate,body.gazetteName,
+           body.gazetteDate||null,body.gazetteIssue,body.noticeNumber]);
+        const draft=r.rows[0]?.draft as {saved?:boolean;ids?:unknown;
+          status?:string;legalPowerGranted?:boolean}|undefined;
+        if(draft?.saved!==true||draft.status!=="DRAFT_ONLY"||
+           draft.legalPowerGranted!==false||!Array.isArray(draft.ids)||
+           draft.ids.length!==2||!draft.ids.every(id=>typeof id==="string"&&uuidPattern.test(id))||
+           draft.ids[0]===draft.ids[1])
+           throw new ServiceUnavailableException("INVALID_DUAL_ROLE_RESULT");
+        return draft;
+      }catch(e){
+        if((e as {code?:string}).code==="23505")
+          throw new ConflictException("DUAL_ROLE_OVERLAPS_EXISTING_APPOINTMENT");
+        if((e as {code?:string}).code==="42501")
+          throw new ForbiddenException("DUAL_ROLE_OWNER_DENIED");
+        if((e as {code?:string}).code==="23514"||(e as {code?:string}).code==="22023")
+          throw new BadRequestException("INVALID_DUAL_ROLE_COMBINATION");
+        throw e;
+      }
+    });
+  }
+
   @Get("commerce/demo/nav02/officers/history")
   async nav02OfficersHistory(@Headers("authorization") auth:string|undefined,
     @Query("slug") slug:string,@Query("id") id:string){
