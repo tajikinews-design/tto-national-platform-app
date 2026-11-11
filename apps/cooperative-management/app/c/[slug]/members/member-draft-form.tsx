@@ -425,8 +425,14 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
         value={profile.representativeName} onChange={e=>change("representativeName",e.target.value)}/></Field>
        <Field title="کد ملی نماینده *"><input required maxLength={10} inputMode="numeric" dir="ltr"
         value={profile.representativeNationalId} onChange={e=>change("representativeNationalId",e.target.value)}/></Field>
-       <Field title="تلفن همراه نماینده *"><input required maxLength={11} inputMode="numeric" dir="ltr"
-        value={profile.representativeMobile} onChange={e=>change("representativeMobile",e.target.value)}/></Field>
+       <div className="tto-nav02-field"><label htmlFor="tto-representative-mobile">تلفن همراه نماینده *</label>
+        <div className="tto-shahkar-inline">
+         <input id="tto-representative-mobile" required maxLength={11} inputMode="numeric" dir="ltr"
+          value={profile.representativeMobile} onChange={e=>change("representativeMobile",e.target.value)}/>
+         <button type="button" className={"tto-shahkar-icon"+(identityVerified?" is-verified":"")} title={identityMessage||(identityVerified?"تطبیق شاهکار تأیید شد":"استعلام شاهکار")} aria-label={identityChecking?"استعلام شاهکار در حال انجام است":identityVerified?"تطبیق شاهکار تأیید شد":"استعلام شاهکار"} aria-busy={identityChecking} disabled={identityChecking||busy||!validIranianNationalId(identityNationalCode)||!/^09[0-9]{9}$/.test(identityMobile)} onClick={()=>void verifyIdentity()}><span aria-hidden="true">{identityChecking?"◌":identityVerified?"✓":"⌕"}</span></button>
+        </div>
+        {identityMessage&&!identityVerified?<small role="status" className="tto-nav02-field-error">{identityMessage}</small>:null}
+       </div>
        <Field title="شماره تماس شرکت"><input maxLength={25}
         value={profile.telephone} onChange={e=>change("telephone",e.target.value)}/></Field>
        <Field title="کدپستی"><input maxLength={12} value={profile.postalCode}
@@ -441,7 +447,17 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
         </div>
         <Field title="محل تولد"><input value={profile.birthPlace} maxLength={120}
          onChange={e=>change("birthPlace",e.target.value)}/></Field>
-       </div>:key==="birthPlace"?null:<Field key={key} title={label+(required?" *":"")}
+       </div>:key==="birthPlace"?null:key==="mobile"?<div key="member-mobile-identity" className="tto-nav02-field">
+        <label htmlFor="tto-member-mobile">موبایل</label>
+        <div className="tto-shahkar-inline">
+         <input id="tto-member-mobile" type="tel" inputMode="numeric" dir="ltr" autoComplete="tel"
+          value={profile.mobile} maxLength={11} pattern="09[0-9]{9}" aria-invalid={Boolean(mobileError)}
+          onChange={e=>change("mobile",e.target.value)}/>
+         <button type="button" className={"tto-shahkar-icon"+(identityVerified?" is-verified":"")} title={identityMessage||(identityVerified?"تطبیق شاهکار تأیید شد":"استعلام شاهکار")} aria-label={identityChecking?"استعلام شاهکار در حال انجام است":identityVerified?"تطبیق شاهکار تأیید شد":"استعلام شاهکار"} aria-busy={identityChecking} disabled={identityChecking||busy||!validIranianNationalId(identityNationalCode)||!/^09[0-9]{9}$/.test(identityMobile)} onClick={()=>void verifyIdentity()}><span aria-hidden="true">{identityChecking?"◌":identityVerified?"✓":"⌕"}</span></button>
+        </div>
+        {mobileError?<small role="alert" className="tto-nav02-field-error">{mobileError}</small>:null}
+        {identityMessage&&!identityVerified?<small role="status" className="tto-nav02-field-error">{identityMessage}</small>:null}
+       </div>:<Field key={key} title={label+(required?" *":"")}
        wide={key==="address"}>
        {key==="address"?<textarea value={profile.address} rows={3} maxLength={600}
         onChange={e=>change("address",e.target.value)}/>:
@@ -450,25 +466,17 @@ export function MemberDraftForms({slug,section}:{slug:string;section:Section}){
           <option key={g} value={g}>{g}</option>)}
         </select>:
         <input value={profile[key]} maxLength={max} required={required}
-         aria-invalid={key==="nationalId"?Boolean(nationalIdError):key==="mobile"?Boolean(mobileError):undefined}
-         inputMode={key==="nationalId"||key==="postalCode"||key==="mobile"||key==="telephone"?"numeric":"text"}
+         aria-invalid={key==="nationalId"?Boolean(nationalIdError):undefined}
+         inputMode={key==="nationalId"||key==="postalCode"||key==="telephone"?"numeric":"text"}
          dir={key==="nationalId"?"ltr":undefined}
          autoComplete={key==="nationalId"?"off":undefined}
-         pattern={key==="nationalId"?"[0-9]{10}":key==="mobile"?"09[0-9]{9}":undefined}
+         pattern={key==="nationalId"?"[0-9]{10}":undefined}
          onChange={e=>change(key,e.target.value)}/>}
        {key==="nationalId"?<>
         {nationalIdError?<small role="alert" className="tto-nav02-field-error">{nationalIdError}</small>:
         profile.nationalId.length===10?<small className="tto-nav02-checksum-ok">رقم کنترل کد ملی صحیح است؛ تطبیق هویت نیازمند استعلام است.</small>:null}
        </>:null}
-       {key==="mobile"&&mobileError?<small role="alert" className="tto-nav02-field-error">{mobileError}</small>:null}
       </Field>)}
-      <div className="tto-nav02-warning" role="group" aria-label="تأیید شماره همراه با شاهکار">
-       <strong>استعلام شاهکار در فرم ثبت عضو</strong>
-       <p>پس از واردکردن کد ملی و شماره همراه، استعلام را انجام دهید. تا زمان پاسخ مثبت، ثبت پرونده غیرفعال است. تغییر هرکدام از این دو مقدار، تأیید قبلی را باطل می‌کند.</p>
-       <button type="button" disabled={identityChecking||busy||!validIranianNationalId(identityNationalCode)||!/^09[0-9]{9}$/.test(identityMobile)}
-        onClick={()=>void verifyIdentity()}>{identityChecking?"در حال استعلام…":"استعلام و تطبیق شاهکار"}</button>
-       <p role="status">{identityVerified?"✓ تطبیق مثبت دریافت شده است":identityMessage||"هنوز تطبیق مثبت دریافت نشده است."}</p>
-      </div>
       {profile.personType==="NATURAL"&&profile.membershipStatus!=="NON_MEMBER_REPORTED"?<fieldset className="tto-nav02-eligibility">
        <legend>شرایط ارتباط با شهرستان طبق ماده ۲ قانون تأسیس (حداقل یکی)</legend>
        <label><input type="checkbox" checked={profile.bornInCounty==="yes"}

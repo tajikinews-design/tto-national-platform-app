@@ -147,7 +147,9 @@ class MemberFormLegal(unittest.TestCase):
   self.assertIn('nav02_member_number_issue',api)
   self.assertIn('checkNav02Shahkar',api)
   self.assertIn('createCipheriv("aes-256-gcm",key,iv)',api)
-  self.assertIn('memberSection!=="add"',read("packages/ui/src/index.tsx"))
+  # Owner requested the preview banner removed globally, not just on member add.
+  self.assertNotIn("عملیات رسمی و مالی تا احراز اختیار قانونی مدیر غیرفعال است.",read("packages/ui/src/index.tsx"))
+  self.assertIn('aria-label="مسیر صفحه"',read("packages/ui/src/index.tsx"))
  def test_photo_immediate_local_but_private_server(self):
   form=read("apps/cooperative-management/app/c/[slug]/members/member-draft-form.tsx")
   self.assertIn('URL.createObjectURL(photo)',form)
