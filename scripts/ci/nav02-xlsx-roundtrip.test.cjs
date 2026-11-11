@@ -55,3 +55,30 @@ test("NAV02 legacy cooperative prefix hides only for matching workspace without 
  assert.equal(display("other","torghabeh-001003"),"torghabeh-001003");
  assert.equal(display("torghabeh",null),null);
 });
+
+test("NAV02 Persian calendar exact roundtrip for board appointments and leap dates",()=>{
+ const file=resolve(ROOT,"apps/cooperative-management/app/c/[slug]/members/jalali-birth-picker.tsx");
+ const content=fs.readFileSync(file,"utf8");
+ const js=ts.transpileModule(content,{compilerOptions:{
+  module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,
+  jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true
+ }}).outputText;
+ const calendar={exports:{}};
+ const requireUI=createRequire(resolve(ROOT,"apps/cooperative-management/package.json"));
+ new Function("require","module","exports",js)(requireUI,calendar,calendar.exports);
+ const {jalaliToGregorianISO:toISO,gregorianISOToJalali:toJalali}=calendar.exports;
+ for(const [iso,solar] of [
+  ["2024-03-20","1403/01/01"],
+  ["2025-03-20","1403/12/30"],
+  ["2025-03-21","1404/01/01"],
+  ["2026-11-11","1405/08/20"],
+  ["2030-03-21","1409/01/01"]
+ ]){
+  assert.equal(toJalali(iso),solar);
+  assert.equal(toISO(solar),iso);
+ }
+ assert.equal(toISO("1404/12/30"),"");
+ assert.equal(toISO("1405/13/01"),"");
+ assert.equal(toJalali("2026-13-11"),"");
+ assert.equal(toJalali("not-a-date"),"");
+});
