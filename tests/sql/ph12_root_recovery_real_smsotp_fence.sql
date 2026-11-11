@@ -31,11 +31,8 @@ BEGIN
  IF n<>0 THEN RAISE EXCEPTION 'UNDELIVERED_SMS_ISSUED_PROOF'; END IF;
  IF NOT tto.complete_smsotp_delivery(ch,true) THEN
   RAISE EXCEPTION 'SMS_DELIVERY_CANNOT_BE_RECORDED'; END IF;
- SELECT count(*) INTO n FROM tto.consume_national_root_recovery_smsotp(ch,wrong,mobile,national);
- IF n<>0 THEN RAISE EXCEPTION 'WRONG_OTP_WAS_ACCEPTED'; END IF;
- -- Correct code after one wrong attempt must still be usable under the
- -- current auth_policy max_attempts. A second negative case gets its own
- -- challenge so it does not exhaust the allowed attempts.
+ -- The installed policy may permit only ONE attempt; prove the valid
+ -- delivery independently before running any wrong-code negative challenge.
  SELECT count(*) INTO n FROM tto.consume_national_root_recovery_smsotp(ch,good,mobile,national);
  IF n<>1 THEN RAISE EXCEPTION 'VALID_DELIVERED_OTP_NOT_CONSUMED'; END IF;
  SELECT count(*) INTO n FROM tto.consume_national_root_recovery_smsotp(ch,good,mobile,national);
@@ -50,6 +47,17 @@ BEGIN
  SELECT count(*) INTO n FROM tto.consume_national_root_recovery_smsotp(
    'a9999999-9999-4999-8999-999999999999',good,mobile,wrong);
  IF n<>0 THEN RAISE EXCEPTION 'WRONG_NATIONAL_ID_DIGEST_WAS_ACCEPTED'; END IF;
+ -- Third separate challenge checks wrong OTP without exhausting the good
+ -- challenge's authorized attempt budget.
+ IF NOT tto.begin_national_root_recovery_smsotp(
+   u,5,'abbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',nonce,mobile,national,good,
+   clock_timestamp()+interval '40 seconds')
+ THEN RAISE EXCEPTION 'WRONG_CODE_TEST_CHALLENGE_NOT_ISSUED'; END IF;
+ IF NOT tto.complete_smsotp_delivery('abbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',true)
+ THEN RAISE EXCEPTION 'WRONG_CODE_TEST_DELIVERY_NOT_ACCEPTED'; END IF;
+ SELECT count(*) INTO n FROM tto.consume_national_root_recovery_smsotp(
+   'abbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',wrong,mobile,national);
+ IF n<>0 THEN RAISE EXCEPTION 'WRONG_OTP_WAS_ACCEPTED'; END IF;
  IF EXISTS(SELECT 1 FROM tto.user_sessions WHERE user_id=u)
  THEN RAISE EXCEPTION 'RECOVERY_OTP_MUST_NOT_CREATE_SESSION'; END IF;
  IF (SELECT credentials_version FROM tto.national_root_accounts WHERE singleton)<>5
