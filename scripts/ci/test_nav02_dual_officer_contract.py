@@ -39,6 +39,9 @@ class DualRoles(unittest.TestCase):
   self.assertIn('data.ids.length!==2',UI)
   self.assertIn('setAlsoCeo(false)',UI)
   self.assertIn("دارای چند سمت هم‌زمان",UI)
+  self.assertIn("prepareAdditionalCeo(o:Officer)",UI)
+  self.assertIn('officeCode:"CEO",ceoSource:"MEMBER",memberDraftId:o.memberDraftId',UI)
+  self.assertIn("افزودن سمت مدیرعامل برای همین عضو",UI)
  def test_gateway_fails_closed_and_has_same_origin(self):
   self.assertIn("ORIGIN_DENIED",GATE)
   self.assertIn("LOGIN_REQUIRED",GATE)
