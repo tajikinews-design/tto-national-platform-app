@@ -33,12 +33,23 @@ BEGIN
   RAISE EXCEPTION 'SMS_DELIVERY_CANNOT_BE_RECORDED'; END IF;
  SELECT count(*) INTO n FROM tto.consume_national_root_recovery_smsotp(ch,wrong,mobile,national);
  IF n<>0 THEN RAISE EXCEPTION 'WRONG_OTP_WAS_ACCEPTED'; END IF;
- SELECT count(*) INTO n FROM tto.consume_national_root_recovery_smsotp(ch,good,mobile,wrong);
- IF n<>0 THEN RAISE EXCEPTION 'WRONG_NATIONAL_ID_DIGEST_WAS_ACCEPTED'; END IF;
+ -- Correct code after one wrong attempt must still be usable under the
+ -- current auth_policy max_attempts. A second negative case gets its own
+ -- challenge so it does not exhaust the allowed attempts.
  SELECT count(*) INTO n FROM tto.consume_national_root_recovery_smsotp(ch,good,mobile,national);
  IF n<>1 THEN RAISE EXCEPTION 'VALID_DELIVERED_OTP_NOT_CONSUMED'; END IF;
  SELECT count(*) INTO n FROM tto.consume_national_root_recovery_smsotp(ch,good,mobile,national);
  IF n<>0 THEN RAISE EXCEPTION 'SMS_OTP_PROOF_REPLAY_WAS_ACCEPTED'; END IF;
+ -- Different challenge: national-ID digest mismatch is rejected.
+ IF NOT tto.begin_national_root_recovery_smsotp(
+   u,5,'a9999999-9999-4999-8999-999999999999',nonce,mobile,national,good,
+   clock_timestamp()+interval '40 seconds')
+ THEN RAISE EXCEPTION 'SECOND_CHALLENGE_NOT_ISSUED'; END IF;
+ IF NOT tto.complete_smsotp_delivery('a9999999-9999-4999-8999-999999999999',true)
+ THEN RAISE EXCEPTION 'SECOND_DELIVERY_NOT_RECORDED'; END IF;
+ SELECT count(*) INTO n FROM tto.consume_national_root_recovery_smsotp(
+   'a9999999-9999-4999-8999-999999999999',good,mobile,wrong);
+ IF n<>0 THEN RAISE EXCEPTION 'WRONG_NATIONAL_ID_DIGEST_WAS_ACCEPTED'; END IF;
  IF EXISTS(SELECT 1 FROM tto.user_sessions WHERE user_id=u)
  THEN RAISE EXCEPTION 'RECOVERY_OTP_MUST_NOT_CREATE_SESSION'; END IF;
  IF (SELECT credentials_version FROM tto.national_root_accounts WHERE singleton)<>5
