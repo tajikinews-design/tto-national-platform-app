@@ -255,3 +255,13 @@
  .tto-officer-form>.tto-officer-gazette-row,.tto-officer-upload-row{grid-template-columns:minmax(0,1fr)}
  .tto-officer-gazette-row>.tto-officer-date-field .tto-nav02-calendar-pop{left:auto;right:0}
 }
+
+/* One membership, two independently auditable offices: chairman/vice/member + CEO. */
+.tto-officer-form>.tto-officer-dual-role{grid-column:1/-1;border:1px solid #b6dcd4;
+ border-radius:11px;padding:12px 15px;background:#f2faf8;display:grid;gap:5px}
+.tto-officer-dual-role>label{display:flex;align-items:center;gap:10px;cursor:pointer;
+ color:#225c63;font-size:13px;font-weight:750;line-height:1.8}
+.tto-officer-dual-role input{width:18px;height:18px;accent-color:#137666;flex:none}
+.tto-officer-dual-role>p{margin:0;font-size:11px;line-height:1.95;color:#567b78}
+.tto-officer-form>.tto-officer-existing-roles{grid-column:1/-1;margin:0;
+ font-size:11px;border-radius:8px;background:#f2f7ff;color:#305981;padding:8px 12px}
