@@ -154,3 +154,17 @@
 .tto-officer-member-status button{cursor:pointer;border:1px solid #b6d9e0;border-radius:9px;padding:8px 12px;background:#fff;color:#225e7a}
 @media(max-width:1000px){.tto-settings-page .tto-officer-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:610px){.tto-settings-page .tto-officer-form{grid-template-columns:minmax(0,1fr)}}
+
+/* Unified Persian calendar on all officer/date-of-appointment controls. */
+.tto-officer-form>.tto-officer-date-field{
+ display:grid;gap:7px;min-width:0;align-content:start;
+ font-size:12px;font-weight:750;color:#325778;line-height:1.8;
+}
+.tto-officer-form>.tto-officer-date-field .tto-nav02-jalali{min-width:0;position:relative}
+.tto-officer-form>.tto-officer-date-field .tto-nav02-calendar-trigger{
+ width:100%;min-width:0;height:44px;min-height:44px;border:1px solid #cfdee9;
+ border-radius:10px;background:#fbfdff;color:#1c4565;
+}
+.tto-officer-form>.tto-officer-date-field .tto-nav02-calendar-pop{
+ z-index:40;width:min(312px,calc(100vw - 46px));max-width:none;
+}
