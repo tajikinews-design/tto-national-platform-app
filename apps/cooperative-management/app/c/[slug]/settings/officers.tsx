@@ -15,6 +15,7 @@ const offices=[
  ["BOARD_SECRETARY","منشی هیئت‌مدیره"],["AUDITOR_PRIMARY","بازرس اصلی"],
  ["AUDITOR_ALT1","بازرس علی‌البدل اول"],["AUDITOR_ALT2","بازرس علی‌البدل دوم"]
 ] as const;
+const boardCeoEligibleRoles=new Set(["BOARD_CHAIR","BOARD_VICE_CHAIR","BOARD_MEMBER"]);
 const empty={officeCode:"BOARD_CHAIR",ceoSource:"MEMBER",memberDraftId:"",
  externalName:"",signingAuthorized:false,signingScope:"",startDate:"",
  endDate:"",gazetteName:"",gazetteDate:"",gazetteIssue:"",noticeNumber:""};
@@ -38,6 +39,7 @@ function Icon({name}:{name:"edit"|"history"|"delete"|"download"}){
 export function OfficersSettings({slug}:{slug:string}){
  const [items,setItems]=useState<Officer[]>([]);
  const [form,setForm]=useState(empty);
+ const [alsoCeo,setAlsoCeo]=useState(false);
  const [memberLabel,setMemberLabel]=useState("");
  const [editTarget,setEditTarget]=useState<{id:string;version:number}|null>(null);
  const [historyId,setHistoryId]=useState("");
@@ -64,6 +66,7 @@ export function OfficersSettings({slug}:{slug:string}){
   setForm(old=>({...old,[key]:value}));
  }
  function editItem(o:Officer){
+  setAlsoCeo(false);
   setEditTarget({id:o.id,version:o.version});
   setMemberLabel(o.memberName||"");
   setForm({officeCode:o.officeCode,ceoSource:o.ceoSource,memberDraftId:o.memberDraftId||"",
@@ -75,6 +78,7 @@ export function OfficersSettings({slug}:{slug:string}){
   window.scrollTo({top:0,behavior:"smooth"});
  }
  function reset(){
+  setAlsoCeo(false);
   setEditTarget(null);setForm(empty);setMemberLabel("");setFile(null);
   setDocumentSubject("آگهی رسمی انتصاب");
  }
@@ -149,29 +153,33 @@ export function OfficersSettings({slug}:{slug:string}){
   if(file&&(!fileMime(file)||file.size<68||file.size>524288)){
    setError("فرمت یا حجم سند معتبر نیست. PDF، DOCX، JPG و PNG تا ۵۱۲ کیلوبایت مجازند.");return;
   }
+  const simultaneous=!editTarget&&alsoCeo&&boardCeoEligibleRoles.has(form.officeCode)&&!external;
   setBusy(true);setError("");setMessage("");
   let storedId:string|null=null,storedVersion=1;
   try{
    const payload={slug,...form,startDate,endDate,gazetteDate,
+    ...(simultaneous?{alsoCeo:true}:{}),
     ...(editTarget?{id:editTarget.id,version:editTarget.version}:{}),
     ceoSource:external?"EXTERNAL":"MEMBER",
     memberDraftId:external?null:form.memberDraftId,
     externalName:external?form.externalName:""};
-   const r=await fetch(base+(editTarget?"/edit":""),{
+   const r=await fetch(base+(editTarget?"/edit":simultaneous?"/multi":""),{
     method:"POST",credentials:"same-origin",cache:"no-store",
     headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-   if(!r.ok)throw Error(r.status===409?"پیش‌نویس به‌طور هم‌زمان تغییر کرده است؛ دوباره بارگذاری کنید.":
+   if(!r.ok)throw Error(r.status===409?(simultaneous?"یکی از سمت‌های انتخاب‌شده برای این شخص در دوره زمانی مشابه قبلاً ثبت شده است. تاریخ‌ها یا سوابق را بررسی کنید.":"پیش‌نویس به‌طور هم‌زمان تغییر کرده است؛ دوباره بارگذاری کنید."):
     r.status===403?"شخص یا مجوز ثبت در این تعاونی معتبر نیست.":r.status===400?
     "اطلاعات سمت، نوع عضویت یا تاریخ‌ها معتبر نیست.":"ثبت سمت در پایگاه داده ناموفق بود.");
-   const data=await r.json() as {saved?:boolean;id?:string;version?:number;status?:string;legalPowerGranted?:boolean};
+   const data=await r.json() as {saved?:boolean;id?:string;ids?:string[];version?:number;status?:string;legalPowerGranted?:boolean};
    if(data.saved!==true||data.status!=="DRAFT_ONLY"||data.legalPowerGranted!==false)
     throw Error("سرور وضعیت غیررسمی پیش‌نویس را تأیید نکرد.");
-   storedId=editTarget?.id??data.id??null;
+   if(simultaneous&&(!Array.isArray(data.ids)||data.ids.length!==2||data.ids[0]===data.ids[1]))
+    throw Error("ثبت دو سمت به‌صورت یکپارچه از سمت سرور تأیید نشد.");
+   storedId=simultaneous?data.ids?.[0]??null:editTarget?.id??data.id??null;
    storedVersion=editTarget?(data.version??editTarget.version+1):1;
    if(!storedId)throw Error("ثبت سمت انجام شد، ولی شناسه پرونده دریافت نشد.");
    if(file){await saveDocument(file,storedId);setFile(null)}
    reset();await load();
-   setMessage("پیش‌نویس سمت و ضمیمه انتخاب‌شده (در صورت وجود) ذخیره شدند. اعطای سمت رسمی نیازمند بررسی قانونی است.");
+   setMessage(simultaneous?"دو سمت مستقل هیئت‌مدیره و مدیرعامل برای همین عضو، به‌صورت یکپارچه ثبت شدند. اختیار امضای مدیرعامل جداگانه و بدون انتقال خودکار از سمت هیئت‌مدیره تعیین می‌شود.":"پیش‌نویس سمت و ضمیمه انتخاب‌شده (در صورت وجود) ذخیره شدند. اعطای سمت رسمی نیازمند بررسی قانونی است.");
   }catch(e){
    if(storedId){
     setEditTarget({id:storedId,version:storedVersion});
@@ -217,6 +225,7 @@ export function OfficersSettings({slug}:{slug:string}){
     <label>سمت
      <select value={form.officeCode} onChange={e=>{
       const officeCode=e.target.value;
+      setAlsoCeo(false);
       setForm(x=>({...x,officeCode,ceoSource:officeCode==="CEO"?x.ceoSource:"MEMBER",
        memberDraftId:x.ceoSource==="EXTERNAL"?"":x.memberDraftId}));
      }}>{offices.map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>
@@ -238,6 +247,18 @@ export function OfficersSettings({slug}:{slug:string}){
      <OfficerMemberPicker slug={slug} value={form.memberDraftId}
       initialLabel={memberLabel} disabled={busy}
       onChange={(id,label)=>{update("memberDraftId",id);setMemberLabel(label)}}/>}
+    {!editTarget&&boardCeoEligibleRoles.has(form.officeCode)&&!external?
+     <div className="tto-officer-dual-role">
+      <label><input type="checkbox" checked={alsoCeo} disabled={busy}
+       onChange={e=>setAlsoCeo(e.target.checked)}/>
+       این شخص هم‌زمان مدیرعامل تعاونی نیز هست</label>
+      <p>با فعال‌کردن این گزینه، سمت «{labelFor(form.officeCode)}» و سمت «مدیرعامل» برای یک پرونده عضو، در یک عملیات ثبت می‌شوند. هر سمت ردیف، سابقه و حق امضای مستقل دارد.</p>
+     </div>:null}
+    {form.memberDraftId&&items.some(o=>o.memberDraftId===form.memberDraftId)?
+      <p className="tto-officer-existing-roles" role="status">
+       سمت‌های ثبت‌شده این شخص: {items.filter(o=>o.memberDraftId===form.memberDraftId)
+        .map(o=>labelFor(o.officeCode)).join("، ")}
+      </p>:null}
     <h3 className="tto-officer-section-title">۲. حدود امضا و دوره مسئولیت</h3>
     <label>حدود امضا
      <select value={form.signingAuthorized?"yes":"no"}
@@ -288,7 +309,7 @@ export function OfficersSettings({slug}:{slug:string}){
     </div>
     <div className="tto-nav02-actions tto-officer-actions">
      <button disabled={busy||officerUnavailable||(!external&&!form.memberDraftId)} type="submit">
-      {busy?"در حال ذخیره…":editTarget?"ذخیره ویرایش نسخه "+editTarget.version:"ثبت پیش‌نویس سمت"}</button>
+      {busy?"در حال ذخیره…":editTarget?"ذخیره ویرایش نسخه "+editTarget.version:alsoCeo&&boardCeoEligibleRoles.has(form.officeCode)?"ثبت هم‌زمان دو سمت":"ثبت پیش‌نویس سمت"}</button>
      {editTarget?<button type="button" onClick={()=>{reset();setMessage("")}}>انصراف از ویرایش</button>:null}
     </div>
    </form>
@@ -305,7 +326,9 @@ export function OfficersSettings({slug}:{slug:string}){
       <th>اسناد و ضمیمه‌ها</th><th>عملیات مدیریتی</th></tr></thead>
      <tbody>{items.length===0?<tr><td colSpan={7}>هنوز پیش‌نویس سمتی ثبت نشده است.</td></tr>:
       items.map(item=><tr key={item.id}>
-       <td>{item.externalName||item.memberName||"عضو ثبت‌شده"}</td>
+       <td>{item.externalName||item.memberName||"عضو ثبت‌شده"}
+        {item.memberDraftId&&items.some(o=>o.id!==item.id&&o.memberDraftId===item.memberDraftId)?
+         <small>دارای چند سمت هم‌زمان</small>:null}</td>
        <td>{labelFor(item.officeCode)}<small>{item.ceoSource==="EXTERNAL"?" · خارج از تعاونی":" · عضو تعاونی (اظهاری)"}</small></td>
        <td>{item.signingScope|| (item.signingAuthorized?"دارای حق امضای اظهارشده":"بدون حق امضا")}</td>
        <td>{displayJalaliDate(item.startDate)}</td><td>{displayJalaliDate(item.endDate)}</td>
