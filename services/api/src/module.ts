@@ -596,6 +596,31 @@ export class FoundationCommandsController {
   }
 
   /** Preview-only governance draft. Never grants signing powers or official office. */
+  /** Tenant-scoped, request-time member lookup for the officer combobox.
+   * Every query reads the secured member store under the current owner actor.
+   * The encrypted profile is decrypted only within the API service, and only
+   * the first 20 safe identity labels are returned (never raw national IDs).
+   * The whole list is never sent to the browser just to filter it.
+   */
+  @Get("commerce/demo/nav02/officers/member-search")
+  async nav02OfficerMemberSearch(@Headers("authorization") auth:string|undefined,
+    @Query("slug") slug:string,@Query("q") q:string=""){
+    if(typeof slug!=="string"||!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug)||
+      typeof q!=="string"||q.length>60||/[\\x00-\\x1f]/.test(q))
+      throw new BadRequestException("INVALID_OFFICER_MEMBER_QUERY");
+    const normalized=q.trim().replace(/ي/g,"ی").replace(/ك/g,"ک").toLocaleLowerCase("fa-IR");
+    if(normalized.length===1)return {items:[],more:false};
+    const data=await this.nav02IntakeList(auth,slug);
+    const eligible=(data.items as Array<Record<string,unknown>>).filter(m=>
+      m.personType==="NATURAL"&&m.managementState==="ACTIVE_DRAFT"&&
+      m.membershipStatus!=="NON_MEMBER_REPORTED"&&
+      (normalized===""||(String(m.name??"")+" "+String(m.identifierMask??""))
+        .replace(/ي/g,"ی").replace(/ك/g,"ک").toLocaleLowerCase("fa-IR").includes(normalized)));
+    return {items:eligible.slice(0,20).map(m=>({
+      id:m.id,name:m.name,identifierMask:m.identifierMask
+    })),more:eligible.length>20};
+  }
+
   @Get("commerce/demo/nav02/officers")
   async nav02OfficersList(@Headers("authorization") auth:string|undefined,
     @Query("slug") slug:string){
