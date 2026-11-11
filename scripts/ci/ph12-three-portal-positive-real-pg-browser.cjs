@@ -67,7 +67,12 @@ async function check(){
         checking:document.body.textContent?.includes("در حال بررسی نشست")===true,
         ready:document.body.textContent?.includes("نشست شما معتبر است")===true,
         error:document.body.textContent?.includes("سرویس بررسی وضعیت نشست در دسترس نیست")===true,
-        userInputs:document.querySelectorAll("#portal-user").length
+        userInputs:document.querySelectorAll("#portal-user").length,
+        authSurface:document.querySelectorAll("[data-tto-auth-surface]").length,
+        selectedPasswordTab:document.querySelector('[role="tab"][aria-selected="true"]')?.textContent?.includes("نام کاربری و رمز")===true,
+        otpTabSelected:document.querySelector('[role="tab"][aria-selected="true"]')?.textContent?.includes("رمز یک‌بارمصرف")===true,
+        loginTitle:document.body.textContent?.includes("ورود مدیر تعاونی")===true,
+        pagePath:location.pathname
        };
       });
       console.error("TTO_PH12_BROWSER_FORM_PHASE_DIAGNOSTIC",p.surface,
