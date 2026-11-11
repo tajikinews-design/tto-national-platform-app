@@ -112,6 +112,7 @@ jobs:
           # Pure v3 market preflight regression; no DB mutation, ownership or payment.
           node --test scripts/ci/share-market-v3-preflight.test.cjs
           node --test scripts/ci/share-register-reconciliation-review.test.cjs
+          node --test scripts/ci/national-root-owner-credentials.test.cjs
       - name: PH12 negative-access Chromium proof for three separate portal sessions
         if: github.event_name == 'pull_request' && github.head_ref == 'test/ph12-three-portal-anonymous-chromium-20261111' && steps.scope.outputs.suite != 'lite'
         env:
