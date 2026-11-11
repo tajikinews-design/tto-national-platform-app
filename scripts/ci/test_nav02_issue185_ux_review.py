@@ -60,10 +60,55 @@ class Nav02Review(unittest.TestCase):
   self.assertIn("allowFuture",picker)
   self.assertIn("outsideRange(day)",picker)
   self.assertIn("gregorianISOToJalali",picker)
- def test_officer_picker_does_not_depend_on_officer_api(self):
-  self.assertIn("if(!mr.ok)",OFFICER)
-  self.assertIn("setMembers(m.items.filter",OFFICER)
-  self.assertIn("if(!or.ok)",OFFICER)
-  self.assertLess(OFFICER.index("setMembers(m.items.filter"),OFFICER.index("if(!or.ok)"))
+ def test_member_combobox_server_query_without_separate_search(self):
+  picker=src("apps/cooperative-management/app/c/[slug]/settings/officer-member-picker.tsx")
+  search=src("apps/cooperative-management/app/api/commerce/nav02/officers/member-search/route.ts")
+  backend=src("services/api/src/module.ts")
+  proxy=src("apps/cooperative-management/proxy.ts")
+  self.assertIn("<OfficerMemberPicker",OFFICER)
+  self.assertNotIn("جست‌وجو در فهرست اعضا",OFFICER)
+  self.assertIn('role="combobox"',picker)
+  self.assertIn('role="listbox"',picker)
+  self.assertIn("encodeURIComponent(q)",picker)
+  self.assertIn("ctrl.abort()",picker)
+  self.assertIn("member-search",search)
+  self.assertIn("trustedBackendHeaders(req)",search)
+  self.assertIn("member-search",backend)
+  self.assertIn("this.nav02IntakeList(auth,slug)",backend)
+  self.assertIn("eligible.slice(0,20)",backend)
+  self.assertIn("/api/commerce/nav02/officers/member-search",proxy)
   self.assertIn("officerUnavailable",OFFICER)
+ def test_four_fields_per_row_and_visible_governance_actions(self):
+  self.assertIn("tto-officer-gazette-row",OFFICER)
+  self.assertIn("grid-template-columns:repeat(4,minmax(0,1fr))",OFCSS)
+  for key in ("gazetteName","gazetteDate","gazetteIssue","noticeNumber"):
+   self.assertIn(key,OFFICER)
+  for key in ("نام و نام خانوادگی","حدود امضا","تاریخ شروع سمت","تاریخ پایان سمت"):
+   self.assertIn(key,OFFICER)
+  for name in ('name="edit"','name="history"','name="delete"','name="download"'):
+   self.assertIn(name,OFFICER)
+  self.assertIn('value={form.ceoSource}',OFFICER)
+  self.assertIn("وضعیت عضویت",OFFICER)
+ def test_scanned_officer_documents_and_owner_audit_are_protected(self):
+  sql=src("database/migrations/9999zf_nav02_officer_documents_archive.sql")
+  api=src("services/api/src/module.ts")
+  post=src("apps/cooperative-management/app/api/commerce/nav02/officers/documents/route.ts")
+  download=src("apps/cooperative-management/app/api/commerce/nav02/officers/documents/download/route.ts")
+  archive=src("apps/cooperative-management/app/api/commerce/nav02/officers/archive/route.ts")
+  for term in ("FORCE ROW LEVEL SECURITY","scan_verdict='CLEAN'","nav02_member_owner_order(p_slug)",
+               "ARCHIVE_DRAFT_WITH_AUDIT_ACKNOWLEDGED","nav02_office_holder_revision_audit",
+               "nav02_officer_document_fetch_owner"):
+   self.assertIn(term,sql)
+  for term in ("scanQuarantineBytes(bytes)","ATTACHMENT_KEY","createCipheriv(\"aes-256-gcm\"",
+               "OFFICER_DOCUMENT_MALWARE_REJECTED","OFFICER_DOCUMENT_INTEGRITY_INVALID"):
+   self.assertIn(term,api)
+  for text in (post,archive):
+   self.assertIn("ORIGIN_REQUIRED",text)
+   self.assertIn("trustedBackendHeaders(req)",text)
+  self.assertIn('Content-Disposition',download)
+  self.assertIn('application/octet-stream',download)
+  self.assertIn("saveDocument(file,storedId)",OFFICER)
+  self.assertIn("downloadDocument(item.id,doc)",OFFICER)
+  self.assertIn("archiveTarget",OFFICER)
+
 if __name__=="__main__":unittest.main()
