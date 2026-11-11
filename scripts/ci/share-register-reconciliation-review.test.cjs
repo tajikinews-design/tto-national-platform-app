@@ -89,6 +89,13 @@ test("issued shares and treasury conservation must reconcile independently",()=>
  for(const [o,p,code] of pairs){const r=reviewOfficialRegisterReconciliation(o,p);
   assert.ok(r.blockers.includes(code),code);noLegalPromotion(r);}
 });
+test("different source entry reference blocks even for identical holdings",()=>{
+ const p=projection();p.positions[0]={...p.positions[0],sourceEntryRef:"TEST-DIFFERENT-OFFICIAL-ENTRY"};
+ const r=reviewOfficialRegisterReconciliation(official(),p);
+ assert.equal(r.status,"BLOCKED");
+ assert.ok(r.blockers.includes("ACCOUNT_SOURCE_ENTRY_REFERENCE_MISMATCH"));
+ noLegalPromotion(r);
+});
 test("missing or malformed source entries do not certify missing records",()=>{
  const r=reviewOfficialRegisterReconciliation({...official(),positions:[]},projection());
  assert.ok(r.blockers.includes("ACCOUNT_MISSING_FROM_SOURCE_OR_PROJECTION"));noLegalPromotion(r);
