@@ -15,7 +15,7 @@ export function OfficerMemberPicker({slug,value,initialLabel,onChange,disabled=f
  useEffect(()=>{
   if(!open||disabled)return;
   const q=query.trim();
-  if(q.length===1){setItems([]);setMore(false);return}
+  if(q.length===1){setItems([]);setMore(false);setLoading(false);setError("");return}
   const ctrl=new AbortController();
   const timer=window.setTimeout(()=>{
    setLoading(true);setError("");
@@ -54,7 +54,7 @@ export function OfficerMemberPicker({slug,value,initialLabel,onChange,disabled=f
     onChange={e=>{setQuery(e.target.value);setActive(0);if(value){onChange("","");setLabel("")}setOpen(true)}}
     onKeyDown={e=>{
      if(e.key==="Escape"){setOpen(false);return}
-     if(e.key==="ArrowDown"){e.preventDefault();setOpen(true);setActive(n=>Math.min(items.length-1,n+1))}
+     if(e.key==="ArrowDown"){e.preventDefault();setOpen(true);setActive(n=>Math.max(0,Math.min(items.length-1,n+1)))}
      if(e.key==="ArrowUp"){e.preventDefault();setActive(n=>Math.max(0,n-1))}
      if(e.key==="Enter"&&open&&items[active]){e.preventDefault();pick(items[active])}
     }}/>
