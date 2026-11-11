@@ -273,6 +273,15 @@ async function main(){
   if(process.env.CI!=="true"||process.env.VERCEL||process.env.APIIR_TOKEN||
      process.env.TEST_ADMIN_DATABASE_URL!=="postgresql://postgres@127.0.0.1:5432/tto")
    throw Error("PH12_POSITIVE_SYNTHETIC_ONLY");
+  // Separate safe status probe distinguishes a backend credential failure from
+  // Next/browser cookie transport. Never log credentials or returned token.
+  const direct=await post("/v1/national/root/login",undefined,
+    {username:"ci-national-root",password:"CI-National-Root-Synthetic-2026#",rememberDevice:false});
+  const directBody=await direct.json().catch(()=>({}));
+  if(direct.status!==200||directBody.nationalRoot!==true)
+    throw Error("PH12_NATIONAL_SYNTHETIC_BACKEND_LOGIN_STATUS_"+direct.status+
+       "_CODE_"+String(directBody.code||directBody.message||"UNKNOWN").slice(0,50).replace(/[^A-Z0-9_]/gi,""));
+  console.log("TTO_PH12_SYNTHETIC_NATIONAL_BACKEND_PASSWORD_PASS");
   await require("./ci/ph12-three-portal-positive-real-pg-browser.cjs").check();
  }
  const prepared=await status(await fetch(tariffGate,{headers:managerCookie,cache:"no-store"}),
