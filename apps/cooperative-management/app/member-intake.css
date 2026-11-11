@@ -355,3 +355,12 @@
 .tto-excel-review-panel small{font-size:11px;line-height:1.9;color:#72869a}
 @media(max-width:620px){.tto-excel-toolbar{width:100%;justify-content:flex-start}
  .tto-excel-review-mask{padding:10px}.tto-excel-review-panel{padding:14px}}
+
+/* Accessible, compact Shahkar action inside the mobile field (NAV02 2026-11-11). */
+.tto-nav02-field .tto-shahkar-inline{display:flex;align-items:stretch;gap:7px;min-width:0}
+.tto-nav02-field .tto-shahkar-inline>input{flex:1 1 auto;min-width:0;width:0}
+.tto-nav02-field .tto-shahkar-inline>.tto-shahkar-icon{flex:0 0 40px;width:40px;min-height:40px;height:44px;display:grid;place-items:center;border:1px solid #b6d8e8;border-radius:10px;background:#eaf5fc;color:#156b98;font-size:23px;font-weight:800;cursor:pointer;transition:background .2s,border-color .2s}
+.tto-nav02-field .tto-shahkar-inline>.tto-shahkar-icon:hover:not(:disabled){background:#d8effb;border-color:#6bb5d2}
+.tto-nav02-field .tto-shahkar-inline>.tto-shahkar-icon.is-verified{background:#e4f7ed;color:#167a4d;border-color:#8dd5ac}
+.tto-nav02-field .tto-shahkar-inline>.tto-shahkar-icon:disabled{opacity:.5;cursor:not-allowed}
+.tto-nav02-field .tto-shahkar-inline>.tto-shahkar-icon:focus-visible{outline:3px solid #459dd5;outline-offset:2px}
