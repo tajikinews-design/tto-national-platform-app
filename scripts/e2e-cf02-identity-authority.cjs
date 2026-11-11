@@ -69,6 +69,16 @@ async function fixture(){
  await db.query("INSERT INTO tto.identity_review_authorizations(user_id,tenant_id,approved_by,evidence_id,valid_until) VALUES($1,$2,$3,$4,now()+interval '2 hours')",
  [REVIEWER,A,APPROVER,DEC]);
  for(const uid of [USER,MANAGER,NATIONAL,REVIEWER,APPROVER,LEGAL])await issueSession(uid);
+ // Branch-scoped disposable PostgreSQL fixture only. This test identity is NOT
+ // a national authority bootstrap, real user, Vercel account or legal approval.
+ if(process.env.TTO_PH12_POSITIVE_BROWSER==="1"){
+  const syntheticRootPassword="CI-National-Root-Synthetic-2026#";
+  const salt=Buffer.alloc(16,0x53);
+  const hash=scryptSync(syntheticRootPassword,salt,64,{N:16384,r:8,p:1,maxmem:64*1024*1024});
+  const passwordHash="scrypt$v1$"+salt.toString("hex")+"$"+hash.toString("hex");
+  await db.query("INSERT INTO tto.national_root_accounts (singleton,user_id,username,password_scrypt,must_change_credentials,credentials_changed_at,credentials_version) VALUES(true,$1,'ci-national-root',$2,false,clock_timestamp(),1)",
+   [NATIONAL,passwordHash]);
+ }
  if(process.env.TTO_PH12_LEGAL_E2E==="1"){
   process.env.TTO_PH12_MOCK_ISSUER_LAB="1";
   const issuer=makeMockIssuer();mockIssuers.push(issuer);
@@ -91,7 +101,11 @@ async function fixture(){
    TTO_PH12_MOCK_ISSUER_LAB:process.env.TTO_PH12_LEGAL_E2E==="1"?"1":"0",
    TTO_PORTAL_PASSWORD_LOGIN_ENABLED:"true",TTO_SECURE_REAL_DATA_STAGING_ENABLED:"true",
    TTO_PORTAL_PASSWORD_ATTEMPT_SECRET:"CI-ONLY-LOCAL-DISPOSABLE-PG-NO-PROD-SECRET-12345",
-   TTO_LOOPBACK_E2E:"1",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa"};
+   TTO_LOOPBACK_E2E:"1",APIIR_TOKEN:"",TTO_MOCK_SMSOTP_PROVIDER:"true",AUTH_CHALLENGE_HMAC_SECRET:"ci-testing-secret-32chars-aaaaaaaaaaaaaa",
+   TTO_NATIONAL_ROOT_LOGIN_ENABLED:process.env.TTO_PH12_POSITIVE_BROWSER==="1"?"true":"false",
+   TTO_ISOLATED_DEMO_DB:process.env.TTO_PH12_POSITIVE_BROWSER==="1"?"true":"false",
+   TTO_NATIONAL_ROOT_ATTEMPT_SECRET:process.env.TTO_PH12_POSITIVE_BROWSER==="1"?"CI-ONLY-ISOLATED-NATIONAL-ROOT-ATTEMPT-SECRET-2026":""
+  };
  labApiEnv=apiEnv;
  await launch("Nest",["dist/main.js"],resolve(ROOT,"services/api"),apiEnv,API+"/ready");
 }
@@ -255,6 +269,12 @@ async function main(){
  await db.query("INSERT INTO tto.legal_authorities(authority_id,holder_id,tenant_id,scope,evidence_id,verified_by,verified_at,valid_until) VALUES($1,$2,$3,'ROLE_MANAGEMENT',$4,$5,now(),now()+interval '1 hour')",
  [auth,MANAGER,A,DEC,APPROVER]);
  assert.deepEqual(await options(cm,MANAGER),[{tenantId:A,displayName:"Test Cooperative A",evidenceStatus:"ROLE_AUTHORITY_EVIDENCE"}]);checks++;
+ if(process.env.TTO_PH12_POSITIVE_BROWSER==="1"){
+  if(process.env.CI!=="true"||process.env.VERCEL||process.env.APIIR_TOKEN||
+     process.env.TEST_ADMIN_DATABASE_URL!=="postgresql://postgres@127.0.0.1:5432/tto")
+   throw Error("PH12_POSITIVE_SYNTHETIC_ONLY");
+  await require("./ci/ph12-three-portal-positive-real-pg-browser.cjs").check();
+ }
  const prepared=await status(await fetch(tariffGate,{headers:managerCookie,cache:"no-store"}),
    200,"verified cooperative tariff draft readiness");
  ok(prepared.tenantContextVerified===true&&prepared.tenantId===A&&
