@@ -26,8 +26,12 @@ async function check(){
   for(const p of PORTALS){
    const origin=BASE_HOST+":"+p.port;
    const context=await browser.newContext({locale:"fa-IR",viewport:{width:1440,height:900},serviceWorkers:"block"});
-   const page=await context.newPage(),errors=[];
+   const page=await context.newPage(),errors=[],authStatus=[];
    page.on("pageerror",error=>errors.push(String(error).slice(0,80)));
+   page.on("response",response=>{
+    if(/\/api\/(national-login|auth\/password\/(login|session)|auth\/session)$/.test(new URL(response.url()).pathname))
+      authStatus.push({path:new URL(response.url()).pathname,status:response.status()});
+   });
    await page.route("**/*",async route=>{
     const url=route.request().url();
     if(url.startsWith(origin+"/")||url===origin)return route.continue();
@@ -48,7 +52,14 @@ async function check(){
     }else await submit.click();
     // Wait for the successful login navigation to finish before asserting the
     // cookie. A React-side replace() can race a second fetch on /login.
-    await page.waitForURL(url=>url.pathname===(p.surface==="cooperative"?"/c/ci-legal-a":"/"),{timeout:14000});
+    try{
+     await page.waitForURL(url=>url.pathname===(p.surface==="cooperative"?"/c/ci-legal-a":"/"),{timeout:14000});
+    }catch{
+     // Only normalized route/status codes; never record credentials or cookies.
+     console.error("TTO_PH12_POSITIVE_BROWSER_NAV_DIAGNOSTIC",
+      p.surface,JSON.stringify(authStatus.slice(-8)),new URL(page.url()).pathname);
+     throw Error("PH12_POSITIVE_BROWSER_AUTH_NAV_NOT_COMPLETED_"+p.surface);
+    }
     const sessionRoute=p.surface==="national"?"/api/auth/session":"/api/auth/password/session";
     await page.waitForFunction(async url=>{
       try{const r=await fetch(url,{credentials:"same-origin",cache:"no-store"});if(!r.ok)return false;
