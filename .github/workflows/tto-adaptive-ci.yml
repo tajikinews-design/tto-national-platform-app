@@ -108,6 +108,8 @@ jobs:
           pnpm build
           pnpm check
           node --test scripts/ci/nav02-xlsx-roundtrip.test.cjs
+          # Pure v3 market preflight regression; no DB mutation, ownership or payment.
+          node --test scripts/ci/share-market-v3-preflight.test.cjs
       - name: PH03 isolated three-portal Chromium keyboard RTL and contrast acceptance
         if: github.event_name == 'pull_request' && github.head_ref == 'feat/ph03-three-portal-secure-shells-20261102'
         env:
