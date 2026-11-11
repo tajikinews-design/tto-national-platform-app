@@ -2,7 +2,7 @@
 /** TTO v3 candidate pure preflight tests; deliberately NO live trade/API/DB writes. */
 const test=require("node:test");
 const assert=require("node:assert/strict");
-const {reviewSellerPreflight,reviewBuyerPreflight,reviewOfficialRegisterFinalization}
+const {reviewSellerPreflight,reviewBuyerPreflight,reviewOfficialRegisterFinalization,reviewRelistGuard}
   =require("../../services/api/dist/share-market-v3-preflight.js");
 
 const seller=()=>({
@@ -80,4 +80,51 @@ test("all nominal references still NEVER give finalization authorization",()=>{
 test("invalid or insufficient locked quantities block any transfer",()=>{
  const r=reviewOfficialRegisterFinalization({...register(),lockedShares:9n});
  assert.ok(r.blockers.includes("INSUFFICIENT_LOCKED_SHARES"));onlyReview(r);
+});
+
+const relist=()=>({
+ noUnresolvedPaymentClaim:true,noOpenDispute:true,noLegalHold:true,
+ reservationReleasedSafely:true,offerStillValid:true,pricingRuleValid:true,
+ sellerContinuationOrRelistPermissionValid:true,marketPolicyAllows:true
+});
+test("relist preflight with all eight verified guards is still not live authorization",()=>{
+ const result=reviewRelistGuard(relist());
+ assert.equal(result.prerequisitesSatisfied,true);
+ assert.deepEqual(result.blockers,[]);
+ onlyReview(result);
+});
+test("each of eight relist guards separately fails closed",()=>{
+ const guardToBlocker={
+  noUnresolvedPaymentClaim:"UNRESOLVED_PAYMENT_CLAIM",
+  noOpenDispute:"OPEN_DISPUTE_OR_UNKNOWN",
+  noLegalHold:"LEGAL_HOLD_OR_UNKNOWN",
+  reservationReleasedSafely:"RESERVATION_NOT_SAFELY_RELEASED",
+  offerStillValid:"OFFER_INVALID_OR_EXPIRED",
+  pricingRuleValid:"ACTIVE_PRICING_RULE_NOT_VALID",
+  sellerContinuationOrRelistPermissionValid:"SELLER_RELIST_PERMISSION_NOT_VALID",
+  marketPolicyAllows:"MARKET_RELIST_POLICY_NOT_VALID"
+ };
+ for(const [guard,blocker] of Object.entries(guardToBlocker)){
+  for(const missingValue of [false,undefined,null]){
+   const facts={...relist(),[guard]:missingValue};
+   const result=reviewRelistGuard(facts);
+   assert.equal(result.prerequisitesSatisfied,false,guard);
+   assert.ok(result.blockers.includes(blocker),guard);
+   onlyReview(result);
+  }
+ }
+});
+test("payment dispute plus unresolved claim never releases for relist",()=>{
+ const result=reviewRelistGuard({...relist(),noUnresolvedPaymentClaim:false,
+  noOpenDispute:false,reservationReleasedSafely:false});
+ assert.deepEqual(result.blockers,[
+  "UNRESOLVED_PAYMENT_CLAIM","OPEN_DISPUTE_OR_UNKNOWN","RESERVATION_NOT_SAFELY_RELEASED"
+ ]);
+ onlyReview(result);
+});
+test("omitted relist guard object is denied rather than assuming permission",()=>{
+ const result=reviewRelistGuard(undefined);
+ assert.equal(result.prerequisitesSatisfied,false);
+ assert.equal(result.blockers.length,8);
+ onlyReview(result);
 });
