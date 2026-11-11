@@ -105,7 +105,7 @@ BEGIN
    '2026-01-01','2027-01-01','',null,'','');
   RAISE EXCEPTION 'ARCHIVED_OFFICER_MUTABLE';
  EXCEPTION WHEN insufficient_privilege THEN NULL;END;
- IF (SELECT count(*) FROM tto.nav02_office_holder_revision_audit WHERE office_id=ra)<>1
+ IF jsonb_array_length(tto.nav02_office_holder_draft_history('ci-nav02a',ra))<>1
  THEN RAISE EXCEPTION 'ARCHIVE_REVISION_NOT_PRESERVED';END IF;
  PERFORM set_config('tto.actor_id','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',true);
  BEGIN
