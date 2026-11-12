@@ -30,8 +30,8 @@ class ThreePortalBoundary(unittest.TestCase):
         for app,surface in SURFACES.items():
             home=(APPS/app/"app/page.tsx").read_text(encoding="utf-8")
             if app == "national-admin":
-                # The national root uses a separately verified credential flow.
-                # Preserve independent server validation, forced rotation, and OTP deny.
+                # National-root OTP-only login must independently verify the
+                # authoritative DB-backed national-root session before cookie issuance.
                 self.assertIn('PortalSessionGate surface="national"',home)
                 national_login=(APPS/app/"app/login/page.tsx").read_text(encoding="utf-8")
                 self.assertIn("import NationalRootLogin",national_login)
@@ -46,17 +46,29 @@ class ThreePortalBoundary(unittest.TestCase):
                 root_login=(APPS/app/"app/national-root-login.tsx").read_text(encoding="utf-8")
                 self.assertIn('fetch("/api/auth/session"',root_login)
                 self.assertIn('x.authenticated===true&&x.nationalRoot===true',root_login)
-                self.assertIn('x.mustChangeCredentials===true',root_login)
+                self.assertIn('x.mustChangeCredentials===false',root_login)
                 self.assertIn('phase==="unavailable"',root_login)
-                self.assertIn('fetch("/api/national-login"',root_login)
+                self.assertIn('fetch("/api/auth/otp/request"',root_login)
+                self.assertIn('fetch("/api/auth/otp/verify"',root_login)
+                # Existing password BFF remains for legacy recovery compatibility,
+                # but the national login page no longer exposes password entry.
                 password_bff=(APPS/app/"app/api/national-login/route.ts").read_text(encoding="utf-8")
                 self.assertIn('ORIGIN_REQUIRED',password_bff)
                 self.assertIn('httpOnly:true',password_bff)
                 self.assertIn('"/v1/national/root/login"',password_bff)
-                for action in ("request","verify"):
-                    otp_bff=(APPS/app/f"app/api/auth/otp/{action}/route.ts").read_text(encoding="utf-8")
-                    self.assertIn('NATIONAL_ROOT_CREDENTIALS_ONLY',otp_bff)
-                    self.assertIn("status:403",otp_bff)
+                request_bff=(APPS/app/"app/api/auth/otp/request/route.ts").read_text(encoding="utf-8")
+                verify_bff=(APPS/app/"app/api/auth/otp/verify/route.ts").read_text(encoding="utf-8")
+                self.assertIn('TTO_NATIONAL_ROOT_OTP_LOGIN_ENABLED',request_bff)
+                self.assertIn('TTO_NATIONAL_ROOT_OTP_LOGIN_ENABLED',verify_bff)
+                self.assertIn('"/v1/auth/challenges/request"',request_bff)
+                self.assertIn('"/v1/auth/challenges/verify"',verify_bff)
+                self.assertIn('"/v1/national/root/session"',verify_bff)
+                self.assertIn('principal.nationalRoot!==true',verify_bff)
+                self.assertIn('principal.mustChangeCredentials!==false',verify_bff)
+                self.assertIn('httpOnly:true',verify_bff)
+                self.assertIn('secure:true',verify_bff)
+                self.assertNotIn('NATIONAL_ROOT_CREDENTIALS_ONLY',verify_bff)
+                self.assertNotIn('NATIONAL_ROOT_CREDENTIALS_ONLY',request_bff)
             else:
                 self.assertIn('PortalSessionGate surface="'+surface+'"',home)
                 login_page=(APPS/app/"app/login/page.tsx").read_text(encoding="utf-8")
