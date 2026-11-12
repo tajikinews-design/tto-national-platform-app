@@ -3,7 +3,7 @@ const test=require("node:test");
 const assert=require("node:assert/strict");
 const crypto=require("node:crypto");
 const path=require("node:path");
-const {KIND,PROJECT,publicTrustPayload,verifyTrustCertificate,fingerprint,sameKey}
+const {KIND,PROJECT,publicTrustPayload,authorityApprovalBytes,verifyTrustCertificate,fingerprint,sameKey}
  =require("../ops/national-root-recovery-trust-ceremony.cjs");
 const {safePrivatePath}=require("../ops/national-root-recovery-trust-register.cjs");
 const ROOT="a1111111-1111-4111-8111-111111111111";
@@ -22,10 +22,9 @@ function goodCert(){
   validFrom:new Date(NOW-60000).toISOString(),
   expiresAt:new Date(NOW+600000).toISOString(),
   ceremonyRef:"CI-CEREMONY-SYNTHETIC-20261112"};
- const bytes=publicTrustPayload(c);
  c.approvals=[
-  {role:"AUTHORITY_ONE",authorityUserId:GOV1,signature:crypto.sign(null,bytes,g1.privateKey).toString("base64")},
-  {role:"AUTHORITY_TWO",authorityUserId:GOV2,signature:crypto.sign(null,bytes,g2.privateKey).toString("base64")}
+  {role:"AUTHORITY_ONE",authorityUserId:GOV1,signature:crypto.sign(null,authorityApprovalBytes(c,"AUTHORITY_ONE",GOV1),g1.privateKey).toString("base64")},
+  {role:"AUTHORITY_TWO",authorityUserId:GOV2,signature:crypto.sign(null,authorityApprovalBytes(c,"AUTHORITY_TWO",GOV2),g2.privateKey).toString("base64")}
  ];
  return c;
 }
@@ -86,4 +85,13 @@ test("private trust registry path must be outside repository",()=>{
  assert.throws(()=>safePrivatePath("approved.json",cwd));
  assert.equal(safePrivatePath(path.join(path.dirname(cwd),"secure-external.json"),cwd),
   path.join(path.dirname(cwd),"secure-external.json"));
+});
+
+test("an independent authority's signed reviewer ID and role cannot be rewritten",()=>{
+ const c=goodCert();
+ c.approvals[0].authorityUserId="a5555555-5555-4555-8555-555555555555";
+ assert.equal(verdict(c).state,"HOLD");
+ const d=goodCert();
+ d.approvals[0].role="AUTHORITY_TWO";
+ assert.equal(verdict(d).state,"HOLD");
 });
