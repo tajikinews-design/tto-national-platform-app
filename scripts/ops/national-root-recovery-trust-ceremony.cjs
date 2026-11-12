@@ -34,6 +34,12 @@ function publicTrustPayload(cert){
   rootUserId,reviewerUserId,mandateRef,fingerprint(otpIssuerPublicKeyPem),
   fingerprint(reviewerPublicKeyPem),validFrom,expiresAt,ceremonyRef]),"utf8");
 }
+function authorityApprovalBytes(cert,role,authorityUserId){
+ if(!["AUTHORITY_ONE","AUTHORITY_TWO"].includes(role)||!UUID.test(authorityUserId))
+  throw Error("TRUST_APPROVER_IDENTITY_INVALID");
+ return Buffer.from(JSON.stringify(["TTO_PH12_AUTHORITY_SIGNED_APPROVAL_V1",
+  publicTrustPayload(cert).toString("base64"),role,authorityUserId]),"utf8");
+}
 function verifyTrustCertificate(cert,anchors,now=Date.now()){
  const fail=(reason)=>({state:"HOLD",reason});
  try{
@@ -53,7 +59,6 @@ function verifyTrustCertificate(cert,anchors,now=Date.now()){
     anchors.authorityOnePublicKeyPem,anchors.authorityTwoPublicKeyPem];
   if(keys.some((k,i)=>keys.some((other,j)=>i!==j&&sameKey(k,other))))
    return fail("FOUR_DISTINCT_KEYS_REQUIRED");
-  const payload=publicTrustPayload(cert);
   const labels=["AUTHORITY_ONE","AUTHORITY_TWO"];
   for(let i=0;i<2;i++){
    const approval=cert.approvals.find(p=>p&&p.role===labels[i]);
@@ -65,7 +70,7 @@ function verifyTrustCertificate(cert,anchors,now=Date.now()){
       !/^[A-Za-z0-9+/]{86}==$/.test(approval.signature))
     return fail("TRUST_AUTHORITY_SIGNATURE_OR_ID_MISSING");
    const signature=Buffer.from(approval.signature,"base64");
-   if(signature.length!==64||!verify(null,payload,key,signature))
+   if(signature.length!==64||!verify(null,authorityApprovalBytes(cert,labels[i],approval.authorityUserId),key,signature))
     return fail("TRUST_AUTHORITY_SIGNATURE_INVALID");
   }
   if(cert.approvals[0].authorityUserId===cert.approvals[1].authorityUserId)
@@ -77,4 +82,4 @@ function verifyTrustCertificate(cert,anchors,now=Date.now()){
   };
  }catch{return fail("TRUST_CERT_INVALID_OR_UNVERIFIABLE");}
 }
-module.exports={KIND,PROJECT,publicTrustPayload,verifyTrustCertificate,fingerprint,sameKey};
+module.exports={KIND,PROJECT,publicTrustPayload,authorityApprovalBytes,verifyTrustCertificate,fingerprint,sameKey};
