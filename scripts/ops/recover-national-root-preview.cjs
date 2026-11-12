@@ -14,6 +14,7 @@ const {createRequire}=require("node:module");
 const {resolve}=require("node:path");
 const {createNationalRootInitialScrypt}=require("./national-root-owner-credentials.cjs");
 const {signingBytes,verifyOwnerRecoveryEvidence}=require("./national-root-signed-recovery-evidence.cjs");
+const {secretValid,verifyConsumedOtpRecoveryBinding}=require("./national-root-recovery-db-proof-binding.cjs");
 const INPUT_LIMIT=9000;
 
 async function readPrivateInput(stream){
@@ -48,9 +49,11 @@ function assertEnvironment(env,argv){
     dbHost!=="db."+ref+".supabase.co"||
     env.TTO_PREVIEW_DB_SSL!=="required")
   throw Error("PREVIEW_DATABASE_HOST_TLS_OR_PROJECT_MISMATCH");
+ if(!secretValid(env.TTO_RECOVERY_IDENTITY_HMAC_SECRET))
+  throw Error("OTP_IDENTITY_BINDING_SECRET_MISSING");
  if(!env.TTO_RECOVERY_OTP_VERIFIER_PUBLIC_KEY_PEM||!env.TTO_RECOVERY_REVIEWER_PUBLIC_KEY_PEM)
   throw Error("INDEPENDENT_PINNED_RECOVERY_TRUST_MISSING");
- return {connectionString:raw,trust:{
+ return {connectionString:raw,identityHmacSecret:env.TTO_RECOVERY_IDENTITY_HMAC_SECRET,trust:{
   otpVerifierPublicKeyPem:env.TTO_RECOVERY_OTP_VERIFIER_PUBLIC_KEY_PEM,
   reviewerPublicKeyPem:env.TTO_RECOVERY_REVIEWER_PUBLIC_KEY_PEM
  }};
@@ -62,7 +65,7 @@ function digestReceipt(kind,receipt){
  * The OTP signed receipt must have been produced by an approved OTP service,
  * never by this CLI or by the requester. Database role is operator-only.
  */
-async function executeAtomicRecovery(db,input,trust,now=Date.now()){
+async function executeAtomicRecovery(db,input,trust,now=Date.now(),identityHmacSecret){
  const review=verifyOwnerRecoveryEvidence(input,trust,now);
  if(review.status!=="SIGNED_EVIDENCE_CHECKED_PREVIEW_ONLY")
   throw Error("RECOVERY_SIGNED_EVIDENCE_REJECTED");
@@ -78,6 +81,10 @@ async function executeAtomicRecovery(db,input,trust,now=Date.now()){
      roots.rows[0]?.user_id!==o.rootUserId||
      String(roots.rows[0]?.credentials_version)!==String(o.expectedVersion))
    throw Error("ROOT_ID_VERSION_OR_STATUS_CONFLICT");
+  // Verify the SAME consumed, delivered OTP proof against the authoritative
+  // Preview database while holding the root row lock. No external signed
+  // receipt may override a missing, stale, replayed or unrelated challenge.
+  await verifyConsumedOtpRecoveryBinding(db,o,identityHmacSecret);
   const reviewer=await db.query(
    "SELECT user_id FROM tto.user_accounts WHERE user_id=$1::uuid AND status='ACTIVE' FOR SHARE",
    [a.reviewerUserId]);
@@ -129,7 +136,7 @@ async function main(){
   const {Client}=createRequire(resolve(__dirname,"../../services/api/package.json"))("pg");
   db=new Client({connectionString:config.connectionString,ssl:{rejectUnauthorized:true}});
   await db.connect();
-  const result=await executeAtomicRecovery(db,input,config.trust);
+  const result=await executeAtomicRecovery(db,input,config.trust,Date.now(),config.identityHmacSecret);
   process.stdout.write(result.status+"\n");
  }catch{
   // Deliberately no DB errors, passwords, receipt details or stack traces.
