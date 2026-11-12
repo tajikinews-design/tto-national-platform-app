@@ -121,3 +121,67 @@ test("unapproved trust anchors, wrong root or reviewer mandate cannot be used in
    authorityOnePublicKeyPem:pem(g1),authorityTwoPublicKeyPem:pem(g2)},NOW).state,"HOLD");
  }finally{await fs.rm(folder,{recursive:true,force:true})}
 });
+
+test("complete private OTP intake passes only approved trust, existing root, hidden values and genuine-code verification",async()=>{
+ const folder=await fs.mkdtemp(path.join(os.tmpdir(),"tto-operator-private-"));
+ try{
+  const cert=certificate(),env={...certificateEnv(folder),
+   TTO_RECOVERY_OTP_ISSUER_PRIVATE_KEY_PEM:priv(issuer),
+   TTO_RECOVERY_OTP_CHALLENGE_SECRET:"ci-only-otp-challenge-secret-for-test-20261112",
+   TTO_RECOVERY_IDENTITY_HMAC_SECRET:"ci-only-private-identity-HMAC-for-test-20261112"};
+  await privateWrite(env.TTO_RECOVERY_PRIVATE_TRUST_PATH,cert);
+  let secretCode,requestRecord,deliveryAccepted=false,consumed=false;
+  const hash=(key,tag,val)=>crypto.createHmac("sha256",key).update(tag+":"+val).digest();
+  const queries=[];
+  const db={async query(sql,args=[]){
+   queries.push(sql);
+   if(sql.includes("FROM tto.national_root_accounts r")&&sql.includes("JOIN tto.user_accounts u"))
+    return {rowCount:1,rows:[{user_id:root,version:"4"}]};
+   if(sql.includes("begin_national_root_recovery_smsotp")){
+    requestRecord={challengeId:args[2],nonce:args[3],mobileHash:args[4],nationalHash:args[5],otpHash:args[6]};
+    return {rowCount:1,rows:[{created:true}]};
+   }
+   if(sql.includes("complete_smsotp_delivery")){
+    deliveryAccepted=args[1]===true;return {rowCount:1,rows:[{recorded:true}]};
+   }
+   if(sql.includes("consume_national_root_recovery_smsotp")){
+    const match=requestRecord&&deliveryAccepted&&!consumed&&
+     args[0]===requestRecord.challengeId&&
+     args[1].equals(requestRecord.otpHash)&&
+     args[2].equals(requestRecord.mobileHash)&&
+     args[3].equals(requestRecord.nationalHash);
+    if(!match)return {rowCount:0,rows:[]};
+    consumed=true;
+    return {rowCount:1,rows:[{
+     root_user_id:root,root_credentials_version:"4",
+     recovery_nonce:requestRecord.nonce,verified_at:new Date(NOW).toISOString()
+    }]};
+   }
+   throw Error("Unexpected SQL shape");
+  }};
+  let step=0;
+  const prompts=async()=>{
+   step++;
+   return step===1?national:step===2?mobile:secretCode;
+  };
+  const result=await runPrivateIntake(db,env,prompts,()=>NOW,async(m,code)=>{
+   assert.equal(m,mobile);
+   secretCode=code;
+   assert.match(code,/^[0-9]{6}$/);
+   return true;
+  });
+  assert.equal(result.status,"PH12_OWNER_REAL_SMSOTP_SIGNED_RECEIPT_PRIVATE_ONLY");
+  assert.equal(step,3);
+  assert.equal(consumed,true);
+  const receipt=JSON.parse(await fs.readFile(env.TTO_RECOVERY_PRIVATE_OTP_RECEIPT_PATH,"utf8"));
+  assert.equal(receipt.rootUserId,root);
+  assert.equal(receipt.nationalId,national);
+  assert.equal(receipt.mobile,mobile);
+  assert.equal(receipt.kind,kinds.otp);
+  assert.equal(crypto.verify(null,signingBytes("otp",receipt),issuer.publicKey,
+   Buffer.from(receipt.signature,"base64")),true);
+  assert.equal(queries.some(q=>/INSERT INTO tto.national_root_accounts|UPDATE tto.national_root_accounts|user_sessions/i.test(q)),false);
+  assert.equal(requestRecord.mobileHash.equals(hash(env.TTO_RECOVERY_IDENTITY_HMAC_SECRET,"mobile",mobile)),true);
+  assert.equal(requestRecord.nationalHash.equals(hash(env.TTO_RECOVERY_IDENTITY_HMAC_SECRET,"national",national)),true);
+ }finally{await fs.rm(folder,{recursive:true,force:true})}
+});
