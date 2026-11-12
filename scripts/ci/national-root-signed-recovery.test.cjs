@@ -22,6 +22,7 @@ function makeNationalId(firstNine){
  return firstNine+(r<2?r:11-r);
 }
 const ID=makeNationalId("001234567"),MOBILE="09120000001";
+const IDENTITY_SECRET="ci-otp-identity-HMAC-only-not-for-real-use-2026";
 function receipt(kind,data,key){
  return {...data,signature:sign(null,signingBytes(kind,data),key).toString("base64")};
 }
@@ -69,7 +70,7 @@ test("Preview operator requires exact approved Supabase host and refuses product
  const env={TTO_ISOLATED_DEMO_DB:"true",TTO_ENVIRONMENT:"preview",
   TTO_PREVIEW_NATIONAL_ROOT_RECOVERY:"operator-approved",TTO_PREVIEW_DATABASE_URL:"postgresql://operator@db.zkfwsgrgslxxlusxrwce.supabase.co:5432/postgres",
   TTO_PREVIEW_APPROVED_DB_HOST:"db.zkfwsgrgslxxlusxrwce.supabase.co",TTO_PREVIEW_DB_PROJECT_REF:"zkfwsgrgslxxlusxrwce",
-  TTO_PREVIEW_DB_SSL:"required",TTO_RECOVERY_OTP_VERIFIER_PUBLIC_KEY_PEM:trust.otpVerifierPublicKeyPem,
+  TTO_PREVIEW_DB_SSL:"required",TTO_RECOVERY_IDENTITY_HMAC_SECRET:IDENTITY_SECRET,TTO_RECOVERY_OTP_VERIFIER_PUBLIC_KEY_PEM:trust.otpVerifierPublicKeyPem,
   TTO_RECOVERY_REVIEWER_PUBLIC_KEY_PEM:trust.reviewerPublicKeyPem};
  assert.equal(assertEnvironment(env,["node","program","--apply"]).trust.otpVerifierPublicKeyPem,trust.otpVerifierPublicKeyPem);
  for(const patch of [{CI:"true"},{VERCEL:"1"},{TTO_ENVIRONMENT:"production"},{TTO_PREVIEW_DB_SSL:"disabled"},
@@ -77,13 +78,18 @@ test("Preview operator requires exact approved Supabase host and refuses product
   assert.throws(()=>assertEnvironment({...env,...patch},["node","program","--apply"]));
  }
 });
-function fakeDb({wrongRoot=false,claimedByAnother=false}={}){
+function fakeDb({wrongRoot=false,claimedByAnother=false,missingOtp=false,wrongTime=false}={}){
  const log=[];
  const db={log,async query(sql,args=[]){
   log.push({sql,argsCount:args.length});
   if(sql.startsWith("BEGIN")||sql==="COMMIT"||sql==="ROLLBACK")return {rowCount:0,rows:[]};
   if(sql.includes("FROM tto.national_root_accounts r JOIN"))
    return {rowCount:1,rows:[{user_id:wrongRoot?REVIEWER:ROOT,credentials_version:VERSION,status:"ACTIVE"}]};
+  if(sql.includes("FROM tto.national_root_recovery_smsotp_challenges c")){
+   if(missingOtp)return {rowCount:0,rows:[]};
+   return {rowCount:1,rows:[{root_user_id:ROOT,root_credentials_version:VERSION,
+    recovery_nonce:NONCE,verified_at:date(NOW-(wrongTime?45000:15000))}]};
+  }
   if(sql.includes("SELECT user_id FROM tto.user_accounts WHERE user_id"))
    return {rowCount:1,rows:[{user_id:REVIEWER}]};
   if(sql.includes("FROM tto.verified_mobile_identifiers"))
@@ -102,7 +108,7 @@ function fakeDb({wrongRoot=false,claimedByAnother=false}={}){
 }
 test("successful synthetic transaction rotates existing root and revokes every session with audit",async()=>{
  const db=fakeDb();
- const result=await executeAtomicRecovery(db,input(),trust,NOW);
+ const result=await executeAtomicRecovery(db,input(),trust,NOW,IDENTITY_SECRET);
  assert.equal(result.status,"ROOT_RECOVERED_PREVIEW_ONLY");
  assert.equal(result.rootUserIdPreserved,true);
  const sql=db.log.map(x=>x.sql);
@@ -114,19 +120,45 @@ test("successful synthetic transaction rotates existing root and revokes every s
 });
 test("wrong existing root aborts atomically before credential and mobile changes",async()=>{
  const db=fakeDb({wrongRoot:true});
- await assert.rejects(executeAtomicRecovery(db,input(),trust,NOW),/ROOT_ID_VERSION_OR_STATUS_CONFLICT/);
+ await assert.rejects(executeAtomicRecovery(db,input(),trust,NOW,IDENTITY_SECRET),/ROOT_ID_VERSION_OR_STATUS_CONFLICT/);
  const sql=db.log.map(x=>x.sql);
  assert.equal(sql.at(-1),"ROLLBACK");
  assert.equal(sql.some(x=>x.startsWith("UPDATE tto.national_root_accounts")),false);
 });
 test("mobile already claimed by another user cannot be seized; rollback preserves root",async()=>{
  const db=fakeDb({claimedByAnother:true});
- await assert.rejects(executeAtomicRecovery(db,input(),trust,NOW),/MOBILE_IS_LINKED_TO_ANOTHER_OR_REVOKED_USER/);
+ await assert.rejects(executeAtomicRecovery(db,input(),trust,NOW,IDENTITY_SECRET),/MOBILE_IS_LINKED_TO_ANOTHER_OR_REVOKED_USER/);
  assert.equal(db.log.at(-1).sql,"ROLLBACK");
  assert.equal(db.log.some(x=>x.sql.startsWith("UPDATE tto.national_root_accounts")),false);
 });
 test("invalid independent signature never begins a database transaction",async()=>{
  const db=fakeDb(),p=input();p.approval.signature=p.otp.signature;
- await assert.rejects(executeAtomicRecovery(db,p,trust,NOW),/RECOVERY_SIGNED_EVIDENCE_REJECTED/);
+ await assert.rejects(executeAtomicRecovery(db,p,trust,NOW,IDENTITY_SECRET),/RECOVERY_SIGNED_EVIDENCE_REJECTED/);
  assert.equal(db.log.length,0);
+});
+
+test("signed OTP with missing consumed DB challenge is blocked before credential changes",async()=>{
+ const db=fakeDb({missingOtp:true});
+ await assert.rejects(executeAtomicRecovery(db,input(),trust,NOW,IDENTITY_SECRET),
+  /SIGNED_OTP_NOT_CONSUMED_IN_CURRENT_ROOT_DATABASE/);
+ assert.equal(db.log.at(-1).sql,"ROLLBACK");
+ assert.equal(db.log.some(x=>x.sql.startsWith("UPDATE tto.national_root_accounts")),false);
+});
+test("signed OTP with different DB verification time cannot rotate an existing root",async()=>{
+ const db=fakeDb({wrongTime:true});
+ await assert.rejects(executeAtomicRecovery(db,input(),trust,NOW,IDENTITY_SECRET),
+  /SIGNED_OTP_DATABASE_VERIFICATION_TIME_MISMATCH/);
+ assert.equal(db.log.at(-1).sql,"ROLLBACK");
+ assert.equal(db.log.some(x=>x.sql.startsWith("INSERT INTO tto.verified_mobile_identifiers")),false);
+});
+test("identity-HMAC secret is mandatory for operator recovery",()=>{
+ const env={TTO_ISOLATED_DEMO_DB:"true",TTO_ENVIRONMENT:"preview",
+  TTO_PREVIEW_NATIONAL_ROOT_RECOVERY:"operator-approved",
+  TTO_PREVIEW_DATABASE_URL:"postgresql://operator@db.zkfwsgrgslxxlusxrwce.supabase.co:5432/postgres",
+  TTO_PREVIEW_APPROVED_DB_HOST:"db.zkfwsgrgslxxlusxrwce.supabase.co",
+  TTO_PREVIEW_DB_PROJECT_REF:"zkfwsgrgslxxlusxrwce",TTO_PREVIEW_DB_SSL:"required",
+  TTO_RECOVERY_OTP_VERIFIER_PUBLIC_KEY_PEM:trust.otpVerifierPublicKeyPem,
+  TTO_RECOVERY_REVIEWER_PUBLIC_KEY_PEM:trust.reviewerPublicKeyPem};
+ assert.throws(()=>assertEnvironment(env,["node","program","--apply"]),
+  /OTP_IDENTITY_BINDING_SECRET_MISSING/);
 });
