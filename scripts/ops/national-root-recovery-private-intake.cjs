@@ -66,7 +66,7 @@ async function getExistingRoot(db){
  if(result.rowCount!==1)throw Error("EXACTLY_ONE_ACTIVE_ROOT_REQUIRED");
  return {rootUserId:result.rows[0].user_id,expectedVersion:result.rows[0].version};
 }
-async function runPrivateIntake(db,env,identityPrompt=promptHiddenNumeric,now=()=>Date.now()){
+async function runPrivateIntake(db,env,identityPrompt=promptHiddenNumeric,now=()=>Date.now(),send=undefined){
  const certResult=await loadValidatedTrustCertificate(env.TTO_RECOVERY_PRIVATE_TRUST_PATH,env,now());
  const cert=certResult.cert;
  validateIssuerPrivateKeyMatchesCert(env,cert);
@@ -77,7 +77,7 @@ async function runPrivateIntake(db,env,identityPrompt=promptHiddenNumeric,now=()
  const mobile=await identityPrompt("شماره موبایل",11);
  if(!isNationalId(nationalId)||!isMobile(mobile))throw Error("IDENTITY_FORMAT_REJECTED");
  const bound={...root,nationalId,mobile,nonce:randomUUID()};
- const result=await requestOwnerRecoveryOtp(db,bound,env,undefined,now());
+ const result=await requestOwnerRecoveryOtp(db,bound,env,send,now());
  process.stdout.write("کد تأیید به سرویس پیامک ارسال شد؛ فقط کد دریافتی را وارد کنید.\n");
  const remaining=Math.max(0,Date.parse(result.expiresAt)-now());
  if(remaining<1000)throw Error("SMSOTP_ALREADY_EXPIRED");
