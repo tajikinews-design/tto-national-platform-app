@@ -96,13 +96,13 @@ function navHref(i: number, basePath = "") {
 }
 
 export function PortalShell({
-  surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, allowedModules, canManageSettings = false, settingsSection, memberSection, NavigationLink
-}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users"|"collections"|"member-number"|"officers";memberSection?:"add"|"shares"|"shareholders"|"list"|"archive"|"collections"|"profile";NavigationLink?:ComponentType<{href:string;children:ReactNode;className?:string;"aria-current"?: "page";"aria-label"?:string}>}) {
+  surface, children, activeId = "NAV-01", suppressStaticKpis = false, basePath = "", demoOnly = false, publicView = false, allowedModules, canManageSettings = false, settingsSection, memberSection, NavigationLink
+}: {surface:Surface;children?:ReactNode;activeId?:NavId;suppressStaticKpis?:boolean;basePath?:string;demoOnly?:boolean;publicView?:boolean;allowedModules?:string[];canManageSettings?:boolean;settingsSection?:"credentials"|"users"|"collections"|"member-number"|"officers";memberSection?:"add"|"shares"|"shareholders"|"list"|"archive"|"collections"|"profile";NavigationLink?:ComponentType<{href:string;children:ReactNode;className?:string;"aria-current"?: "page";"aria-label"?:string}>}) {
  const cfg=surfaces[surface],selection=Math.max(NAV_IDS.indexOf(activeId),0);
  const InternalLink=NavigationLink??"a";
  const home=selection===0,currentTitle=settingsSection==="credentials"?"تغییر نام کاربری و رمز عبور":
   settingsSection==="users"?"کاربران و سطح دسترسی":settingsSection==="officers"?"هیئت‌مدیره و صاحبان امضا":settingsSection==="collections"?"مدیریت مجموعه‌ها":settingsSection==="member-number"?"تنظیم شماره عضویت":memberSection==="add"?"ثبت عضو":memberSection==="shares"?"ثبت سهام":memberSection==="list"?"لیست اعضا":memberSection==="archive"?"بایگانی اعضا":memberSection==="collections"?"مجموعه‌ها":memberSection==="profile"?"پرونده عضویت":memberSection==="shareholders"?"سهامداران":home?cfg.title:cfg.navigation[selection];
- return <div className="shell tto-approved-shell" lang="fa" dir="rtl" data-tto-demo-only={demoOnly?"true":undefined}>
+ return <div className="shell tto-approved-shell" lang="fa" dir="rtl" data-tto-demo-only={demoOnly?"true":undefined} data-tto-public-view={publicView?"true":undefined}>
    <a className="skip-to-content" href="#main-content">رفتن به محتوای اصلی</a>
    <aside className="nav-area">
      <InternalLink className="logo" href={basePath||"/"} aria-label="پلتفرم ملی تعاونی توسعه و عمران"><span className="tto-brand-mark">❖</span><strong>پلتفرم ملی تعاونی توسعه و عمران</strong><span>شبکه هوشمند خدمات و راهبری تعاونی‌ها</span></InternalLink>
@@ -168,15 +168,15 @@ export function PortalShell({
         <span>{name}</span></InternalLink>;
       })}
      </nav>
-     <a className="tto-logout-link" href={basePath||"/login"}>ورود / خروج از حساب ↗</a>
+     {!publicView?<a className="tto-logout-link" href={basePath||"/login"}>ورود / خروج از حساب ↗</a>:null}
    </aside>
    <main className="main-content" id="main-content">
       <div className="topbar">
        <div className="tto-top-search"><span aria-hidden="true">⌕</span><span>جست‌وجوی پرونده‌ها، گزارش‌ها، خدمات و ...</span></div>
-       <div className="tto-top-meta"><span>اعلان‌ها ♧</span><strong>{demoOnly?"پیش‌نمایش مدیریت تعاونی":cfg.title}</strong></div>
+       <div className="tto-top-meta"><span>اعلان‌ها ♧</span><strong>{publicView?"نمای عمومی پلتفرم":demoOnly?"پیش‌نمایش مدیریت تعاونی":cfg.title}</strong></div>
       </div>
       {!home&&<nav className="breadcrumb" aria-label="مسیر صفحه"><InternalLink href={basePath||"/"}>داشبورد</InternalLink><span aria-hidden="true">‹</span><span aria-current="page">{currentTitle}</span></nav>}
-      {home?<ApprovedDashboardHome surface={surface} demoOnly={demoOnly}>{children}</ApprovedDashboardHome>:
+      {home?<ApprovedDashboardHome surface={surface} demoOnly={demoOnly} publicView={publicView}>{children}</ApprovedDashboardHome>:
       <>
        {!settingsSection&&!memberSection?<section className="hero"><h1>{currentTitle}</h1><p>{cfg.sectionDescriptions[selection]}</p></section>:null}
        <section className={(settingsSection||memberSection)?"panel tto-module-content tto-settings-module":"panel tto-module-content"}>
@@ -187,7 +187,7 @@ export function PortalShell({
          {!settingsSection&&!memberSection?<InternalLink className="return-link" href={basePath||"/"}>بازگشت به داشبورد</InternalLink>:null}
        </section>
       </>}
-      <footer>محیط آزمایش TTO · ثبت اطلاعات واقعی فقط با دسترسی مجاز و کنترل حفاظت داده · بدون ایجاد اثر حقوقی یا عملیات مالی</footer>
+      <footer>{publicView?"نمای عمومی پلتفرم ملی · بدون پرونده خصوصی، تغییر داده مدیریتی یا عملیات سهام":"محیط آزمایش TTO · ثبت اطلاعات واقعی فقط با دسترسی مجاز و کنترل حفاظت داده · بدون ایجاد اثر حقوقی یا عملیات مالی"}</footer>
    </main>
  </div>;
 }
