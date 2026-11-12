@@ -6,6 +6,8 @@ const path=require("node:path");
 const {KIND,PROJECT,publicTrustPayload,authorityApprovalBytes,verifyTrustCertificate,fingerprint,sameKey}
  =require("../ops/national-root-recovery-trust-ceremony.cjs");
 const {safePrivatePath}=require("../ops/national-root-recovery-trust-register.cjs");
+const {buildAuthorityApproval}=require("../ops/national-root-recovery-governance-sign.cjs");
+const {assembleApprovedTrustRegistry}=require("../ops/national-root-recovery-trust-assemble.cjs");
 const ROOT="a1111111-1111-4111-8111-111111111111";
 const REVIEWER="a2222222-2222-4222-8222-222222222222";
 const GOV1="a3333333-3333-4333-8333-333333333333";
@@ -94,4 +96,28 @@ test("an independent authority's signed reviewer ID and role cannot be rewritten
  const d=goodCert();
  d.approvals[0].role="AUTHORITY_TWO";
  assert.equal(verdict(d).state,"HOLD");
+});
+
+test("two separate pinned authority devices can sign and assemble a private public-key trust registration",async()=>{
+ const c=goodCert(),a=c.approvals[0],b=c.approvals[1];
+ c.approvals=[];
+ const one=buildAuthorityApproval(c,"AUTHORITY_ONE",GOV1,
+  g1.privateKey.export({format:"pem",type:"pkcs8"}),pem(g1));
+ const two=buildAuthorityApproval(c,"AUTHORITY_TWO",GOV2,
+  g2.privateKey.export({format:"pem",type:"pkcs8"}),pem(g2));
+ assert.deepEqual(one,a);
+ assert.deepEqual(two,b);
+ const approved=await assembleApprovedTrustRegistry(c,one,two,anchors,NOW);
+ assert.equal(approved.fingerprints.otpKeyFingerprint,fingerprint(pem(issuer)));
+ assert.equal(approved.cert.state,"VALIDATED_TRUST_CEREMONY_PREVIEW_ONLY");
+});
+test("one signer cannot sign as the other pinned independent authority",()=>{
+ const c=goodCert();c.approvals=[];
+ assert.throws(()=>buildAuthorityApproval(c,"AUTHORITY_TWO",GOV2,
+  g1.privateKey.export({format:"pem",type:"pkcs8"}),pem(g2)));
+});
+test("trust assembly rejects an unsigned candidate or one missing authority",async()=>{
+ const c=goodCert(),a=c.approvals[0],b=c.approvals[1];c.approvals=[];
+ await assert.rejects(assembleApprovedTrustRegistry(c,a,null,anchors,NOW));
+ await assert.rejects(assembleApprovedTrustRegistry({...c,approvals:[a]},a,b,anchors,NOW));
 });
